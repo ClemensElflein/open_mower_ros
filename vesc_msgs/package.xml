@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<package>
+  <name>vesc_msgs</name>
+  <version>0.0.1</version>
+  <description>
+    ROS message definitions for the Vedder VESC open source motor controller.
+  </description>
+
+  <maintainer email="boulet@ll.mit.edu">Michael T. Boulet</maintainer>
+  <author email="boulet@ll.mit.edu">Michael T. Boulet</author>
+  <license>BSD</license>
+
+  <url type="website">http://ros.org/wiki/vesc_msgs</url>
+  <url type="repository">https://github.mit.edu/racecar/vesc</url>
+  <url type="bugtracker">https://github.mit.edu/racecar/vesc/issues</url>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <build_depend>message_generation</build_depend>
+
+  <run_depend>message_runtime</run_depend>
+
+</package>

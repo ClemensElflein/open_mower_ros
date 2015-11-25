@@ -1,0 +1,5 @@
+<library path="lib/libvesc_driver_nodelet">
+  <class type="vesc_driver::VescDriverNodelet" base_class_type="nodelet::Nodelet">
+    <description>Vedder VESC motor controller interface nodelet.</description>
+  </class>
+</library>
