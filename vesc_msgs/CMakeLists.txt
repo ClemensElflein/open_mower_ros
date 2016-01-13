@@ -9,7 +9,7 @@ find_package(catkin REQUIRED COMPONENTS
 add_message_files(
   DIRECTORY msg
   FILES
-  VescTelemetry.msg
+  VescState.msg
 )
 generate_messages(
   DEPENDENCIES

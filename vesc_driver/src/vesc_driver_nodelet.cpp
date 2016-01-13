@@ -1,10 +1,9 @@
-#include <ros/ros.h>
-#include <pluginlib/class_list_macros.h>
-#include <nodelet/nodelet.h>
-
 #include <boost/shared_ptr.hpp>
+#include <nodelet/nodelet.h>
+#include <pluginlib/class_list_macros.h>
+#include <ros/ros.h>
 
-#include "vesc_driver.h"
+#include "vesc_driver/vesc_driver.h"
 
 namespace vesc_driver
 {

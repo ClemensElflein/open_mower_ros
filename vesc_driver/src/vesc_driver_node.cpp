@@ -1,6 +1,6 @@
 #include <ros/ros.h>
 
-#include "vesc_driver.h"
+#include "vesc_driver/vesc_driver.h"
 
 int main(int argc, char** argv)
 {

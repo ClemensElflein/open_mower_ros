@@ -5,12 +5,14 @@ find_package(catkin REQUIRED COMPONENTS
   nodelet
   pluginlib
   roscpp
+  std_msgs
   vesc_msgs
+  serial
 )
 
 catkin_package(
-# INCLUDE_DIRS include
-  CATKIN_DEPENDS nodelet pluginlib roscpp vesc_msgs
+  INCLUDE_DIRS include
+  CATKIN_DEPENDS nodelet pluginlib roscpp std_msgs vesc_msgs serial
 )
 
 ###########
@@ -18,18 +20,27 @@ catkin_package(
 ###########
 
 include_directories(
+  include
   ${Boost_INCLUDE_DIR}
   ${catkin_INCLUDE_DIRS}
 )
 
 # node executable
-add_executable(vesc_driver_node src/vesc_driver_node.cpp src/vesc_driver.cpp)
+add_executable(vesc_driver_node src/vesc_driver_node.cpp
+                                src/vesc_driver.cpp
+                                src/vesc_interface.cpp
+                                src/vesc_packet.cpp
+                                src/vesc_packet_factory.cpp)
 target_link_libraries(vesc_driver_node
   ${catkin_LIBRARIES}
 )
 
 # nodelet library
-add_library(vesc_driver_nodelet src/vesc_driver_nodelet.cpp src/vesc_driver.cpp)
+add_library(vesc_driver_nodelet src/vesc_driver_nodelet.cpp
+                                src/vesc_driver.cpp
+                                src/vesc_interface.cpp
+                                src/vesc_packet.cpp
+                                src/vesc_packet_factory.cpp)
 target_link_libraries(vesc_driver_nodelet
   ${catkin_LIBRARIES}
 )
