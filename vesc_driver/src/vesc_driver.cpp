@@ -41,7 +41,7 @@ VescDriver::VescDriver(ros::NodeHandle nh,
   }
 
   // create vesc state (telemetry) publisher
-  state_pub_ = nh.advertise<vesc_msgs::VescState>("sensors/core", 10);
+  state_pub_ = nh.advertise<vesc_msgs::VescStateStamped>("sensors/core", 10);
 
   // subscribe to motor and servo command topics
   duty_cycle_sub_ = nh.subscribe("commands/motor/duty_cycle", 10,
