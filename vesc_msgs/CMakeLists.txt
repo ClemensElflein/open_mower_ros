@@ -10,6 +10,7 @@ add_message_files(
   DIRECTORY msg
   FILES
   VescState.msg
+  VescStateStamped.msg
 )
 generate_messages(
   DEPENDENCIES

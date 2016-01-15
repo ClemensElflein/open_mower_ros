@@ -1,0 +1,8 @@
+<library path="lib/libvesc_ackermann_nodelet">
+  <class type="vesc_ackermann::AckermannToVescNodelet" base_class_type="nodelet::Nodelet">
+    <description>Nodelet for translating ackermann messages to VESC motor controller commands.</description>
+  </class>
+  <class type="vesc_ackermann::VescToOdomNodelet" base_class_type="nodelet::Nodelet">
+    <description>Nodelet for translating VESC motor controller state to odometry messages.</description>
+  </class>
+</library>

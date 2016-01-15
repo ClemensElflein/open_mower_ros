@@ -9,7 +9,6 @@ int32 FAULT_CODE_ABS_OVER_CURRENT=4
 int32 FAULT_CODE_OVER_TEMP_FET=5
 int32 FAULT_CODE_OVER_TEMP_MOTOR=6
 
-Header  header
 float64 voltage_input        # input voltage (volt)
 float64 temperature_pcb      # temperature of printed circuit board (degrees Celsius)
 float64 current_motor        # motor current (ampere)

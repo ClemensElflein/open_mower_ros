@@ -7,6 +7,7 @@
 
 #include <ros/ros.h>
 #include <std_msgs/Float64.h>
+#include <boost/optional.hpp>
 
 #include "vesc_driver/vesc_interface.h"
 #include "vesc_driver/vesc_packet.h"
@@ -26,6 +27,24 @@ private:
   VescInterface vesc_;
   void vescPacketCallback(const boost::shared_ptr<VescPacket const>& packet);
   void vescErrorCallback(const std::string& error);
+
+  // limits on VESC commands
+  struct CommandLimit
+  {
+    CommandLimit(const ros::NodeHandle& nh, const std::string& str,
+                 const boost::optional<double>& min_lower = boost::optional<double>(),
+                 const boost::optional<double>& max_upper = boost::optional<double>());
+    double clip(double value);
+    std::string name;
+    boost::optional<double> lower;
+    boost::optional<double> upper;
+  };
+  CommandLimit duty_cycle_limit_;
+  CommandLimit current_limit_;
+  CommandLimit brake_limit_;
+  CommandLimit speed_limit_;
+  CommandLimit position_limit_;
+  CommandLimit servo_limit_;
 
   // ROS services
   ros::Publisher state_pub_;
