@@ -75,6 +75,9 @@ void VescToOdom::vescStateCallback(const vesc_msgs::VescStateStamped::ConstPtr& 
   if (use_servo_cmd_)
     yaw_ += current_angular_velocity * dt.toSec();
 
+  // save state for next time
+  last_state_ = state;
+
   // publish odometry message
   nav_msgs::Odometry::Ptr odom(new nav_msgs::Odometry);
   odom->header.frame_id = odom_frame_;
@@ -83,17 +86,17 @@ void VescToOdom::vescStateCallback(const vesc_msgs::VescStateStamped::ConstPtr& 
 
   // Position
   odom->pose.pose.position.x = x_;
-  odom->pose.pose.position.x = y_;
+  odom->pose.pose.position.y = y_;
   odom->pose.pose.orientation.x = 0.0;
   odom->pose.pose.orientation.y = 0.0;
-  odom->pose.pose.orientation.z = sin(yaw_/2);
-  odom->pose.pose.orientation.w = cos(yaw_/2);
+  odom->pose.pose.orientation.z = sin(yaw_/2.0);
+  odom->pose.pose.orientation.w = cos(yaw_/2.0);
 
   // Position uncertainty
   /** @todo Think about position uncertainty, perhaps get from parameters? */
-  odom->pose.covariance[0]  = 0.1; ///< x
-  odom->pose.covariance[7]  = 0.1; ///< y
-  odom->pose.covariance[35] = 0.2; ///< yaw
+  odom->pose.covariance[0]  = 0.2; ///< x
+  odom->pose.covariance[7]  = 0.2; ///< y
+  odom->pose.covariance[35] = 0.4; ///< yaw
 
   // Velocity
   odom->twist.twist.linear.x = x_dot;

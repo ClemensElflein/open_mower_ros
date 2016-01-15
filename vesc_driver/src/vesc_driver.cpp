@@ -281,12 +281,12 @@ double VescDriver::CommandLimit::clip(double value)
   if (lower && value < lower) {
     ROS_INFO_THROTTLE(10, "%s command value (%f) below minimum limit (%f), clipping.",
                       name.c_str(), value, *lower);
-    value = *lower;
+    return *lower;
   }
   if (upper && value > upper) {
     ROS_INFO_THROTTLE(10, "%s command value (%f) above maximum limit (%f), clipping.",
                       name.c_str(), value, *upper);
-    value = *upper;
+    return *upper;
   }
 }
 
