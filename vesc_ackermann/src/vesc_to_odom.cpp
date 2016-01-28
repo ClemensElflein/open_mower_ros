@@ -4,7 +4,7 @@
 
 #include <cmath>
 
-#include "nav_msgs/Odometry.h"
+#include <nav_msgs/Odometry.h>
 
 namespace vesc_ackermann
 {
