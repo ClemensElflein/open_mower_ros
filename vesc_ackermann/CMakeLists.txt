@@ -29,21 +29,24 @@ include_directories(
 # node executable
 add_executable(vesc_to_odom_node src/vesc_to_odom_node.cpp
                                  src/vesc_to_odom.cpp)
+add_dependencies(vesc_to_odom_node ${catkin_EXPORTED_TARGETS})
 target_link_libraries(vesc_to_odom_node
   ${catkin_LIBRARIES}
 )
 
 add_executable(ackermann_to_vesc_node src/ackermann_to_vesc_node.cpp
-                                  src/ackermann_to_vesc.cpp)
+                                      src/ackermann_to_vesc.cpp)
+add_dependencies(ackermann_to_vesc_node ${catkin_EXPORTED_TARGETS})
 target_link_libraries(ackermann_to_vesc_node
   ${catkin_LIBRARIES}
 )
 
 # nodelet library
 add_library(vesc_ackermann_nodelet src/ackermann_to_vesc_nodelet.cpp
-                                 src/ackermann_to_vesc.cpp
-                                 src/vesc_to_odom_nodelet.cpp
-                                 src/vesc_to_odom.cpp)
+                                   src/ackermann_to_vesc.cpp
+                                   src/vesc_to_odom_nodelet.cpp
+                                   src/vesc_to_odom.cpp)
+add_dependencies(vesc_ackermann_nodelet ${catkin_EXPORTED_TARGETS})
 target_link_libraries(vesc_ackermann_nodelet
   ${catkin_LIBRARIES}
 )
