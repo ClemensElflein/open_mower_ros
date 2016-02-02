@@ -7,13 +7,24 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   nav_msgs
   std_msgs
+  geometry_msgs
+  tf
   ackermann_msgs
   vesc_msgs
 )
 
 catkin_package(
   INCLUDE_DIRS include
-  CATKIN_DEPENDS nodelet pluginlib roscpp nav_msgs std_msgs ackermann_msgs vesc_msgs
+  CATKIN_DEPENDS
+    nodelet
+    pluginlib
+    roscpp
+    nav_msgs
+    std_msgs
+    geometry_msgs
+    tf
+    ackermann_msgs
+    vesc_msgs
 )
 
 ###########

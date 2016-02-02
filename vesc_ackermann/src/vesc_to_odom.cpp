@@ -5,6 +5,7 @@
 #include <cmath>
 
 #include <nav_msgs/Odometry.h>
+#include <geometry_msgs/TransformStamped.h>
 
 namespace vesc_ackermann
 {
@@ -14,7 +15,7 @@ inline bool getRequiredParam(const ros::NodeHandle& nh, std::string name, T& val
 
 VescToOdom::VescToOdom(ros::NodeHandle nh, ros::NodeHandle private_nh) :
   odom_frame_("odom"), base_frame_("base_link"),
-  use_servo_cmd_(true), x_(0.0), y_(0.0), yaw_(0.0)
+  use_servo_cmd_(true), publish_tf_(false), x_(0.0), y_(0.0), yaw_(0.0)
 {
   // get ROS parameters
   private_nh.param("odom_frame", odom_frame_, odom_frame_);
@@ -32,9 +33,15 @@ VescToOdom::VescToOdom(ros::NodeHandle nh, ros::NodeHandle private_nh) :
     if (!getRequiredParam(nh, "wheelbase", wheelbase_))
       return;
   }
+  private_nh.param("publish_tf", publish_tf_, publish_tf_);
 
   // create odom publisher
   odom_pub_ = nh.advertise<nav_msgs::Odometry>("odom", 10);
+
+  // create tf broadcaster
+  if (publish_tf_) {
+    tf_pub_.reset(new tf::TransformBroadcaster);
+  }
 
   // subscribe to vesc state and. optionally, servo command
   vesc_state_sub_ = nh.subscribe("sensors/core", 10, &VescToOdom::vescStateCallback, this);
@@ -105,6 +112,20 @@ void VescToOdom::vescStateCallback(const vesc_msgs::VescStateStamped::ConstPtr& 
 
   // Velocity uncertainty
   /** @todo Think about velocity uncertainty */
+
+  if (publish_tf_) {
+    geometry_msgs::TransformStamped tf;
+    tf.header.frame_id = odom_frame_;
+    tf.child_frame_id = base_frame_;
+    tf.header.stamp = ros::Time::now();
+    tf.transform.translation.x = x_;
+    tf.transform.translation.y = y_;
+    tf.transform.translation.z = 0.0;
+    tf.transform.rotation = odom->pose.pose.orientation;
+    if (ros::ok()) {
+      tf_pub_->sendTransform(tf);
+    }
+  }
 
   if (ros::ok()) {
     odom_pub_.publish(odom);
