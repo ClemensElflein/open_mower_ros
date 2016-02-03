@@ -105,9 +105,9 @@ void VescToOdom::vescStateCallback(const vesc_msgs::VescStateStamped::ConstPtr& 
   odom->pose.covariance[7]  = 0.2; ///< y
   odom->pose.covariance[35] = 0.4; ///< yaw
 
-  // Velocity
-  odom->twist.twist.linear.x = x_dot;
-  odom->twist.twist.linear.y = y_dot;
+  // Velocity ("in the coordinate frame given by the child_frame_id")
+  odom->twist.twist.linear.x = current_speed;
+  odom->twist.twist.linear.y = 0.0;
   odom->twist.twist.angular.z = current_angular_velocity;
 
   // Velocity uncertainty
