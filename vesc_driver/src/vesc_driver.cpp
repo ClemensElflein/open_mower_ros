@@ -288,6 +288,7 @@ double VescDriver::CommandLimit::clip(double value)
                       name.c_str(), value, *upper);
     return *upper;
   }
+  return value;
 }
 
 
