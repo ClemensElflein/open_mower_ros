@@ -48,6 +48,7 @@ private:
 
   // ROS services
   ros::Publisher state_pub_;
+  ros::Publisher servo_sensor_pub_;
   ros::Subscriber duty_cycle_sub_;
   ros::Subscriber current_sub_;
   ros::Subscriber brake_sub_;

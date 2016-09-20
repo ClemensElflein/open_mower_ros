@@ -43,6 +43,10 @@ VescDriver::VescDriver(ros::NodeHandle nh,
   // create vesc state (telemetry) publisher
   state_pub_ = nh.advertise<vesc_msgs::VescStateStamped>("sensors/core", 10);
 
+  // since vesc state does not include the servo position, publish the commanded
+  // servo position as a "sensor"
+  servo_sensor_pub_ = nh.advertise<std_msgs::Float64>("sensors/servo_position_command", 10);
+
   // subscribe to motor and servo command topics
   duty_cycle_sub_ = nh.subscribe("commands/motor/duty_cycle", 10,
                                  &VescDriver::dutyCycleCallback, this);
@@ -209,7 +213,12 @@ void VescDriver::positionCallback(const std_msgs::Float64::ConstPtr& position)
 void VescDriver::servoCallback(const std_msgs::Float64::ConstPtr& servo)
 {
   if (driver_mode_ = MODE_OPERATING) {
-    vesc_.setServo(servo_limit_.clip(servo->data));
+    double servo_clipped(servo_limit_.clip(servo->data));
+    vesc_.setServo(servo_clipped);
+    // publish clipped servo value as a "sensor"
+    std_msgs::Float64::Ptr servo_sensor_msg(new std_msgs::Float64);
+    servo_sensor_msg->data = servo_clipped;
+    servo_sensor_pub_.publish(servo_sensor_msg);
   }
 }
 

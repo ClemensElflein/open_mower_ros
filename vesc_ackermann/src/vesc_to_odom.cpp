@@ -46,7 +46,8 @@ VescToOdom::VescToOdom(ros::NodeHandle nh, ros::NodeHandle private_nh) :
   // subscribe to vesc state and. optionally, servo command
   vesc_state_sub_ = nh.subscribe("sensors/core", 10, &VescToOdom::vescStateCallback, this);
   if (use_servo_cmd_) {
-    servo_sub_ = nh.subscribe("commands/servo/position", 10, &VescToOdom::servoCmdCallback, this);
+    servo_sub_ = nh.subscribe("sensors/servo_position_command", 10,
+                              &VescToOdom::servoCmdCallback, this);
   }
 }
 
