@@ -1,6 +1,7 @@
 <!-- -*- mode: XML -*- -->
 <launch>
 
+  <arg name="node_name" default="vesc_driver_nodelet" />
   <arg name="start_manager" default="true" />
   <arg name="manager" default="vesc_nodelet_manager" />
 
@@ -25,7 +26,7 @@
   </node>
 
   <!-- VESC driver nodelet -->
-  <node pkg="nodelet" type="nodelet" name="vesc_driver_nodelet"
+  <node pkg="nodelet" type="nodelet" name="$(arg node_name)"
         args="load vesc_driver::VescDriverNodelet $(arg manager)" >
     <param name="port" value="$(arg port)" />
   </node>    
