@@ -202,7 +202,7 @@ void VescDriver::positionCallback(const std_msgs::Float64::ConstPtr& position)
 {
   if (driver_mode_ = MODE_OPERATING) {
     // ROS uses radians but VESC seems to use degrees. Convert to degrees.
-    double position_deg = position_limit_.clip(position->data) * M_PI / 180.0;
+    double position_deg = position_limit_.clip(position->data) * 180.0 / M_PI;
     vesc_.setPosition(position_deg);
   }
 }
