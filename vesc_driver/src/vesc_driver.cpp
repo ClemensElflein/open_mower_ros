@@ -271,8 +271,8 @@ VescDriver::CommandLimit::CommandLimit(const ros::NodeHandle& nh, const std::str
 
   // check for min > max
   if (upper && lower && *lower > *upper) {
-    ROS_WARN_STREAM("Parameter " << name << "_max (" << upper
-                    << ") is less than parameter " << name << "_min (" << lower << ").");
+    ROS_WARN_STREAM("Parameter " << name << "_max (" << *upper
+                    << ") is less than parameter " << name << "_min (" << *lower << ").");
     double temp(*lower);
     lower = *upper;
     upper = temp;
