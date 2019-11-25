@@ -33,19 +33,7 @@
 * Corp. takes over development as new packages.
 *********************************************************************/
 
-#include "vesc_driver/vesc_interface.h"
-
-#include <pthread.h>
-
-#include <string>
-#include <sstream>
-#include <iostream>
-#include <iomanip>
-
-#include <serial/serial.h>
-#include <boost/crc.hpp>
-
-#include "vesc_driver/vesc_packet_factory.h"
+#include "vesc_interface.h"
 
 namespace vesc_driver {
 

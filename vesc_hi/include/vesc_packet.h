@@ -40,9 +40,16 @@
 #include <vector>
 #include <utility>
 #include <cstdint>
+#include <cassert>
+#include <iterator>
 
 #include <boost/crc.hpp>
 #include <boost/shared_ptr.hpp>
+#include <boost/range/begin.hpp>
+#include <boost/range/distance.hpp>
+#include <boost/range/end.hpp>
+
+#include "datatypes.h"
 
 namespace vesc_driver {
 

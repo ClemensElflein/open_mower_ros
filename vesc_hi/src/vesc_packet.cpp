@@ -33,17 +33,7 @@
 * Corp. takes over development as new packages.
 *********************************************************************/
 
-#include "vesc_driver/vesc_packet.h"
-
-#include <cassert>
-#include <iterator>
-
-#include <boost/range/begin.hpp>
-#include <boost/range/distance.hpp>
-#include <boost/range/end.hpp>
-
-#include "vesc_driver/vesc_packet_factory.h"
-#include "vesc_driver/datatypes.h"
+#include "vesc_packet.h"
 
 namespace vesc_driver {
 
@@ -124,8 +114,6 @@ int VescPacketFWVersion::fwMajor() const {
 int VescPacketFWVersion::fwMinor() const {
     return *(payload_.first + 2);
 }
-
-REGISTER_PACKET_TYPE(COMM_FW_VERSION, VescPacketFWVersion)
 
 VescPacketRequestFWVersion::VescPacketRequestFWVersion() : VescPacket("RequestFWVersion", 1, COMM_FW_VERSION) {
     VescFrame::CRC crc_calc;
@@ -242,8 +230,6 @@ double VescPacketValues::tachometer_abs() const {
 int VescPacketValues::fault_code() const {
     return static_cast<int32_t>(*(payload_.first + 53));
 }
-
-REGISTER_PACKET_TYPE(COMM_GET_VALUES, VescPacketValues)
 
 VescPacketRequestValues::VescPacketRequestValues() : VescPacket("RequestFWVersion", 1, COMM_GET_VALUES) {
     VescFrame::CRC crc_calc;

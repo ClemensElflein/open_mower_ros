@@ -38,15 +38,21 @@
 
 #include <string>
 #include <sstream>
+#include <iostream>
+#include <iomanip>
 #include <exception>
 #include <stdexcept>
 
+#include <pthread.h>
 #include <boost/function.hpp>
 #include <boost/noncopyable.hpp>
 #include <boost/scoped_ptr.hpp>
 #include <boost/shared_ptr.hpp>
+#include <boost/crc.hpp>
+#include <serial/serial.h>
 
-#include "vesc_driver/vesc_packet.h"
+#include "vesc_packet.h"
+#include "vesc_packet_factory.h"
 
 namespace vesc_driver {
 

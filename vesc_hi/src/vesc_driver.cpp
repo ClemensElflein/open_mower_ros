@@ -33,14 +33,7 @@
 * Corp. takes over development as new packages.
 *********************************************************************/
 
-#include "vesc_driver/vesc_driver.h"
-
-#include <cassert>
-#include <cmath>
-#include <sstream>
-
-#include <boost/bind.hpp>
-#include <vesc_msgs/VescStateStamped.h>
+#include "vesc_driver.h"
 
 namespace vesc_driver {
 

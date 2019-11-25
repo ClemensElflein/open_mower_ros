@@ -40,12 +40,17 @@
 #include <map>
 #include <string>
 #include <cstdint>
+#include <cassert>
+#include <iterator>
 
 #include <boost/noncopyable.hpp>
 #include <boost/function.hpp>
 #include <boost/shared_ptr.hpp>
+#include <boost/range/begin.hpp>
+#include <boost/range/distance.hpp>
+#include <boost/range/end.hpp>
 
-#include "vesc_driver/vesc_packet.h"
+#include "vesc_packet.h"
 
 namespace vesc_driver {
 

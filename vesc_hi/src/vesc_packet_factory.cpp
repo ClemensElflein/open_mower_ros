@@ -33,16 +33,7 @@
 * Corp. takes over development as new packages.
 *********************************************************************/
 
-#include "vesc_driver/vesc_packet_factory.h"
-
-#include <cassert>
-#include <iterator>
-
-#include <boost/range/begin.hpp>
-#include <boost/range/distance.hpp>
-#include <boost/range/end.hpp>
-
-#include "vesc_driver/vesc_packet.h"
+#include "vesc_packet_factory.h"
 
 namespace vesc_driver {
 
@@ -145,5 +136,8 @@ VescPacketPtr VescPacketFactory::createPacket(const Buffer::const_iterator& begi
         return createFailed(num_bytes_needed, what, "Frame does not have a payload");
     }
 }
+
+REGISTER_PACKET_TYPE(COMM_FW_VERSION, VescPacketFWVersion)
+REGISTER_PACKET_TYPE(COMM_GET_VALUES, VescPacketValues)
 
 }  // namesapce vesc_driver

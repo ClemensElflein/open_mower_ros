@@ -37,14 +37,19 @@
 #define VESC_DRIVER_VESC_DRIVER_H_
 
 #include <string>
+#include <cassert>
+#include <cmath>
+#include <sstream>
 
 #include <boost/optional.hpp>
+#include <boost/bind.hpp>
 
 #include <ros/ros.h>
 #include <std_msgs/Float64.h>
+#include <vesc_msgs/VescStateStamped.h>
 
-#include "vesc_driver/vesc_interface.h"
-#include "vesc_driver/vesc_packet.h"
+#include "vesc_interface.h"
+#include "vesc_packet.h"
 
 namespace vesc_driver {
 
