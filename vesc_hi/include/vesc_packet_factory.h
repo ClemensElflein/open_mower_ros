@@ -39,12 +39,12 @@
 #include <vector>
 #include <map>
 #include <string>
+#include <cstdint>
 
 #include <boost/noncopyable.hpp>
 #include <boost/function.hpp>
 #include <boost/shared_ptr.hpp>
 
-#include "vesc_driver/v8stdint.h"
 #include "vesc_driver/vesc_packet.h"
 
 namespace vesc_driver

@@ -39,11 +39,10 @@
 #include <string>
 #include <vector>
 #include <utility>
+#include <cstdint>
 
 #include <boost/crc.hpp>
 #include <boost/shared_ptr.hpp>
-
-#include "vesc_driver/v8stdint.h"
 
 namespace vesc_driver
 {
