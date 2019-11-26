@@ -51,8 +51,8 @@
 #include <boost/crc.hpp>
 #include <serial/serial.h>
 
-#include "vesc_packet.h"
-#include "vesc_packet_factory.h"
+#include "vesc_hi/vesc_packet.h"
+#include "vesc_hi/vesc_packet_factory.h"
 
 namespace vesc_driver {
 
@@ -141,7 +141,7 @@ class SerialException : public std::exception {
     std::string      e_what_;
 
 public:
-    SerialException(const char* description) {
+    explicit SerialException(const char* description) {
         std::stringstream ss;
         ss << "SerialException " << description << " failed.";
         e_what_ = ss.str();

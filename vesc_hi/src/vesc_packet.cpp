@@ -33,11 +33,15 @@
 * Corp. takes over development as new packages.
 *********************************************************************/
 
-#include "vesc_packet.h"
+#include "vesc_hi/vesc_packet.h"
 
 namespace vesc_driver {
 
-VescFrame::VescFrame(int payload_size) {
+/**
+ * @brief Constructor
+ * @param payload_size Specified payload size
+ **/
+VescFrame::VescFrame(const int16_t payload_size) {
     assert(payload_size >= 0 && payload_size <= 1024);
 
     if(payload_size < 256) {
@@ -55,13 +59,18 @@ VescFrame::VescFrame(int payload_size) {
         payload_.first         = frame_->begin() + 3;
     }
 
-    payload_.second      = payload_.first + payload_size;
+    payload_.second      = payload_.first + payload_size - 1;
     *(frame_->end() - 1) = 3;
 }
 
+/**
+ * @brief Constructor
+ * @param frame Reference of a buffer with constant range
+ * @param payload_size Specified payload size
+ **/
 VescFrame::VescFrame(const BufferRangeConst& frame, const BufferRangeConst& payload) {
-    /* VescPacketFactory::createPacket() should make sure that the input is valid, but run a few cheap
-       checks anyway */
+    /* VescPacketFactory::createPacket() should make sure that
+     *  the input is valid, but run a few cheap checks anyway */
     assert(boost::distance(frame) >= VESC_MIN_FRAME_SIZE);
     assert(boost::distance(frame) <= VESC_MAX_FRAME_SIZE);
     assert(boost::distance(payload) <= VESC_MAX_PAYLOAD_SIZE);
@@ -72,49 +81,59 @@ VescFrame::VescFrame(const BufferRangeConst& frame, const BufferRangeConst& payl
     payload_.second = frame_->begin() + std::distance(frame.first, payload.second);
 }
 
-VescPacket::VescPacket(const std::string& name, int payload_size, int payload_id)
+/*------------------------------------------------------------------*/
+
+/**
+ * @brief Constructor
+ * @param name Packet name
+ * @param payload_size Specified payload size
+ * @param payload_id ID of payload
+ **/
+VescPacket::VescPacket(const std::string& name, const int16_t payload_size, const int16_t payload_id)
     : VescFrame(payload_size), name_(name) {
     assert(payload_id >= 0 && payload_id < 256);
     assert(boost::distance(payload_) > 0);
     *payload_.first = payload_id;
 }
 
+/**
+ * @brief Constructor
+ * @param name Packet name
+ * @param raw Pointer of a frame
+ **/
 VescPacket::VescPacket(const std::string& name, boost::shared_ptr<VescFrame> raw) : VescFrame(*raw), name_(name) {
 }
 
-/*------------------------------------------------------------------------------------------------*/
-/*
-VescPacketRotorPosition::VescPacketRotorPosition(boost::shared_ptr<VescFrame> raw) :
-  VescPacket("RotorPosition", raw)
-{
-}
+/*------------------------------------------------------------------*/
 
-float VescPacketRotorPosition::position() const
-{
-  int32_t value = 0;
-  value |= *(payload_.first + 1) << 24;
-  value |= *(payload_.first + 2) << 16;
-  value |= *(payload_.first + 3) << 8;
-  value |= *(payload_.first + 4);
-
-  return value / 100000.0;
-}
-
-REGISTER_PACKET_TYPE(COMM_ROTOR_POSITION, VescPacketRotorPosition)
-*/
-/*------------------------------------------------------------------------------------------------*/
-
+/**
+ * @brief Constructor
+ * @param raw Pointer of VescFrame
+ **/
 VescPacketFWVersion::VescPacketFWVersion(boost::shared_ptr<VescFrame> raw) : VescPacket("FWVersion", raw) {
 }
 
-int VescPacketFWVersion::fwMajor() const {
+/**
+ * @brief Gets major farmware version
+ * @return Major farmware version
+ **/
+int16_t VescPacketFWVersion::fwMajor() const {
     return *(payload_.first + 1);
 }
 
-int VescPacketFWVersion::fwMinor() const {
+/**
+ * @brief Gets minor farmware version
+ * @return Minor farmware version
+ **/
+int16_t VescPacketFWVersion::fwMinor() const {
     return *(payload_.first + 2);
 }
 
+/*------------------------------------------------------------------*/
+
+/**
+ * @brief Constructor
+ **/
 VescPacketRequestFWVersion::VescPacketRequestFWVersion() : VescPacket("RequestFWVersion", 1, COMM_FW_VERSION) {
     VescFrame::CRC crc_calc;
     crc_calc.process_bytes(&(*payload_.first), boost::distance(payload_));
@@ -123,7 +142,7 @@ VescPacketRequestFWVersion::VescPacketRequestFWVersion() : VescPacket("RequestFW
     *(frame_->end() - 2) = static_cast<uint8_t>(crc & 0xFF);
 }
 
-/*------------------------------------------------------------------------------------------------*/
+/*------------------------------------------------------------------*/
 
 VescPacketValues::VescPacketValues(boost::shared_ptr<VescFrame> raw) : VescPacket("Values", raw) {
 }
@@ -239,7 +258,7 @@ VescPacketRequestValues::VescPacketRequestValues() : VescPacket("RequestFWVersio
     *(frame_->end() - 2) = static_cast<uint8_t>(crc & 0xFF);
 }
 
-/*------------------------------------------------------------------------------------------------*/
+/*------------------------------------------------------------------*/
 
 VescPacketSetDuty::VescPacketSetDuty(double duty) : VescPacket("SetDuty", 5, COMM_SET_DUTY) {
     /** @todo range check duty */
@@ -258,7 +277,7 @@ VescPacketSetDuty::VescPacketSetDuty(double duty) : VescPacket("SetDuty", 5, COM
     *(frame_->end() - 2) = static_cast<uint8_t>(crc & 0xFF);
 }
 
-/*------------------------------------------------------------------------------------------------*/
+/*------------------------------------------------------------------*/
 
 VescPacketSetCurrent::VescPacketSetCurrent(double current) : VescPacket("SetCurrent", 5, COMM_SET_CURRENT) {
     int32_t v = static_cast<int32_t>(current * 1000.0);
@@ -275,7 +294,7 @@ VescPacketSetCurrent::VescPacketSetCurrent(double current) : VescPacket("SetCurr
     *(frame_->end() - 2) = static_cast<uint8_t>(crc & 0xFF);
 }
 
-/*------------------------------------------------------------------------------------------------*/
+/*------------------------------------------------------------------*/
 
 VescPacketSetCurrentBrake::VescPacketSetCurrentBrake(double current_brake)
     : VescPacket("SetCurrentBrake", 5, COMM_SET_CURRENT_BRAKE) {
@@ -293,7 +312,7 @@ VescPacketSetCurrentBrake::VescPacketSetCurrentBrake(double current_brake)
     *(frame_->end() - 2) = static_cast<uint8_t>(crc & 0xFF);
 }
 
-/*------------------------------------------------------------------------------------------------*/
+/*------------------------------------------------------------------*/
 
 VescPacketSetRPM::VescPacketSetRPM(double rpm) : VescPacket("SetRPM", 5, COMM_SET_RPM) {
     int32_t v = static_cast<int32_t>(rpm);
@@ -310,7 +329,7 @@ VescPacketSetRPM::VescPacketSetRPM(double rpm) : VescPacket("SetRPM", 5, COMM_SE
     *(frame_->end() - 2) = static_cast<uint8_t>(crc & 0xFF);
 }
 
-/*------------------------------------------------------------------------------------------------*/
+/*------------------------------------------------------------------*/
 
 VescPacketSetPos::VescPacketSetPos(double pos) : VescPacket("SetPos", 5, COMM_SET_POS) {
     /** @todo range check pos */
@@ -329,7 +348,7 @@ VescPacketSetPos::VescPacketSetPos(double pos) : VescPacket("SetPos", 5, COMM_SE
     *(frame_->end() - 2) = static_cast<uint8_t>(crc & 0xFF);
 }
 
-/*------------------------------------------------------------------------------------------------*/
+/*------------------------------------------------------------------*/
 
 VescPacketSetServoPos::VescPacketSetServoPos(double servo_pos) : VescPacket("SetServoPos", 3, COMM_SET_SERVO_POS) {
     /** @todo range check pos */
@@ -346,7 +365,7 @@ VescPacketSetServoPos::VescPacketSetServoPos(double servo_pos) : VescPacket("Set
     *(frame_->end() - 2) = static_cast<uint8_t>(crc & 0xFF);
 }
 
-/*------------------------------------------------------------------------------------------------*/
+/*------------------------------------------------------------------*/
 /*
 VescPacketSetDetect::VescPacketSetDetect(uint8_t mode) :
   VescPacket("SetDetect", 3, COMM_SET_DETECT)
@@ -360,5 +379,4 @@ VescPacketSetDetect::VescPacketSetDetect(uint8_t mode) :
   *(frame_->end() - 2) = static_cast<uint8_t>(crc & 0xFF);
 }
 */
-}
-// namespace vesc_driver
+}  // namespace vesc_driver

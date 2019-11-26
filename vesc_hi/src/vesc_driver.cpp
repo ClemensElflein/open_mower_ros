@@ -129,7 +129,7 @@ void VescDriver::timerCallback(const ros::TimerEvent& event) {
 }
 
 void VescDriver::vescPacketCallback(const boost::shared_ptr<VescPacket const>& packet) {
-    if(packet->name() == "Values") {
+    if(packet->getName() == "Values") {
         boost::shared_ptr<VescPacketValues const> values = boost::dynamic_pointer_cast<VescPacketValues const>(packet);
 
         vesc_msgs::VescStateStamped::Ptr state_msg(new vesc_msgs::VescStateStamped);
@@ -149,7 +149,7 @@ void VescDriver::vescPacketCallback(const boost::shared_ptr<VescPacket const>& p
         state_msg->state.fault_code        = values->fault_code();
 
         state_pub_.publish(state_msg);
-    } else if(packet->name() == "FWVersion") {
+    } else if(packet->getName() == "FWVersion") {
         boost::shared_ptr<VescPacketFWVersion const> fw_version =
             boost::dynamic_pointer_cast<VescPacketFWVersion const>(packet);
         // todo: might need lock here

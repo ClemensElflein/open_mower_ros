@@ -48,8 +48,8 @@
 #include <std_msgs/Float64.h>
 #include <vesc_msgs/VescStateStamped.h>
 
-#include "vesc_interface.h"
-#include "vesc_packet.h"
+#include "vesc_hi/vesc_interface.h"
+#include "vesc_hi/vesc_packet.h"
 
 namespace vesc_driver {
 

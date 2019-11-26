@@ -86,7 +86,7 @@ void* VescInterface::Impl::rxThread(void) {
                         // call packet handler
                         packet_handler_(packet);
                         // update state
-                        iter       = iter + packet->frame().size();
+                        iter       = iter + packet->getFrame().size();
                         iter_begin = iter;
                         // continue to look for another frame in buffer
                         continue;
@@ -189,10 +189,10 @@ bool VescInterface::isConnected() const {
 }
 
 void VescInterface::send(const VescPacket& packet) {
-    size_t written = impl_->serial_.write(packet.frame());
-    if(written != packet.frame().size()) {
+    size_t written = impl_->serial_.write(packet.getFrame());
+    if(written != packet.getFrame().size()) {
         std::stringstream ss;
-        ss << "Wrote " << written << " bytes, expected " << packet.frame().size() << ".";
+        ss << "Wrote " << written << " bytes, expected " << packet.getFrame().size() << ".";
         throw SerialException(ss.str().c_str());
     }
 }
