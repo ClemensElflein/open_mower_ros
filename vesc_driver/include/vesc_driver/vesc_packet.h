@@ -92,8 +92,8 @@ public:
 protected:
     explicit VescFrame(const int16_t payload_size);
 
-    Buffer frame_;    // Stores frame data, shared_ptr for shallow copy
-    BufferRange               payload_;  // View into frame's payload section
+    Buffer      frame_;    // Stores frame data, shared_ptr for shallow copy
+    BufferRange payload_;  // View into frame's payload section
 
 private:
     VescFrame(const BufferRangeConst& frame, const BufferRangeConst& payload);
@@ -158,11 +158,36 @@ public:
 
 /*------------------------------------------------------------------*/
 
+/**
+ * @brief Map of return packets
+ **/
+enum PACKET_MAP {
+    TEMP_MOS1          = 1,
+    TEMP_MOS2          = 3,
+    TEMP_MOS3          = 5,
+    TEMP_MOS4          = 7,
+    TEMP_MOS5          = 9,
+    TEMP_MOS6          = 11,
+    CURRENT_MOTOR      = 13,
+    CURRENT_IN         = 17,
+    DUTY_NOW           = 21,
+    RPM                = 23,
+    VOLTAGE_IN         = 27,
+    AMP_HOURS          = 29,
+    AMP_HOURS_CHARGED  = 33,
+    WATT_HOURS         = 37,
+    WATT_HOURS_CHARGED = 41,
+    TACHOMETER         = 45,
+    TACHOMETER_ABS     = 49,
+};
+
+/**
+ * @brief Get values in return packets
+ **/
 class VescPacketValues : public VescPacket {
 public:
     explicit VescPacketValues(boost::shared_ptr<VescFrame> raw);
 
-    double v_in() const;
     double temp_mos1() const;
     double temp_mos2() const;
     double temp_mos3() const;
@@ -173,6 +198,7 @@ public:
     double current_motor() const;
     double current_in() const;
     double rpm() const;
+    double v_in() const;
     double duty_now() const;
     double amp_hours() const;
     double amp_hours_charged() const;
@@ -181,7 +207,12 @@ public:
     double tachometer() const;
     double tachometer_abs() const;
     int    fault_code() const;
+
+private:
+    double readBuffer(const uint8_t, const uint8_t) const;
 };
+
+/*------------------------------------------------------------------*/
 
 class VescPacketRequestValues : public VescPacket {
 public:
