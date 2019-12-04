@@ -73,7 +73,7 @@ public:
      * @return Reference of the frame
      **/
     virtual const Buffer& getFrame() const {
-        return *frame_;
+        return frame_;
     }
 
     /* packet properties */
@@ -92,7 +92,7 @@ public:
 protected:
     explicit VescFrame(const int16_t payload_size);
 
-    boost::shared_ptr<Buffer> frame_;    // Stores frame data, shared_ptr for shallow copy
+    Buffer frame_;    // Stores frame data, shared_ptr for shallow copy
     BufferRange               payload_;  // View into frame's payload section
 
 private:
