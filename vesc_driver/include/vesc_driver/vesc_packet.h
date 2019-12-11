@@ -149,7 +149,7 @@ public:
 /*------------------------------------------------------------------*/
 
 /**
- * @brief Request farmware version
+ * @brief Requests farmware version
  **/
 class VescPacketRequestFWVersion : public VescPacket {
 public:
@@ -162,14 +162,12 @@ public:
  * @brief Map of return packets
  **/
 enum PACKET_MAP {
-    TEMP_MOS1          = 1,
-    TEMP_MOS2          = 3,
-    TEMP_MOS3          = 5,
-    TEMP_MOS4          = 7,
-    TEMP_MOS5          = 9,
-    TEMP_MOS6          = 11,
-    CURRENT_MOTOR      = 13,
-    CURRENT_IN         = 17,
+    TEMP_MOS           = 1,
+    TEMP_MOTOR         = 3,
+    CURRENT_MOTOR      = 5,
+    CURRENT_IN         = 9,
+    ID                 = 13,
+    IQ                 = 17,
     DUTY_NOW           = 21,
     RPM                = 23,
     VOLTAGE_IN         = 27,
@@ -179,22 +177,18 @@ enum PACKET_MAP {
     WATT_HOURS_CHARGED = 41,
     TACHOMETER         = 45,
     TACHOMETER_ABS     = 49,
+    FAULT_CODE         = 53,
 };
 
 /**
- * @brief Get values in return packets
+ * @brief Gets values in return packets
  **/
 class VescPacketValues : public VescPacket {
 public:
     explicit VescPacketValues(boost::shared_ptr<VescFrame> raw);
 
-    double temp_mos1() const;
-    double temp_mos2() const;
-    double temp_mos3() const;
-    double temp_mos4() const;
-    double temp_mos5() const;
-    double temp_mos6() const;
-    double temp_pcb() const;
+    double temp_mos() const;
+    double temp_motor() const;
     double current_motor() const;
     double current_in() const;
     double rpm() const;

@@ -135,7 +135,7 @@ void VescDriver::vescPacketCallback(const boost::shared_ptr<VescPacket const>& p
         vesc_msgs::VescStateStamped::Ptr state_msg(new vesc_msgs::VescStateStamped);
         state_msg->header.stamp            = ros::Time::now();
         state_msg->state.voltage_input     = values->v_in();
-        state_msg->state.temperature_pcb   = values->temp_pcb();
+        state_msg->state.temperature_pcb   = values->temp_motor();
         state_msg->state.current_motor     = values->current_motor();
         state_msg->state.current_input     = values->current_in();
         state_msg->state.speed             = values->rpm();

@@ -148,34 +148,12 @@ VescPacketRequestFWVersion::VescPacketRequestFWVersion() : VescPacket("RequestFW
 VescPacketValues::VescPacketValues(boost::shared_ptr<VescFrame> raw) : VescPacket("Values", raw) {
 }
 
-double VescPacketValues::temp_mos1() const {
-    return readBuffer(TEMP_MOS1, 2) / 10.0;
+double VescPacketValues::temp_mos() const {
+    return readBuffer(TEMP_MOS, 2) / 10.0;
 }
 
-double VescPacketValues::temp_mos2() const {
-    return readBuffer(TEMP_MOS2, 2) / 10.0;
-}
-
-double VescPacketValues::temp_mos3() const {
-    return readBuffer(TEMP_MOS3, 2) / 10.0;
-}
-
-double VescPacketValues::temp_mos4() const {
-    return readBuffer(TEMP_MOS4, 2) / 10.0;
-}
-
-double VescPacketValues::temp_mos5() const {
-    return readBuffer(TEMP_MOS5, 2) / 10.0;
-}
-
-double VescPacketValues::temp_mos6() const {
-    return readBuffer(TEMP_MOS6, 2) / 10.0;
-}
-
-double VescPacketValues::temp_pcb() const {
-    int16_t v = static_cast<int16_t>((static_cast<uint16_t>(*(payload_.first + 1)) << 8) +
-                                     static_cast<uint16_t>(*(payload_.first + 2)));
-    return static_cast<double>(v) / 10.0;
+double VescPacketValues::temp_motor() const {
+    return readBuffer(TEMP_MOTOR, 2) / 10.0;
 }
 
 double VescPacketValues::current_motor() const {
@@ -223,7 +201,7 @@ double VescPacketValues::tachometer_abs() const {
 }
 
 int VescPacketValues::fault_code() const {
-    return static_cast<int32_t>(*(payload_.first + 53));
+    return static_cast<int32_t>(*(payload_.first + FAULT_CODE));
 }
 
 double VescPacketValues::readBuffer(const uint8_t map_id, const uint8_t size) const {
