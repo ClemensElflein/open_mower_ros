@@ -93,7 +93,7 @@ protected:
     explicit VescFrame(const int16_t payload_size);
 
     Buffer frame_;
-    // Stores frame data, shared_ptr for shallow copy
+    // Stores frame data
 
     BufferRange payload_end_;
     // View into frame's payload section
@@ -213,6 +213,9 @@ private:
 
 /*------------------------------------------------------------------*/
 
+/**
+ * @brief Packet for requesting retrun packets
+ **/
 class VescPacketRequestValues : public VescPacket {
 public:
     VescPacketRequestValues();
@@ -220,6 +223,9 @@ public:
 
 /*------------------------------------------------------------------*/
 
+/**
+ * @brief Packet for setting duty
+ **/
 class VescPacketSetDuty : public VescPacket {
 public:
     explicit VescPacketSetDuty(double duty);
@@ -227,6 +233,9 @@ public:
 
 /*------------------------------------------------------------------*/
 
+/**
+ * @brief Packet for setting reference current
+ **/
 class VescPacketSetCurrent : public VescPacket {
 public:
     explicit VescPacketSetCurrent(double current);
@@ -234,6 +243,9 @@ public:
 
 /*------------------------------------------------------------------*/
 
+/**
+ * @brief Packet for setting current brake
+ **/
 class VescPacketSetCurrentBrake : public VescPacket {
 public:
     explicit VescPacketSetCurrentBrake(double current_brake);
@@ -241,6 +253,10 @@ public:
 
 /*------------------------------------------------------------------*/
 
+
+/**
+ * @brief Packet for setting reference angular velocity
+ **/
 class VescPacketSetRPM : public VescPacket {
 public:
     explicit VescPacketSetRPM(double rpm);
@@ -248,6 +264,9 @@ public:
 
 /*------------------------------------------------------------------*/
 
+/**
+ * @brief Packet for setting a reference position
+ **/
 class VescPacketSetPos : public VescPacket {
 public:
     explicit VescPacketSetPos(double pos);
@@ -255,6 +274,9 @@ public:
 
 /*------------------------------------------------------------------*/
 
+/**
+ * @brief Packet for setting a servo position
+ **/
 class VescPacketSetServoPos : public VescPacket {
 public:
     explicit VescPacketSetServoPos(double servo_pos);

@@ -289,6 +289,9 @@ double VescPacketValues::readBuffer(const uint8_t map_id, const uint8_t size) co
 
 /*------------------------------------------------------------------*/
 
+/**
+ * @brief Constructor
+ **/
 VescPacketRequestValues::VescPacketRequestValues() : VescPacket("RequestFWVersion", 1, COMM_GET_VALUES) {
     VescFrame::CRC crc_calc;
     crc_calc.process_bytes(&(*payload_end_.first), boost::distance(payload_end_));
@@ -299,6 +302,9 @@ VescPacketRequestValues::VescPacketRequestValues() : VescPacket("RequestFWVersio
 
 /*------------------------------------------------------------------*/
 
+/**
+ * @brief Constructor
+ **/
 VescPacketSetDuty::VescPacketSetDuty(double duty) : VescPacket("SetDuty", 5, COMM_SET_DUTY) {
     // checks the range of duty
     if(duty > 1.0) {
@@ -323,6 +329,9 @@ VescPacketSetDuty::VescPacketSetDuty(double duty) : VescPacket("SetDuty", 5, COM
 
 /*------------------------------------------------------------------*/
 
+/**
+ * @brief Constructor
+ **/
 VescPacketSetCurrent::VescPacketSetCurrent(double current) : VescPacket("SetCurrent", 5, COMM_SET_CURRENT) {
     uint32_t v = static_cast<uint32_t>(current * 1000.0);
 
@@ -340,6 +349,9 @@ VescPacketSetCurrent::VescPacketSetCurrent(double current) : VescPacket("SetCurr
 
 /*------------------------------------------------------------------*/
 
+/**
+ * @brief Constructor
+ **/
 VescPacketSetCurrentBrake::VescPacketSetCurrentBrake(double current_brake)
     : VescPacket("SetCurrentBrake", 5, COMM_SET_CURRENT_BRAKE) {
     uint32_t v = static_cast<uint32_t>(current_brake * 1000.0);
@@ -358,6 +370,9 @@ VescPacketSetCurrentBrake::VescPacketSetCurrentBrake(double current_brake)
 
 /*------------------------------------------------------------------*/
 
+/**
+ * @brief Constructor
+ **/
 VescPacketSetRPM::VescPacketSetRPM(double rpm) : VescPacket("SetRPM", 5, COMM_SET_RPM) {
     uint32_t v = static_cast<uint32_t>(rpm);
 
@@ -375,6 +390,9 @@ VescPacketSetRPM::VescPacketSetRPM(double rpm) : VescPacket("SetRPM", 5, COMM_SE
 
 /*------------------------------------------------------------------*/
 
+/**
+ * @brief Constructor
+ **/
 VescPacketSetPos::VescPacketSetPos(double pos) : VescPacket("SetPos", 5, COMM_SET_POS) {
     /** @todo range check pos */
 
@@ -394,6 +412,9 @@ VescPacketSetPos::VescPacketSetPos(double pos) : VescPacket("SetPos", 5, COMM_SE
 
 /*------------------------------------------------------------------*/
 
+/**
+ * @brief Constructor
+ **/
 VescPacketSetServoPos::VescPacketSetServoPos(double servo_pos) : VescPacket("SetServoPos", 3, COMM_SET_SERVO_POS) {
     /** @todo range check pos */
 
