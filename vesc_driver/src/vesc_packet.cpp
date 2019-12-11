@@ -177,19 +177,19 @@ double VescPacketValues::v_in() const {
 }
 
 double VescPacketValues::amp_hours() const {
-    return readBuffer(AMP_HOURS, 4);
+    return readBuffer(AMP_HOURS, 4) / 10000.0;
 }
 
 double VescPacketValues::amp_hours_charged() const {
-    return readBuffer(AMP_HOURS_CHARGED, 4);
+    return readBuffer(AMP_HOURS_CHARGED, 4) / 10000.0;
 }
 
 double VescPacketValues::watt_hours() const {
-    return readBuffer(WATT_HOURS, 4);
+    return readBuffer(WATT_HOURS, 4) / 10000.0;
 }
 
 double VescPacketValues::watt_hours_charged() const {
-    return readBuffer(WATT_HOURS, 4);
+    return readBuffer(WATT_HOURS, 4) / 10000.0;
 }
 
 double VescPacketValues::tachometer() const {
