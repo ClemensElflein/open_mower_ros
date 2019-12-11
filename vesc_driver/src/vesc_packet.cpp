@@ -145,65 +145,130 @@ VescPacketRequestFWVersion::VescPacketRequestFWVersion() : VescPacket("RequestFW
 
 /*------------------------------------------------------------------*/
 
+/**
+ * @brief Constructor
+ **/
 VescPacketValues::VescPacketValues(boost::shared_ptr<VescFrame> raw) : VescPacket("Values", raw) {
 }
 
+/**
+ * @brief Gets temperature of MOSFETs
+ * @return Temperature of MOSFETs
+ **/
 double VescPacketValues::temp_mos() const {
     return readBuffer(TEMP_MOS, 2) / 10.0;
 }
 
+/**
+ * @brief Gets temperature of the motor
+ * @return Temperature of the motor
+ **/
 double VescPacketValues::temp_motor() const {
     return readBuffer(TEMP_MOTOR, 2) / 10.0;
 }
 
+/**
+ * @brief Gets motor current
+ * @return Motor current
+ **/
 double VescPacketValues::current_motor() const {
     return readBuffer(CURRENT_MOTOR, 4) / 100.0;
 }
 
+/**
+ * @brief Gets input current
+ * @return Input current
+ **/
 double VescPacketValues::current_in() const {
     return readBuffer(CURRENT_IN, 4) / 100.0;
 }
 
+/**
+ * @brief Gets the current duty value
+ * @return The current duty value
+ **/
 double VescPacketValues::duty_now() const {
     return readBuffer(DUTY_NOW, 2) / 1000.0;
 }
 
+/**
+ * @brief Gets the current angular velocity
+ * @return The current angular velocity
+ **/
 double VescPacketValues::rpm() const {
     return readBuffer(RPM, 4);
 }
 
+/**
+ * @brief Gets input voltage
+ * @return Input voltage
+ **/
 double VescPacketValues::v_in() const {
     return readBuffer(VOLTAGE_IN, 2) / 10.0;
 }
 
+/**
+ * @brief Gets consumed charge
+ * @return Consumed charge
+ **/
 double VescPacketValues::amp_hours() const {
     return readBuffer(AMP_HOURS, 4) / 10000.0;
 }
 
+/**
+ * @brief Gets input charge
+ * @return Input charge
+ **/
 double VescPacketValues::amp_hours_charged() const {
     return readBuffer(AMP_HOURS_CHARGED, 4) / 10000.0;
 }
 
+/**
+ * @brief Gets consumed power
+ * @return Consumed power
+ **/
 double VescPacketValues::watt_hours() const {
     return readBuffer(WATT_HOURS, 4) / 10000.0;
 }
 
+/**
+ * @brief Gets input power
+ * @return Input power
+ **/
 double VescPacketValues::watt_hours_charged() const {
     return readBuffer(WATT_HOURS, 4) / 10000.0;
 }
 
+/**
+ * @brief Gets the current position
+ * @return The current position
+ **/
 double VescPacketValues::tachometer() const {
     return readBuffer(TACHOMETER, 4);
 }
 
+/**
+ * @brief Gets absolute displacement
+ * @return Absolute displacement
+ **/
 double VescPacketValues::tachometer_abs() const {
     return readBuffer(TACHOMETER_ABS, 4);
 }
 
+/**
+ * @brief Gets fault code
+ * @return Fault code
+ **/
 int VescPacketValues::fault_code() const {
     return static_cast<int32_t>(*(payload_.first + FAULT_CODE));
 }
 
+/**
+ * @brief Reads a value from the buffer
+ * @param map_id start address to read
+ * @param size the number of bytes to read
+ * @return Required value
+ **/
 double VescPacketValues::readBuffer(const uint8_t map_id, const uint8_t size) const {
     int32_t value = 0;
     switch(size) {
