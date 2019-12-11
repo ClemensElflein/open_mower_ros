@@ -223,8 +223,6 @@ public:
 class VescPacketSetDuty : public VescPacket {
 public:
     explicit VescPacketSetDuty(double duty);
-
-    //  double duty() const;
 };
 
 /*------------------------------------------------------------------*/
@@ -232,8 +230,6 @@ public:
 class VescPacketSetCurrent : public VescPacket {
 public:
     explicit VescPacketSetCurrent(double current);
-
-    //  double current() const;
 };
 
 /*------------------------------------------------------------------*/
@@ -241,8 +237,6 @@ public:
 class VescPacketSetCurrentBrake : public VescPacket {
 public:
     explicit VescPacketSetCurrentBrake(double current_brake);
-
-    //  double current_brake() const;
 };
 
 /*------------------------------------------------------------------*/
@@ -250,8 +244,6 @@ public:
 class VescPacketSetRPM : public VescPacket {
 public:
     explicit VescPacketSetRPM(double rpm);
-
-    //  double rpm() const;
 };
 
 /*------------------------------------------------------------------*/
@@ -259,8 +251,6 @@ public:
 class VescPacketSetPos : public VescPacket {
 public:
     explicit VescPacketSetPos(double pos);
-
-    //  double pos() const;
 };
 
 /*------------------------------------------------------------------*/
@@ -268,8 +258,6 @@ public:
 class VescPacketSetServoPos : public VescPacket {
 public:
     explicit VescPacketSetServoPos(double servo_pos);
-
-    //  double servo_pos() const;
 };
 
 }  // namespace vesc_driver
