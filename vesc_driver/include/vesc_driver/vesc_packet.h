@@ -73,7 +73,7 @@ public:
      * @return Reference of the frame
      **/
     virtual const Buffer& getFrame() const {
-        return *frame_;
+        return frame_;
     }
 
     /* packet properties */
@@ -92,8 +92,13 @@ public:
 protected:
     explicit VescFrame(const int16_t payload_size);
 
-    boost::shared_ptr<Buffer> frame_;    // Stores frame data, shared_ptr for shallow copy
-    BufferRange               payload_;  // View into frame's payload section
+    Buffer frame_;
+    // Stores frame data, shared_ptr for shallow copy
+
+    BufferRange payload_end_;
+    // View into frame's payload section
+    // .first:  iterator which points the front of payload (in `frame_`/)
+    // .second: iterator which points the tail of payload (in `frame_`)
 
 private:
     VescFrame(const BufferRangeConst& frame, const BufferRangeConst& payload);
@@ -149,7 +154,7 @@ public:
 /*------------------------------------------------------------------*/
 
 /**
- * @brief Request farmware version
+ * @brief Requests farmware version
  **/
 class VescPacketRequestFWVersion : public VescPacket {
 public:
@@ -158,21 +163,41 @@ public:
 
 /*------------------------------------------------------------------*/
 
+/**
+ * @brief Map of return packets
+ **/
+enum PACKET_MAP {
+    TEMP_MOS           = 1,
+    TEMP_MOTOR         = 3,
+    CURRENT_MOTOR      = 5,
+    CURRENT_IN         = 9,
+    ID                 = 13,
+    IQ                 = 17,
+    DUTY_NOW           = 21,
+    RPM                = 23,
+    VOLTAGE_IN         = 27,
+    AMP_HOURS          = 29,
+    AMP_HOURS_CHARGED  = 33,
+    WATT_HOURS         = 37,
+    WATT_HOURS_CHARGED = 41,
+    TACHOMETER         = 45,
+    TACHOMETER_ABS     = 49,
+    FAULT_CODE         = 53,
+};
+
+/**
+ * @brief Gets values in return packets
+ **/
 class VescPacketValues : public VescPacket {
 public:
     explicit VescPacketValues(boost::shared_ptr<VescFrame> raw);
 
-    double v_in() const;
-    double temp_mos1() const;
-    double temp_mos2() const;
-    double temp_mos3() const;
-    double temp_mos4() const;
-    double temp_mos5() const;
-    double temp_mos6() const;
-    double temp_pcb() const;
+    double temp_mos() const;
+    double temp_motor() const;
     double current_motor() const;
     double current_in() const;
     double rpm() const;
+    double v_in() const;
     double duty_now() const;
     double amp_hours() const;
     double amp_hours_charged() const;
@@ -181,7 +206,12 @@ public:
     double tachometer() const;
     double tachometer_abs() const;
     int    fault_code() const;
+
+private:
+    double readBuffer(const uint8_t, const uint8_t) const;
 };
+
+/*------------------------------------------------------------------*/
 
 class VescPacketRequestValues : public VescPacket {
 public:
