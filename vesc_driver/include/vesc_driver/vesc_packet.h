@@ -92,8 +92,13 @@ public:
 protected:
     explicit VescFrame(const int16_t payload_size);
 
-    Buffer      frame_;    // Stores frame data, shared_ptr for shallow copy
-    BufferRange payload_;  // View into frame's payload section
+    Buffer frame_;
+    // Stores frame data, shared_ptr for shallow copy
+
+    BufferRange payload_end_;
+    // View into frame's payload section
+    // .first:  iterator which points the front of payload (in `frame_`/)
+    // .second: iterator which points the tail of payload (in `frame_`)
 
 private:
     VescFrame(const BufferRangeConst& frame, const BufferRangeConst& payload);
