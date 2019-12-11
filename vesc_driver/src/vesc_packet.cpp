@@ -59,7 +59,7 @@ VescFrame::VescFrame(const int16_t payload_size) {
         payload_.first        = frame_.begin() + 3;
     }
 
-    payload_.second     = payload_.first + payload_size - 1;
+    payload_.second     = payload_.first + payload_size;
     *(frame_.end() - 1) = 3;
 }
 
