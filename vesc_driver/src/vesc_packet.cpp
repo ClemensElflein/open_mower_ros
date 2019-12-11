@@ -302,12 +302,12 @@ VescPacketRequestValues::VescPacketRequestValues() : VescPacket("RequestFWVersio
 VescPacketSetDuty::VescPacketSetDuty(double duty) : VescPacket("SetDuty", 5, COMM_SET_DUTY) {
     /** @todo range check duty */
 
-    int32_t v = static_cast<int32_t>(duty * 100000.0);
+    uint32_t v = static_cast<uint32_t>(duty * 100000.0);
 
-    *(payload_end_.first + 1) = static_cast<uint8_t>((static_cast<uint32_t>(v) >> 24) & 0xFF);
-    *(payload_end_.first + 2) = static_cast<uint8_t>((static_cast<uint32_t>(v) >> 16) & 0xFF);
-    *(payload_end_.first + 3) = static_cast<uint8_t>((static_cast<uint32_t>(v) >> 8) & 0xFF);
-    *(payload_end_.first + 4) = static_cast<uint8_t>(static_cast<uint32_t>(v) & 0xFF);
+    *(payload_end_.first + 1) = static_cast<uint8_t>((v >> 24) & 0xFF);
+    *(payload_end_.first + 2) = static_cast<uint8_t>((v >> 16) & 0xFF);
+    *(payload_end_.first + 3) = static_cast<uint8_t>((v >> 8) & 0xFF);
+    *(payload_end_.first + 4) = static_cast<uint8_t>(v & 0xFF);
 
     VescFrame::CRC crc_calc;
     crc_calc.process_bytes(&(*payload_end_.first), boost::distance(payload_end_));
@@ -319,12 +319,12 @@ VescPacketSetDuty::VescPacketSetDuty(double duty) : VescPacket("SetDuty", 5, COM
 /*------------------------------------------------------------------*/
 
 VescPacketSetCurrent::VescPacketSetCurrent(double current) : VescPacket("SetCurrent", 5, COMM_SET_CURRENT) {
-    int32_t v = static_cast<int32_t>(current * 1000.0);
+    uint32_t v = static_cast<uint32_t>(current * 1000.0);
 
-    *(payload_end_.first + 1) = static_cast<uint8_t>((static_cast<uint32_t>(v) >> 24) & 0xFF);
-    *(payload_end_.first + 2) = static_cast<uint8_t>((static_cast<uint32_t>(v) >> 16) & 0xFF);
-    *(payload_end_.first + 3) = static_cast<uint8_t>((static_cast<uint32_t>(v) >> 8) & 0xFF);
-    *(payload_end_.first + 4) = static_cast<uint8_t>(static_cast<uint32_t>(v) & 0xFF);
+    *(payload_end_.first + 1) = static_cast<uint8_t>((v >> 24) & 0xFF);
+    *(payload_end_.first + 2) = static_cast<uint8_t>((v >> 16) & 0xFF);
+    *(payload_end_.first + 3) = static_cast<uint8_t>((v >> 8) & 0xFF);
+    *(payload_end_.first + 4) = static_cast<uint8_t>(v & 0xFF);
 
     VescFrame::CRC crc_calc;
     crc_calc.process_bytes(&(*payload_end_.first), boost::distance(payload_end_));
@@ -337,12 +337,12 @@ VescPacketSetCurrent::VescPacketSetCurrent(double current) : VescPacket("SetCurr
 
 VescPacketSetCurrentBrake::VescPacketSetCurrentBrake(double current_brake)
     : VescPacket("SetCurrentBrake", 5, COMM_SET_CURRENT_BRAKE) {
-    int32_t v = static_cast<int32_t>(current_brake * 1000.0);
+    uint32_t v = static_cast<uint32_t>(current_brake * 1000.0);
 
-    *(payload_end_.first + 1) = static_cast<uint8_t>((static_cast<uint32_t>(v) >> 24) & 0xFF);
-    *(payload_end_.first + 2) = static_cast<uint8_t>((static_cast<uint32_t>(v) >> 16) & 0xFF);
-    *(payload_end_.first + 3) = static_cast<uint8_t>((static_cast<uint32_t>(v) >> 8) & 0xFF);
-    *(payload_end_.first + 4) = static_cast<uint8_t>(static_cast<uint32_t>(v) & 0xFF);
+    *(payload_end_.first + 1) = static_cast<uint8_t>((v >> 24) & 0xFF);
+    *(payload_end_.first + 2) = static_cast<uint8_t>((v >> 16) & 0xFF);
+    *(payload_end_.first + 3) = static_cast<uint8_t>((v >> 8) & 0xFF);
+    *(payload_end_.first + 4) = static_cast<uint8_t>(v & 0xFF);
 
     VescFrame::CRC crc_calc;
     crc_calc.process_bytes(&(*payload_end_.first), boost::distance(payload_end_));
@@ -354,12 +354,12 @@ VescPacketSetCurrentBrake::VescPacketSetCurrentBrake(double current_brake)
 /*------------------------------------------------------------------*/
 
 VescPacketSetRPM::VescPacketSetRPM(double rpm) : VescPacket("SetRPM", 5, COMM_SET_RPM) {
-    int32_t v = static_cast<int32_t>(rpm);
+    uint32_t v = static_cast<uint32_t>(rpm);
 
-    *(payload_end_.first + 1) = static_cast<uint8_t>((static_cast<uint32_t>(v) >> 24) & 0xFF);
-    *(payload_end_.first + 2) = static_cast<uint8_t>((static_cast<uint32_t>(v) >> 16) & 0xFF);
-    *(payload_end_.first + 3) = static_cast<uint8_t>((static_cast<uint32_t>(v) >> 8) & 0xFF);
-    *(payload_end_.first + 4) = static_cast<uint8_t>(static_cast<uint32_t>(v) & 0xFF);
+    *(payload_end_.first + 1) = static_cast<uint8_t>((v >> 24) & 0xFF);
+    *(payload_end_.first + 2) = static_cast<uint8_t>((v >> 16) & 0xFF);
+    *(payload_end_.first + 3) = static_cast<uint8_t>((v >> 8) & 0xFF);
+    *(payload_end_.first + 4) = static_cast<uint8_t>(v & 0xFF);
 
     VescFrame::CRC crc_calc;
     crc_calc.process_bytes(&(*payload_end_.first), boost::distance(payload_end_));
@@ -373,12 +373,12 @@ VescPacketSetRPM::VescPacketSetRPM(double rpm) : VescPacket("SetRPM", 5, COMM_SE
 VescPacketSetPos::VescPacketSetPos(double pos) : VescPacket("SetPos", 5, COMM_SET_POS) {
     /** @todo range check pos */
 
-    int32_t v = static_cast<int32_t>(pos * 1000000.0);
+    uint32_t v = static_cast<uint32_t>(pos * 1000000.0);
 
-    *(payload_end_.first + 1) = static_cast<uint8_t>((static_cast<uint32_t>(v) >> 24) & 0xFF);
-    *(payload_end_.first + 2) = static_cast<uint8_t>((static_cast<uint32_t>(v) >> 16) & 0xFF);
-    *(payload_end_.first + 3) = static_cast<uint8_t>((static_cast<uint32_t>(v) >> 8) & 0xFF);
-    *(payload_end_.first + 4) = static_cast<uint8_t>(static_cast<uint32_t>(v) & 0xFF);
+    *(payload_end_.first + 1) = static_cast<uint8_t>((v >> 24) & 0xFF);
+    *(payload_end_.first + 2) = static_cast<uint8_t>((v >> 16) & 0xFF);
+    *(payload_end_.first + 3) = static_cast<uint8_t>((v >> 8) & 0xFF);
+    *(payload_end_.first + 4) = static_cast<uint8_t>(v & 0xFF);
 
     VescFrame::CRC crc_calc;
     crc_calc.process_bytes(&(*payload_end_.first), boost::distance(payload_end_));
@@ -392,10 +392,10 @@ VescPacketSetPos::VescPacketSetPos(double pos) : VescPacket("SetPos", 5, COMM_SE
 VescPacketSetServoPos::VescPacketSetServoPos(double servo_pos) : VescPacket("SetServoPos", 3, COMM_SET_SERVO_POS) {
     /** @todo range check pos */
 
-    int16_t v = static_cast<int16_t>(servo_pos * 1000.0);
+    uint16_t v = static_cast<uint16_t>(servo_pos * 1000.0);
 
-    *(payload_end_.first + 1) = static_cast<uint8_t>((static_cast<uint16_t>(v) >> 8) & 0xFF);
-    *(payload_end_.first + 2) = static_cast<uint8_t>(static_cast<uint16_t>(v) & 0xFF);
+    *(payload_end_.first + 1) = static_cast<uint8_t>((v >> 8) & 0xFF);
+    *(payload_end_.first + 2) = static_cast<uint8_t>(v & 0xFF);
 
     VescFrame::CRC crc_calc;
     crc_calc.process_bytes(&(*payload_end_.first), boost::distance(payload_end_));
@@ -418,4 +418,5 @@ VescPacketSetDetect::VescPacketSetDetect(uint8_t mode) :
   *(frame_->end() - 2) = static_cast<uint8_t>(crc & 0xFF);
 }
 */
+
 }  // namespace vesc_driver
