@@ -155,7 +155,7 @@ VescPacketValues::VescPacketValues(boost::shared_ptr<VescFrame> raw) : VescPacke
  * @brief Gets temperature of MOSFETs
  * @return Temperature of MOSFETs
  **/
-double VescPacketValues::temp_mos() const {
+double VescPacketValues::getMosTemp() const {
     return readBuffer(TEMP_MOS, 2) / 10.0;
 }
 
@@ -163,7 +163,7 @@ double VescPacketValues::temp_mos() const {
  * @brief Gets temperature of the motor
  * @return Temperature of the motor
  **/
-double VescPacketValues::temp_motor() const {
+double VescPacketValues::getMotorTemp() const {
     return readBuffer(TEMP_MOTOR, 2) / 10.0;
 }
 
@@ -171,7 +171,7 @@ double VescPacketValues::temp_motor() const {
  * @brief Gets motor current
  * @return Motor current
  **/
-double VescPacketValues::current_motor() const {
+double VescPacketValues::getMotorCurrent() const {
     return readBuffer(CURRENT_MOTOR, 4) / 100.0;
 }
 
@@ -179,7 +179,7 @@ double VescPacketValues::current_motor() const {
  * @brief Gets input current
  * @return Input current
  **/
-double VescPacketValues::current_in() const {
+double VescPacketValues::getInputCurrent() const {
     return readBuffer(CURRENT_IN, 4) / 100.0;
 }
 
@@ -187,7 +187,7 @@ double VescPacketValues::current_in() const {
  * @brief Gets the current duty value
  * @return The current duty value
  **/
-double VescPacketValues::duty_now() const {
+double VescPacketValues::getDuty() const {
     return readBuffer(DUTY_NOW, 2) / 1000.0;
 }
 
@@ -195,7 +195,7 @@ double VescPacketValues::duty_now() const {
  * @brief Gets the current angular velocity
  * @return The current angular velocity
  **/
-double VescPacketValues::rpm() const {
+double VescPacketValues::getRpm() const {
     return readBuffer(RPM, 4);
 }
 
@@ -203,7 +203,7 @@ double VescPacketValues::rpm() const {
  * @brief Gets input voltage
  * @return Input voltage
  **/
-double VescPacketValues::v_in() const {
+double VescPacketValues::getInputVoltage() const {
     return readBuffer(VOLTAGE_IN, 2) / 10.0;
 }
 
@@ -211,7 +211,7 @@ double VescPacketValues::v_in() const {
  * @brief Gets consumed charge
  * @return Consumed charge
  **/
-double VescPacketValues::amp_hours() const {
+double VescPacketValues::getConsumedCharge() const {
     return readBuffer(AMP_HOURS, 4) / 10000.0;
 }
 
@@ -219,7 +219,7 @@ double VescPacketValues::amp_hours() const {
  * @brief Gets input charge
  * @return Input charge
  **/
-double VescPacketValues::amp_hours_charged() const {
+double VescPacketValues::getInputCharge() const {
     return readBuffer(AMP_HOURS_CHARGED, 4) / 10000.0;
 }
 
@@ -227,7 +227,7 @@ double VescPacketValues::amp_hours_charged() const {
  * @brief Gets consumed power
  * @return Consumed power
  **/
-double VescPacketValues::watt_hours() const {
+double VescPacketValues::getConsumedPower() const {
     return readBuffer(WATT_HOURS, 4) / 10000.0;
 }
 
@@ -235,7 +235,7 @@ double VescPacketValues::watt_hours() const {
  * @brief Gets input power
  * @return Input power
  **/
-double VescPacketValues::watt_hours_charged() const {
+double VescPacketValues::getInputPower() const {
     return readBuffer(WATT_HOURS, 4) / 10000.0;
 }
 
@@ -243,7 +243,7 @@ double VescPacketValues::watt_hours_charged() const {
  * @brief Gets the current position
  * @return The current position
  **/
-double VescPacketValues::tachometer() const {
+double VescPacketValues::getPosition() const {
     return readBuffer(TACHOMETER, 4);
 }
 
@@ -251,7 +251,7 @@ double VescPacketValues::tachometer() const {
  * @brief Gets absolute displacement
  * @return Absolute displacement
  **/
-double VescPacketValues::tachometer_abs() const {
+double VescPacketValues::getDisplacement() const {
     return readBuffer(TACHOMETER_ABS, 4);
 }
 
@@ -259,7 +259,7 @@ double VescPacketValues::tachometer_abs() const {
  * @brief Gets fault code
  * @return Fault code
  **/
-int VescPacketValues::fault_code() const {
+int VescPacketValues::getFaultCode() const {
     return static_cast<int32_t>(*(payload_end_.first + FAULT_CODE));
 }
 
@@ -373,8 +373,8 @@ VescPacketSetCurrentBrake::VescPacketSetCurrentBrake(double current_brake)
 /**
  * @brief Constructor
  **/
-VescPacketSetRPM::VescPacketSetRPM(double rpm) : VescPacket("SetRPM", 5, COMM_SET_RPM) {
-    uint32_t v = static_cast<uint32_t>(rpm);
+VescPacketSetRPM::VescPacketSetRPM(double getRpm) : VescPacket("SetRPM", 5, COMM_SET_RPM) {
+    uint32_t v = static_cast<uint32_t>(getRpm);
 
     *(payload_end_.first + 1) = static_cast<uint8_t>((v >> 24) & 0xFF);
     *(payload_end_.first + 2) = static_cast<uint8_t>((v >> 16) & 0xFF);

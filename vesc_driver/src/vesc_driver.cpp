@@ -134,19 +134,19 @@ void VescDriver::vescPacketCallback(const boost::shared_ptr<VescPacket const>& p
 
         vesc_msgs::VescStateStamped::Ptr state_msg(new vesc_msgs::VescStateStamped);
         state_msg->header.stamp            = ros::Time::now();
-        state_msg->state.voltage_input     = values->v_in();
-        state_msg->state.temperature_pcb   = values->temp_motor();
-        state_msg->state.current_motor     = values->current_motor();
-        state_msg->state.current_input     = values->current_in();
-        state_msg->state.speed             = values->rpm();
-        state_msg->state.duty_cycle        = values->duty_now();
-        state_msg->state.charge_drawn      = values->amp_hours();
-        state_msg->state.charge_regen      = values->amp_hours_charged();
-        state_msg->state.energy_drawn      = values->watt_hours();
-        state_msg->state.energy_regen      = values->watt_hours_charged();
-        state_msg->state.displacement      = values->tachometer();
-        state_msg->state.distance_traveled = values->tachometer_abs();
-        state_msg->state.fault_code        = values->fault_code();
+        state_msg->state.voltage_input     = values->getInputVoltage();
+        state_msg->state.temperature_pcb   = values->getMotorTemp();
+        state_msg->state.current_motor     = values->getMotorCurrent();
+        state_msg->state.current_input     = values->getInputCurrent();
+        state_msg->state.speed             = values->getRpm();
+        state_msg->state.duty_cycle        = values->getDuty();
+        state_msg->state.charge_drawn      = values->getConsumedCharge();
+        state_msg->state.charge_regen      = values->getInputCharge();
+        state_msg->state.energy_drawn      = values->getConsumedPower();
+        state_msg->state.energy_regen      = values->getInputPower();
+        state_msg->state.displacement      = values->getPosition();
+        state_msg->state.distance_traveled = values->getDisplacement();
+        state_msg->state.fault_code        = values->getFaultCode();
 
         state_pub_.publish(state_msg);
     } else if(packet->getName() == "FWVersion") {

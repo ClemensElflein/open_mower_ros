@@ -192,20 +192,20 @@ class VescPacketValues : public VescPacket {
 public:
     explicit VescPacketValues(boost::shared_ptr<VescFrame> raw);
 
-    double temp_mos() const;
-    double temp_motor() const;
-    double current_motor() const;
-    double current_in() const;
-    double rpm() const;
-    double v_in() const;
-    double duty_now() const;
-    double amp_hours() const;
-    double amp_hours_charged() const;
-    double watt_hours() const;
-    double watt_hours_charged() const;
-    double tachometer() const;
-    double tachometer_abs() const;
-    int    fault_code() const;
+    double getMosTemp() const;
+    double getMotorTemp() const;
+    double getMotorCurrent() const;
+    double getInputCurrent() const;
+    double getRpm() const;
+    double getInputVoltage() const;
+    double getDuty() const;
+    double getConsumedCharge() const;
+    double getInputCharge() const;
+    double getConsumedPower() const;
+    double getInputPower() const;
+    double getPosition() const;
+    double getDisplacement() const;
+    int    getFaultCode() const;
 
 private:
     double readBuffer(const uint8_t, const uint8_t) const;
@@ -253,13 +253,12 @@ public:
 
 /*------------------------------------------------------------------*/
 
-
 /**
  * @brief Packet for setting reference angular velocity
  **/
 class VescPacketSetRPM : public VescPacket {
 public:
-    explicit VescPacketSetRPM(double rpm);
+    explicit VescPacketSetRPM(double getRpm);
 };
 
 /*------------------------------------------------------------------*/
