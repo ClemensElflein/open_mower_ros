@@ -38,26 +38,6 @@
 namespace vesc_driver {
 
 /**
- * @brief Constructa a map on first use
- * @return Pointer to the constructed map
- **/
-VescPacketFactory::FactoryMap* VescPacketFactory::getMap() {
-    static FactoryMap m;
-    return &m;
-}
-
-/**
- * @brief Registers a type of the packet
- * @param payload_id Payload ID
- * @param fn Function pointer
- **/
-void VescPacketFactory::registerPacketType(int payload_id, CreateFn fn) {
-    FactoryMap* p_map(getMap());
-    assert(0 == p_map->count(payload_id));
-    (*p_map)[payload_id] = fn;
-}
-
-/**
  * @brief Creates failure message when createPacket can not create a packet
  **/
 VescPacketPtr createFailed(int* p_num_bytes_needed, std::string* p_what, const std::string& what,
@@ -174,6 +154,26 @@ VescPacketPtr VescPacketFactory::createPacket(const Buffer::const_iterator& begi
         // no payload
         return createFailed(num_bytes_needed, what, "Frame does not have a payload");
     }
+}
+
+/**
+ * @brief Registers a type of the packet
+ * @param payload_id Payload ID
+ * @param fn Function pointer
+ **/
+void VescPacketFactory::registerPacketType(int payload_id, CreateFn fn) {
+    FactoryMap* p_map(getMap());
+    assert(0 == p_map->count(payload_id));
+    (*p_map)[payload_id] = fn;
+}
+
+/**
+ * @brief Constructa a map on first use
+ * @return Pointer to the constructed map
+ **/
+VescPacketFactory::FactoryMap* VescPacketFactory::getMap() {
+    static FactoryMap m;
+    return &m;
 }
 
 REGISTER_PACKET_TYPE(COMM_FW_VERSION, VescPacketFWVersion)
