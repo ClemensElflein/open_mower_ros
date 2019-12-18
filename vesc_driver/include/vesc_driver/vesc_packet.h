@@ -49,7 +49,7 @@
 #include <boost/range/distance.hpp>
 #include <boost/range/end.hpp>
 
-#include "vesc_driver/datatypes.h"
+#include "vesc_driver/data_map.h"
 
 namespace vesc_driver {
 
@@ -162,28 +162,6 @@ public:
 };
 
 /*------------------------------------------------------------------*/
-
-/**
- * @brief Map of return packets
- **/
-enum PACKET_MAP {
-    TEMP_MOS           = 1,
-    TEMP_MOTOR         = 3,
-    CURRENT_MOTOR      = 5,
-    CURRENT_IN         = 9,
-    ID                 = 13,
-    IQ                 = 17,
-    DUTY_NOW           = 21,
-    RPM                = 23,
-    VOLTAGE_IN         = 27,
-    AMP_HOURS          = 29,
-    AMP_HOURS_CHARGED  = 33,
-    WATT_HOURS         = 37,
-    WATT_HOURS_CHARGED = 41,
-    TACHOMETER         = 45,
-    TACHOMETER_ABS     = 49,
-    FAULT_CODE         = 53,
-};
 
 /**
  * @brief Gets values in return packets

@@ -50,6 +50,7 @@
 #include <boost/range/distance.hpp>
 #include <boost/range/end.hpp>
 
+#include "vesc_driver/data_map.h"
 #include "vesc_driver/vesc_packet.h"
 
 namespace vesc_driver {
