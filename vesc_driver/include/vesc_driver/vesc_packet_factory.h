@@ -1,4 +1,37 @@
-// -*- mode:c++; fill-column: 100; -*-
+/*********************************************************************
+* Copyright (c) 2019, SoftBank Corp.
+* All rights reserved.
+*
+* Redistribution and use in source and binary forms, with or without
+* modification, are permitted provided that the following conditions are met:
+*
+*     * Redistributions of source code must retain the above copyright
+*       notice, this list of conditions and the following disclaimer.
+*     * Redistributions in binary form must reproduce the above copyright
+*       notice, this list of conditions and the following disclaimer in the
+*       documentation and/or other materials provided with the distribution.
+*     * Neither the name of Softbank Corp. nor the names of its
+*       contributors may be used to endorse or promote products derived from
+*       this software without specific prior written permission.
+*
+* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+* AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+* IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+* ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+* LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+* CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+* SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+* INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+* CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+* ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+* POSSIBILITY OF SUCH DAMAGE.
+*********************************************************************/
+
+/** NOTE *************************************************************
+* This program had been developed by Michael T. Boulet at MIT under
+* the BSD 3-clause License until Dec. 2016. Since Nov. 2019, Softbank
+* Corp. takes over development as new packages.
+*********************************************************************/
 
 #ifndef VESC_DRIVER_VESC_PACKET_FACTORY_H_
 #define VESC_DRIVER_VESC_PACKET_FACTORY_H_
@@ -6,77 +39,55 @@
 #include <vector>
 #include <map>
 #include <string>
+#include <cstdint>
+#include <cassert>
+#include <iterator>
 
 #include <boost/noncopyable.hpp>
 #include <boost/function.hpp>
 #include <boost/shared_ptr.hpp>
+#include <boost/range/begin.hpp>
+#include <boost/range/distance.hpp>
+#include <boost/range/end.hpp>
 
-#include "vesc_driver/v8stdint.h"
+#include "vesc_driver/data_map.h"
 #include "vesc_driver/vesc_packet.h"
 
-namespace vesc_driver
-{
+namespace vesc_driver {
 
 /**
- * Class for creating VESC packets from raw data.
- */
-class VescPacketFactory : private boost::noncopyable
-{
+ * @brief Creates VESC packets from raw data.
+ **/
+class VescPacketFactory : private boost::noncopyable {
 public:
-  /** Return the global factory object */
-  static VescPacketFactory* getFactory();
+    static VescPacketPtr createPacket(const Buffer::const_iterator&, const Buffer::const_iterator&, int*, std::string*);
 
-  /**
-   * Create a VescPacket from a buffer (factory function). Packet must start (start of frame
-   * character) at @p begin and complete (end of frame character) before *p end. The buffer element
-   * at @p end is not examined, i.e. it can be the past-the-end element. Only returns a packet if
-   * the packet is valid, i.e. valid size, matching checksum, complete etc. An empty pointer is
-   * returned if a packet cannot be found or if it is invalid. If a valid packet is not found,
-   * optional output parameter @what is set to a string providing a reason why a packet was not
-   * found. If a packet was not found because additional bytes are needed on the buffer, optional
-   * output parameter @p num_bytes_needed will contain the number of bytes needed to either
-   * determine the size of the packet or complete the packet. Output parameters @p num_bytes_needed
-   * and @p what will be set to 0 and empty if a valid packet is found.
-   *
-   * @param begin[in] Iterator to a buffer at the start-of-frame character
-   * @param end[in] Iterator to the buffer past-the-end element.
-   * @param num_bytes_needed[out] Number of bytes needed to determine the packet size or complete
-   *                              the frame.
-   * @param what[out] Human readable string giving a reason why the packet was not found.
-   *
-   * @return Pointer to a valid VescPacket if successful. Otherwise, an empty pointer.
-   */
-  static VescPacketPtr createPacket(const Buffer::const_iterator& begin,
-                                    const Buffer::const_iterator& end,
-                                    int* num_bytes_needed, std::string* what);
+    typedef boost::function<VescPacketPtr(boost::shared_ptr<VescFrame>)> CreateFn;
 
-  typedef boost::function<VescPacketPtr(boost::shared_ptr<VescFrame>)> CreateFn;
-
-  /** Register a packet type with the factory. */
-  static void registerPacketType(int payload_id, CreateFn fn);
+    /** Register a packet type with the factory. */
+    static void registerPacketType(int, CreateFn);
 
 private:
-
-  typedef std::map<int, CreateFn > FactoryMap;
-  static FactoryMap* getMap();
+    typedef std::map<int, CreateFn> FactoryMap;
+    static FactoryMap* getMap();
 };
 
-/** Use this macro to register packets */
-#define REGISTER_PACKET_TYPE(id, klass)   \
-class klass##Factory \
-{ \
-public: \
-  klass##Factory() \
-  { \
-    VescPacketFactory::registerPacketType((id), &klass##Factory::create); \
-  } \
-  static VescPacketPtr create(boost::shared_ptr<VescFrame> frame) \
-  { \
-    return VescPacketPtr(new klass(frame)); \
-  } \
-}; \
-static klass##Factory global_##klass##Factory;
+/**
+ * @def REGISTER_PACKET_TYPE
+ * @brief Registers a type of the packet
+ **/
+#define REGISTER_PACKET_TYPE(id, klass)                                                                                \
+    class klass##Factory {                                                                                             \
+    public:                                                                                                            \
+        klass##Factory() {                                                                                             \
+            VescPacketFactory::registerPacketType((id), &klass##Factory::create);                                      \
+        }                                                                                                              \
+        static VescPacketPtr create(boost::shared_ptr<VescFrame> frame) {                                              \
+            return VescPacketPtr(new klass(frame));                                                                    \
+        }                                                                                                              \
+    };                                                                                                                 \
+    static klass##Factory global_##klass##Factory;
 
-} // namespace vesc_driver
+}  // namespace vesc_driver
 
-#endif // VESC_DRIVER_VESC_PACKET_FACTORY_H_
+#endif  // VESC_DRIVER_VESC_PACKET_FACTORY_H_
