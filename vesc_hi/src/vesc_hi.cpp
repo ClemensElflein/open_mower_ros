@@ -21,9 +21,8 @@
 int main(int argc, char** argv) {
     ros::init(argc, argv, "ocservo_hi");
 
-    ros::NodeHandle         nh, nh_private("~");
-    vesc_driver::VescDriver vesc_driver(nh, nh_private);
-    VescHI                  vesc_hi(nh_private, &vesc_driver);
+    ros::NodeHandle nh, nh_private("~");
+    vesc_hi::VescHI vesc_hi(nh_private);
 
     controller_manager::ControllerManager controller_manager(&vesc_hi, nh);
 
@@ -51,12 +50,26 @@ int main(int argc, char** argv) {
     return 0;
 }
 
-VescHI::VescHI(ros::NodeHandle nh, vesc_driver::VescDriver* driver_ptr) {
-    // initializes the private driver pointer
-    if(driver_ptr == NULL) {
+namespace vesc_hi {
+
+VescHI::VescHI(ros::NodeHandle nh)
+    : vesc_interface_(std::string(), boost::bind(&VescHI::packetCallback, this, _1),
+                      boost::bind(&VescHI::errorCallback, this, _1)) {
+    // reads a port name to open
+    std::string port;
+    if(!nh.getParam("port", port)) {
+        ROS_FATAL("VESC communication port parameter required.");
         ros::shutdown();
-    } else {
-        driver_ptr_ = driver_ptr;
+        return;
+    }
+
+    // attempts to open the serial port
+    try {
+        vesc_interface_.connect(port);
+    } catch(serial::SerialException exception) {
+        ROS_FATAL("Failed to connect to the VESC, %s.", exception.what());
+        ros::shutdown();
+        return;
     }
 
     // initializes joint names
@@ -104,3 +117,5 @@ ros::Time VescHI::getTime() const {
 ros::Duration VescHI::getPeriod() const {
     return ros::Duration(0.01);
 }
+
+}  // namespace vesc_hi

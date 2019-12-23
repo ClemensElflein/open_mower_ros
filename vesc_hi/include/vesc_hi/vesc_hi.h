@@ -22,17 +22,26 @@
 #include <string>
 
 #include <ros/ros.h>
+#include <serial/serial.h>
 #include <hardware_interface/hardware_interface.h>
 #include <hardware_interface/robot_hw.h>
 #include <hardware_interface/joint_state_interface.h>
 #include <hardware_interface/joint_command_interface.h>
 #include <controller_manager/controller_manager.h>
 
-#include "vesc_driver/vesc_driver.h"
+#include "vesc_driver/vesc_packet.h"
+#include "vesc_driver/vesc_packet_factory.h"
+#include "vesc_driver/vesc_interface.h"
+
+namespace vesc_hi {
+
+using vesc_driver::VescPacket;
+using vesc_driver::VescPacketValues;
+using vesc_driver::VescInterface;
 
 class VescHI : public hardware_interface::RobotHW {
 public:
-    explicit VescHI(ros::NodeHandle, vesc_driver::VescDriver*);
+    explicit VescHI(ros::NodeHandle);
     ~VescHI();
 
     void          read();
@@ -41,8 +50,8 @@ public:
     ros::Duration getPeriod() const;
 
 private:
-    std::string              joint_name_;
-    vesc_driver::VescDriver* driver_ptr_;
+    std::string   joint_name_;
+    VescInterface vesc_interface_;
 
     double command_;
     double position_, velocity_, effort_;
@@ -50,5 +59,7 @@ private:
     hardware_interface::JointStateInterface    joint_state_interface_;
     hardware_interface::PositionJointInterface joint_position_interface_;
 };
+
+}  // namespace vesc_hi
 
 #endif
