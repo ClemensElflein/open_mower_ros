@@ -43,6 +43,12 @@ public:
 private:
     std::string              joint_name_;
     vesc_driver::VescDriver* driver_ptr_;
+
+    double command_;
+    double position_, velocity_, effort_;
+
+    hardware_interface::JointStateInterface    joint_state_interface_;
+    hardware_interface::PositionJointInterface joint_position_interface_;
 };
 
 #endif
