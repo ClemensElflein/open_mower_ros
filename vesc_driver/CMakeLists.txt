@@ -28,6 +28,7 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
 )
 
+# driver libraries
 add_library(vesc_driver
   src/vesc_driver.cpp
   src/vesc_interface.cpp
@@ -67,15 +68,14 @@ install(TARGETS vesc_driver_nodelet
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 )
 
-install(DIRECTORY include/${PROJECT_NAME}/
-        DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION})
+install(DIRECTORY include/${PROJECT_NAME}
+  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+)
+
 install(FILES vesc_driver_nodelet.xml
-        DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
-install(DIRECTORY launch/
-        DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch)
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+)
 
-#############
-## Testing ##
-#############
-
-# TODO
+install(DIRECTORY launch
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
+)
