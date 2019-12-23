@@ -21,6 +21,9 @@
 
 #include <string>
 
+#include <boost/bind.hpp>
+#include <boost/shared_ptr.hpp>
+
 #include <ros/ros.h>
 #include <serial/serial.h>
 #include <hardware_interface/hardware_interface.h>
