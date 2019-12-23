@@ -61,6 +61,9 @@ private:
 
     hardware_interface::JointStateInterface    joint_state_interface_;
     hardware_interface::PositionJointInterface joint_position_interface_;
+
+    void packetCallback(const boost::shared_ptr<VescPacket const>&);
+    void errorCallback(const std::string&);
 };
 
 }  // namespace vesc_hi
