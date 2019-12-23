@@ -19,7 +19,7 @@
 #include "vesc_hi/vesc_hi.h"
 
 int main(int argc, char** argv) {
-    ros::init(argc, argv, "ocservo_hi");
+    ros::init(argc, argv, "vesc_hi");
 
     ros::NodeHandle nh, nh_private("~");
     vesc_hi::VescHI vesc_hi(nh_private);
@@ -73,12 +73,10 @@ VescHI::VescHI(ros::NodeHandle nh)
     }
 
     // initializes joint names
-    nh.param<std::string>("joint_name", joint_name_, "/dev/ttyVESC1");
+    nh.param<std::string>("joint_name", joint_name_, "joint_vesc");
 
-    // initializes commands
-    command_ = 0.0;
-
-    // initializes states
+    // initializes commands and states
+    command_  = 0.0;
     position_ = 0.0;
     velocity_ = 0.0;
     effort_   = 0.0;
