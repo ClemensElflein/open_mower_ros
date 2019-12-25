@@ -53,7 +53,7 @@ public:
     ros::Duration getPeriod() const;
 
 private:
-    std::string   joint_name_;
+    std::string   joint_name_, command_mode_;
     VescInterface vesc_interface_;
 
     double command_;

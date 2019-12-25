@@ -82,8 +82,7 @@ VescHI::VescHI(ros::NodeHandle nh)
     effort_   = 0.0;
 
     // reads driving mode setting
-    std::string mode;
-    nh.param<std::string>("command_mode", mode, "");  // assigns an empty string if param. is not found
+    nh.param<std::string>("command_mode", command_mode_, "");  // assigns an empty string if param. is not found
 
     // registers a state handle and its interface
     hardware_interface::JointStateHandle state_handle(joint_name_, &position_, &velocity_, &effort_);
@@ -91,15 +90,15 @@ VescHI::VescHI(ros::NodeHandle nh)
     registerInterface(&joint_state_interface_);
 
     // registers specified command handle and its interface
-    if(mode == "position") {
+    if(command_mode_ == "position") {
         hardware_interface::JointHandle position_handle(joint_state_interface_.getHandle(joint_name_), &command_);
         joint_position_interface_.registerHandle(position_handle);
         registerInterface(&joint_position_interface_);
-    } else if(mode == "velocity") {
+    } else if(command_mode_ == "velocity") {
         hardware_interface::JointHandle velocity_handle(joint_state_interface_.getHandle(joint_name_), &command_);
         joint_velocity_interface_.registerHandle(velocity_handle);
         registerInterface(&joint_velocity_interface_);
-    } else if(mode == "effort") {
+    } else if(command_mode_ == "effort") {
         hardware_interface::JointHandle effort_handle(joint_state_interface_.getHandle(joint_name_), &command_);
         joint_effort_interface_.registerHandle(effort_handle);
         registerInterface(&joint_effort_interface_);
