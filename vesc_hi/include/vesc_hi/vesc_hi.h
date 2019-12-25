@@ -70,4 +70,4 @@ private:
 
 }  // namespace vesc_hi
 
-#endif
+#endif  // VESC_HI_H_
