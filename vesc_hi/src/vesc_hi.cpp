@@ -60,7 +60,6 @@ VescHI::VescHI(ros::NodeHandle nh)
     if(!nh.getParam("port", port)) {
         ROS_FATAL("VESC communication port parameter required.");
         ros::shutdown();
-        return;
     }
 
     // attempts to open the serial port
