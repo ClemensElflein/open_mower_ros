@@ -131,7 +131,9 @@ void VescHI::read() {
 }
 
 void VescHI::write() {
-    // gets joint states
+    // requests joint states
+    // function `packetCallback` will be called after receiveing retrun packets
+    vesc_interface_.requestState();
 
     return;
 }
