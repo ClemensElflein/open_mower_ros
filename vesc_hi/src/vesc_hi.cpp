@@ -138,6 +138,10 @@ void VescHI::packetCallback(const boost::shared_ptr<VescPacket const>& packet) {
         double current        = values->getMotorCurrent();
         double velocity_rpm   = values->getRpm();
         double position_pulse = values->getPosition();
+
+        position_ = (position_pulse - zero_position_val_) / gear_ratio_;  // unit: rad or m
+        velocity_ = velocity_rpm * 2 * M_PI / 60.0 / gear_ratio_;         // unit: rad/s or m/s
+        effort_   = current * torque_const_ * gear_ratio_;                // unit: Nm or N
     }
 
     return;

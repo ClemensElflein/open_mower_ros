@@ -20,6 +20,7 @@
 #define VESC_HI_H_
 
 #include <string>
+#include <cmath>
 
 #include <boost/bind.hpp>
 #include <boost/shared_ptr.hpp>
@@ -57,7 +58,10 @@ private:
     VescInterface vesc_interface_;
 
     double command_;
-    double position_, velocity_, effort_;
+    double position_, velocity_, effort_;  // joint states
+
+    double zero_position_val_;          // sensor value on zero position
+    double gear_ratio_, torque_const_;  // physical params.
 
     hardware_interface::JointStateInterface    joint_state_interface_;
     hardware_interface::PositionJointInterface joint_position_interface_;
