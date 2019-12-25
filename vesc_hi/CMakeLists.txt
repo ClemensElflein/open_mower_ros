@@ -22,6 +22,9 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
 )
 
-add_executable(vesc_hi src/vesc_hi.cpp)
+add_executable(vesc_hi
+  src/vesc_hi.cpp
+  src/vesc_servo_controller.cpp
+)
 add_dependencies(vesc_hi ${catkin_EXPORTED_TARGETS})
 target_link_libraries(vesc_hi ${catkin_LIBRARIES})
