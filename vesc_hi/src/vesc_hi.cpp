@@ -112,7 +112,21 @@ VescHI::~VescHI() {
 
 void VescHI::read() {
     // sends commands
+    if(command_mode_ == "position") {
+        // TODO(Yuki Onishi): pid control
+    } else if(command_mode_ == "velocity") {
+        // converts the velocity unit: rad/s or m/s -> rpm
+        double ref_velocity_rpm = gear_ratio_ * command_ * 60 / (2 * M_PI);
 
+        // sends a reference velocity command
+        vesc_interface_.setSpeed(ref_velocity_rpm);
+    } else if(command_mode_ == "effort") {
+        // converts the command unit: Nm or N -> A
+        double ref_current = command_ / gear_ratio_ / torque_const_;
+
+        // sends a reference current command
+        vesc_interface_.setCurrent(ref_current);
+    }
     return;
 }
 
