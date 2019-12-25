@@ -55,9 +55,10 @@ public:
     ros::Duration getPeriod() const;
 
 private:
-    std::string         joint_name_, command_mode_;
     VescInterface       vesc_interface_;
     VescServoController servo_controller_;
+
+    std::string         joint_name_, command_mode_;
 
     double command_;
     double position_, velocity_, effort_;  // joint states
