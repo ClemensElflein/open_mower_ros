@@ -61,6 +61,8 @@ private:
 
     hardware_interface::JointStateInterface    joint_state_interface_;
     hardware_interface::PositionJointInterface joint_position_interface_;
+    hardware_interface::VelocityJointInterface joint_velocity_interface_;
+    hardware_interface::EffortJointInterface   joint_effort_interface_;
 
     void packetCallback(const boost::shared_ptr<VescPacket const>&);
     void errorCallback(const std::string&);
