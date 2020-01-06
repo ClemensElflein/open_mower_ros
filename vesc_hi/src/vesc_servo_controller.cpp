@@ -31,9 +31,9 @@ VescServoController::VescServoController(ros::NodeHandle nh, VescInterface* inte
     frequency_        = frequency;
 
     // reads parameters
-    nh.param("servo/k_p", Kp_, 50.0);
-    nh.param("servo/k_i", Ki_, 0.0);
-    nh.param("servo/k_d", Kd_, 1.0);
+    nh.param("servo/Kp", Kp_, 50.0);
+    nh.param("servo/Ki", Ki_, 0.0);
+    nh.param("servo/Kd", Kd_, 1.0);
     nh.param("servo/calibration_current", calibration_current_, 6.0);
 }
 
