@@ -55,7 +55,7 @@ namespace vesc_hi {
 VescHI::VescHI(ros::NodeHandle nh)
     : vesc_interface_(std::string(), boost::bind(&VescHI::packetCallback, this, _1),
                       boost::bind(&VescHI::errorCallback, this, _1))
-    , servo_controller_(nh, &vesc_interface_) {
+    , servo_controller_(nh, &vesc_interface_, 1.0 / getPeriod().toSec()) {
     // reads a port name to open
     std::string port;
     if(!nh.getParam("port", port)) {
@@ -114,7 +114,8 @@ VescHI::~VescHI() {
 void VescHI::read() {
     // sends commands
     if(command_mode_ == "position") {
-        // TODO(Yuki Onishi): pid control
+        // executes PID control
+        servo_controller_.control(command_, position_);
     } else if(command_mode_ == "velocity") {
         // converts the velocity unit: rad/s or m/s -> rpm
         double ref_velocity_rpm = gear_ratio_ * command_ * 60 / (2 * M_PI);

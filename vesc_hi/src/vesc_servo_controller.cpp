@@ -18,7 +18,7 @@
 
 #include "vesc_hi/vesc_servo_controller.h"
 
-VescServoController::VescServoController(ros::NodeHandle nh, VescInterface* interface_ptr) {
+VescServoController::VescServoController(ros::NodeHandle nh, VescInterface* interface_ptr, const double frequency) {
     // initializes members
     if(interface_ptr == NULL) {
         ros::shutdown();
@@ -27,13 +27,50 @@ VescServoController::VescServoController(ros::NodeHandle nh, VescInterface* inte
     }
 
     calibration_flag_ = true;
-    error_previous_   = 0;
+    frequency_        = frequency;
 
     // reads parameters
     nh.param("servo/k_p", Kp_, 50.0);
     nh.param("servo/k_i", Ki_, 0.0);
     nh.param("servo/k_d", Kd_, 1.0);
     nh.param("servo/calibration_current", calibration_current_, 6.0);
+}
+
+void VescServoController::control(const double position_reference, const double position_current) {
+    if(calibration_flag_) {
+        calibrate(position_current);
+
+        return;
+    }
+
+    static double error_previous, error_integ;
+
+    double error_current = position_reference - position_current;
+    double u_pd          = Kp_ * error_current + Kd_ * (error_current - error_previous) * frequency_;
+
+    double u, u_pid;
+
+    if(isSaturated(u_pd)) {
+        u = saturate(u_pd);
+    } else {
+        double error_integ_new = error_integ + (error_current + error_previous) / 2.0 / frequency_;
+        u_pid                  = u_pd + Ki_ * error_integ_new;
+
+        if(isSaturated(u_pid)) {
+            u = u_pd;
+        } else {
+            u           = u_pid;
+            error_integ = error_integ_new;
+        }
+    }
+
+    // saves current error
+    error_previous = error_current;
+
+    // command duty
+    interface_ptr_->setDutyCycle(u);
+
+    return;
 }
 
 void VescServoController::executeCalibration() {
@@ -61,5 +98,23 @@ bool VescServoController::calibrate(const double position_current) {
         step++;
 
         return false;
+    }
+}
+
+bool VescServoController::isSaturated(const double arg) {
+    if(std::abs(arg) > 1.0) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+double VescServoController::saturate(const double arg) {
+    if(arg > 1.0) {
+        return 1.0;
+    } else if(arg < -1.0) {
+        return -1.0;
+    } else {
+        return arg;
     }
 }

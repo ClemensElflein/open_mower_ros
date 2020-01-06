@@ -19,6 +19,8 @@
 #ifndef VESC_SERVO_CONTRoLLER_H_
 #define VESC_SERVO_CONTROLLER_H_
 
+#include <cmath>
+
 #include <ros/ros.h>
 #include <vesc_driver/vesc_interface.h>
 
@@ -26,20 +28,21 @@ using vesc_driver::VescInterface;
 
 class VescServoController {
 public:
-    explicit VescServoController(ros::NodeHandle, VescInterface*);
+    explicit VescServoController(ros::NodeHandle, VescInterface*, const double);
 
-    void   executeCalibration();
-    double calcInput(const double, const double);
+    void control(const double, const double);
+    void executeCalibration();
 
 private:
     VescInterface* interface_ptr_;
 
     bool   calibration_flag_;
     double calibration_current_;
-    double error_previous_;
-    double Kp_, Ki_, Kd_;
+    double Kp_, Ki_, Kd_, frequency_;
 
-    bool calibrate(const double);
+    bool   calibrate(const double);
+    bool   isSaturated(const double);
+    double saturate(const double);
 };
 
 #endif  // VESC_SERVO_CONTROLLER_H_
