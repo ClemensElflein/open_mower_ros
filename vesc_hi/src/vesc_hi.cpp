@@ -137,6 +137,9 @@ void VescHI::write() {
     // function `packetCallback` will be called after receiveing retrun packets
     vesc_interface_.requestState();
 
+    // updates zero position
+    zero_position_val_ = gear_ratio_ * servo_controller_.getZeroPosition();
+
     return;
 }
 

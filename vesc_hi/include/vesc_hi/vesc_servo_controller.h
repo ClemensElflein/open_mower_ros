@@ -30,14 +30,15 @@ class VescServoController {
 public:
     explicit VescServoController(ros::NodeHandle, VescInterface*, const double);
 
-    void control(const double, const double);
-    void executeCalibration();
+    void   control(const double, const double);
+    double getZeroPosition();
+    void   executeCalibration();
 
 private:
     VescInterface* interface_ptr_;
 
     bool   calibration_flag_;
-    double calibration_current_;
+    double calibration_current_, zero_position_;
     double Kp_, Ki_, Kd_, frequency_;
 
     bool   calibrate(const double);

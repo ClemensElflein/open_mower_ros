@@ -27,6 +27,7 @@ VescServoController::VescServoController(ros::NodeHandle nh, VescInterface* inte
     }
 
     calibration_flag_ = true;
+    zero_position_    = 0.0;
     frequency_        = frequency;
 
     // reads parameters
@@ -36,7 +37,7 @@ VescServoController::VescServoController(ros::NodeHandle nh, VescInterface* inte
     nh.param("servo/calibration_current", calibration_current_, 6.0);
 }
 
-void VescServoController::control(const double position_reference, const double position_current) {
+void VescServoController::control(const double position_reference, double position_current) {
     if(calibration_flag_) {
         calibrate(position_current);
 
@@ -73,6 +74,10 @@ void VescServoController::control(const double position_reference, const double 
     return;
 }
 
+double VescServoController::getZeroPosition() {
+    return zero_position_;
+}
+
 void VescServoController::executeCalibration() {
     calibration_flag_ = true;
 
@@ -90,6 +95,7 @@ bool VescServoController::calibrate(const double position_current) {
         // calibration finishes
         calibration_flag_ = false;
         step              = 0;
+        zero_position_    = position_current;
 
         return true;
     } else {
