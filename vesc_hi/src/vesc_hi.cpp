@@ -54,7 +54,8 @@ namespace vesc_hi {
 
 VescHI::VescHI(ros::NodeHandle nh)
     : vesc_interface_(std::string(), boost::bind(&VescHI::packetCallback, this, _1),
-                      boost::bind(&VescHI::errorCallback, this, _1)) {
+                      boost::bind(&VescHI::errorCallback, this, _1))
+    , servo_controller_(nh, &vesc_interface_) {
     // reads a port name to open
     std::string port;
     if(!nh.getParam("port", port)) {
