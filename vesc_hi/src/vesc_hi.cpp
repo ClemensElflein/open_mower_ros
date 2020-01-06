@@ -81,6 +81,10 @@ VescHI::VescHI(ros::NodeHandle nh)
     velocity_ = 0.0;
     effort_   = 0.0;
 
+    // reads system parameters
+    nh.param<double>("gear_ratio", gear_ratio_, 1.0);
+    nh.param<double>("torque_const", torque_const_, 1.0);
+
     // reads driving mode setting
     nh.param<std::string>("command_mode", command_mode_, "");  // assigns an empty string if param. is not found
 
