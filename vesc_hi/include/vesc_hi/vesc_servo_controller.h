@@ -19,6 +19,27 @@
 #ifndef VESC_SERVO_CONTRoLLER_H_
 #define VESC_SERVO_CONTROLLER_H_
 
-class VescServoController {};
+#include <ros/ros.h>
+#include <vesc_driver/vesc_interface.h>
+
+using vesc_driver::VescInterface;
+
+class VescServoController {
+public:
+    explicit VescServoController(ros::NodeHandle, VescInterface*);
+
+    void   executeCalibration();
+    double calcInput(const double, const double);
+
+private:
+    VescInterface* interface_ptr_;
+
+    bool   calibration_flag_;
+    double calibration_current_;
+    double error_previous_;
+    double Kp_, Ki_, Kd_;
+
+    bool calibrate(const double);
+};
 
 #endif  // VESC_SERVO_CONTROLLER_H_

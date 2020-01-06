@@ -17,3 +17,49 @@
 *********************************************************************/
 
 #include "vesc_hi/vesc_servo_controller.h"
+
+VescServoController::VescServoController(ros::NodeHandle nh, VescInterface* interface_ptr) {
+    // initializes members
+    if(interface_ptr == NULL) {
+        ros::shutdown();
+    } else {
+        interface_ptr_ = interface_ptr;
+    }
+
+    calibration_flag_ = true;
+    error_previous_   = 0;
+
+    // reads parameters
+    nh.param("servo/k_p", Kp_, 50.0);
+    nh.param("servo/k_i", Ki_, 0.0);
+    nh.param("servo/k_d", Kd_, 1.0);
+    nh.param("servo/calibration_current", calibration_current_, 6.0);
+}
+
+void VescServoController::executeCalibration() {
+    calibration_flag_ = true;
+
+    return;
+}
+
+bool VescServoController::calibrate(const double position_current) {
+    static double   position_previous;
+    static uint16_t step;
+
+    // sets current for calibration
+    interface_ptr_->setCurrent(6.0);
+
+    if(step % 10 == 0 && position_current == position_previous) {
+        // calibration finishes
+        calibration_flag_ = false;
+        step              = 0;
+
+        return true;
+    } else {
+        // continues calibration
+        position_previous = position_current;
+        step++;
+
+        return false;
+    }
+}
