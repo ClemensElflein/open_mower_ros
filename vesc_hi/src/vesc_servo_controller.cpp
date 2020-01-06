@@ -90,8 +90,9 @@ bool VescServoController::calibrate(const double position_current) {
 
     // sets current for calibration
     interface_ptr_->setCurrent(6.0);
+    step++;
 
-    if(step % 10 == 0 && position_current == position_previous) {
+    if(step % 20 == 0 && position_current == position_previous) {
         // calibration finishes
         calibration_flag_ = false;
         step              = 0;
@@ -101,7 +102,6 @@ bool VescServoController::calibrate(const double position_current) {
     } else {
         // continues calibration
         position_previous = position_current;
-        step++;
 
         return false;
     }
