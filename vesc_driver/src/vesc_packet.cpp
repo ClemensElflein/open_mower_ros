@@ -309,8 +309,8 @@ VescPacketSetDuty::VescPacketSetDuty(double duty) : VescPacket("SetDuty", 5, COM
     // checks the range of duty
     if(duty > 1.0) {
         duty = 1.0;
-    } else if(duty < 0.0) {
-        duty = 0.0;
+    } else if(duty < -1.0) {
+        duty = -1.0;
     }
 
     uint32_t v = static_cast<uint32_t>(duty * 100000.0);

@@ -54,7 +54,8 @@ namespace vesc_hi {
 
 VescHI::VescHI(ros::NodeHandle nh)
     : vesc_interface_(std::string(), boost::bind(&VescHI::packetCallback, this, _1),
-                      boost::bind(&VescHI::errorCallback, this, _1)) {
+                      boost::bind(&VescHI::errorCallback, this, _1))
+    , servo_controller_(nh, &vesc_interface_, 1.0 / getPeriod().toSec()) {
     // reads a port name to open
     std::string port;
     if(!nh.getParam("port", port)) {
@@ -80,6 +81,10 @@ VescHI::VescHI(ros::NodeHandle nh)
     velocity_ = 0.0;
     effort_   = 0.0;
 
+    // reads system parameters
+    nh.param<double>("gear_ratio", gear_ratio_, 1.0);
+    nh.param<double>("torque_const", torque_const_, 1.0);
+
     // reads driving mode setting
     nh.param<std::string>("command_mode", command_mode_, "");  // assigns an empty string if param. is not found
 
@@ -97,7 +102,7 @@ VescHI::VescHI(ros::NodeHandle nh)
         hardware_interface::JointHandle velocity_handle(joint_state_interface_.getHandle(joint_name_), &command_);
         joint_velocity_interface_.registerHandle(velocity_handle);
         registerInterface(&joint_velocity_interface_);
-    } else if(command_mode_ == "effort") {
+    } else if(command_mode_ == "effort" || command_mode_ == "effort_duty") {
         hardware_interface::JointHandle effort_handle(joint_state_interface_.getHandle(joint_name_), &command_);
         joint_effort_interface_.registerHandle(effort_handle);
         registerInterface(&joint_effort_interface_);
@@ -113,7 +118,8 @@ VescHI::~VescHI() {
 void VescHI::read() {
     // sends commands
     if(command_mode_ == "position") {
-        // TODO(Yuki Onishi): pid control
+        // executes PID control
+        servo_controller_.control(command_, position_);
     } else if(command_mode_ == "velocity") {
         // converts the velocity unit: rad/s or m/s -> rpm
         double ref_velocity_rpm = gear_ratio_ * command_ * 60 / (2 * M_PI);
@@ -126,6 +132,9 @@ void VescHI::read() {
 
         // sends a reference current command
         vesc_interface_.setCurrent(ref_current);
+    } else if(command_mode_ == "effort_duty") {
+        // sends a  duty command
+        vesc_interface_.setDutyCycle(command_);
     }
     return;
 }
@@ -134,6 +143,9 @@ void VescHI::write() {
     // requests joint states
     // function `packetCallback` will be called after receiveing retrun packets
     vesc_interface_.requestState();
+
+    // updates zero position
+    zero_position_val_ = gear_ratio_ * servo_controller_.getZeroPosition();
 
     return;
 }
@@ -150,7 +162,6 @@ void VescHI::packetCallback(const boost::shared_ptr<VescPacket const>& packet) {
     if(packet->getName() == "Values") {
         boost::shared_ptr<VescPacketValues const> values = boost::dynamic_pointer_cast<VescPacketValues const>(packet);
 
-        // state_msg->header.stamp            = ros::Time::now();
         double current        = values->getMotorCurrent();
         double velocity_rpm   = values->getRpm();
         double position_pulse = values->getPosition();
