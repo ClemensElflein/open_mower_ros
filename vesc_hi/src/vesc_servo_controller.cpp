@@ -89,7 +89,7 @@ bool VescServoController::calibrate(const double position_current) {
     static uint16_t step;
 
     // sets current for calibration
-    interface_ptr_->setCurrent(6.0);
+    interface_ptr_->setCurrent(calibration_current_);
     step++;
 
     if(step % 20 == 0 && position_current == position_previous) {
