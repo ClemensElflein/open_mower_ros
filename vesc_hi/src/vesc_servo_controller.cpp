@@ -38,6 +38,7 @@ VescServoController::VescServoController(ros::NodeHandle nh, VescInterface* inte
 }
 
 void VescServoController::control(const double position_reference, double position_current) {
+    // executes caribration
     if(calibration_flag_) {
         calibrate(position_current);
 
@@ -46,17 +47,21 @@ void VescServoController::control(const double position_reference, double positi
 
     static double error_previous, error_integ;
 
+    // calculates PD control
     double error_current = position_reference - position_current;
     double u_pd          = Kp_ * error_current + Kd_ * (error_current - error_previous) * frequency_;
 
     double u, u_pid;
 
+    // calculates I control if PD input is not saturated
     if(isSaturated(u_pd)) {
         u = saturate(u_pd);
     } else {
         double error_integ_new = error_integ + (error_current + error_previous) / 2.0 / frequency_;
         u_pid                  = u_pd + Ki_ * error_integ_new;
 
+        // not use I control if PID input is saturated
+        // since error integration causes bugs
         if(isSaturated(u_pid)) {
             u = u_pd;
         } else {
@@ -93,7 +98,7 @@ bool VescServoController::calibrate(const double position_current) {
     step++;
 
     if(step % 20 == 0 && position_current == position_previous) {
-        // calibration finishes
+        // finishes calibrating
         interface_ptr_->setCurrent(0.0);
         calibration_flag_ = false;
         step              = 0;
