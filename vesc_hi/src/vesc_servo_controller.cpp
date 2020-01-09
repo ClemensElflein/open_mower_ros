@@ -94,10 +94,12 @@ bool VescServoController::calibrate(const double position_current) {
 
     if(step % 20 == 0 && position_current == position_previous) {
         // calibration finishes
+        interface_ptr_->setCurrent(0.0);
         calibration_flag_ = false;
         step              = 0;
         zero_position_    = position_current;
 
+        ROS_INFO("Calibration Finished");
         return true;
     } else {
         // continues calibration
