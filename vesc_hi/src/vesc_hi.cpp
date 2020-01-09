@@ -159,7 +159,6 @@ void VescHI::packetCallback(const boost::shared_ptr<VescPacket const>& packet) {
     if(packet->getName() == "Values") {
         boost::shared_ptr<VescPacketValues const> values = boost::dynamic_pointer_cast<VescPacketValues const>(packet);
 
-        // state_msg->header.stamp            = ros::Time::now();
         double current        = values->getMotorCurrent();
         double velocity_rpm   = values->getRpm();
         double position_pulse = values->getPosition();
