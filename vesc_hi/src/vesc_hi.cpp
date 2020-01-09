@@ -102,7 +102,7 @@ VescHI::VescHI(ros::NodeHandle nh)
         hardware_interface::JointHandle velocity_handle(joint_state_interface_.getHandle(joint_name_), &command_);
         joint_velocity_interface_.registerHandle(velocity_handle);
         registerInterface(&joint_velocity_interface_);
-    } else if(command_mode_ == "effort") {
+    } else if(command_mode_ == "effort" || command_mode_ == "effort_duty") {
         hardware_interface::JointHandle effort_handle(joint_state_interface_.getHandle(joint_name_), &command_);
         joint_effort_interface_.registerHandle(effort_handle);
         registerInterface(&joint_effort_interface_);
@@ -132,6 +132,9 @@ void VescHI::read() {
 
         // sends a reference current command
         vesc_interface_.setCurrent(ref_current);
+    } else if(command_mode_ == "effort_duty") {
+        // sends a  duty command
+        vesc_interface_.setDutyCycle(command_);
     }
     return;
 }
