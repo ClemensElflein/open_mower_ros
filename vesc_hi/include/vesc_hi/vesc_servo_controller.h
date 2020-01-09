@@ -24,6 +24,8 @@
 #include <ros/ros.h>
 #include <vesc_driver/vesc_interface.h>
 
+namespace vesc_hi {
+
 using vesc_driver::VescInterface;
 
 class VescServoController {
@@ -45,5 +47,7 @@ private:
     bool   isSaturated(const double);
     double saturate(const double);
 };
+
+}  // namespace vesc_hi
 
 #endif  // VESC_SERVO_CONTROLLER_H_

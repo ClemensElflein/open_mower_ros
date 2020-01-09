@@ -18,6 +18,8 @@
 
 #include "vesc_hi/vesc_servo_controller.h"
 
+namespace vesc_hi {
+
 VescServoController::VescServoController(ros::NodeHandle nh, VescInterface* interface_ptr, const double frequency) {
     // initializes members
     if(interface_ptr == NULL) {
@@ -131,3 +133,5 @@ double VescServoController::saturate(const double arg) {
         return arg;
     }
 }
+
+}  // namespace vesc_hi
