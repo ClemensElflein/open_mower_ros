@@ -1,27 +1,22 @@
 <?xml version="1.0"?>
-<package>
+<package format="2">
   <name>vesc</name>
-  <version>0.0.1</version>
+  <version>1.0.0</version>
   <description>
-    Metapackage for ROS interface to the Vedder VESC open source motor controller.
+    Metapackage of VESC packages.
   </description>
-
-  <maintainer email="boulet@ll.mit.edu">Michael T. Boulet</maintainer>
+  <maintainer email="SBGRP-git@g.softbank.co.jp">SoftBank Corp.</maintainer>
   <author email="boulet@ll.mit.edu">Michael T. Boulet</author>
-  <license>BSD</license>
-
-  <url type="website">http://www.ros.org/wiki/vesc</url>
-  <url type="repository">https://github.mit.edu/racecar/vesc</url>
-  <url type="bugtracker">https://github.mit.edu/racecar/vesc/issues</url>
+  <author email="yuki.st16@gmail.com">Yuki Onishi</author>
+  <license>Apache License, Version2.0</license>
 
   <buildtool_depend>catkin</buildtool_depend>
 
-  <run_depend>vesc_driver</run_depend>
-  <run_depend>vesc_msgs</run_depend>
-  <run_depend>vesc_ackermann</run_depend>
+  <depend>vesc_driver</depend>
+  <depend>vesc_msgs</depend>
+  <depend>vesc_hi</depend>
 
   <export>
     <metapackage/>
   </export>
-
 </package>

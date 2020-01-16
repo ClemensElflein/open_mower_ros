@@ -8,13 +8,11 @@ find_package(catkin REQUIRED COMPONENTS
 
 add_message_files(
   DIRECTORY msg
-  FILES
-  VescState.msg
-  VescStateStamped.msg
+  FILES VescState.msg VescStateStamped.msg
 )
+
 generate_messages(
-  DEPENDENCIES
-  std_msgs
+  DEPENDENCIES std_msgs
 )
 
 catkin_package(
