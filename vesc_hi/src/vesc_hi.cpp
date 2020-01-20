@@ -18,38 +18,6 @@
 
 #include "vesc_hi/vesc_hi.h"
 
-int main(int argc, char** argv) {
-    ros::init(argc, argv, "vesc_hi");
-
-    ros::NodeHandle nh, nh_private("~");
-    vesc_hi::VescHI vesc_hi(nh_private);
-
-    controller_manager::ControllerManager controller_manager(&vesc_hi, nh);
-
-    ros::Rate         loop_rate(1.0 / vesc_hi.getPeriod().toSec());
-    ros::AsyncSpinner spinner(1);
-
-    spinner.start();
-
-    while(ros::ok()) {
-        // sends commands
-        vesc_hi.read();
-
-        // updates the hardware interface control
-        controller_manager.update(vesc_hi.getTime(), vesc_hi.getPeriod());
-
-        // gets current states
-        vesc_hi.write();
-
-        // sleeps
-        loop_rate.sleep();
-    }
-
-    spinner.stop();
-
-    return 0;
-}
-
 namespace vesc_hi {
 
 VescHI::VescHI(ros::NodeHandle nh)
