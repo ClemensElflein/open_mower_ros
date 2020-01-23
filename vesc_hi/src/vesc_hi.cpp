@@ -18,38 +18,6 @@
 
 #include "vesc_hi/vesc_hi.h"
 
-int main(int argc, char** argv) {
-    ros::init(argc, argv, "vesc_hi");
-
-    ros::NodeHandle nh, nh_private("~");
-    vesc_hi::VescHI vesc_hi(nh_private);
-
-    controller_manager::ControllerManager controller_manager(&vesc_hi, nh);
-
-    ros::Rate         loop_rate(1.0 / vesc_hi.getPeriod().toSec());
-    ros::AsyncSpinner spinner(1);
-
-    spinner.start();
-
-    while(ros::ok()) {
-        // sends commands
-        vesc_hi.read();
-
-        // updates the hardware interface control
-        controller_manager.update(vesc_hi.getTime(), vesc_hi.getPeriod());
-
-        // gets current states
-        vesc_hi.write();
-
-        // sleeps
-        loop_rate.sleep();
-    }
-
-    spinner.stop();
-
-    return 0;
-}
-
 namespace vesc_hi {
 
 VescHI::VescHI(ros::NodeHandle nh)
@@ -58,7 +26,7 @@ VescHI::VescHI(ros::NodeHandle nh)
     , servo_controller_(nh, &vesc_interface_, 1.0 / getPeriod().toSec()) {
     // reads a port name to open
     std::string port;
-    if(!nh.getParam("port", port)) {
+    if(!nh.getParam("vesc_hi/port", port)) {
         ROS_FATAL("VESC communication port parameter required.");
         ros::shutdown();
     }
@@ -73,7 +41,7 @@ VescHI::VescHI(ros::NodeHandle nh)
     }
 
     // initializes joint names
-    nh.param<std::string>("joint_name", joint_name_, "joint_vesc");
+    nh.param<std::string>("vesc_hi/joint_name", joint_name_, "joint_vesc");
 
     // initializes commands and states
     command_  = 0.0;
@@ -82,11 +50,12 @@ VescHI::VescHI(ros::NodeHandle nh)
     effort_   = 0.0;
 
     // reads system parameters
-    nh.param<double>("gear_ratio", gear_ratio_, 1.0);
-    nh.param<double>("torque_const", torque_const_, 1.0);
+    nh.param<double>("vesc_hi/gear_ratio", gear_ratio_, 1.0);
+    nh.param<double>("vesc_hi/torque_const", torque_const_, 1.0);
 
     // reads driving mode setting
-    nh.param<std::string>("command_mode", command_mode_, "");  // assigns an empty string if param. is not found
+    nh.param<std::string>("vesc_hi/command_mode", command_mode_, "");  // assigns an empty string if param. is not found
+    ROS_INFO("mode: %s", command_mode_.data());
 
     // registers a state handle and its interface
     hardware_interface::JointStateHandle state_handle(joint_name_, &position_, &velocity_, &effort_);
