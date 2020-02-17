@@ -8,13 +8,20 @@ find_package(catkin REQUIRED COMPONENTS
   serial
   hardware_interface
   controller_manager
+  pluginlib
   vesc_driver
 )
 
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES vesc_hi
-  CATKIN_DEPENDS roscpp serial hardware_interface controller_manager vesc_driver
+  CATKIN_DEPENDS
+    roscpp
+    serial
+    hardware_interface
+    controller_manager
+    pluginlib
+    vesc_driver
 )
 
 include_directories(
