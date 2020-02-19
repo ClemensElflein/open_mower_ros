@@ -8,13 +8,22 @@ find_package(catkin REQUIRED COMPONENTS
   serial
   hardware_interface
   controller_manager
+  pluginlib
   vesc_driver
 )
 
 catkin_package(
-  INCLUDE_DIRS include
-  LIBRARIES vesc_hi
-  CATKIN_DEPENDS roscpp serial hardware_interface controller_manager vesc_driver
+  INCLUDE_DIRS
+    include
+  LIBRARIES
+    vesc_hi
+  CATKIN_DEPENDS
+    roscpp
+    serial
+    hardware_interface
+    controller_manager
+    pluginlib
+    vesc_driver
 )
 
 include_directories(
@@ -36,6 +45,14 @@ add_executable(vesc_hi_node
 add_dependencies(vesc_hi_node ${catkin_EXPORTED_TARGETS})
 target_link_libraries(vesc_hi_node ${catkin_LIBRARIES} vesc_hi)
 
+install(TARGETS vesc_hi
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+)
+
 install(DIRECTORY include/
   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+)
+
+install(DIRECTORY launch/
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
 )

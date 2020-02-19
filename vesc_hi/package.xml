@@ -13,11 +13,10 @@
   <depend>serial</depend>
   <depend>hardware_interface</depend>
   <depend>controller_manager</depend>
+  <depend>pluginlib</depend>
   <depend>vesc_driver</depend>
 
-  <exec_depend>position_controllers</exec_depend>
-  <exec_depend>velocity_controllers</exec_depend>
-  <exec_depend>effort_controllers</exec_depend>
-  <exec_depend>joint_trajectory_controller</exec_depend>
-  <exec_depend>joint_state_controller</exec_depend>
+  <export>
+    <hardware_interface plugin="${prefix}/vesc_hi_plugin.xml"/>
+  </export>
 </package>

@@ -20,10 +20,15 @@
 
 namespace vesc_hi {
 
-VescHI::VescHI(ros::NodeHandle nh)
+VescHI::VescHI()
     : vesc_interface_(std::string(), boost::bind(&VescHI::packetCallback, this, _1),
-                      boost::bind(&VescHI::errorCallback, this, _1))
-    , servo_controller_(nh, &vesc_interface_, 1.0 / getPeriod().toSec()) {
+                      boost::bind(&VescHI::errorCallback, this, _1)) {
+}
+
+VescHI::~VescHI() {
+}
+
+bool VescHI::init(ros::NodeHandle& nh_root, ros::NodeHandle& nh) {
     // reads a port name to open
     std::string port;
     if(!nh.getParam("vesc_hi/port", port)) {
@@ -36,8 +41,8 @@ VescHI::VescHI(ros::NodeHandle nh)
         vesc_interface_.connect(port);
     } catch(serial::SerialException exception) {
         ROS_FATAL("Failed to connect to the VESC, %s.", exception.what());
-        ros::shutdown();
-        return;
+        // ros::shutdown();
+        return false;
     }
 
     // initializes joint names
@@ -67,6 +72,9 @@ VescHI::VescHI(ros::NodeHandle nh)
         hardware_interface::JointHandle position_handle(joint_state_interface_.getHandle(joint_name_), &command_);
         joint_position_interface_.registerHandle(position_handle);
         registerInterface(&joint_position_interface_);
+
+        // initializes the servo controller
+        servo_controller_.init(nh, &vesc_interface_, 1.0 / getPeriod().toSec());
     } else if(command_mode_ == "velocity") {
         hardware_interface::JointHandle velocity_handle(joint_state_interface_.getHandle(joint_name_), &command_);
         joint_velocity_interface_.registerHandle(velocity_handle);
@@ -77,11 +85,11 @@ VescHI::VescHI(ros::NodeHandle nh)
         registerInterface(&joint_effort_interface_);
     } else {
         ROS_ERROR("Verify your command mode setting");
-        ros::shutdown();
+        // ros::shutdown();
+        return false;
     }
-}
 
-VescHI::~VescHI() {
+    return true;
 }
 
 void VescHI::read() {
@@ -108,6 +116,11 @@ void VescHI::read() {
     return;
 }
 
+void VescHI::read(const ros::Time& time, const ros::Duration& period) {
+    read();
+    return;
+}
+
 void VescHI::write() {
     // requests joint states
     // function `packetCallback` will be called after receiveing retrun packets
@@ -116,6 +129,11 @@ void VescHI::write() {
     // updates zero position
     zero_position_val_ = gear_ratio_ * servo_controller_.getZeroPosition();
 
+    return;
+}
+
+void VescHI::write(const ros::Time& time, const ros::Duration& period) {
+    write();
     return;
 }
 
@@ -149,3 +167,5 @@ void VescHI::errorCallback(const std::string& error) {
 }
 
 }  // namespace vesc_hi
+
+PLUGINLIB_EXPORT_CLASS(vesc_hi::VescHI, hardware_interface::RobotHW)

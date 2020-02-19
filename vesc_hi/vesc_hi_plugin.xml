@@ -1,0 +1,7 @@
+<library path="lib/libvesc_hi">
+  <class name="vesc_hi/VescHI" type="vesc_hi::VescHI" base_class_type="hardware_interface::RobotHW">
+    <description>
+        plugin of VESC hardware interface
+    </description>
+  </class>
+</library>

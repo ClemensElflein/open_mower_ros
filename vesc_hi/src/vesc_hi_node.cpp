@@ -19,10 +19,11 @@
 #include "vesc_hi/vesc_hi.h"
 
 int main(int argc, char** argv) {
-    ros::init(argc, argv, "vesc_hi");
+    ros::init(argc, argv, "vesc_hi_node");
 
     ros::NodeHandle nh, nh_private("~");
-    vesc_hi::VescHI vesc_hi(nh_private);
+    vesc_hi::VescHI vesc_hi;
+    vesc_hi.init(nh, nh_private);
 
     controller_manager::ControllerManager controller_manager(&vesc_hi, nh);
 
