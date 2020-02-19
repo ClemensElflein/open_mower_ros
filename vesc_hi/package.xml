@@ -15,4 +15,8 @@
   <depend>controller_manager</depend>
   <depend>pluginlib</depend>
   <depend>vesc_driver</depend>
+
+  <export>
+    <hardware_interface plugin="${prefix}/vesc_hi_plugin.xml"/>
+  </export>
 </package>

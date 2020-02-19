@@ -116,6 +116,11 @@ void VescHI::read() {
     return;
 }
 
+void VescHI::read(const ros::Time& time, const ros::Duration& period) {
+    read();
+    return;
+}
+
 void VescHI::write() {
     // requests joint states
     // function `packetCallback` will be called after receiveing retrun packets
@@ -124,6 +129,11 @@ void VescHI::write() {
     // updates zero position
     zero_position_val_ = gear_ratio_ * servo_controller_.getZeroPosition();
 
+    return;
+}
+
+void VescHI::write(const ros::Time& time, const ros::Duration& period) {
+    write();
     return;
 }
 
@@ -157,3 +167,5 @@ void VescHI::errorCallback(const std::string& error) {
 }
 
 }  // namespace vesc_hi
+
+PLUGINLIB_EXPORT_CLASS(vesc_hi::VescHI, hardware_interface::RobotHW)

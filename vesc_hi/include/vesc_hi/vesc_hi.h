@@ -32,6 +32,7 @@
 #include <hardware_interface/joint_state_interface.h>
 #include <hardware_interface/joint_command_interface.h>
 #include <controller_manager/controller_manager.h>
+#include <pluginlib/class_list_macros.hpp>
 
 #include "vesc_driver/vesc_packet.h"
 #include "vesc_driver/vesc_packet_factory.h"
@@ -51,7 +52,9 @@ public:
 
     bool          init(ros::NodeHandle&, ros::NodeHandle&);
     void          read();
+    void          read(const ros::Time&, const ros::Duration&);
     void          write();
+    void          write(const ros::Time&, const ros::Duration&);
     ros::Time     getTime() const;
     ros::Duration getPeriod() const;
 
@@ -59,7 +62,7 @@ private:
     VescInterface       vesc_interface_;
     VescServoController servo_controller_;
 
-    std::string         joint_name_, command_mode_;
+    std::string joint_name_, command_mode_;
 
     double command_;
     double position_, velocity_, effort_;  // joint states
