@@ -20,7 +20,7 @@
 
 namespace vesc_hi {
 
-VescServoController::VescServoController(ros::NodeHandle nh, VescInterface* interface_ptr, const double frequency) {
+void VescServoController::init(ros::NodeHandle nh, VescInterface* interface_ptr, const double frequency) {
     // initializes members
     if(interface_ptr == NULL) {
         ros::shutdown();
@@ -37,6 +37,8 @@ VescServoController::VescServoController(ros::NodeHandle nh, VescInterface* inte
     nh.param("vesc_hi/servo/Ki", Ki_, 0.0);
     nh.param("vesc_hi/servo/Kd", Kd_, 1.0);
     nh.param("vesc_hi/servo/calibration_current", calibration_current_, 6.0);
+
+    return;
 }
 
 void VescServoController::control(const double position_reference, double position_current) {

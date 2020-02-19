@@ -30,8 +30,7 @@ using vesc_driver::VescInterface;
 
 class VescServoController {
 public:
-    explicit VescServoController(ros::NodeHandle, VescInterface*, const double);
-
+    void   init(ros::NodeHandle, VescInterface*, const double);
     void   control(const double, const double);
     double getZeroPosition();
     void   executeCalibration();

@@ -46,9 +46,10 @@ using vesc_driver::VescInterface;
 
 class VescHI : public hardware_interface::RobotHW {
 public:
-    explicit VescHI(ros::NodeHandle);
+    VescHI();
     ~VescHI();
 
+    bool          init(ros::NodeHandle&, ros::NodeHandle&);
     void          read();
     void          write();
     ros::Time     getTime() const;
