@@ -16,22 +16,22 @@
 *
 *********************************************************************/
 
-#include "vesc_hi/vesc_hi.h"
+#include "vesc_hw_interface/vesc_hw_interface.h"
 
-namespace vesc_hi {
+namespace vesc_hw_interface {
 
-VescHI::VescHI()
-    : vesc_interface_(std::string(), boost::bind(&VescHI::packetCallback, this, _1),
-                      boost::bind(&VescHI::errorCallback, this, _1)) {
+VescHwInterface::VescHwInterface()
+    : vesc_interface_(std::string(), boost::bind(&VescHwInterface::packetCallback, this, _1),
+                      boost::bind(&VescHwInterface::errorCallback, this, _1)) {
 }
 
-VescHI::~VescHI() {
+VescHwInterface::~VescHwInterface() {
 }
 
-bool VescHI::init(ros::NodeHandle& nh_root, ros::NodeHandle& nh) {
+bool VescHwInterface::init(ros::NodeHandle& nh_root, ros::NodeHandle& nh) {
     // reads a port name to open
     std::string port;
-    if(!nh.getParam("vesc_hi/port", port)) {
+    if(!nh.getParam("vesc_hw_interface/port", port)) {
         ROS_FATAL("VESC communication port parameter required.");
         ros::shutdown();
     }
@@ -46,7 +46,7 @@ bool VescHI::init(ros::NodeHandle& nh_root, ros::NodeHandle& nh) {
     }
 
     // initializes joint names
-    nh.param<std::string>("vesc_hi/joint_name", joint_name_, "joint_vesc");
+    nh.param<std::string>("vesc_hw_interface/joint_name", joint_name_, "joint_vesc");
 
     // initializes commands and states
     command_  = 0.0;
@@ -55,11 +55,11 @@ bool VescHI::init(ros::NodeHandle& nh_root, ros::NodeHandle& nh) {
     effort_   = 0.0;
 
     // reads system parameters
-    nh.param<double>("vesc_hi/gear_ratio", gear_ratio_, 1.0);
-    nh.param<double>("vesc_hi/torque_const", torque_const_, 1.0);
+    nh.param<double>("vesc_hw_interface/gear_ratio", gear_ratio_, 1.0);
+    nh.param<double>("vesc_hw_interface/torque_const", torque_const_, 1.0);
 
     // reads driving mode setting
-    nh.param<std::string>("vesc_hi/command_mode", command_mode_, "");  // assigns an empty string if param. is not found
+    nh.param<std::string>("vesc_hw_interface/command_mode", command_mode_, "");  // assigns an empty string if param. is not found
     ROS_INFO("mode: %s", command_mode_.data());
 
     // registers a state handle and its interface
@@ -92,7 +92,7 @@ bool VescHI::init(ros::NodeHandle& nh_root, ros::NodeHandle& nh) {
     return true;
 }
 
-void VescHI::read() {
+void VescHwInterface::read() {
     // sends commands
     if(command_mode_ == "position") {
         // executes PID control
@@ -116,12 +116,12 @@ void VescHI::read() {
     return;
 }
 
-void VescHI::read(const ros::Time& time, const ros::Duration& period) {
+void VescHwInterface::read(const ros::Time& time, const ros::Duration& period) {
     read();
     return;
 }
 
-void VescHI::write() {
+void VescHwInterface::write() {
     // requests joint states
     // function `packetCallback` will be called after receiveing retrun packets
     vesc_interface_.requestState();
@@ -132,20 +132,20 @@ void VescHI::write() {
     return;
 }
 
-void VescHI::write(const ros::Time& time, const ros::Duration& period) {
+void VescHwInterface::write(const ros::Time& time, const ros::Duration& period) {
     write();
     return;
 }
 
-ros::Time VescHI::getTime() const {
+ros::Time VescHwInterface::getTime() const {
     return ros::Time::now();
 }
 
-ros::Duration VescHI::getPeriod() const {
+ros::Duration VescHwInterface::getPeriod() const {
     return ros::Duration(0.01);
 }
 
-void VescHI::packetCallback(const boost::shared_ptr<VescPacket const>& packet) {
+void VescHwInterface::packetCallback(const boost::shared_ptr<VescPacket const>& packet) {
     if(packet->getName() == "Values") {
         boost::shared_ptr<VescPacketValues const> values = boost::dynamic_pointer_cast<VescPacketValues const>(packet);
 
@@ -161,11 +161,11 @@ void VescHI::packetCallback(const boost::shared_ptr<VescPacket const>& packet) {
     return;
 }
 
-void VescHI::errorCallback(const std::string& error) {
+void VescHwInterface::errorCallback(const std::string& error) {
     ROS_ERROR("%s", error.c_str());
     return;
 }
 
-}  // namespace vesc_hi
+}  // namespace vesc_hw_interface
 
-PLUGINLIB_EXPORT_CLASS(vesc_hi::VescHI, hardware_interface::RobotHW)
+PLUGINLIB_EXPORT_CLASS(vesc_hw_interface::VescHwInterface, hardware_interface::RobotHW)

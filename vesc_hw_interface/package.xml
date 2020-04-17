@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>vesc_hi</name>
+  <name>vesc_hw_interface</name>
   <version>1.0.0</version>
   <description>VESC hardware interfaces</description>
   <maintainer email="SBGRP-git@g.softbank.co.jp">SoftBank Corp.</maintainer>
@@ -17,6 +17,6 @@
   <depend>vesc_driver</depend>
 
   <export>
-    <hardware_interface plugin="${prefix}/vesc_hi_plugin.xml"/>
+    <hardware_interface plugin="${prefix}/vesc_hw_interface_plugin.xml"/>
   </export>
 </package>

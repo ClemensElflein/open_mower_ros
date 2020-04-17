@@ -16,9 +16,9 @@
 *
 *********************************************************************/
 
-#include "vesc_hi/vesc_servo_controller.h"
+#include "vesc_hw_interface/vesc_servo_controller.h"
 
-namespace vesc_hi {
+namespace vesc_hw_interface {
 
 void VescServoController::init(ros::NodeHandle nh, VescInterface* interface_ptr, const double frequency) {
     // initializes members
@@ -33,10 +33,10 @@ void VescServoController::init(ros::NodeHandle nh, VescInterface* interface_ptr,
     frequency_        = frequency;
 
     // reads parameters
-    nh.param("vesc_hi/servo/Kp", Kp_, 50.0);
-    nh.param("vesc_hi/servo/Ki", Ki_, 0.0);
-    nh.param("vesc_hi/servo/Kd", Kd_, 1.0);
-    nh.param("vesc_hi/servo/calibration_current", calibration_current_, 6.0);
+    nh.param("vesc_hw_interface/servo/Kp", Kp_, 50.0);
+    nh.param("vesc_hw_interface/servo/Ki", Ki_, 0.0);
+    nh.param("vesc_hw_interface/servo/Kd", Kd_, 1.0);
+    nh.param("vesc_hw_interface/servo/calibration_current", calibration_current_, 6.0);
 
     return;
 }
@@ -136,4 +136,4 @@ double VescServoController::saturate(const double arg) {
     }
 }
 
-}  // namespace vesc_hi
+}  // namespace vesc_hw_interface

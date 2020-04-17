@@ -16,15 +16,15 @@
 *
 *********************************************************************/
 
-#ifndef VESC_SERVO_CONTRoLLER_H_
-#define VESC_SERVO_CONTROLLER_H_
+#ifndef VESC_HW_INTERFACE_VESC_SERVO_CONTROLLER_H_
+#define VESC_HW_INTERFACE_VESC_SERVO_CONTROLLER_H_
 
 #include <cmath>
 
 #include <ros/ros.h>
 #include <vesc_driver/vesc_interface.h>
 
-namespace vesc_hi {
+namespace vesc_hw_interface {
 
 using vesc_driver::VescInterface;
 
@@ -47,6 +47,6 @@ private:
     double saturate(const double);
 };
 
-}  // namespace vesc_hi
+}  // namespace vesc_hw_interface
 
-#endif  // VESC_SERVO_CONTROLLER_H_
+#endif  // VESC_HW_INTERFACE_VESC_SERVO_CONTROLLER_H_

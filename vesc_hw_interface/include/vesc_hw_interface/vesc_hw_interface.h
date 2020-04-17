@@ -16,8 +16,8 @@
 *
 *********************************************************************/
 
-#ifndef VESC_HI_H_
-#define VESC_HI_H_
+#ifndef VESC_HW_INTERFACE_VESC_HW_INTERFACE_H_
+#define VESC_HW_INTERFACE_VESC_HW_INTERFACE_H_
 
 #include <string>
 #include <cmath>
@@ -37,18 +37,18 @@
 #include "vesc_driver/vesc_packet.h"
 #include "vesc_driver/vesc_packet_factory.h"
 #include "vesc_driver/vesc_interface.h"
-#include "vesc_hi/vesc_servo_controller.h"
+#include "vesc_hw_interface/vesc_servo_controller.h"
 
-namespace vesc_hi {
+namespace vesc_hw_interface {
 
 using vesc_driver::VescPacket;
 using vesc_driver::VescPacketValues;
 using vesc_driver::VescInterface;
 
-class VescHI : public hardware_interface::RobotHW {
+class VescHwInterface : public hardware_interface::RobotHW {
 public:
-    VescHI();
-    ~VescHI();
+    VescHwInterface();
+    ~VescHwInterface();
 
     bool          init(ros::NodeHandle&, ros::NodeHandle&);
     void          read();
@@ -79,6 +79,6 @@ private:
     void errorCallback(const std::string&);
 };
 
-}  // namespace vesc_hi
+}  // namespace vesc_hw_interface
 
-#endif  // VESC_HI_H_
+#endif  // VESC_HW_INTERFACE_VESC_HW_INTERFACE_H_
