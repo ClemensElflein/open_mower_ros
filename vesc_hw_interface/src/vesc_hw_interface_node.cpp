@@ -19,28 +19,28 @@
 #include "vesc_hw_interface/vesc_hw_interface.h"
 
 int main(int argc, char** argv) {
-    ros::init(argc, argv, "vesc_hi_node");
+    ros::init(argc, argv, "vesc_hw_interface_node");
 
     ros::NodeHandle nh, nh_private("~");
-    vesc_hi::VescHI vesc_hi;
-    vesc_hi.init(nh, nh_private);
+    vesc_hw_interface::VescHwInterface vesc_hw_interface;
+    vesc_hw_interface.init(nh, nh_private);
 
-    controller_manager::ControllerManager controller_manager(&vesc_hi, nh);
+    controller_manager::ControllerManager controller_manager(&vesc_hw_interface, nh);
 
-    ros::Rate         loop_rate(1.0 / vesc_hi.getPeriod().toSec());
+    ros::Rate         loop_rate(1.0 / vesc_hw_interface.getPeriod().toSec());
     ros::AsyncSpinner spinner(1);
 
     spinner.start();
 
     while(ros::ok()) {
         // sends commands
-        vesc_hi.read();
+        vesc_hw_interface.read();
 
         // updates the hardware interface control
-        controller_manager.update(vesc_hi.getTime(), vesc_hi.getPeriod());
+        controller_manager.update(vesc_hw_interface.getTime(), vesc_hw_interface.getPeriod());
 
         // gets current states
-        vesc_hi.write();
+        vesc_hw_interface.write();
 
         // sleeps
         loop_rate.sleep();
