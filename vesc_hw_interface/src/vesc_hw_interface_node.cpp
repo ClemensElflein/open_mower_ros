@@ -16,7 +16,7 @@
 *
 *********************************************************************/
 
-#include "vesc_hi/vesc_hi.h"
+#include "vesc_hw_interface/vesc_hw_interface.h"
 
 int main(int argc, char** argv) {
     ros::init(argc, argv, "vesc_hi_node");

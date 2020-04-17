@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(vesc_hi)
+project(vesc_hw_interface)
 
 add_compile_options(-std=c++11)
 
@@ -16,7 +16,7 @@ catkin_package(
   INCLUDE_DIRS
     include
   LIBRARIES
-    vesc_hi
+  ${PROJECT_NAME}
   CATKIN_DEPENDS
     roscpp
     serial
@@ -32,20 +32,20 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
 )
 
-add_library(vesc_hi
-  src/vesc_hi.cpp
+add_library(${PROJECT_NAME}
+  src/vesc_hw_interface.cpp
   src/vesc_servo_controller.cpp
 )
-add_dependencies(vesc_hi ${catkin_EXPORTED_TARGETS})
-target_link_libraries(vesc_hi ${catkin_LIBRARIES})
+add_dependencies(${PROJECT_NAME} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
 
-add_executable(vesc_hi_node
-  src/vesc_hi_node.cpp
+add_executable(${PROJECT_NAME}_node
+  src/vesc_hw_interface_node.cpp
 )
-add_dependencies(vesc_hi_node ${catkin_EXPORTED_TARGETS})
-target_link_libraries(vesc_hi_node ${catkin_LIBRARIES} vesc_hi)
+add_dependencies(${PROJECT_NAME}_node ${catkin_EXPORTED_TARGETS})
+target_link_libraries(${PROJECT_NAME}_node ${catkin_LIBRARIES} ${PROJECT_NAME})
 
-install(TARGETS vesc_hi
+install(TARGETS ${PROJECT_NAME}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
 )
 

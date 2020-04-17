@@ -37,7 +37,7 @@
 #include "vesc_driver/vesc_packet.h"
 #include "vesc_driver/vesc_packet_factory.h"
 #include "vesc_driver/vesc_interface.h"
-#include "vesc_hi/vesc_servo_controller.h"
+#include "vesc_hw_interface/vesc_servo_controller.h"
 
 namespace vesc_hi {
 
