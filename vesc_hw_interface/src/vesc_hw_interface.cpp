@@ -127,7 +127,7 @@ void VescHwInterface::write() {
     vesc_interface_.requestState();
 
     // updates zero position
-    zero_position_val_ = gear_ratio_ * servo_controller_.getZeroPosition();
+    zero_position_pulse_ = gear_ratio_ * servo_controller_.getZeroPosition();
 
     return;
 }
@@ -153,9 +153,9 @@ void VescHwInterface::packetCallback(const boost::shared_ptr<VescPacket const>& 
         double velocity_rpm   = values->getRpm();
         double position_pulse = values->getPosition();
 
-        position_ = (position_pulse - zero_position_val_) / gear_ratio_;  // unit: rad or m
-        velocity_ = velocity_rpm * 2 * M_PI / 60.0 / gear_ratio_;         // unit: rad/s or m/s
-        effort_   = current * torque_const_ * gear_ratio_;                // unit: Nm or N
+        position_ = (position_pulse - zero_position_pulse_) / gear_ratio_;  // unit: rad or m
+        velocity_ = velocity_rpm * 2 * M_PI / 60.0 / gear_ratio_;           // unit: rad/s or m/s
+        effort_   = current * torque_const_ * gear_ratio_;                  // unit: Nm or N
     }
 
     return;

@@ -67,7 +67,7 @@ private:
     double command_;
     double position_, velocity_, effort_;  // joint states
 
-    double zero_position_val_;          // sensor value on zero position
+    double zero_position_pulse_;        // sensor value on zero position
     double gear_ratio_, torque_const_;  // physical params.
 
     hardware_interface::JointStateInterface    joint_state_interface_;
