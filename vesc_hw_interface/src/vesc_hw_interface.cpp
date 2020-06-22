@@ -59,7 +59,8 @@ bool VescHwInterface::init(ros::NodeHandle& nh_root, ros::NodeHandle& nh) {
     nh.param<double>("vesc_hw_interface/torque_const", torque_const_, 1.0);
 
     // reads driving mode setting
-    nh.param<std::string>("vesc_hw_interface/command_mode", command_mode_, "");  // assigns an empty string if param. is not found
+    // - assigns an empty string if param. is not found
+    nh.param<std::string>("vesc_hw_interface/command_mode", command_mode_, "");
     ROS_INFO("mode: %s", command_mode_.data());
 
     // registers a state handle and its interface
