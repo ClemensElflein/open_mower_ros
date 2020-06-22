@@ -37,6 +37,7 @@ void VescServoController::init(ros::NodeHandle nh, VescInterface* interface_ptr,
     nh.param("vesc_hw_interface/servo/Ki", Ki_, 0.0);
     nh.param("vesc_hw_interface/servo/Kd", Kd_, 1.0);
     nh.param("vesc_hw_interface/servo/calibration_current", calibration_current_, 6.0);
+    nh.param("vesc_hw_interface/servo/calibration_position", calibration_position_, 0.0);
 
     return;
 }
@@ -106,7 +107,7 @@ bool VescServoController::calibrate(const double position_current) {
         interface_ptr_->setCurrent(0.0);
         calibration_flag_ = false;
         step              = 0;
-        zero_position_    = position_current;
+        zero_position_    = position_current - calibration_position_;
 
         ROS_INFO("Calibration Finished");
         return true;

@@ -39,7 +39,9 @@ private:
     VescInterface* interface_ptr_;
 
     bool   calibration_flag_;
-    double calibration_current_, zero_position_;
+    double calibration_current_;   // unit: A
+    double calibration_position_;  // unit: rad or m
+    double zero_position_;         // unit: rad or m
     double Kp_, Ki_, Kd_, frequency_;
 
     bool   calibrate(const double);
