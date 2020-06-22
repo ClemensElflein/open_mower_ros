@@ -32,7 +32,7 @@ class VescServoController {
 public:
     void   init(ros::NodeHandle, VescInterface*, const double);
     void   control(const double, const double);
-    double getZeroPosition();
+    double getZeroPosition() const;
     void   executeCalibration();
 
 private:
@@ -43,8 +43,8 @@ private:
     double Kp_, Ki_, Kd_, frequency_;
 
     bool   calibrate(const double);
-    bool   isSaturated(const double);
-    double saturate(const double);
+    bool   isSaturated(const double) const;
+    double saturate(const double) const;
 };
 
 }  // namespace vesc_hw_interface
