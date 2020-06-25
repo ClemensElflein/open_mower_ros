@@ -34,13 +34,13 @@ int main(int argc, char** argv) {
 
     while(ros::ok()) {
         // sends commands
-        vesc_hw_interface.read();
+        vesc_hw_interface.write();
 
         // updates the hardware interface control
         controller_manager.update(vesc_hw_interface.getTime(), vesc_hw_interface.getPeriod());
 
         // gets current states
-        vesc_hw_interface.write();
+        vesc_hw_interface.read();
 
         // sleeps
         loop_rate.sleep();

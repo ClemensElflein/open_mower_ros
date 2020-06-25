@@ -94,6 +94,19 @@ bool VescHwInterface::init(ros::NodeHandle& nh_root, ros::NodeHandle& nh) {
 }
 
 void VescHwInterface::read() {
+    // requests joint states
+    // function `packetCallback` will be called after receiveing retrun packets
+    vesc_interface_.requestState();
+
+    return;
+}
+
+void VescHwInterface::read(const ros::Time& time, const ros::Duration& period) {
+    read();
+    return;
+}
+
+void VescHwInterface::write() {
     // sends commands
     if(command_mode_ == "position") {
         // executes PID control
@@ -114,19 +127,6 @@ void VescHwInterface::read() {
         // sends a  duty command
         vesc_interface_.setDutyCycle(command_);
     }
-    return;
-}
-
-void VescHwInterface::read(const ros::Time& time, const ros::Duration& period) {
-    read();
-    return;
-}
-
-void VescHwInterface::write() {
-    // requests joint states
-    // function `packetCallback` will be called after receiveing retrun packets
-    vesc_interface_.requestState();
-
     return;
 }
 
