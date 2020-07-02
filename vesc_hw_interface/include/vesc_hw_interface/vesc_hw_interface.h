@@ -31,8 +31,13 @@
 #include <hardware_interface/robot_hw.h>
 #include <hardware_interface/joint_state_interface.h>
 #include <hardware_interface/joint_command_interface.h>
+#include <joint_limits_interface/joint_limits.h>
+#include <joint_limits_interface/joint_limits_interface.h>
+#include <joint_limits_interface/joint_limits_rosparam.h>
+#include <joint_limits_interface/joint_limits_urdf.h>
 #include <controller_manager/controller_manager.h>
 #include <pluginlib/class_list_macros.hpp>
+#include <urdf_parser/urdf_parser.h>
 
 #include "vesc_driver/vesc_packet.h"
 #include "vesc_driver/vesc_packet_factory.h"
@@ -67,13 +72,17 @@ private:
     double command_;
     double position_, velocity_, effort_;  // joint states
 
-    double zero_position_val_;          // sensor value on zero position
     double gear_ratio_, torque_const_;  // physical params.
 
     hardware_interface::JointStateInterface    joint_state_interface_;
     hardware_interface::PositionJointInterface joint_position_interface_;
     hardware_interface::VelocityJointInterface joint_velocity_interface_;
     hardware_interface::EffortJointInterface   joint_effort_interface_;
+
+    joint_limits_interface::JointLimits                      joint_limits_;
+    joint_limits_interface::PositionJointSaturationInterface limit_position_interface_;
+    joint_limits_interface::VelocityJointSaturationInterface limit_velocity_interface_;
+    joint_limits_interface::EffortJointSaturationInterface   limit_effort_interface_;
 
     void packetCallback(const boost::shared_ptr<VescPacket const>&);
     void errorCallback(const std::string&);
