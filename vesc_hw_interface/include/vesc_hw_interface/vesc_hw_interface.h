@@ -33,6 +33,7 @@
 #include <hardware_interface/joint_command_interface.h>
 #include <controller_manager/controller_manager.h>
 #include <pluginlib/class_list_macros.hpp>
+#include <urdf_parser/urdf_parser.h>
 
 #include "vesc_driver/vesc_packet.h"
 #include "vesc_driver/vesc_packet_factory.h"

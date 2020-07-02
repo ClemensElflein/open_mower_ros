@@ -45,8 +45,22 @@ bool VescHwInterface::init(ros::NodeHandle& nh_root, ros::NodeHandle& nh) {
         return false;
     }
 
-    // initializes joint names
+    // initializes the joint name
     nh.param<std::string>("vesc_hw_interface/joint_name", joint_name_, "joint_vesc");
+
+    // loads joint limits
+    std::string robot_description_name, robot_description;
+    nh.param<std::string>("vesc_hw_interface/robot_description_name", robot_description_name, "/robot_description");
+
+    // parses the urdf
+    if(nh.getParam(robot_description_name, robot_description)) {
+        boost::shared_ptr<urdf::ModelInterface> urdf       = urdf::parseURDF(robot_description);
+        boost::shared_ptr<const urdf::Joint>    urdf_joint = urdf->getJoint(joint_name_);
+
+        if(getJointLimits(urdf_joint, joint_limits_)) {
+            ROS_INFO("Joint limits are loaded");
+        }
+    }
 
     // initializes commands and states
     command_  = 0.0;

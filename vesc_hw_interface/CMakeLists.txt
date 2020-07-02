@@ -9,6 +9,7 @@ find_package(catkin REQUIRED COMPONENTS
   hardware_interface
   controller_manager
   pluginlib
+  urdf
   vesc_driver
 )
 
@@ -23,6 +24,7 @@ catkin_package(
     hardware_interface
     controller_manager
     pluginlib
+    urdf
     vesc_driver
 )
 
