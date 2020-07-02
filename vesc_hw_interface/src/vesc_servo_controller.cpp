@@ -37,11 +37,12 @@ void VescServoController::init(ros::NodeHandle nh, VescInterface* interface_ptr,
     nh.param("vesc_hw_interface/servo/Ki", Ki_, 0.0);
     nh.param("vesc_hw_interface/servo/Kd", Kd_, 1.0);
     nh.param("vesc_hw_interface/servo/calibration_current", calibration_current_, 6.0);
+    nh.param("vesc_hw_interface/servo/calibration_position", calibration_position_, 0.0);
 
     return;
 }
 
-void VescServoController::control(const double position_reference, double position_current) {
+void VescServoController::control(const double position_reference, const double position_current) {
     // executes caribration
     if(calibration_flag_) {
         calibrate(position_current);
@@ -83,7 +84,7 @@ void VescServoController::control(const double position_reference, double positi
     return;
 }
 
-double VescServoController::getZeroPosition() {
+double VescServoController::getZeroPosition() const {
     return zero_position_;
 }
 
@@ -106,7 +107,7 @@ bool VescServoController::calibrate(const double position_current) {
         interface_ptr_->setCurrent(0.0);
         calibration_flag_ = false;
         step              = 0;
-        zero_position_    = position_current;
+        zero_position_    = position_current - calibration_position_;
 
         ROS_INFO("Calibration Finished");
         return true;
@@ -118,7 +119,7 @@ bool VescServoController::calibrate(const double position_current) {
     }
 }
 
-bool VescServoController::isSaturated(const double arg) {
+bool VescServoController::isSaturated(const double arg) const {
     if(std::abs(arg) > 1.0) {
         return true;
     } else {
@@ -126,7 +127,7 @@ bool VescServoController::isSaturated(const double arg) {
     }
 }
 
-double VescServoController::saturate(const double arg) {
+double VescServoController::saturate(const double arg) const {
     if(arg > 1.0) {
         return 1.0;
     } else if(arg < -1.0) {

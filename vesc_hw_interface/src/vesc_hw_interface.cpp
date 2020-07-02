@@ -45,8 +45,22 @@ bool VescHwInterface::init(ros::NodeHandle& nh_root, ros::NodeHandle& nh) {
         return false;
     }
 
-    // initializes joint names
+    // initializes the joint name
     nh.param<std::string>("vesc_hw_interface/joint_name", joint_name_, "joint_vesc");
+
+    // loads joint limits
+    std::string robot_description_name, robot_description;
+    nh.param<std::string>("vesc_hw_interface/robot_description_name", robot_description_name, "/robot_description");
+
+    // parses the urdf
+    if(nh.getParam(robot_description_name, robot_description)) {
+        boost::shared_ptr<urdf::ModelInterface> urdf       = urdf::parseURDF(robot_description);
+        boost::shared_ptr<const urdf::Joint>    urdf_joint = urdf->getJoint(joint_name_);
+
+        if(getJointLimits(urdf_joint, joint_limits_)) {
+            ROS_INFO("Joint limits are loaded");
+        }
+    }
 
     // initializes commands and states
     command_  = 0.0;
@@ -59,7 +73,8 @@ bool VescHwInterface::init(ros::NodeHandle& nh_root, ros::NodeHandle& nh) {
     nh.param<double>("vesc_hw_interface/torque_const", torque_const_, 1.0);
 
     // reads driving mode setting
-    nh.param<std::string>("vesc_hw_interface/command_mode", command_mode_, "");  // assigns an empty string if param. is not found
+    // - assigns an empty string if param. is not found
+    nh.param<std::string>("vesc_hw_interface/command_mode", command_mode_, "");
     ROS_INFO("mode: %s", command_mode_.data());
 
     // registers a state handle and its interface
@@ -73,16 +88,25 @@ bool VescHwInterface::init(ros::NodeHandle& nh_root, ros::NodeHandle& nh) {
         joint_position_interface_.registerHandle(position_handle);
         registerInterface(&joint_position_interface_);
 
+        joint_limits_interface::PositionJointSaturationHandle limit_handle(position_handle, joint_limits_);
+        limit_position_interface_.registerHandle(limit_handle);
+
         // initializes the servo controller
         servo_controller_.init(nh, &vesc_interface_, 1.0 / getPeriod().toSec());
     } else if(command_mode_ == "velocity") {
         hardware_interface::JointHandle velocity_handle(joint_state_interface_.getHandle(joint_name_), &command_);
         joint_velocity_interface_.registerHandle(velocity_handle);
         registerInterface(&joint_velocity_interface_);
+
+        joint_limits_interface::VelocityJointSaturationHandle limit_handle(velocity_handle, joint_limits_);
+        limit_velocity_interface_.registerHandle(limit_handle);
     } else if(command_mode_ == "effort" || command_mode_ == "effort_duty") {
         hardware_interface::JointHandle effort_handle(joint_state_interface_.getHandle(joint_name_), &command_);
         joint_effort_interface_.registerHandle(effort_handle);
         registerInterface(&joint_effort_interface_);
+
+        joint_limits_interface::EffortJointSaturationHandle limit_handle(effort_handle, joint_limits_);
+        limit_effort_interface_.registerHandle(limit_handle);
     } else {
         ROS_ERROR("Verify your command mode setting");
         // ros::shutdown();
@@ -93,26 +117,10 @@ bool VescHwInterface::init(ros::NodeHandle& nh_root, ros::NodeHandle& nh) {
 }
 
 void VescHwInterface::read() {
-    // sends commands
-    if(command_mode_ == "position") {
-        // executes PID control
-        servo_controller_.control(command_, position_);
-    } else if(command_mode_ == "velocity") {
-        // converts the velocity unit: rad/s or m/s -> rpm
-        double ref_velocity_rpm = gear_ratio_ * command_ * 60 / (2 * M_PI);
+    // requests joint states
+    // function `packetCallback` will be called after receiveing retrun packets
+    vesc_interface_.requestState();
 
-        // sends a reference velocity command
-        vesc_interface_.setSpeed(ref_velocity_rpm);
-    } else if(command_mode_ == "effort") {
-        // converts the command unit: Nm or N -> A
-        double ref_current = command_ / gear_ratio_ / torque_const_;
-
-        // sends a reference current command
-        vesc_interface_.setCurrent(ref_current);
-    } else if(command_mode_ == "effort_duty") {
-        // sends a  duty command
-        vesc_interface_.setDutyCycle(command_);
-    }
     return;
 }
 
@@ -122,13 +130,35 @@ void VescHwInterface::read(const ros::Time& time, const ros::Duration& period) {
 }
 
 void VescHwInterface::write() {
-    // requests joint states
-    // function `packetCallback` will be called after receiveing retrun packets
-    vesc_interface_.requestState();
+    // sends commands
+    if(command_mode_ == "position") {
+        limit_position_interface_.enforceLimits(getPeriod());
 
-    // updates zero position
-    zero_position_val_ = gear_ratio_ * servo_controller_.getZeroPosition();
+        // executes PID control
+        servo_controller_.control(command_, position_);
+    } else if(command_mode_ == "velocity") {
+        limit_velocity_interface_.enforceLimits(getPeriod());
 
+        // converts the velocity unit: rad/s or m/s -> rpm
+        double ref_velocity_rpm = gear_ratio_ * command_ * 60 / (2 * M_PI);
+
+        // sends a reference velocity command
+        vesc_interface_.setSpeed(ref_velocity_rpm);
+    } else if(command_mode_ == "effort") {
+        limit_effort_interface_.enforceLimits(getPeriod());
+
+        // converts the command unit: Nm or N -> A
+        double ref_current = command_ / gear_ratio_ / torque_const_;
+
+        // sends a reference current command
+        vesc_interface_.setCurrent(ref_current);
+    } else if(command_mode_ == "effort_duty") {
+        command_ = std::max(-1.0, command_);
+        command_ = std::min(1.0, command_);
+
+        // sends a  duty command
+        vesc_interface_.setDutyCycle(command_);
+    }
     return;
 }
 
@@ -153,9 +183,9 @@ void VescHwInterface::packetCallback(const boost::shared_ptr<VescPacket const>& 
         double velocity_rpm   = values->getRpm();
         double position_pulse = values->getPosition();
 
-        position_ = (position_pulse - zero_position_val_) / gear_ratio_;  // unit: rad or m
-        velocity_ = velocity_rpm * 2 * M_PI / 60.0 / gear_ratio_;         // unit: rad/s or m/s
-        effort_   = current * torque_const_ * gear_ratio_;                // unit: Nm or N
+        position_ = position_pulse / gear_ratio_ - servo_controller_.getZeroPosition();  // unit: rad or m
+        velocity_ = velocity_rpm * 2 * M_PI / 60.0 / gear_ratio_;                        // unit: rad/s or m/s
+        effort_   = current * torque_const_ * gear_ratio_;                               // unit: Nm or N
     }
 
     return;
