@@ -30,6 +30,7 @@ All of following parameters are in `${NODE_NAME}/vesc_hw_interface` namespace.
 - `joint_name` (string, *default*: `joint_vesc`): corresponding joint name in your robot URDF.
 - `gear_ratio` (double, *default*: 1.0): ratio of reduction, which is calclated by joint velocity/motor_velocity.
 - `torque_const` (double, *default*: 1.0): motor torque constant (unit: Nm/A).
+- `robot_description_name` (string, *default*: /robot_description): name of the robot description parameters for loading joint limits
 
 **NOTE**: `gear_ratio` and `torque_const` are used to calclate joint states because VESC generally senses just motor position and motor current, neither joint position nor motor torque.
 If your motor unit has other structures, you should implement your own controller.
@@ -39,6 +40,7 @@ If your motor unit has other structures, you should implement your own controlle
 - `servo/Ki` (double, *default*: 0.0): integral gain of the controller.
 - `servo/Kd` (double, *default*: 1.0): derivative gain of the controller.
 - `servo/calibration_current` (double, *default*: 6.0): maximum current used in origin calibration.
+- `servo/calibration_position` (double, *default*: 0.0): the position on which the robot calibrates.
 
 ### Public Functions
 - `void read()` sends command with specified mode.
