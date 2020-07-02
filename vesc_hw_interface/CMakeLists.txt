@@ -7,6 +7,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   serial
   hardware_interface
+  joint_limits_interface
   controller_manager
   pluginlib
   urdf
@@ -22,6 +23,7 @@ catkin_package(
     roscpp
     serial
     hardware_interface
+    joint_limits_interface
     controller_manager
     pluginlib
     urdf
