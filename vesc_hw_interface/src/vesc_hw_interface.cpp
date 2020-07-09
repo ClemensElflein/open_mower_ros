@@ -54,8 +54,8 @@ bool VescHwInterface::init(ros::NodeHandle& nh_root, ros::NodeHandle& nh) {
 
     // parses the urdf
     if(nh.getParam(robot_description_name, robot_description)) {
-        boost::shared_ptr<urdf::ModelInterface> urdf       = urdf::parseURDF(robot_description);
-        boost::shared_ptr<const urdf::Joint>    urdf_joint = urdf->getJoint(joint_name_);
+        const urdf::ModelInterfaceSharedPtr urdf       = urdf::parseURDF(robot_description);
+        const urdf::JointConstSharedPtr     urdf_joint = urdf->getJoint(joint_name_);
 
         if(getJointLimits(urdf_joint, joint_limits_)) {
             ROS_INFO("Joint limits are loaded");
