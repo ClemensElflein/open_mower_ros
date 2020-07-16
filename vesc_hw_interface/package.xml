@@ -5,7 +5,7 @@
   <description>VESC hardware interfaces</description>
   <maintainer email="SBGRP-git@g.softbank.co.jp">SoftBank Corp.</maintainer>
   <author email="yuki.st16@gmail.com">Yuki Onishi</author>
-  <license>Apache License, Version2.0</license>
+  <license>Apache 2.0</license>
 
   <buildtool_depend>catkin</buildtool_depend>
 
