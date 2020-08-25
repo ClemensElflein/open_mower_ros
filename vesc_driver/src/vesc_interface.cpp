@@ -25,13 +25,13 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
- *********************************************************************/
+ ********************************************************************/
 
 /** NOTE *************************************************************
  * This program had been developed by Michael T. Boulet at MIT under
  * the BSD 3-clause License until Dec. 2016. Since Nov. 2019, Softbank
  * Corp. takes over development as new packages.
- *********************************************************************/
+ ********************************************************************/
 
 #include "vesc_driver/vesc_interface.h"
 
