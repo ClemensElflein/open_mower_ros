@@ -1,37 +1,37 @@
 /*********************************************************************
-* Copyright (c) 2019, SoftBank Corp.
-* All rights reserved.
-*
-* Redistribution and use in source and binary forms, with or without
-* modification, are permitted provided that the following conditions are met:
-*
-*     * Redistributions of source code must retain the above copyright
-*       notice, this list of conditions and the following disclaimer.
-*     * Redistributions in binary form must reproduce the above copyright
-*       notice, this list of conditions and the following disclaimer in the
-*       documentation and/or other materials provided with the distribution.
-*     * Neither the name of Softbank Corp. nor the names of its
-*       contributors may be used to endorse or promote products derived from
-*       this software without specific prior written permission.
-*
-* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-* AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-* IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-* ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
-* LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-* CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-* SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-* INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-* CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-* ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-* POSSIBILITY OF SUCH DAMAGE.
-*********************************************************************/
+ * Copyright (c) 2019, SoftBank Corp.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in the
+ *       documentation and/or other materials provided with the distribution.
+ *     * Neither the name of Softbank Corp. nor the names of its
+ *       contributors may be used to endorse or promote products derived from
+ *       this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *********************************************************************/
 
 /** NOTE *************************************************************
-* This program had been developed by Michael T. Boulet at MIT under
-* the BSD 3-clause License until Dec. 2016. Since Nov. 2019, Softbank
-* Corp. takes over development as new packages.
-*********************************************************************/
+ * This program had been developed by Michael T. Boulet at MIT under
+ * the BSD 3-clause License until Dec. 2016. Since Nov. 2019, Softbank
+ * Corp. takes over development as new packages.
+ *********************************************************************/
 
 #ifndef VESC_DRIVER_VESC_PACKET_H_
 #define VESC_DRIVER_VESC_PACKET_H_
@@ -51,59 +51,62 @@
 
 #include "vesc_driver/data_map.h"
 
-namespace vesc_driver {
-
+namespace vesc_driver
+{
 typedef std::vector<uint8_t> Buffer;
-typedef std::pair<Buffer::iterator, Buffer::iterator>             BufferRange;
+typedef std::pair<Buffer::iterator, Buffer::iterator> BufferRange;
 typedef std::pair<Buffer::const_iterator, Buffer::const_iterator> BufferRangeConst;
 
 /**
  * @brief The raw frame for communicating with the VESC
  **/
-class VescFrame {
+class VescFrame
+{
 public:
-    /**
-     * @brief Destructor
-     **/
-    virtual ~VescFrame() {
-    }
+  /**
+   * @brief Destructor
+   **/
+  virtual ~VescFrame()
+  {
+  }
 
-    /**
-     * @brief Gets a reference of the frame
-     * @return Reference of the frame
-     **/
-    virtual const Buffer& getFrame() const {
-        return frame_;
-    }
+  /**
+   * @brief Gets a reference of the frame
+   * @return Reference of the frame
+   **/
+  virtual const Buffer& getFrame() const
+  {
+    return frame_;
+  }
 
-    /* packet properties */
-    static const int16_t VESC_MAX_PAYLOAD_SIZE    = 1024;                       // Maximum payload size (bytes)
-    static const int16_t VESC_MIN_FRAME_SIZE      = 5;                          // Smallest frame size (bytes)
-    static const int16_t VESC_MAX_FRAME_SIZE      = 6 + VESC_MAX_PAYLOAD_SIZE;  // Largest frame size (bytes)
-    static const int16_t VESC_SOF_VAL_SMALL_FRAME = 2;                          // Start of "small" frame value
-    static const int16_t VESC_SOF_VAL_LARGE_FRAME = 3;                          // Start of "large" frame value
-    static const int16_t VESC_EOF_VAL             = 3;                          // End-of-frame value
+  /* packet properties */
+  static const int16_t VESC_MAX_PAYLOAD_SIZE = 1024;                     // Maximum payload size (bytes)
+  static const int16_t VESC_MIN_FRAME_SIZE = 5;                          // Smallest frame size (bytes)
+  static const int16_t VESC_MAX_FRAME_SIZE = 6 + VESC_MAX_PAYLOAD_SIZE;  // Largest frame size (bytes)
+  static const int16_t VESC_SOF_VAL_SMALL_FRAME = 2;                     // Start of "small" frame value
+  static const int16_t VESC_SOF_VAL_LARGE_FRAME = 3;                     // Start of "large" frame value
+  static const int16_t VESC_EOF_VAL = 3;                                 // End-of-frame value
 
-    /**
-     * @brief CRC parameters for the VESC
-     **/
-    typedef boost::crc_optimal<16, 0x1021, 0, 0, false, false> CRC;
+  /**
+   * @brief CRC parameters for the VESC
+   **/
+  typedef boost::crc_optimal<16, 0x1021, 0, 0, false, false> CRC;
 
 protected:
-    explicit VescFrame(const int16_t payload_size);
+  explicit VescFrame(const int16_t payload_size);
 
-    Buffer frame_;
-    // Stores frame data
+  Buffer frame_;
+  // Stores frame data
 
-    BufferRange payload_end_;
-    // View into frame's payload section
-    // .first:  iterator which points the front of payload (in `frame_`/)
-    // .second: iterator which points the tail of payload (in `frame_`)
+  BufferRange payload_end_;
+  // View into frame's payload section
+  // .first:  iterator which points the front of payload (in `frame_`/)
+  // .second: iterator which points the tail of payload (in `frame_`)
 
 private:
-    VescFrame(const BufferRangeConst& frame, const BufferRangeConst& payload);
+  VescFrame(const BufferRangeConst& frame, const BufferRangeConst& payload);
 
-    friend class VescPacketFactory;  // gives VescPacketFactory access to private constructor
+  friend class VescPacketFactory;  // gives VescPacketFactory access to private constructor
 };
 
 /*------------------------------------------------------------------*/
@@ -111,31 +114,34 @@ private:
 /**
  * @brief VescFrame with a non-zero length payload
  **/
-class VescPacket : public VescFrame {
+class VescPacket : public VescFrame
+{
 public:
-    /**
-     * @brief Destructor
-     **/
-    virtual ~VescPacket() {
-    }
+  /**
+   * @brief Destructor
+   **/
+  virtual ~VescPacket()
+  {
+  }
 
-    /**
-     * @brief Gets the packet name
-     * @return The packet name
-     **/
-    virtual const std::string& getName() const {
-        return name_;
-    }
+  /**
+   * @brief Gets the packet name
+   * @return The packet name
+   **/
+  virtual const std::string& getName() const
+  {
+    return name_;
+  }
 
 protected:
-    VescPacket(const std::string& name, const int16_t payload_size, const int16_t payload_id);
-    VescPacket(const std::string& name, boost::shared_ptr<VescFrame> raw);
+  VescPacket(const std::string& name, const int16_t payload_size, const int16_t payload_id);
+  VescPacket(const std::string& name, boost::shared_ptr<VescFrame> raw);
 
 private:
-    std::string name_;
+  std::string name_;
 };
 
-typedef boost::shared_ptr<VescPacket>       VescPacketPtr;
+typedef boost::shared_ptr<VescPacket> VescPacketPtr;
 typedef boost::shared_ptr<VescPacket const> VescPacketConstPtr;
 
 /*------------------------------------------------------------------*/
@@ -143,12 +149,13 @@ typedef boost::shared_ptr<VescPacket const> VescPacketConstPtr;
 /**
  * @brief Farmware version
  **/
-class VescPacketFWVersion : public VescPacket {
+class VescPacketFWVersion : public VescPacket
+{
 public:
-    explicit VescPacketFWVersion(boost::shared_ptr<VescFrame> raw);
+  explicit VescPacketFWVersion(boost::shared_ptr<VescFrame> raw);
 
-    int16_t fwMajor() const;
-    int16_t fwMinor() const;
+  int16_t fwMajor() const;
+  int16_t fwMinor() const;
 };
 
 /*------------------------------------------------------------------*/
@@ -156,9 +163,10 @@ public:
 /**
  * @brief Requests farmware version
  **/
-class VescPacketRequestFWVersion : public VescPacket {
+class VescPacketRequestFWVersion : public VescPacket
+{
 public:
-    VescPacketRequestFWVersion();
+  VescPacketRequestFWVersion();
 };
 
 /*------------------------------------------------------------------*/
@@ -166,27 +174,28 @@ public:
 /**
  * @brief Gets values in return packets
  **/
-class VescPacketValues : public VescPacket {
+class VescPacketValues : public VescPacket
+{
 public:
-    explicit VescPacketValues(boost::shared_ptr<VescFrame> raw);
+  explicit VescPacketValues(boost::shared_ptr<VescFrame> raw);
 
-    double getMosTemp() const;
-    double getMotorTemp() const;
-    double getMotorCurrent() const;
-    double getInputCurrent() const;
-    double getRpm() const;
-    double getInputVoltage() const;
-    double getDuty() const;
-    double getConsumedCharge() const;
-    double getInputCharge() const;
-    double getConsumedPower() const;
-    double getInputPower() const;
-    double getPosition() const;
-    double getDisplacement() const;
-    int    getFaultCode() const;
+  double getMosTemp() const;
+  double getMotorTemp() const;
+  double getMotorCurrent() const;
+  double getInputCurrent() const;
+  double getRpm() const;
+  double getInputVoltage() const;
+  double getDuty() const;
+  double getConsumedCharge() const;
+  double getInputCharge() const;
+  double getConsumedPower() const;
+  double getInputPower() const;
+  double getPosition() const;
+  double getDisplacement() const;
+  int getFaultCode() const;
 
 private:
-    double readBuffer(const uint8_t, const uint8_t) const;
+  double readBuffer(const uint8_t, const uint8_t) const;
 };
 
 /*------------------------------------------------------------------*/
@@ -194,9 +203,10 @@ private:
 /**
  * @brief Packet for requesting retrun packets
  **/
-class VescPacketRequestValues : public VescPacket {
+class VescPacketRequestValues : public VescPacket
+{
 public:
-    VescPacketRequestValues();
+  VescPacketRequestValues();
 };
 
 /*------------------------------------------------------------------*/
@@ -204,9 +214,10 @@ public:
 /**
  * @brief Packet for setting duty
  **/
-class VescPacketSetDuty : public VescPacket {
+class VescPacketSetDuty : public VescPacket
+{
 public:
-    explicit VescPacketSetDuty(double duty);
+  explicit VescPacketSetDuty(double duty);
 };
 
 /*------------------------------------------------------------------*/
@@ -214,9 +225,10 @@ public:
 /**
  * @brief Packet for setting reference current
  **/
-class VescPacketSetCurrent : public VescPacket {
+class VescPacketSetCurrent : public VescPacket
+{
 public:
-    explicit VescPacketSetCurrent(double current);
+  explicit VescPacketSetCurrent(double current);
 };
 
 /*------------------------------------------------------------------*/
@@ -224,9 +236,10 @@ public:
 /**
  * @brief Packet for setting current brake
  **/
-class VescPacketSetCurrentBrake : public VescPacket {
+class VescPacketSetCurrentBrake : public VescPacket
+{
 public:
-    explicit VescPacketSetCurrentBrake(double current_brake);
+  explicit VescPacketSetCurrentBrake(double current_brake);
 };
 
 /*------------------------------------------------------------------*/
@@ -234,9 +247,10 @@ public:
 /**
  * @brief Packet for setting reference angular velocity
  **/
-class VescPacketSetRPM : public VescPacket {
+class VescPacketSetRPM : public VescPacket
+{
 public:
-    explicit VescPacketSetRPM(double getRpm);
+  explicit VescPacketSetRPM(double getRpm);
 };
 
 /*------------------------------------------------------------------*/
@@ -244,9 +258,10 @@ public:
 /**
  * @brief Packet for setting a reference position
  **/
-class VescPacketSetPos : public VescPacket {
+class VescPacketSetPos : public VescPacket
+{
 public:
-    explicit VescPacketSetPos(double pos);
+  explicit VescPacketSetPos(double pos);
 };
 
 /*------------------------------------------------------------------*/
@@ -254,9 +269,10 @@ public:
 /**
  * @brief Packet for setting a servo position
  **/
-class VescPacketSetServoPos : public VescPacket {
+class VescPacketSetServoPos : public VescPacket
+{
 public:
-    explicit VescPacketSetServoPos(double servo_pos);
+  explicit VescPacketSetServoPos(double servo_pos);
 };
 
 }  // namespace vesc_driver
