@@ -32,7 +32,7 @@ bool VescHwInterface::init(ros::NodeHandle& nh_root, ros::NodeHandle& nh)
 {
   // reads a port name to open
   std::string port;
-  if (!nh.getParam("vesc_hw_interface/port", port))
+  if (!nh.getParam("port", port))
   {
     ROS_FATAL("VESC communication port parameter required.");
     ros::shutdown();
@@ -51,11 +51,11 @@ bool VescHwInterface::init(ros::NodeHandle& nh_root, ros::NodeHandle& nh)
   }
 
   // initializes the joint name
-  nh.param<std::string>("vesc_hw_interface/joint_name", joint_name_, "joint_vesc");
+  nh.param<std::string>("joint_name", joint_name_, "joint_vesc");
 
   // loads joint limits
   std::string robot_description_name, robot_description;
-  nh.param<std::string>("vesc_hw_interface/robot_description_name", robot_description_name, "/robot_description");
+  nh.param<std::string>("robot_description_name", robot_description_name, "/robot_description");
 
   // parses the urdf
   if (nh.getParam(robot_description_name, robot_description))
@@ -76,12 +76,12 @@ bool VescHwInterface::init(ros::NodeHandle& nh_root, ros::NodeHandle& nh)
   effort_ = 0.0;
 
   // reads system parameters
-  nh.param<double>("vesc_hw_interface/gear_ratio", gear_ratio_, 1.0);
-  nh.param<double>("vesc_hw_interface/torque_const", torque_const_, 1.0);
+  nh.param<double>("gear_ratio", gear_ratio_, 1.0);
+  nh.param<double>("torque_const", torque_const_, 1.0);
 
   // reads driving mode setting
   // - assigns an empty string if param. is not found
-  nh.param<std::string>("vesc_hw_interface/command_mode", command_mode_, "");
+  nh.param<std::string>("command_mode", command_mode_, "");
   ROS_INFO("mode: %s", command_mode_.data());
 
   // registers a state handle and its interface
