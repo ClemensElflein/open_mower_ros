@@ -22,7 +22,7 @@ Then, clone this repository in `src` directory of your catkin workspace, and bui
 
 ## Usage
 ### Parameters
-All of following parameters are in `${NODE_NAME}/vesc_hw_interface` namespace.
+All of following parameters are in `${VESC_HW_INTERFACE_NODE_NAME}/` namespace.
 
 #### Common
 - `port` (string, **required**): port name connecting to your VESC, *e.g.* `/dev/ttyUSB0`.
