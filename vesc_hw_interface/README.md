@@ -43,8 +43,8 @@ If your motor unit has other structures, you should implement your own controlle
 - `servo/calibration_position` (double, *default*: 0.0): the position on which the robot calibrates.
 
 ### Public Functions
-- `void read()` sends command with specified mode.
-- `void write()` sends request to get current states, but DOES NOT update immediately. After a return packet comes, the callback function will update private variables.
+- `void read()` sends request to get current states, but DOES NOT update immediately. After a return packet comes, the callback function will update private variables.
+- `void write()` sends a command with specified mode.
 
 ## License
 `vesc_hw_interface` is licensed under the [Apache 2.0 license](https://www.apache.org/licenses/LICENSE-2.0.html).
