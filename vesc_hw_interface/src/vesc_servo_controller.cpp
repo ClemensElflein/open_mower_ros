@@ -129,11 +129,11 @@ bool VescServoController::calibrate(const double position_current)
   static uint16_t step;
 
   // sends a command for calibration
-  if (calibration_mode_ == "current")
+  if (calibration_mode_ == CURRENT)
   {
     interface_ptr_->setCurrent(calibration_current_);
   }
-  else if (calibration_mode_ == "duty")
+  else if (calibration_mode_ == DUTY)
   {
     interface_ptr_->setDutyCycle(calibration_duty_);
   }
