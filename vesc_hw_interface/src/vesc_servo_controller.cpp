@@ -39,7 +39,24 @@ void VescServoController::init(ros::NodeHandle nh, VescInterface* interface_ptr,
   nh.param("servo/Ki", Ki_, 0.0);
   nh.param("servo/Kd", Kd_, 1.0);
   nh.param("servo/calibration_current", calibration_current_, 6.0);
+  nh.param("servo/calibration_duty", calibration_duty_, 0.1);
+  nh.param<std::string>("servo/calibration_mode", calibration_mode_, "current");
   nh.param("servo/calibration_position", calibration_position_, 0.0);
+
+  // shows parameters
+  ROS_INFO("[Servo Gains] P: %f, I: %f, D: %f", Kp_, Ki_, Kd_);
+  if (calibration_mode_ == CURRENT)
+  {
+    ROS_INFO("[Servo Calibration] Mode: %s, value: %f", CURRENT.data(), calibration_current_);
+  }
+  else if (calibration_mode_ == DUTY)
+  {
+    ROS_INFO("[Servo Calibration] Mode: %s, value: %f", DUTY.data(), calibration_duty_);
+  }
+  else
+  {
+    ROS_ERROR("[Servo Calibration] Invalid mode");
+  }
 
   return;
 }
@@ -111,8 +128,21 @@ bool VescServoController::calibrate(const double position_current)
   static double position_previous;
   static uint16_t step;
 
-  // sets current for calibration
-  interface_ptr_->setCurrent(calibration_current_);
+  // sends a command for calibration
+  if (calibration_mode_ == CURRENT)
+  {
+    interface_ptr_->setCurrent(calibration_current_);
+  }
+  else if (calibration_mode_ == DUTY)
+  {
+    interface_ptr_->setDutyCycle(calibration_duty_);
+  }
+  else
+  {
+    ROS_ERROR("Please set the calibration mode surely");
+    return false;
+  }
+
   step++;
 
   if (step % 20 == 0 && position_current == position_previous)
