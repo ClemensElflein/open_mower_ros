@@ -153,7 +153,7 @@ void VescDriver::vescPacketCallback(const boost::shared_ptr<VescPacket const>& p
     state_msg->state.temperature_pcb = values->getMotorTemp();
     state_msg->state.current_motor = values->getMotorCurrent();
     state_msg->state.current_input = values->getInputCurrent();
-    state_msg->state.speed = values->getRpm();
+    state_msg->state.speed = values->getVelocityERPM();
     state_msg->state.duty_cycle = values->getDuty();
     state_msg->state.charge_drawn = values->getConsumedCharge();
     state_msg->state.charge_regen = values->getInputCharge();
@@ -220,10 +220,9 @@ void VescDriver::brakeCallback(const std_msgs::Float64::ConstPtr& brake)
 }
 
 /**
- * @param speed Commanded VESC speed in electrical RPM. Electrical RPM is the mechanical RPM
- *              multiplied by the number of motor poles. Any value is accepted by this
- *              driver. However, note that the VESC may impose a more restrictive bounds on the
- *              range depending on its configuration.
+ * @param speed Commanded VESC speed in electrical RPM (ERPM). ERPM is the mechanical RPM
+ *              multiplied by the number of motor pole pairs. Although any value is accepted by this
+ *              driver, the VESC may impose a more restrictive bounds on the range depending on its configuration.
  */
 void VescDriver::speedCallback(const std_msgs::Float64::ConstPtr& speed)
 {
