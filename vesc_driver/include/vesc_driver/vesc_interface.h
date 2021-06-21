@@ -36,20 +36,20 @@
 #ifndef VESC_DRIVER_VESC_INTERFACE_H_
 #define VESC_DRIVER_VESC_INTERFACE_H_
 
-#include <string>
-#include <sstream>
-#include <iostream>
-#include <iomanip>
 #include <exception>
+#include <iomanip>
+#include <iostream>
+#include <memory>
+#include <sstream>
 #include <stdexcept>
+#include <string>
 
 #include <pthread.h>
+#include <serial/serial.h>
+#include <boost/crc.hpp>
 #include <boost/function.hpp>
 #include <boost/noncopyable.hpp>
 #include <boost/scoped_ptr.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/crc.hpp>
-#include <serial/serial.h>
 
 #include "vesc_driver/vesc_packet.h"
 #include "vesc_driver/vesc_packet_factory.h"

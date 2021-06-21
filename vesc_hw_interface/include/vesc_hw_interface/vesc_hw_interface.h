@@ -17,29 +17,29 @@
 #ifndef VESC_HW_INTERFACE_VESC_HW_INTERFACE_H_
 #define VESC_HW_INTERFACE_VESC_HW_INTERFACE_H_
 
-#include <string>
 #include <cmath>
+#include <memory>
+#include <string>
 
 #include <boost/bind.hpp>
-#include <boost/shared_ptr.hpp>
 
-#include <ros/ros.h>
-#include <serial/serial.h>
+#include <controller_manager/controller_manager.h>
 #include <hardware_interface/hardware_interface.h>
-#include <hardware_interface/robot_hw.h>
-#include <hardware_interface/joint_state_interface.h>
 #include <hardware_interface/joint_command_interface.h>
+#include <hardware_interface/joint_state_interface.h>
+#include <hardware_interface/robot_hw.h>
 #include <joint_limits_interface/joint_limits.h>
 #include <joint_limits_interface/joint_limits_interface.h>
 #include <joint_limits_interface/joint_limits_rosparam.h>
 #include <joint_limits_interface/joint_limits_urdf.h>
-#include <controller_manager/controller_manager.h>
-#include <pluginlib/class_list_macros.hpp>
+#include <ros/ros.h>
+#include <serial/serial.h>
 #include <urdf_parser/urdf_parser.h>
+#include <pluginlib/class_list_macros.hpp>
 
+#include "vesc_driver/vesc_interface.h"
 #include "vesc_driver/vesc_packet.h"
 #include "vesc_driver/vesc_packet_factory.h"
-#include "vesc_driver/vesc_interface.h"
 #include "vesc_hw_interface/vesc_servo_controller.h"
 
 namespace vesc_hw_interface
@@ -83,7 +83,7 @@ private:
   joint_limits_interface::VelocityJointSaturationInterface limit_velocity_interface_;
   joint_limits_interface::EffortJointSaturationInterface limit_effort_interface_;
 
-  void packetCallback(const boost::shared_ptr<VescPacket const>&);
+  void packetCallback(const std::shared_ptr<VescPacket const>&);
   void errorCallback(const std::string&);
 };
 

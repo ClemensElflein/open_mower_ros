@@ -202,11 +202,11 @@ ros::Duration VescHwInterface::getPeriod() const
   return ros::Duration(0.01);
 }
 
-void VescHwInterface::packetCallback(const boost::shared_ptr<VescPacket const>& packet)
+void VescHwInterface::packetCallback(const std::shared_ptr<VescPacket const>& packet)
 {
   if (packet->getName() == "Values")
   {
-    boost::shared_ptr<VescPacketValues const> values = boost::dynamic_pointer_cast<VescPacketValues const>(packet);
+    std::shared_ptr<VescPacketValues const> values = std::dynamic_pointer_cast<VescPacketValues const>(packet);
 
     double current = values->getMotorCurrent();
     double velocity_rpm = values->getRpm();
