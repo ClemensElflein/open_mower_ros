@@ -38,11 +38,11 @@
 
 #include <cassert>
 #include <cmath>
+#include <functional>
 #include <memory>
 #include <sstream>
 #include <string>
 
-#include <boost/bind.hpp>
 #include <boost/optional.hpp>
 
 #include <ros/ros.h>

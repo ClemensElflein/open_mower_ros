@@ -18,10 +18,9 @@
 #define VESC_HW_INTERFACE_VESC_HW_INTERFACE_H_
 
 #include <cmath>
+#include <functional>
 #include <memory>
 #include <string>
-
-#include <boost/bind.hpp>
 
 #include <controller_manager/controller_manager.h>
 #include <hardware_interface/hardware_interface.h>

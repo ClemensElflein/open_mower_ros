@@ -38,13 +38,13 @@
 
 #include <cassert>
 #include <cstdint>
+#include <functional>
 #include <iterator>
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
 
-#include <boost/function.hpp>
 #include <boost/noncopyable.hpp>
 #include <boost/range/begin.hpp>
 #include <boost/range/distance.hpp>
@@ -63,7 +63,7 @@ class VescPacketFactory : private boost::noncopyable
 public:
   static VescPacketPtr createPacket(const Buffer::const_iterator&, const Buffer::const_iterator&, int*, std::string*);
 
-  typedef boost::function<VescPacketPtr(std::shared_ptr<VescFrame>)> CreateFn;
+  typedef std::function<VescPacketPtr(std::shared_ptr<VescFrame>)> CreateFn;
 
   /** Register a packet type with the factory. */
   static void registerPacketType(int, CreateFn);

@@ -19,8 +19,8 @@
 namespace vesc_hw_interface
 {
 VescHwInterface::VescHwInterface()
-  : vesc_interface_(std::string(), boost::bind(&VescHwInterface::packetCallback, this, _1),
-                    boost::bind(&VescHwInterface::errorCallback, this, _1))
+  : vesc_interface_(std::string(), std::bind(&VescHwInterface::packetCallback, this, std::placeholders::_1),
+                    std::bind(&VescHwInterface::errorCallback, this, std::placeholders::_1))
 {
 }
 
