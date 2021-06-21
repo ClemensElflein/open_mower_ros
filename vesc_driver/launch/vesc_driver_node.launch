@@ -10,11 +10,11 @@
 
   <!-- VESC driver parameters -->
   <arg name="port" default="/dev/ttyUSB0" />
+  <arg name="num_motor_pole_pairs" default="10" />
 
   <!-- VESC driver node -->
-  <node pkg="vesc_driver" type="vesc_driver_node" name="$(arg node_name)"
-        output="screen" launch-prefix="$(arg launch_prefix)" >
+  <node pkg="vesc_driver" type="vesc_driver_node" name="$(arg node_name)" output="screen" launch-prefix="$(arg launch_prefix)">
     <param name="port" value="$(arg port)" />
+    <param name="num_motor_pole_pairs" value="$(arg num_motor_pole_pairs)" />
   </node>
-
 </launch>
