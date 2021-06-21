@@ -50,6 +50,10 @@ bool VescHwInterface::init(ros::NodeHandle& nh_root, ros::NodeHandle& nh)
     return false;
   }
 
+  // get the number of motor pole pairs
+  nh.param("num_motor_pole_pairs", num_motor_pole_pairs_, 1);
+  ROS_INFO("The number of motor pole pairs is set to %d", num_motor_pole_pairs_);
+
   // initializes the joint name
   nh.param<std::string>("joint_name", joint_name_, "joint_vesc");
 
@@ -159,12 +163,12 @@ void VescHwInterface::write()
   {
     limit_velocity_interface_.enforceLimits(getPeriod());
 
-    // converts the velocity unit: rad/s or m/s -> erpm
-    // TODO: add conversion from rpm to erpm
-    double ref_velocity_erpm = gear_ratio_ * command_ * 60 / (2 * M_PI);
+    // converts the velocity unit: rad/s or m/s -> rpm -> erpm
+    const double command_rpm = command_ / 2.0 / M_PI * 60.0 / gear_ratio_;
+    const double command_erpm = command_rpm * static_cast<double>(num_motor_pole_pairs_);
 
     // sends a reference velocity command
-    vesc_interface_.setSpeed(ref_velocity_erpm);
+    vesc_interface_.setSpeed(command_erpm);
   }
   else if (command_mode_ == "effort")
   {
@@ -209,14 +213,13 @@ void VescHwInterface::packetCallback(const boost::shared_ptr<VescPacket const>& 
   {
     boost::shared_ptr<VescPacketValues const> values = boost::dynamic_pointer_cast<VescPacketValues const>(packet);
 
-    double current = values->getMotorCurrent();
-    double velocity_erpm = values->getVelocityERPM();
-    double position_pulse = values->getPosition();
+    const double current = values->getMotorCurrent();
+    const double velocity_rpm = values->getVelocityERPM() / static_cast<double>(num_motor_pole_pairs_);
+    const double position_pulse = values->getPosition();
 
     position_ = position_pulse / gear_ratio_ - servo_controller_.getZeroPosition();  // unit: rad or m
-    // TODO: add conversion from erpm to rpm
-    velocity_ = velocity_erpm * 2 * M_PI / 60.0 / gear_ratio_;  // unit: rad/s or m/s
-    effort_ = current * torque_const_ * gear_ratio_;            // unit: Nm or N
+    velocity_ = velocity_rpm / 60.0 * 2.0 * M_PI * gear_ratio_;                      // unit: rad/s or m/s
+    effort_ = current * torque_const_ * gear_ratio_;                                 // unit: Nm or N
   }
 
   return;
