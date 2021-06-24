@@ -47,5 +47,25 @@ If your motor unit has other structures, you should implement your own controlle
 - `void read()` sends request to get current states, but DOES NOT update immediately. After a return packet comes, the callback function will update private variables.
 - `void write()` sends a command with specified mode.
 
+### Samples
+
+**position control**
+
+```bash
+roslaunch vesc_hw_interface position_control_sample.launch
+```
+
+**velocity control**
+
+```bash
+roslaunch vesc_hw_interface velocity_control_sample.launch
+```
+
+**effort control**
+
+```bash
+roslaunch vesc_hw_interface effort_control_sample.launch
+```
+
 ## License
 `vesc_hw_interface` is licensed under the [Apache 2.0 license](https://www.apache.org/licenses/LICENSE-2.0.html).
