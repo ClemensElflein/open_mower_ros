@@ -50,10 +50,6 @@ bool VescHwInterface::init(ros::NodeHandle& nh_root, ros::NodeHandle& nh)
     return false;
   }
 
-  // get the number of motor pole pairs
-  nh.param("num_motor_pole_pairs", num_motor_pole_pairs_, 1);
-  ROS_INFO("The number of motor pole pairs is set to %d", num_motor_pole_pairs_);
-
   // initializes the joint name
   nh.param<std::string>("joint_name", joint_name_, "joint_vesc");
 
@@ -82,6 +78,10 @@ bool VescHwInterface::init(ros::NodeHandle& nh_root, ros::NodeHandle& nh)
   // reads system parameters
   nh.param<double>("gear_ratio", gear_ratio_, 1.0);
   nh.param<double>("torque_const", torque_const_, 1.0);
+  nh.param<int>("num_motor_pole_pairs", num_motor_pole_pairs_, 1);
+  ROS_INFO("Gear ratio is set to %f", gear_ratio_);
+  ROS_INFO("Torque constant is set to %f", torque_const_);
+  ROS_INFO("The number of motor pole pairs is set to %d", num_motor_pole_pairs_);
 
   // reads driving mode setting
   // - assigns an empty string if param. is not found
@@ -175,10 +175,10 @@ void VescHwInterface::write()
     limit_effort_interface_.enforceLimits(getPeriod());
 
     // converts the command unit: Nm or N -> A
-    double ref_current = command_ * gear_ratio_ / torque_const_;
+    const double command_current = command_ * gear_ratio_ / torque_const_;
 
     // sends a reference current command
-    vesc_interface_.setCurrent(ref_current);
+    vesc_interface_.setCurrent(command_current);
   }
   else if (command_mode_ == "effort_duty")
   {
