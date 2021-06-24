@@ -49,7 +49,6 @@
 #include <serial/serial.h>
 #include <boost/crc.hpp>
 #include <boost/noncopyable.hpp>
-#include <boost/scoped_ptr.hpp>
 
 #include "vesc_driver/vesc_packet.h"
 #include "vesc_driver/vesc_packet_factory.h"
@@ -132,7 +131,7 @@ public:
 private:
   // Pimpl - hide serial port members from class users
   class Impl;
-  boost::scoped_ptr<Impl> impl_;
+  std::unique_ptr<Impl> impl_;
 };
 
 // todo: review
