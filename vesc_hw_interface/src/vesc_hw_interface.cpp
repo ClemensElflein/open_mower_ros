@@ -164,7 +164,7 @@ void VescHwInterface::write()
     limit_velocity_interface_.enforceLimits(getPeriod());
 
     // converts the velocity unit: rad/s or m/s -> rpm -> erpm
-    const double command_rpm = command_ / 2.0 / M_PI * 60.0 / gear_ratio_;
+    const double command_rpm = command_ * 60.0 / 2.0 / M_PI / gear_ratio_;
     const double command_erpm = command_rpm * static_cast<double>(num_motor_pole_pairs_);
 
     // sends a reference velocity command
@@ -175,7 +175,7 @@ void VescHwInterface::write()
     limit_effort_interface_.enforceLimits(getPeriod());
 
     // converts the command unit: Nm or N -> A
-    double ref_current = command_ / gear_ratio_ / torque_const_;
+    double ref_current = command_ * gear_ratio_ / torque_const_;
 
     // sends a reference current command
     vesc_interface_.setCurrent(ref_current);
@@ -217,9 +217,12 @@ void VescHwInterface::packetCallback(const std::shared_ptr<VescPacket const>& pa
     const double velocity_rpm = values->getVelocityERPM() / static_cast<double>(num_motor_pole_pairs_);
     const double position_pulse = values->getPosition();
 
-    position_ = position_pulse / gear_ratio_ - servo_controller_.getZeroPosition();  // unit: rad or m
-    velocity_ = velocity_rpm / 60.0 * 2.0 * M_PI * gear_ratio_;                      // unit: rad/s or m/s
-    effort_ = current * torque_const_ * gear_ratio_;                                 // unit: Nm or N
+    // 3.0 represents the number of hall sensors
+    position_ = position_pulse / num_motor_pole_pairs_ / 3.0 * gear_ratio_ -
+                servo_controller_.getZeroPosition();  // unit: rad or m
+
+    velocity_ = velocity_rpm / 60.0 * 2.0 * M_PI * gear_ratio_;  // unit: rad/s or m/s
+    effort_ = current * torque_const_ / gear_ratio_;             // unit: Nm or N
   }
 
   return;
