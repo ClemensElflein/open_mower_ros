@@ -212,9 +212,9 @@ double VescPacketValues::getDuty() const
  * @brief Gets the current angular velocity
  * @return The current angular velocity
  **/
-double VescPacketValues::getRpm() const
+double VescPacketValues::getVelocityERPM() const
 {
-  return readBuffer(RPM, 4);
+  return readBuffer(ERPM, 4);
 }
 
 /**
@@ -408,9 +408,9 @@ VescPacketSetCurrentBrake::VescPacketSetCurrentBrake(double current_brake)
 /**
  * @brief Constructor
  **/
-VescPacketSetRPM::VescPacketSetRPM(double getRpm) : VescPacket("SetRPM", 5, COMM_SET_RPM)
+VescPacketSetVelocityERPM::VescPacketSetVelocityERPM(double vel_erpm) : VescPacket("SetERPM", 5, COMM_SET_ERPM)
 {
-  uint32_t v = static_cast<uint32_t>(getRpm);
+  uint32_t v = static_cast<uint32_t>(vel_erpm);
 
   *(payload_end_.first + 1) = static_cast<uint8_t>((v >> 24) & 0xFF);
   *(payload_end_.first + 2) = static_cast<uint8_t>((v >> 16) & 0xFF);

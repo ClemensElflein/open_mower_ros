@@ -28,6 +28,7 @@ All of following parameters are in `${VESC_HW_INTERFACE_NODE_NAME}/` namespace.
 - `port` (string, **required**): port name connecting to your VESC, *e.g.* `/dev/ttyUSB0`.
 - `command_mode` (string, **required**): control mode you want to use. Enter one of following parameters: `position`, `velocity`, `effort` and `effort_duty`.
 - `joint_name` (string, *default*: `joint_vesc`): corresponding joint name in your robot URDF.
+- `num_motor_pole_pairs` (double, *default*: 1.0): the number of motor pole pairs.
 - `gear_ratio` (double, *default*: 1.0): ratio of reduction, which is calclated by joint velocity/motor_velocity.
 - `torque_const` (double, *default*: 1.0): motor torque constant (unit: Nm/A).
 - `robot_description_name` (string, *default*: /robot_description): name of the robot description parameters for loading joint limits

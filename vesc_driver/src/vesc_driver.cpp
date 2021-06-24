@@ -71,6 +71,10 @@ VescDriver::VescDriver(ros::NodeHandle nh, ros::NodeHandle private_nh)
     return;
   }
 
+  // get the number of motor pole pairs
+  private_nh.param("num_motor_pole_pairs", num_motor_pole_pairs_, 1);
+  ROS_INFO("The number of motor pole pairs is set to %d", num_motor_pole_pairs_);
+
   // create vesc state (telemetry) publisher
   state_pub_ = nh.advertise<vesc_msgs::VescStateStamped>("sensors/core", 10);
 
@@ -153,7 +157,7 @@ void VescDriver::vescPacketCallback(const boost::shared_ptr<VescPacket const>& p
     state_msg->state.temperature_pcb = values->getMotorTemp();
     state_msg->state.current_motor = values->getMotorCurrent();
     state_msg->state.current_input = values->getInputCurrent();
-    state_msg->state.speed = values->getRpm();
+    state_msg->state.speed = values->getVelocityERPM() / static_cast<double>(num_motor_pole_pairs_) / 60.0 * 2.0 * M_PI;
     state_msg->state.duty_cycle = values->getDuty();
     state_msg->state.charge_drawn = values->getConsumedCharge();
     state_msg->state.charge_regen = values->getInputCharge();
@@ -220,16 +224,15 @@ void VescDriver::brakeCallback(const std_msgs::Float64::ConstPtr& brake)
 }
 
 /**
- * @param speed Commanded VESC speed in electrical RPM. Electrical RPM is the mechanical RPM
- *              multiplied by the number of motor poles. Any value is accepted by this
- *              driver. However, note that the VESC may impose a more restrictive bounds on the
- *              range depending on its configuration.
+ * @param speed Commanded VESC speed in rad/s. Although any value is accepted by this driver, the VESC may impose a
+ *              more restrictive bounds on the range depending on its configuration.
  */
 void VescDriver::speedCallback(const std_msgs::Float64::ConstPtr& speed)
 {
   if (driver_mode_ = MODE_OPERATING)
   {
-    vesc_.setSpeed(speed_limit_.clip(speed->data));
+    const double speed_erpm = speed->data / 2.0 / M_PI * 60.0 * static_cast<double>(num_motor_pole_pairs_);
+    vesc_.setSpeed(speed_limit_.clip(speed_erpm));
   }
 }
 

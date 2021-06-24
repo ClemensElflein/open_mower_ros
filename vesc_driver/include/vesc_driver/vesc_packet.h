@@ -183,7 +183,7 @@ public:
   double getMotorTemp() const;
   double getMotorCurrent() const;
   double getInputCurrent() const;
-  double getRpm() const;
+  double getVelocityERPM() const;
   double getInputVoltage() const;
   double getDuty() const;
   double getConsumedCharge() const;
@@ -247,10 +247,10 @@ public:
 /**
  * @brief Packet for setting reference angular velocity
  **/
-class VescPacketSetRPM : public VescPacket
+class VescPacketSetVelocityERPM : public VescPacket
 {
 public:
-  explicit VescPacketSetRPM(double getRpm);
+  explicit VescPacketSetVelocityERPM(double vel_erpm);
 };
 
 /*------------------------------------------------------------------*/
