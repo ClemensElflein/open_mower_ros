@@ -36,13 +36,14 @@
 #ifndef VESC_DRIVER_VESC_DRIVER_H_
 #define VESC_DRIVER_VESC_DRIVER_H_
 
-#include <string>
 #include <cassert>
 #include <cmath>
+#include <functional>
+#include <memory>
 #include <sstream>
+#include <string>
 
 #include <boost/optional.hpp>
-#include <boost/bind.hpp>
 
 #include <ros/ros.h>
 #include <std_msgs/Float64.h>
@@ -61,7 +62,7 @@ public:
 private:
   // interface to the VESC
   VescInterface vesc_;
-  void vescPacketCallback(const boost::shared_ptr<VescPacket const>& packet);
+  void vescPacketCallback(const std::shared_ptr<VescPacket const>& packet);
   void vescErrorCallback(const std::string& error);
 
   // limits on VESC commands

@@ -36,20 +36,19 @@
 #ifndef VESC_DRIVER_VESC_INTERFACE_H_
 #define VESC_DRIVER_VESC_INTERFACE_H_
 
-#include <string>
-#include <sstream>
-#include <iostream>
-#include <iomanip>
 #include <exception>
+#include <functional>
+#include <iomanip>
+#include <iostream>
+#include <memory>
+#include <sstream>
 #include <stdexcept>
+#include <string>
 
 #include <pthread.h>
-#include <boost/function.hpp>
-#include <boost/noncopyable.hpp>
-#include <boost/scoped_ptr.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/crc.hpp>
 #include <serial/serial.h>
+#include <boost/crc.hpp>
+#include <boost/noncopyable.hpp>
 
 #include "vesc_driver/vesc_packet.h"
 #include "vesc_driver/vesc_packet_factory.h"
@@ -62,8 +61,8 @@ namespace vesc_driver
 class VescInterface : private boost::noncopyable
 {
 public:
-  typedef boost::function<void(const VescPacketConstPtr&)> PacketHandlerFunction;
-  typedef boost::function<void(const std::string&)> ErrorHandlerFunction;
+  typedef std::function<void(const VescPacketConstPtr&)> PacketHandlerFunction;
+  typedef std::function<void(const std::string&)> ErrorHandlerFunction;
 
   /**
    * Creates a VescInterface object. Opens the serial port interface to the VESC if @p port is not
@@ -132,7 +131,7 @@ public:
 private:
   // Pimpl - hide serial port members from class users
   class Impl;
-  boost::scoped_ptr<Impl> impl_;
+  std::unique_ptr<Impl> impl_;
 };
 
 // todo: review

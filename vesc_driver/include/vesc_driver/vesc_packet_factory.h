@@ -36,16 +36,16 @@
 #ifndef VESC_DRIVER_VESC_PACKET_FACTORY_H_
 #define VESC_DRIVER_VESC_PACKET_FACTORY_H_
 
-#include <vector>
-#include <map>
-#include <string>
-#include <cstdint>
 #include <cassert>
+#include <cstdint>
+#include <functional>
 #include <iterator>
+#include <map>
+#include <memory>
+#include <string>
+#include <vector>
 
 #include <boost/noncopyable.hpp>
-#include <boost/function.hpp>
-#include <boost/shared_ptr.hpp>
 #include <boost/range/begin.hpp>
 #include <boost/range/distance.hpp>
 #include <boost/range/end.hpp>
@@ -63,7 +63,7 @@ class VescPacketFactory : private boost::noncopyable
 public:
   static VescPacketPtr createPacket(const Buffer::const_iterator&, const Buffer::const_iterator&, int*, std::string*);
 
-  typedef boost::function<VescPacketPtr(boost::shared_ptr<VescFrame>)> CreateFn;
+  typedef std::function<VescPacketPtr(std::shared_ptr<VescFrame>)> CreateFn;
 
   /** Register a packet type with the factory. */
   static void registerPacketType(int, CreateFn);
@@ -85,7 +85,7 @@ private:
     {                                                                                                                  \
       VescPacketFactory::registerPacketType((id), &klass##Factory::create);                                            \
     }                                                                                                                  \
-    static VescPacketPtr create(boost::shared_ptr<VescFrame> frame)                                                    \
+    static VescPacketPtr create(std::shared_ptr<VescFrame> frame)                                                      \
     {                                                                                                                  \
       return VescPacketPtr(new klass(frame));                                                                          \
     }                                                                                                                  \

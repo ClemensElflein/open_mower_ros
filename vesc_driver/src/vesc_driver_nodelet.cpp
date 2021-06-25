@@ -33,7 +33,6 @@
  * Corp. takes over development as new packages.
  ********************************************************************/
 
-#include <boost/shared_ptr.hpp>
 #include <nodelet/nodelet.h>
 #include <pluginlib/class_list_macros.h>
 #include <ros/ros.h>
@@ -52,7 +51,7 @@ public:
 private:
   virtual void onInit(void);
 
-  boost::shared_ptr<VescDriver> vesc_driver_;
+  std::shared_ptr<VescDriver> vesc_driver_;
 };  // class VescDriverNodelet
 
 void VescDriverNodelet::onInit()

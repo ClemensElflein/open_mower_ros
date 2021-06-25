@@ -19,8 +19,8 @@
 namespace vesc_hw_interface
 {
 VescHwInterface::VescHwInterface()
-  : vesc_interface_(std::string(), boost::bind(&VescHwInterface::packetCallback, this, _1),
-                    boost::bind(&VescHwInterface::errorCallback, this, _1))
+  : vesc_interface_(std::string(), std::bind(&VescHwInterface::packetCallback, this, std::placeholders::_1),
+                    std::bind(&VescHwInterface::errorCallback, this, std::placeholders::_1))
 {
 }
 
@@ -207,11 +207,11 @@ ros::Duration VescHwInterface::getPeriod() const
   return ros::Duration(0.01);
 }
 
-void VescHwInterface::packetCallback(const boost::shared_ptr<VescPacket const>& packet)
+void VescHwInterface::packetCallback(const std::shared_ptr<VescPacket const>& packet)
 {
   if (packet->getName() == "Values")
   {
-    boost::shared_ptr<VescPacketValues const> values = boost::dynamic_pointer_cast<VescPacketValues const>(packet);
+    std::shared_ptr<VescPacketValues const> values = std::dynamic_pointer_cast<VescPacketValues const>(packet);
 
     const double current = values->getMotorCurrent();
     const double velocity_rpm = values->getVelocityERPM() / static_cast<double>(num_motor_pole_pairs_);
