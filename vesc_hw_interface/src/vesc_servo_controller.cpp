@@ -18,7 +18,7 @@
 
 namespace vesc_hw_interface
 {
-void VescServoController::init(ros::NodeHandle nh, VescInterface* interface_ptr, const double frequency)
+void VescServoController::init(ros::NodeHandle nh, VescInterface* interface_ptr)
 {
   // initializes members
   if (interface_ptr == NULL)
@@ -32,7 +32,7 @@ void VescServoController::init(ros::NodeHandle nh, VescInterface* interface_ptr,
 
   calibration_flag_ = true;
   zero_position_ = 0.0;
-  frequency_ = frequency;
+  error_integ_ = 0.0;
 
   // reads parameters
   nh.param("servo/Kp", Kp_, 50.0);
@@ -68,16 +68,20 @@ void VescServoController::control(const double position_reference, const double 
   {
     calibrate(position_current);
 
+    // initializes/resets control variables
+    time_previous_ = ros::Time::now();
+    error_previous_ = position_current;
     return;
   }
 
-  static double error_previous, error_integ;
+  const ros::Time time_current = ros::Time::now();
+  const double dt = (time_current - time_previous_).toSec();
 
   // calculates PD control
-  double error_current = position_reference - position_current;
-  double u_pd = Kp_ * error_current + Kd_ * (error_current - error_previous) * frequency_;
+  const double error_current = position_reference - position_current;
+  const double u_pd = Kp_ * error_current + Kd_ * (error_current - error_previous_) / dt;
 
-  double u, u_pid;
+  double u = 0.0;
 
   // calculates I control if PD input is not saturated
   if (isSaturated(u_pd))
@@ -86,8 +90,8 @@ void VescServoController::control(const double position_reference, const double 
   }
   else
   {
-    double error_integ_new = error_integ + (error_current + error_previous) / 2.0 / frequency_;
-    u_pid = u_pd + Ki_ * error_integ_new;
+    double error_integ_new = error_integ_ + (error_current + error_previous_) / 2.0 * dt;
+    const double u_pid = u_pd + Ki_ * error_integ_new;
 
     // not use I control if PID input is saturated
     // since error integration causes bugs
@@ -98,12 +102,13 @@ void VescServoController::control(const double position_reference, const double 
     else
     {
       u = u_pid;
-      error_integ = error_integ_new;
+      error_integ_ = error_integ_new;
     }
   }
 
-  // saves current error
-  error_previous = error_current;
+  // updates previous data
+  error_previous_ = error_current;
+  time_previous_ = time_current;
 
   // command duty
   interface_ptr_->setDutyCycle(u);

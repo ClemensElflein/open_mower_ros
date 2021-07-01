@@ -104,7 +104,7 @@ bool VescHwInterface::init(ros::NodeHandle& nh_root, ros::NodeHandle& nh)
     limit_position_interface_.registerHandle(limit_handle);
 
     // initializes the servo controller
-    servo_controller_.init(nh, &vesc_interface_, 1.0 / getPeriod().toSec());
+    servo_controller_.init(nh, &vesc_interface_);
   }
   else if (command_mode_ == "velocity")
   {

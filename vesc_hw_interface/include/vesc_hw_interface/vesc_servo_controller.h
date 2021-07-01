@@ -29,7 +29,7 @@ using vesc_driver::VescInterface;
 class VescServoController
 {
 public:
-  void init(ros::NodeHandle, VescInterface*, const double);
+  void init(ros::NodeHandle, VescInterface*);
   void control(const double, const double);
   double getZeroPosition() const;
   void executeCalibration();
@@ -46,7 +46,10 @@ private:
   std::string calibration_mode_;  // "duty" or "current" (default: "current")
   double calibration_position_;   // unit: rad or m
   double zero_position_;          // unit: rad or m
-  double Kp_, Ki_, Kd_, frequency_;
+  double Kp_, Ki_, Kd_;
+  double error_previous_;
+  double error_integ_;
+  ros::Time time_previous_;
 
   bool calibrate(const double);
   bool isSaturated(const double) const;
