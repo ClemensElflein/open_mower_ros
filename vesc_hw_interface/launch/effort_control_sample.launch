@@ -1,6 +1,6 @@
 <launch>
   <!-- Controller -->
-  <arg name="model" default="$(find vesc_hw_interface)/launch/test.urdf"/>
+  <arg name="model" default="$(find vesc_hw_interface)/launch/test.xacro"/>
   <param name="robot_description" command="$(find xacro)/xacro $(arg model)"/>
 
   <!-- Boot hardware interfaces -->
