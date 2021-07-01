@@ -1,0 +1,32 @@
+<launch>
+  <!-- Controller -->
+  <arg name="model" default="$(find vesc_hw_interface)/launch/test.xacro"/>
+  <param name="robot_description" command="$(find xacro)/xacro $(arg model)"/>
+
+  <!-- Boot hardware interfaces -->
+  <node name="vesc_hw_interface_node" pkg="vesc_hw_interface" type="vesc_hw_interface_node" output="screen">
+    <rosparam>
+      joint_name: arm_joint
+      command_mode: effort
+      port: /dev/ttyUSB0
+      num_motor_pole_pairs: 10
+      gear_ratio: 1
+      torque_const: 1
+    </rosparam>
+  </node>
+
+  <!-- Boot ros_controllers -->
+  <rosparam>
+    joint_state_controller:
+      type: joint_state_controller/JointStateController
+      publish_rate: 100
+
+    joint_effort_controller:
+      type: effort_controllers/JointEffortController
+      publish_rate: 100
+      base_frame_id: base_link
+      joint: arm_joint
+  </rosparam>
+
+  <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false" output="screen" args="joint_state_controller joint_effort_controller"/>
+</launch>
