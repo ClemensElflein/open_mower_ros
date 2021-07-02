@@ -29,11 +29,11 @@ All of following parameters are in `${VESC_HW_INTERFACE_NODE_NAME}/` namespace.
 - `command_mode` (string, **required**): control mode you want to use. Enter one of following parameters: `position`, `velocity`, `effort` and `effort_duty`.
 - `joint_name` (string, *default*: `joint_vesc`): corresponding joint name in your robot URDF.
 - `num_motor_pole_pairs` (double, *default*: 1.0): the number of motor pole pairs.
-- `gear_ratio` (double, *default*: 1.0): ratio of reduction, which is calclated by joint velocity/motor_velocity.
+- `gear_ratio` (double, *default*: 1.0): ratio of reduction calculated by `joint velocity/motor velocity`.
 - `torque_const` (double, *default*: 1.0): motor torque constant (unit: Nm/A).
 - `robot_description_name` (string, *default*: /robot_description): name of the robot description parameters for loading joint limits
 
-**NOTE**: `gear_ratio` and `torque_const` are used to calclate joint states because VESC generally senses just motor position and motor current, neither joint position nor motor torque.
+**NOTE**: `gear_ratio` and `torque_const` are used to calculate joint states because VESC generally senses just motor position and motor current, neither joint position nor motor torque.
 If your motor unit has other structures, you should implement your own controller.
 
 #### For PID Position Control
