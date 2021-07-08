@@ -205,7 +205,15 @@ double VescPacketValues::getInputCurrent() const
  **/
 double VescPacketValues::getDuty() const
 {
-  return readBuffer(DUTY_NOW, 2) / 1000.0;
+  int16_t duty_raw = static_cast<int32_t>(readBuffer(DUTY_NOW, 2));
+
+  // inverts to derive a negative value
+  if (duty_raw > 1000)
+  {
+    duty_raw = !duty_raw;
+  }
+
+  return static_cast<double>(duty_raw) / 1000.0;
 }
 
 /**
