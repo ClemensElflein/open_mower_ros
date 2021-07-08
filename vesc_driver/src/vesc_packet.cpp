@@ -110,6 +110,9 @@ VescPacket::VescPacket(const std::string& name, const int16_t payload_size, cons
  **/
 VescPacket::VescPacket(const std::string& name, std::shared_ptr<VescFrame> raw) : VescFrame(*raw), name_(name)
 {
+  uint16_t original_payload_size = std::distance(payload_end_.first, payload_end_.second);
+  payload_end_.first = frame_.begin() + 2;
+  payload_end_.second = std::min(payload_end_.first + original_payload_size, frame_.end());
 }
 
 /*------------------------------------------------------------------*/
