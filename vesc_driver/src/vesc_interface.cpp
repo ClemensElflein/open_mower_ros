@@ -152,6 +152,9 @@ VescInterface::VescInterface(const std::string& port, const PacketHandlerFunctio
 
 VescInterface::~VescInterface()
 {
+  // stops the motor
+  setDutyCycle(0.0);
+
   disconnect();
 }
 
