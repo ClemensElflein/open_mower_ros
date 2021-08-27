@@ -1,0 +1,5 @@
+float64 angle
+geometry_msgs/Polygon outline
+geometry_msgs/Polygon[] holes
+---
+nav_msgs/Path path

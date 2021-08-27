@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
+include(ExternalProject)
 project(slic3r_coverage_planner)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
@@ -8,11 +9,31 @@ project(slic3r_coverage_planner)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-  geometry_msgs
-  nav_msgs
-  roscpp
-  std_msgs
+        geometry_msgs
+        nav_msgs
+        roscpp
+        std_msgs
+        message_generation
+        )
+
+set(EP_SLIC3R "Slic3r")
+ExternalProject_Add(
+        ${EP_SLIC3R}
+
+        PREFIX ${EP_SLIC3R}
+        GIT_REPOSITORY https://github.com/slic3r/Slic3r
+        GIT_TAG b1a5500f427700ac3dffc0e7d9535ea65f993537
+        GIT_SHALLOW ON
+
+        BUILD_ALWAYS OFF
+
+        INSTALL_COMMAND cmake -E echo "Skipping install step."
+
+        CMAKE_CACHE_ARGS
+        SOURCE_SUBDIR src
+        BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release
 )
+
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -55,11 +76,10 @@ find_package(catkin REQUIRED COMPONENTS
 # )
 
 ## Generate services in the 'srv' folder
-# add_service_files(
-#   FILES
-#   Service1.srv
-#   Service2.srv
-# )
+add_service_files(
+        FILES
+        PlanPath.srv
+)
 
 ## Generate actions in the 'action' folder
 # add_action_files(
@@ -69,10 +89,12 @@ find_package(catkin REQUIRED COMPONENTS
 # )
 
 ## Generate added messages and services with any dependencies listed here
-# generate_messages(
-#   DEPENDENCIES
-#   geometry_msgs#   nav_msgs#   std_msgs
-# )
+generate_messages(
+        DEPENDENCIES
+        geometry_msgs
+        nav_msgs
+        std_msgs
+)
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -104,10 +126,11 @@ find_package(catkin REQUIRED COMPONENTS
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
-#  LIBRARIES slic3r_coverage_planner
-#  CATKIN_DEPENDS geometry_msgs nav_msgs roscpp std_msgs
-#  DEPENDS system_lib
+        #  INCLUDE_DIRS include
+        #  LIBRARIES slic3r_coverage_planner
+        #  CATKIN_DEPENDS geometry_msgs nav_msgs roscpp std_msgs
+        #  DEPENDS system_lib
+        CATKIN_DEPENDS message_runtime
 )
 
 ###########
@@ -117,8 +140,8 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-# include
-  ${catkin_INCLUDE_DIRS}
+        # include
+        ${catkin_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library
@@ -205,3 +228,28 @@ include_directories(
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
+
+
+ExternalProject_Get_property(${EP_SLIC3R} SOURCE_DIR)
+message("Source dir of ${EP_SLIC3R} = ${SOURCE_DIR}")
+include_directories(${SOURCE_DIR}/xs/src/libslic3r)
+include_directories(${SOURCE_DIR}/xs/src)
+
+add_executable(slic3r_coverage_planner
+        src/coverage_planner.cpp
+        )
+add_dependencies(slic3r_coverage_planner ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
+add_dependencies(slic3r_coverage_planner ${EP_SLIC3R})
+
+ExternalProject_Get_property(${EP_SLIC3R} BINARY_DIR)
+target_link_libraries(slic3r_coverage_planner ${catkin_LIBRARIES}
+        ${BINARY_DIR}/liblibslic3r.a
+        ${BINARY_DIR}/libadmesh.a
+        ${BINARY_DIR}/libBSpline.a
+        ${BINARY_DIR}/libexpat.a
+        ${BINARY_DIR}/libminiz.a
+        ${BINARY_DIR}/libpoly2tri.a
+        ${BINARY_DIR}/libpolypartition.a
+        ${BINARY_DIR}/libZipArchive.a
+        ${BINARY_DIR}/libclipper.a
+        )
