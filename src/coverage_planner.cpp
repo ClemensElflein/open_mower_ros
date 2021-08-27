@@ -11,6 +11,8 @@
 #include "slic3r_coverage_planner/PlanPath.h"
 #include "visualization_msgs/MarkerArray.h"
 #include "Surface.hpp"
+#include <tf2/LinearMath/Quaternion.h>
+#include "tf2_geometry_msgs/tf2_geometry_msgs.h"
 
 
 bool visualize_plan;
@@ -160,6 +162,51 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
         marker_array_publisher.publish(arr);
     }
 
+    std_msgs::Header header;
+    header.stamp = ros::Time::now();
+    header.frame_id = "map";
+    header.seq = 0;
+    res.path.header = header;
+    for(auto &line : lines) {
+        if(line.points.size() < 2) {
+            ROS_INFO("Skipping single dot");
+            continue;
+        }
+
+        Point *lastPoint = nullptr;
+        for(auto &pt:line.points) {
+            if(lastPoint == nullptr) {
+                lastPoint = &pt;
+                continue;
+            }
+
+            // calculate pose for "lastPoint" pointing to current point
+
+            auto dir = pt - *lastPoint;
+            double orientation = atan2(dir.y, dir.x);
+            tf2::Quaternion q(0.0, 0.0, orientation);
+
+            geometry_msgs::PoseStamped pose;
+            pose.header = header;
+            pose.pose.orientation= tf2::toMsg(q);
+            pose.pose.position.x = unscale(lastPoint->x);
+            pose.pose.position.y = unscale(lastPoint->y);
+            pose.pose.position.z = 0;
+            res.path.poses.push_back(pose);
+            lastPoint = &pt;
+        }
+
+        // finally, we add the final pose for "lastPoint" with the same orientation as the last poe
+        geometry_msgs::PoseStamped pose;
+        pose.header = header;
+        pose.pose.orientation = res.path.poses.back().pose.orientation;
+        pose.pose.position.x = unscale(lastPoint->x);
+        pose.pose.position.y = unscale(lastPoint->y);
+        pose.pose.position.z = 0;
+        res.path.poses.push_back(pose);
+    }
+
+
     return true;
 }
 
@@ -175,7 +222,7 @@ int main(int argc, char **argv) {
         marker_array_publisher = n.advertise<visualization_msgs::MarkerArray>("slic3r_coverage_planner/path_marker_array", 100, true);
     }
 
-    ros::ServiceServer plan_path_srv = n.advertiseService("plan_path", planPath);
+    ros::ServiceServer plan_path_srv = n.advertiseService("slic3r_coverage_planner/plan_path", planPath);
 
     ros::spin();
     return 0;

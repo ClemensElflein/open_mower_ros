@@ -14,6 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
         roscpp
         std_msgs
         message_generation
+        tf2
         )
 
 set(EP_SLIC3R "Slic3r")
