@@ -173,15 +173,37 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
             continue;
         }
 
+        Point *lastPoint = nullptr;
         for(auto &pt:line.points) {
+            if(lastPoint == nullptr) {
+                lastPoint = &pt;
+                continue;
+            }
+
+            // calculate pose for "lastPoint" pointing to current point
+
+            auto dir = pt - *lastPoint;
+            double orientation = atan2(dir.y, dir.x);
+            tf2::Quaternion q(0.0, 0.0, orientation);
+
             geometry_msgs::PoseStamped pose;
             pose.header = header;
-            pose.pose.orientation.w = 1.0;
-            pose.pose.position.x = unscale(pt.x);
-            pose.pose.position.y = unscale(pt.y);
+            pose.pose.orientation= tf2::toMsg(q);
+            pose.pose.position.x = unscale(lastPoint->x);
+            pose.pose.position.y = unscale(lastPoint->y);
             pose.pose.position.z = 0;
             res.path.poses.push_back(pose);
+            lastPoint = &pt;
         }
+
+        // finally, we add the final pose for "lastPoint" with the same orientation as the last poe
+        geometry_msgs::PoseStamped pose;
+        pose.header = header;
+        pose.pose.orientation = res.path.poses.back().pose.orientation;
+        pose.pose.position.x = unscale(lastPoint->x);
+        pose.pose.position.y = unscale(lastPoint->y);
+        pose.pose.position.z = 0;
+        res.path.poses.push_back(pose);
     }
 
 
