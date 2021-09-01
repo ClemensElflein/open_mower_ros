@@ -89,14 +89,20 @@ namespace ftc_local_planner {
             return false;
         }
 
-        cmd_vel.angular.z = angle * config.kp_ang + angle_d * config.kd_ang;
-        cmd_vel.linear.x = distance * config.kp_speed + speed_d * config.kd_speed;
 
 
 
 
         // TODO: not really, we need to wait for bot and do a final rotation
         finished = current_index >= global_plan.size() - 1;
+
+        if(finished) {
+            cmd_vel.angular.z = 0;
+            cmd_vel.linear.x = 0;
+        } else {
+            cmd_vel.angular.z = angle * config.kp_ang + angle_d * config.kd_ang;
+            cmd_vel.linear.x = distance * config.kp_speed + speed_d * config.kd_speed;
+        }
 
         return true;
     }
