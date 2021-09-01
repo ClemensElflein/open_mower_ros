@@ -137,6 +137,7 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
 
 
     Slic3r::FillRectilinear fill;
+    fill.link_max_length = scale_(1.0);
     fill.angle = req.angle;
     fill.z = scale_(1.0);
     fill.endpoints_overlap = 0;
