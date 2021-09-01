@@ -1,1 +1,4 @@
-# ftc_local_planner
+# FTCLocalPlanner
+
+A very simple "follow the carrot" local planner implementation.
+
