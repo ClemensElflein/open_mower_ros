@@ -54,11 +54,31 @@ namespace ftc_local_planner {
     }
 
     bool FTCPlanner::computeVelocityCommands(geometry_msgs::Twist &cmd_vel) {
+        calculateControlPoint();
+
+        double distance = local_control_point.translation().norm();
+
+
+        if (distance > config.max_follow_dist) {
+            ROS_ERROR_STREAM("Error: Robot was too far away. Stopping controller!");
+
+            cmd_vel.angular.z = 0;
+            cmd_vel.linear.x = 0;
+            return false;
+        } else if(distance < config.min_follow_dist) {
+            ROS_INFO_STREAM("Point too close, waiting for point to move");
+
+
+            cmd_vel.angular.z = 0;
+            cmd_vel.linear.x = 0;
+            return true;
+        }
+
+
         ros::Time now = ros::Time::now();
         double dt = now.toSec() - last_time_cmd_vel.toSec();
         last_time_cmd_vel = now;
 
-        calculateControlPoint();
 
         auto map_to_base = tf_buffer->lookupTransform("base_link", "map", ros::Time(), ros::Duration(0.5));
         Eigen::Affine3d local_control_point;
@@ -68,7 +88,6 @@ namespace ftc_local_planner {
 
 
         double angle = atan2(local_control_point.translation().y(), local_control_point.translation().x());
-        double distance = local_control_point.translation().norm();
 
         speed_factor = local_control_point.translation().normalized().x();
 
@@ -81,13 +100,6 @@ namespace ftc_local_planner {
         last_distance_error = distance;
 
 
-        if (distance > config.max_follow_dist) {
-            ROS_ERROR_STREAM("Error: Robot was too far away. Stopping controller!");
-
-            cmd_vel.angular.z = 0;
-            cmd_vel.linear.x = 0;
-            return false;
-        }
 
 
 
