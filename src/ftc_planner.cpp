@@ -61,7 +61,7 @@ namespace ftc_local_planner {
 
         tf2::doTransform(current_control_point, local_control_point, map_to_base);
 
-        
+
         double distance = local_control_point.translation().norm();
 
 
@@ -92,6 +92,9 @@ namespace ftc_local_planner {
         double angle = atan2(local_control_point.translation().y(), local_control_point.translation().x());
 
         speed_factor = local_control_point.translation().normalized().x();
+        if(speed_factor < 0.1) {
+            speed_factor = 0.1;
+        }
 
 
         double angle_d = (angle - last_angle_error) / dt;
