@@ -56,6 +56,12 @@ namespace ftc_local_planner {
     bool FTCPlanner::computeVelocityCommands(geometry_msgs::Twist &cmd_vel) {
         calculateControlPoint();
 
+        auto map_to_base = tf_buffer->lookupTransform("base_link", "map", ros::Time(), ros::Duration(0.5));
+        Eigen::Affine3d local_control_point;
+
+        tf2::doTransform(current_control_point, local_control_point, map_to_base);
+
+        
         double distance = local_control_point.translation().norm();
 
 
@@ -80,10 +86,6 @@ namespace ftc_local_planner {
         last_time_cmd_vel = now;
 
 
-        auto map_to_base = tf_buffer->lookupTransform("base_link", "map", ros::Time(), ros::Duration(0.5));
-        Eigen::Affine3d local_control_point;
-
-        tf2::doTransform(current_control_point, local_control_point, map_to_base);
 
 
 
