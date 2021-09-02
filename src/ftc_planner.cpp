@@ -284,6 +284,8 @@ namespace ftc_local_planner {
         if (abs(angle) < config.min_angle_rotation_mode * (M_PI / 180.0)) {
             ROS_INFO_STREAM("Switching to follow mode");
             rotate_mode = false;
+            cmd_vel.angular.z = 0;
+            cmd_vel.linear.x = 0;
         }
 
         return true;
