@@ -167,12 +167,24 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
     header.stamp = ros::Time::now();
     header.frame_id = "map";
     header.seq = 0;
-    res.path.header = header;
+
+    int i = 0;
     for(auto &line : lines) {
+
+        nav_msgs::Path path;
+        path.header = header;
+
+
         if(line.points.size() < 2) {
             ROS_INFO("Skipping single dot");
             continue;
         }
+
+        if((i++ % 2) == 0) {
+            line.reverse();
+        }
+
+
 
         Point *lastPoint = nullptr;
         for(auto &pt:line.points) {
@@ -193,18 +205,20 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
             pose.pose.position.x = unscale(lastPoint->x);
             pose.pose.position.y = unscale(lastPoint->y);
             pose.pose.position.z = 0;
-            res.path.poses.push_back(pose);
+            path.poses.push_back(pose);
             lastPoint = &pt;
         }
 
         // finally, we add the final pose for "lastPoint" with the same orientation as the last poe
         geometry_msgs::PoseStamped pose;
         pose.header = header;
-        pose.pose.orientation = res.path.poses.back().pose.orientation;
+        pose.pose.orientation = path.poses.back().pose.orientation;
         pose.pose.position.x = unscale(lastPoint->x);
         pose.pose.position.y = unscale(lastPoint->y);
         pose.pose.position.z = 0;
-        res.path.poses.push_back(pose);
+        path.poses.push_back(pose);
+
+        res.paths.push_back(path);
     }
 
 
