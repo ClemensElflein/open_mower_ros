@@ -43,9 +43,9 @@ namespace ftc_local_planner {
         global_plan = plan;
         current_index = 0;
         current_progress = 0.0;
-        last_time_control_point = ros::Time::now();
-        last_time_cmd_vel = last_time_control_point;
-        pid_initialized = false;
+        last_time = ros::Time::now();
+
+        rotate_mode = false;
 
         ROS_INFO_STREAM("Got new global plan with " << plan.size() << " points.");
 
@@ -54,79 +54,19 @@ namespace ftc_local_planner {
     }
 
     bool FTCPlanner::computeVelocityCommands(geometry_msgs::Twist &cmd_vel) {
-        calculateControlPoint();
-
-        auto map_to_base = tf_buffer->lookupTransform("base_link", "map", ros::Time(), ros::Duration(0.5));
-        Eigen::Affine3d local_control_point;
-
-        tf2::doTransform(current_control_point, local_control_point, map_to_base);
-
-
-        double distance = local_control_point.translation().norm();
-
-
-        if (distance > config.max_follow_dist) {
-            ROS_ERROR_STREAM("Error: Robot was too far away. Stopping controller!");
-
-            cmd_vel.angular.z = 0;
-            cmd_vel.linear.x = 0;
-            return false;
-        } else if(distance < config.min_follow_dist) {
-            ROS_INFO_STREAM("Point too close, waiting for point to move");
-
-
-            cmd_vel.angular.z = 0;
-            cmd_vel.linear.x = 0;
-            return true;
-        }
-
-
         ros::Time now = ros::Time::now();
-        double dt = now.toSec() - last_time_cmd_vel.toSec();
-        last_time_cmd_vel = now;
-
-
-
-
-
-        double angle = atan2(local_control_point.translation().y(), local_control_point.translation().x());
-
-        speed_factor = local_control_point.translation().normalized().x();
-        if(speed_factor < 0.1) {
-            speed_factor = 0.1;
+        dt = now.toSec() - last_time.toSec();
+        last_time = now;
+        if (rotate_mode) {
+            return computeVelocityCommandsRotate(cmd_vel);
         }
+        return computeVelocityCommandsFollow(cmd_vel);
 
-
-        double angle_d = (angle - last_angle_error) / dt;
-        double speed_d = (distance - last_distance_error) / dt;
-
-
-        last_angle_error = angle;
-        last_distance_error = distance;
-
-
-
-
-
-
-
-        // TODO: not really, we need to wait for bot and do a final rotation
-        finished = current_index >= global_plan.size() - 1;
-
-        if(finished) {
-            cmd_vel.angular.z = 0;
-            cmd_vel.linear.x = 0;
-        } else {
-            cmd_vel.angular.z = angle * config.kp_ang + angle_d * config.kd_ang;
-            cmd_vel.linear.x = distance * config.kp_speed + speed_d * config.kd_speed;
-        }
-
-        return true;
     }
 
 
     bool FTCPlanner::isGoalReached() {
-        return finished;
+        return finished && !rotate_mode;
     }
 
 
@@ -137,17 +77,11 @@ namespace ftc_local_planner {
         }
     }
 
-    void FTCPlanner::calculateControlPoint() {
-        ros::Time now = ros::Time::now();
-        double dt = now.toSec() - last_time_control_point.toSec();
-//        double allowed_speed = std::max(0.0, config.speed * (1.0 - 2.0 * (std::abs(last_angle) / M_PI)));
-double allowed_speed = config.speed*speed_factor;
-        double distance = dt * allowed_speed;
-
-        ROS_INFO_STREAM("Speed: " << allowed_speed);
+    void FTCPlanner::moveControlPoint() {
+        double distance_to_move = dt * config.speed;
 
         Eigen::Affine3d nextPose, currentPose;
-        while (distance > 0 && current_index < global_plan.size() - 1) {
+        while (distance_to_move > 0 && current_index < global_plan.size() - 1) {
 
             tf2::fromMsg(global_plan[current_index].pose, currentPose);
             tf2::fromMsg(global_plan[current_index + 1].pose, nextPose);
@@ -162,19 +96,19 @@ double allowed_speed = config.speed*speed_factor;
 
             ROS_INFO_STREAM("Distance to next: " << remaining_distance_to_next_pose);
 
-            if (remaining_distance_to_next_pose < distance) {
-                // we need to move further than the remaining distance. Skip to the next point and decrease distance.
+            if (remaining_distance_to_next_pose < distance_to_move) {
+                // we need to move further than the remaining distance_to_move. Skip to the next point and decrease distance_to_move.
                 current_progress = 0.0;
                 current_index++;
-                distance -= remaining_distance_to_next_pose;
+                distance_to_move -= remaining_distance_to_next_pose;
             } else {
                 // we cannot reach the next point yet, so we update the percentage
-                current_progress = (pose_distance * current_progress + distance) / pose_distance;
+                current_progress = (pose_distance * current_progress + distance_to_move) / pose_distance;
                 if (current_progress > 1.0) {
                     ROS_WARN_STREAM("Progress > 1.0");
 //                    current_progress = 1.0;
                 }
-                distance = 0;
+                distance_to_move = 0;
             }
         }
 
@@ -206,7 +140,153 @@ double allowed_speed = config.speed*speed_factor;
             global_point_pub.publish(viz);
         }
 
-        last_time_control_point = now;
+    }
+
+    bool FTCPlanner::computeVelocityCommandsFollow(geometry_msgs::Twist &cmd_vel) {
+
+        if (finished) {
+            cmd_vel.angular.z = 0;
+            cmd_vel.linear.x = 0;
+            return true;
+        }
+
+        moveControlPoint();
+
+
+        // TODO: not really, we need to wait for bot and do a final rotation
+        bool new_finished = current_index >= global_plan.size() - 1;
+
+        // enable rotation at the end
+        if (new_finished) {
+            rotate_mode = true;
+
+            tf2::Quaternion quat;
+            tf2::fromMsg(global_plan[current_index].pose.orientation, quat);
+            tf2::Matrix3x3 m(quat);
+            double roll, pitch, yaw;
+            m.getRPY(roll, pitch, yaw);
+
+            rotation_target_angle = fmod(yaw, M_PI*2.0);
+            if(rotation_target_angle < 0) {
+                rotation_target_angle+= M_PI*2.0;
+            }
+        }
+        finished = new_finished;
+
+        auto map_to_base = tf_buffer->lookupTransform("base_link", "map", ros::Time(), ros::Duration(0.5));
+        Eigen::Affine3d local_control_point;
+        tf2::doTransform(current_control_point, local_control_point, map_to_base);
+
+
+        double distance = local_control_point.translation().norm();
+        double angle = atan2(local_control_point.translation().y(), local_control_point.translation().x());
+
+
+        if (distance > config.max_follow_dist) {
+            ROS_ERROR_STREAM("Error: Robot was too far away. Stopping controller!");
+
+            cmd_vel.angular.z = 0;
+            cmd_vel.linear.x = 0;
+            return false;
+        } else if (distance < config.min_follow_dist) {
+            ROS_INFO_STREAM("Point too close, waiting for point to move");
+
+
+            cmd_vel.angular.z = 0;
+            cmd_vel.linear.x = 0;
+            return true;
+        }
+
+
+        if (abs(angle) > config.max_angle_follow_mode * (M_PI / 180.0)) {
+            ROS_INFO_STREAM("Switching to rotation mode. Angle was: " << (angle * (180.0/M_PI)));
+
+            tf2::Quaternion quat;
+            tf2::fromMsg(map_to_base.transform.rotation, quat);
+
+            tf2::Matrix3x3 m(quat);
+            double roll, pitch, yaw;
+            m.getRPY(roll, pitch, yaw);
+
+            // rotation target angle between -M_PI and M_PI
+            rotation_target_angle = fmod(angle - yaw, M_PI*2.0);
+            if(rotation_target_angle < 0) {
+                rotation_target_angle+= M_PI*2.0;
+            }
+            rotate_mode = true;
+            return computeVelocityCommandsRotate(cmd_vel);
+        }
+
+
+        double angle_d = (angle - last_angle_error) / dt;
+        double speed_d = (distance - last_distance_error) / dt;
+
+
+        last_angle_error = angle;
+        last_distance_error = distance;
+
+
+        double ang_speed = angle * config.kp_ang + angle_d * config.kd_ang;
+        if (ang_speed > config.max_cmd_vel_ang) {
+            ang_speed = config.max_cmd_vel_ang;
+        } else if (ang_speed < -config.max_cmd_vel_ang) {
+            ang_speed = -config.max_cmd_vel_ang;
+        }
+        cmd_vel.angular.z = ang_speed;
+        double lin_speed = distance * config.kp_speed + speed_d * config.kd_speed;
+        if (lin_speed < 0) {
+            lin_speed = 0;
+        } else if (lin_speed > config.max_cmd_vel_speed) {
+            lin_speed = config.max_cmd_vel_speed;
+        }
+        cmd_vel.linear.x = lin_speed;
+
+
+        return true;
+    }
+
+    bool FTCPlanner::computeVelocityCommandsRotate(geometry_msgs::Twist &cmd_vel) {
+        auto map_to_base = tf_buffer->lookupTransform("base_link", "map", ros::Time(), ros::Duration(0.5));
+
+        tf2::Quaternion quat;
+        tf2::fromMsg(map_to_base.transform.rotation, quat);
+
+        tf2::Matrix3x3 m(quat);
+        double roll, pitch, yaw;
+        m.getRPY(roll, pitch, yaw);
+        yaw *= -1.0;
+
+        double angle = fmod( (rotation_target_angle - yaw) + M_PI, M_PI*2.0);
+        if(angle < 0)
+            angle += 2.0*M_PI;
+        angle -= M_PI;
+
+        ROS_INFO_STREAM("angle: " << (rotation_target_angle* (180.0 / M_PI)) << ", current: " << (yaw* (180.0 / M_PI)) << ", angle error: "
+                                  << (angle * (180.0 / M_PI)));
+
+
+
+        double angle_d = (angle - last_angle_error) / dt;
+
+
+        last_angle_error = angle;
+
+
+        double ang_speed = angle * config.kp_ang + angle_d * config.kd_ang;
+        if (ang_speed > config.max_cmd_vel_ang) {
+            ang_speed = config.max_cmd_vel_ang;
+        } else if (ang_speed < -config.max_cmd_vel_ang) {
+            ang_speed = -config.max_cmd_vel_ang;
+        }
+        cmd_vel.angular.z = ang_speed;
+        cmd_vel.linear.x = 0;
+
+        if (abs(angle) < config.min_angle_rotation_mode * (M_PI / 180.0)) {
+            ROS_INFO_STREAM("Switching to follow mode");
+            rotate_mode = false;
+        }
+
+        return true;
     }
 
 

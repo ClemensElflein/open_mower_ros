@@ -44,20 +44,26 @@ namespace ftc_local_planner
         uint32_t current_index;
         double current_progress;
 
-        // point speed in m/sec
-        double speed = 0.5;
-        double speed_factor = 1.0;
 
-        ros::Time last_time_control_point, last_time_cmd_vel;
+        ros::Time last_time;
 
-        double finished = false;
+        bool finished = false;
 
         double last_distance_error = 0.0;
         double last_angle_error = 0.0;
-        double pid_initialized = false;
+
+        bool wait_for_min_dist = false;
+
+        bool rotate_mode = false;
+        double rotation_target_angle;
+        double dt;
 
 
-        void calculateControlPoint();
+
+        void moveControlPoint();
+
+        bool computeVelocityCommandsFollow(geometry_msgs::Twist &cmd_vel);
+        bool computeVelocityCommandsRotate(geometry_msgs::Twist &cmd_vel);
 
     public:
         FTCPlanner();
