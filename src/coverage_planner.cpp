@@ -7,11 +7,14 @@
 #include "ExPolygon.hpp"
 #include "Polyline.hpp"
 #include "Fill/FillRectilinear.hpp"
+#include "Fill/FillConcentric.hpp"
+
 
 #include "slic3r_coverage_planner/PlanPath.h"
 #include "visualization_msgs/MarkerArray.h"
 #include "Surface.hpp"
 #include <tf2/LinearMath/Quaternion.h>
+#include <Fill/FillPlanePath.hpp>
 #include "tf2_geometry_msgs/tf2_geometry_msgs.h"
 
 
@@ -136,21 +139,29 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
     Slic3r::Surface surface(Slic3r::SurfaceType::stBottom, expoly);
 
 
-    Slic3r::FillRectilinear fill;
-    fill.link_max_length = scale_(1.0);
-    fill.angle = req.angle;
-    fill.z = scale_(1.0);
-    fill.endpoints_overlap = 0;
-    fill.density = 1.0;
-    fill.dont_connect = false;
-    fill.dont_adjust = false;
-    fill.min_spacing = 0.15;
-    fill.complete = false;
-    fill.link_max_length = 0;
+    Slic3r::Fill* fill;
+    if(req.fill_type == slic3r_coverage_planner::PlanPathRequest::FILL_LINEAR) {
+        fill = new Slic3r::FillRectilinear();
+    } else {
+        fill = new Slic3r::FillConcentric();
+    }
+    fill->link_max_length = scale_(1.0);
+    fill->angle = req.angle;
+    fill->z = scale_(1.0);
+    fill->endpoints_overlap = 0;
+    fill->density = 1.0;
+    fill->dont_connect = false;
+    fill->dont_adjust = false;
+    fill->min_spacing = req.distance;
+    fill->complete = false;
+    fill->link_max_length = 0;
 
     ROS_INFO_STREAM("Starting Fill. Poly size:" << surface.expolygon.contour.points.size());
 
-    Slic3r::Polylines lines = fill.fill_surface(surface);
+    Slic3r::Polylines lines = fill->fill_surface(surface);
+
+    delete fill;
+    fill = nullptr;
 
     ROS_INFO_STREAM("Fill Complete. Polyline count: " << lines.size());
     for (int i = 0; i < lines.size(); i++) {
@@ -174,20 +185,19 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
         nav_msgs::Path path;
         path.header = header;
 
+        line.remove_duplicate_points();
 
         if(line.points.size() < 2) {
             ROS_INFO("Skipping single dot");
             continue;
         }
 
-        if((i++ % 2) == 0) {
-            line.reverse();
-        }
+        auto equally_spaced_points = line.equally_spaced_points(scale_(0.1));
 
-
+        ROS_INFO_STREAM("Got " << equally_spaced_points.size() << " points");
 
         Point *lastPoint = nullptr;
-        for(auto &pt:line.points) {
+        for(auto &pt:equally_spaced_points) {
             if(lastPoint == nullptr) {
                 lastPoint = &pt;
                 continue;
