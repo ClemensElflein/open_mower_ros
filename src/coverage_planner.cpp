@@ -16,11 +16,11 @@
 #include <tf2/LinearMath/Quaternion.h>
 #include <Fill/FillPlanePath.hpp>
 #include "tf2_geometry_msgs/tf2_geometry_msgs.h"
+#include "ClipperUtils.hpp"
 
 
 bool visualize_plan;
 ros::Publisher marker_array_publisher;
-
 
 
 void createLineMarkers(Polylines &lines, visualization_msgs::MarkerArray &markerArray) {
@@ -108,7 +108,7 @@ void createLineMarkers(Polylines &lines, visualization_msgs::MarkerArray &marker
 
             markerArray.markers.push_back(marker);
 
-            cidx = (cidx+1) % colors.size();
+            cidx = (cidx + 1) % colors.size();
         }
     }
 
@@ -118,7 +118,7 @@ void createLineMarkers(Polylines &lines, visualization_msgs::MarkerArray &marker
 bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_planner::PlanPathResponse &res) {
 
     Slic3r::Polygon outline_poly;
-    for(auto &pt : req.outline.points) {
+    for (auto &pt : req.outline.points) {
         outline_poly.points.push_back(Point(scale_(pt.x), scale_(pt.y)));
     }
 
@@ -126,9 +126,9 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
 
     Slic3r::ExPolygon expoly(outline_poly);
 
-    for(auto &hole : req.holes) {
+    for (auto &hole : req.holes) {
         Slic3r::Polygon hole_poly;
-        for(auto &pt : hole.points) {
+        for (auto &pt : hole.points) {
             hole_poly.points.push_back(Point(scale_(pt.x), scale_(pt.y)));
         }
         hole_poly.make_counter_clockwise();
@@ -136,41 +136,54 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
         expoly.holes.push_back(hole_poly);
     }
 
-    Slic3r::Surface surface(Slic3r::SurfaceType::stBottom, expoly);
+
+    Polylines all_lines;
+
+    all_lines.push_back(Polyline(expoly.contour));
+
+    Slic3r::ExPolygons polys = offset_ex(expoly, -scale_(req.distance / 2));
+
+    for (auto &poly : polys) {
+        Slic3r::Surface surface(Slic3r::SurfaceType::stBottom, poly);
 
 
-    Slic3r::Fill* fill;
-    if(req.fill_type == slic3r_coverage_planner::PlanPathRequest::FILL_LINEAR) {
-        fill = new Slic3r::FillRectilinear();
-    } else {
-        fill = new Slic3r::FillConcentric();
+        Slic3r::Fill *fill;
+        if (req.fill_type == slic3r_coverage_planner::PlanPathRequest::FILL_LINEAR) {
+            fill = new Slic3r::FillRectilinear();
+        } else {
+            fill = new Slic3r::FillConcentric();
+        }
+        fill->link_max_length = scale_(1.0);
+        fill->angle = req.angle;
+        fill->z = scale_(1.0);
+        fill->endpoints_overlap = 0;
+        fill->density = 1.0;
+        fill->dont_connect = false;
+        fill->dont_adjust = false;
+        fill->min_spacing = req.distance;
+        fill->complete = false;
+        fill->link_max_length = 0;
+
+        ROS_INFO_STREAM("Starting Fill. Poly size:" << surface.expolygon.contour.points.size());
+
+        Slic3r::Polylines lines = fill->fill_surface(surface);
+        append_to(all_lines, lines);
+        delete fill;
+        fill = nullptr;
+
+        ROS_INFO_STREAM("Fill Complete. Polyline count: " << lines.size());
+        for (int i = 0; i < lines.size(); i++) {
+            ROS_INFO_STREAM("Polyline " << i << " has point count: " << lines[i].points.size());
+        }
     }
-    fill->link_max_length = scale_(1.0);
-    fill->angle = req.angle;
-    fill->z = scale_(1.0);
-    fill->endpoints_overlap = 0;
-    fill->density = 1.0;
-    fill->dont_connect = false;
-    fill->dont_adjust = false;
-    fill->min_spacing = req.distance;
-    fill->complete = false;
-    fill->link_max_length = 0;
 
-    ROS_INFO_STREAM("Starting Fill. Poly size:" << surface.expolygon.contour.points.size());
-
-    Slic3r::Polylines lines = fill->fill_surface(surface);
-
-    delete fill;
-    fill = nullptr;
-
-    ROS_INFO_STREAM("Fill Complete. Polyline count: " << lines.size());
-    for (int i = 0; i < lines.size(); i++) {
-        ROS_INFO_STREAM("Polyline " << i << " has point count: " << lines[i].points.size());
+    for(auto &hole : expoly.holes) {
+        all_lines.push_back(Polyline(hole));
     }
 
-    if(visualize_plan) {
+    if (visualize_plan) {
         visualization_msgs::MarkerArray arr;
-        createLineMarkers(lines, arr);
+        createLineMarkers(all_lines, arr);
         marker_array_publisher.publish(arr);
     }
 
@@ -179,26 +192,24 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
     header.frame_id = "map";
     header.seq = 0;
 
-    int i = 0;
-    for(auto &line : lines) {
+    for (auto &line : all_lines) {
 
         nav_msgs::Path path;
         path.header = header;
 
         line.remove_duplicate_points();
 
-        if(line.points.size() < 2) {
+
+        auto equally_spaced_points = line.equally_spaced_points(scale_(0.1));
+        if (equally_spaced_points.size() < 2) {
             ROS_INFO("Skipping single dot");
             continue;
         }
-
-        auto equally_spaced_points = line.equally_spaced_points(scale_(0.1));
-
         ROS_INFO_STREAM("Got " << equally_spaced_points.size() << " points");
 
         Point *lastPoint = nullptr;
-        for(auto &pt:equally_spaced_points) {
-            if(lastPoint == nullptr) {
+        for (auto &pt:equally_spaced_points) {
+            if (lastPoint == nullptr) {
                 lastPoint = &pt;
                 continue;
             }
@@ -211,7 +222,7 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
 
             geometry_msgs::PoseStamped pose;
             pose.header = header;
-            pose.pose.orientation= tf2::toMsg(q);
+            pose.pose.orientation = tf2::toMsg(q);
             pose.pose.position.x = unscale(lastPoint->x);
             pose.pose.position.y = unscale(lastPoint->y);
             pose.pose.position.z = 0;
@@ -231,7 +242,6 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
         res.paths.push_back(path);
     }
 
-
     return true;
 }
 
@@ -243,8 +253,9 @@ int main(int argc, char **argv) {
 
     visualize_plan = paramNh.param("visualize_plan", true);
 
-    if(visualize_plan) {
-        marker_array_publisher = n.advertise<visualization_msgs::MarkerArray>("slic3r_coverage_planner/path_marker_array", 100, true);
+    if (visualize_plan) {
+        marker_array_publisher = n.advertise<visualization_msgs::MarkerArray>(
+                "slic3r_coverage_planner/path_marker_array", 100, true);
     }
 
     ros::ServiceServer plan_path_srv = n.advertiseService("slic3r_coverage_planner/plan_path", planPath);
