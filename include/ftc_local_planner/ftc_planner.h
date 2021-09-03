@@ -47,9 +47,10 @@ namespace ftc_local_planner {
 
         ros::Time last_time;
 
-        bool planner_finished = false;
+        int planner_step = 0;
         bool goal_reached = false;
-        ros::Time planner_finished_time;
+        ros::Time planner_position_time;
+        ros::Time planner_rotation_time;
 
         double last_lon_error = 0.0;
         double last_lat_error = 0.0;
@@ -60,7 +61,7 @@ namespace ftc_local_planner {
         double current_movement_speed;
 
 
-        void moveControlPoint();
+        int moveControlPoint();
 
         bool computeVelocityCommandsFollow(geometry_msgs::Twist &cmd_vel);
         double distanceLookahead();

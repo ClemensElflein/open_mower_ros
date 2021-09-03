@@ -25,7 +25,7 @@ namespace ftc_local_planner {
                                                                                      _1, _2);
         reconfig_server->setCallback(cb);
 
-        planner_finished = false;
+        planner_step = 0;
         goal_reached = false;
 
 
@@ -44,13 +44,20 @@ namespace ftc_local_planner {
     }
 
     bool FTCPlanner::setPlan(const std::vector<geometry_msgs::PoseStamped> &plan) {
-        planner_finished = false;
+        planner_step = 0;
         goal_reached = false;
         global_plan = plan;
         current_index = 0;
         current_progress = 0.0;
         last_time = ros::Time::now();
         current_movement_speed = config.speed_slow;
+
+        if(global_plan.size() > 2) {
+            // duplicate last point
+            global_plan.push_back(global_plan.back());
+            // give second from last point last oriantation as the point before that
+            global_plan[global_plan.size()-2].pose.orientation = global_plan[global_plan.size()-3].pose.orientation;
+        }
 
         nav_msgs::Path path;
         if(plan.size() > 0) {
@@ -73,8 +80,9 @@ namespace ftc_local_planner {
         bool success = computeVelocityCommandsFollow(cmd_vel);
 
 
-        if(planner_finished) {
-            double time_since_finished = (ros::Time::now() - planner_finished_time).toSec();
+        // allow planner to finish in the last two phases (position, orientation)
+        if(planner_step == 2) {
+            double time_since_finished = (ros::Time::now() - planner_rotation_time).toSec();
             if(time_since_finished > config.goal_timeout) {
                 ROS_WARN_STREAM("Setting goal finished due to timeout");
                 cmd_vel.linear.x = 0;
@@ -94,12 +102,12 @@ namespace ftc_local_planner {
             double angle_error = local_control_point.rotation().eulerAngles(0,1,2).z();
 
             // Not yet finished
-            if(goal_distance > config.max_goal_distance_error) {
+            if(planner_step < 2 || goal_distance > config.max_goal_distance_error) {
                 return success;
             }
 
             // Not yet finished
-            if(abs(angle_error) > config.max_goal_angle_error * (180.0/M_PI)) {
+            if(planner_step < 2 || abs(angle_error) > config.max_goal_angle_error * (M_PI/180.0)) {
                 return success;
             }
 
@@ -126,93 +134,126 @@ namespace ftc_local_planner {
         }
     }
 
-    void FTCPlanner::moveControlPoint() {
-        if(current_index >= global_plan.size() - 1)
-            return;
-
-
-        double straight_dist = distanceLookahead();
-        double speed;
-        if(straight_dist >= config.speed_fast_threshold) {
-            speed = config.speed_fast;
-        } else {
-            speed = config.speed_slow;
-        }
-
-        if(speed > current_movement_speed) {
-            // accelerate
-            current_movement_speed += dt*config.acceleration;
-            if(current_movement_speed > speed)
-                current_movement_speed = speed;
-        } else if(speed < current_movement_speed) {
-            // decelerate
-            current_movement_speed -= dt*config.acceleration;
-            if(current_movement_speed < speed)
-                current_movement_speed = speed;
-        }
-
-        double distance_to_move = dt * current_movement_speed;
-
-        Eigen::Affine3d nextPose, currentPose;
-        while (distance_to_move > 0 && current_index < global_plan.size() - 1) {
-
-            tf2::fromMsg(global_plan[current_index].pose, currentPose);
-            tf2::fromMsg(global_plan[current_index + 1].pose, nextPose);
-
-            double pose_distance = (nextPose.translation() - currentPose.translation()).norm();
-            if (pose_distance <= 0.0) {
-                ROS_WARN_STREAM("Skipping duplicate point in global plan.");
-                current_index++;
-                continue;
-            }
-            double remaining_distance_to_next_pose = pose_distance * (1.0 - current_progress);
-
-            ROS_INFO_STREAM("Distance to next: " << remaining_distance_to_next_pose);
-
-            if (remaining_distance_to_next_pose < distance_to_move) {
-                // we need to move further than the remaining distance_to_move. Skip to the next point and decrease distance_to_move.
-                current_progress = 0.0;
-                current_index++;
-                distance_to_move -= remaining_distance_to_next_pose;
+    int FTCPlanner::moveControlPoint() {
+        if(planner_step == 0) {
+            // Normal planner operation
+            double straight_dist = distanceLookahead();
+            double speed;
+            if(straight_dist >= config.speed_fast_threshold) {
+                speed = config.speed_fast;
             } else {
-                // we cannot reach the next point yet, so we update the percentage
-                current_progress = (pose_distance * current_progress + distance_to_move) / pose_distance;
-                if (current_progress > 1.0) {
-                    ROS_WARN_STREAM("Progress > 1.0");
-//                    current_progress = 1.0;
+                speed = config.speed_slow;
+            }
+
+            if(speed > current_movement_speed) {
+                // accelerate
+                current_movement_speed += dt*config.acceleration;
+                if(current_movement_speed > speed)
+                    current_movement_speed = speed;
+            } else if(speed < current_movement_speed) {
+                // decelerate
+                current_movement_speed -= dt*config.acceleration;
+                if(current_movement_speed < speed)
+                    current_movement_speed = speed;
+            }
+
+            double distance_to_move = dt * current_movement_speed;
+
+            Eigen::Affine3d nextPose, currentPose;
+            while (distance_to_move > 0 && current_index < global_plan.size() - 2) {
+
+                tf2::fromMsg(global_plan[current_index].pose, currentPose);
+                tf2::fromMsg(global_plan[current_index + 1].pose, nextPose);
+
+                double pose_distance = (nextPose.translation() - currentPose.translation()).norm();
+                if (pose_distance <= 0.0) {
+                    ROS_WARN_STREAM("Skipping duplicate point in global plan.");
+                    current_index++;
+                    continue;
                 }
-                distance_to_move = 0;
+                double remaining_distance_to_next_pose = pose_distance * (1.0 - current_progress);
+
+                ROS_INFO_STREAM("Distance to next: " << remaining_distance_to_next_pose);
+
+                if (remaining_distance_to_next_pose < distance_to_move) {
+                    // we need to move further than the remaining distance_to_move. Skip to the next point and decrease distance_to_move.
+                    current_progress = 0.0;
+                    current_index++;
+                    distance_to_move -= remaining_distance_to_next_pose;
+                } else {
+                    // we cannot reach the next point yet, so we update the percentage
+                    current_progress = (pose_distance * current_progress + distance_to_move) / pose_distance;
+                    if (current_progress > 1.0) {
+                        ROS_WARN_STREAM("Progress > 1.0");
+                        //                    current_progress = 1.0;
+                    }
+                    distance_to_move = 0;
+                }
+            }
+
+            ROS_INFO_STREAM("Point: " << current_index << " progress: " << current_progress);
+
+            if (current_index == global_plan.size() - 2) {
+                ROS_INFO_STREAM("switching planner to position mode");
+                tf2::fromMsg(global_plan[current_index].pose, current_control_point);
+                {
+                    geometry_msgs::PoseStamped viz;
+                    viz.header = global_plan[current_index].header;
+                    viz.pose = tf2::toMsg(current_control_point);
+                    global_point_pub.publish(viz);
+                }
+                // wait for robot to approach last point
+                return 1;
+            } else {
+                tf2::fromMsg(global_plan[current_index].pose, currentPose);
+                tf2::fromMsg(global_plan[current_index + 1].pose, nextPose);
+                // interpolate between points
+                Eigen::Quaternion<double> rot1(currentPose.linear());
+                Eigen::Quaternion<double> rot2(nextPose.linear());
+
+                Eigen::Vector3d trans1 = currentPose.translation();
+                Eigen::Vector3d trans2 = nextPose.translation();
+
+                Eigen::Affine3d result;
+                result.translation() = (1.0 - current_progress) * trans1 + current_progress * trans2;
+                result.linear() = rot1.slerp(current_progress, rot2).toRotationMatrix();
+
+                current_control_point = result;
+            }
+            {
+                geometry_msgs::PoseStamped viz;
+                viz.header = global_plan[current_index].header;
+                viz.pose = tf2::toMsg(current_control_point);
+                global_point_pub.publish(viz);
+            }
+
+            // stay in pahse 0
+            return 0;
+        } else if(planner_step == 1) {
+            // we are waiting for the robot to approach the final point before switching to the real last point (only difference here is orientation of the two)
+            auto map_to_base = tf_buffer->lookupTransform("base_link", "map", ros::Time(), ros::Duration(0.5));
+            Eigen::Affine3d local_control_point;
+            tf2::doTransform(current_control_point, local_control_point, map_to_base);
+
+            double position_time = (ros::Time::now() - planner_position_time).toSec();
+
+            double goal_distance = local_control_point.translation().norm();
+            if(goal_distance < config.max_goal_distance_error || position_time > config.goal_timeout) {
+                // we can now switch to the last step
+                ROS_INFO_STREAM("switching planner to rotation mode");
+                current_index++;
+                tf2::fromMsg(global_plan[current_index].pose, current_control_point);
+                {
+                    geometry_msgs::PoseStamped viz;
+                    viz.header = global_plan[current_index].header;
+                    viz.pose = tf2::toMsg(current_control_point);
+                    global_point_pub.publish(viz);
+                }
+                return 2;
             }
         }
 
-        ROS_INFO_STREAM("Point: " << current_index << " progress: " << current_progress);
-
-        if (current_index == global_plan.size() - 1) {
-            ROS_INFO_STREAM("Reached last point!");
-            tf2::fromMsg(global_plan[current_index].pose, current_control_point);
-        } else {
-            tf2::fromMsg(global_plan[current_index].pose, currentPose);
-            tf2::fromMsg(global_plan[current_index + 1].pose, nextPose);
-            // interpolate between points
-            Eigen::Quaternion<double> rot1(currentPose.linear());
-            Eigen::Quaternion<double> rot2(nextPose.linear());
-
-            Eigen::Vector3d trans1 = currentPose.translation();
-            Eigen::Vector3d trans2 = nextPose.translation();
-
-            Eigen::Affine3d result;
-            result.translation() = (1.0 - current_progress) * trans1 + current_progress * trans2;
-            result.linear() = rot1.slerp(current_progress, rot2).toRotationMatrix();
-
-            current_control_point = result;
-        }
-        {
-            geometry_msgs::PoseStamped viz;
-            viz.header = global_plan[current_index].header;
-            viz.pose = tf2::toMsg(current_control_point);
-            global_point_pub.publish(viz);
-        }
-
+        return planner_step;
     }
 
     bool FTCPlanner::computeVelocityCommandsFollow(geometry_msgs::Twist &cmd_vel) {
@@ -220,13 +261,15 @@ namespace ftc_local_planner {
         if(goal_reached)
             return true;
 
-        moveControlPoint();
+        int planner_step_new = moveControlPoint();
 
-        bool planner_finished_new = current_index >= global_plan.size() - 1;
-        if(planner_finished_new && !planner_finished) {
-            planner_finished_time = ros::Time::now();
+        // start timeout if phase switched to 1
+        if(planner_step == 0 && planner_step_new == 1) {
+            planner_position_time = ros::Time::now();
+        } else if(planner_step == 1 && planner_step_new == 2) {
+            planner_rotation_time = ros::Time::now();
         }
-        planner_finished = planner_finished_new;
+        planner_step = planner_step_new;
 
 
         auto map_to_base = tf_buffer->lookupTransform("base_link", "map", ros::Time(), ros::Duration(0.5));
