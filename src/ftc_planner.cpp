@@ -38,6 +38,9 @@ namespace ftc_local_planner {
             c.restore_defaults = false;
         }
         config = c;
+
+        // just to be sure
+        current_movement_speed = config.speed_slow;
     }
 
     bool FTCPlanner::setPlan(const std::vector<geometry_msgs::PoseStamped> &plan) {
@@ -47,7 +50,7 @@ namespace ftc_local_planner {
         current_index = 0;
         current_progress = 0.0;
         last_time = ros::Time::now();
-
+        current_movement_speed = config.speed_slow;
 
         nav_msgs::Path path;
         if(plan.size() > 0) {
@@ -127,7 +130,28 @@ namespace ftc_local_planner {
         if(current_index >= global_plan.size() - 1)
             return;
 
-        double distance_to_move = dt * config.speed;
+
+        double straight_dist = distanceLookahead();
+        double speed;
+        if(straight_dist >= config.speed_fast_threshold) {
+            speed = config.speed_fast;
+        } else {
+            speed = config.speed_slow;
+        }
+
+        if(speed > current_movement_speed) {
+            // accelerate
+            current_movement_speed += dt*config.acceleration;
+            if(current_movement_speed > speed)
+                current_movement_speed = speed;
+        } else if(speed < current_movement_speed) {
+            // decelerate
+            current_movement_speed -= dt*config.acceleration;
+            if(current_movement_speed < speed)
+                current_movement_speed = speed;
+        }
+
+        double distance_to_move = dt * current_movement_speed;
 
         Eigen::Affine3d nextPose, currentPose;
         while (distance_to_move > 0 && current_index < global_plan.size() - 1) {
@@ -261,6 +285,24 @@ namespace ftc_local_planner {
         return true;
     }
 
+    double FTCPlanner::distanceLookahead() {
+        if(global_plan.size() < 2) {
+            return 0;
+        }
+        Eigen::Quaternion<double> current_rot(current_control_point.linear());
+
+        Eigen::Affine3d last_straight_point = current_control_point;
+        for(uint32_t i = current_index+1; i < global_plan.size(); i++) {
+            tf2::fromMsg(global_plan[i].pose, last_straight_point);
+            // check, if direction is the same. if so, we add the distance
+            Eigen::Quaternion<double> rot2(last_straight_point.linear());
+            if(abs(rot2.angularDistance(current_rot)) > 5.0 * (M_PI/180.0)) {
+                break;
+            }
+        }
+
+        return (last_straight_point.translation() - current_control_point.translation()).norm();
+    }
 
 
 }

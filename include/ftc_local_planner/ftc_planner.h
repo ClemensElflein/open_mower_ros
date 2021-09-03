@@ -57,10 +57,13 @@ namespace ftc_local_planner {
 
         double dt;
 
+        double current_movement_speed;
+
 
         void moveControlPoint();
 
         bool computeVelocityCommandsFollow(geometry_msgs::Twist &cmd_vel);
+        double distanceLookahead();
 
     public:
         FTCPlanner();
