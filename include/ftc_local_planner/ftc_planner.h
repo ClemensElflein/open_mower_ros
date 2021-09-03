@@ -1,6 +1,7 @@
 
 #ifndef FTC_LOCAL_PLANNER_FTC_PLANNER_H_
 #define FTC_LOCAL_PLANNER_FTC_PLANNER_H_
+
 #include <ros/ros.h>
 
 #include <nav_msgs/Odometry.h>
@@ -18,23 +19,22 @@
 #include "tf2_eigen/tf2_eigen.h"
 
 
-namespace ftc_local_planner
-{
+namespace ftc_local_planner {
 
-    class FTCPlanner : public nav_core::BaseLocalPlanner
-    {
+    class FTCPlanner : public nav_core::BaseLocalPlanner {
 
     private:
         void reconfigureCB(FTCPlannerConfig &config, uint32_t level);
 
         dynamic_reconfigure::Server<FTCPlannerConfig> *reconfig_server;
 
-        tf2_ros::Buffer* tf_buffer;
-        costmap_2d::Costmap2DROS* costmap;
+        tf2_ros::Buffer *tf_buffer;
+        costmap_2d::Costmap2DROS *costmap;
         std::vector<geometry_msgs::PoseStamped> global_plan;
 
         ros::Publisher global_point_pub;
         ros::Publisher local_point_pub;
+        ros::Publisher global_plan_pub;
 
         ftc_local_planner::FTCPlannerConfig config;
 
@@ -47,34 +47,31 @@ namespace ftc_local_planner
 
         ros::Time last_time;
 
-        bool finished = false;
+        bool planner_finished = false;
+        bool goal_reached = false;
+        ros::Time planner_finished_time;
 
-        double last_distance_error = 0.0;
+        double last_lon_error = 0.0;
+        double last_lat_error = 0.0;
         double last_angle_error = 0.0;
 
-        bool wait_for_min_dist = false;
-
-        bool rotate_mode = false;
-        double rotation_target_angle;
         double dt;
-
 
 
         void moveControlPoint();
 
         bool computeVelocityCommandsFollow(geometry_msgs::Twist &cmd_vel);
-        bool computeVelocityCommandsRotate(geometry_msgs::Twist &cmd_vel);
 
     public:
         FTCPlanner();
 
-        bool computeVelocityCommands(geometry_msgs::Twist& cmd_vel) override;
+        bool computeVelocityCommands(geometry_msgs::Twist &cmd_vel) override;
 
         bool isGoalReached() override;
 
-        bool setPlan(const std::vector<geometry_msgs::PoseStamped>& plan) override;
+        bool setPlan(const std::vector<geometry_msgs::PoseStamped> &plan) override;
 
-        void initialize(std::string name, tf2_ros::Buffer* tf, costmap_2d::Costmap2DROS* costmap_ros) override;
+        void initialize(std::string name, tf2_ros::Buffer *tf, costmap_2d::Costmap2DROS *costmap_ros) override;
 
         ~FTCPlanner() override;
 
