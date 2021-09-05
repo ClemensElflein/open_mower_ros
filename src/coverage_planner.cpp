@@ -124,6 +124,7 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
 
     outline_poly.make_clockwise();
 
+    // This ExPolygon contains our input area with holes.
     Slic3r::ExPolygon expoly(outline_poly);
 
     for (auto &hole : req.holes) {
@@ -137,12 +138,61 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
     }
 
 
+
+    // Results are stored here
     Polylines all_lines;
 
-    all_lines.push_back(Polyline(expoly.contour));
+    // We want to trace the outline first, so we build it
+    Polyline outline(expoly.contour);
 
+    // We want to trace a second time with a little offset.
     Slic3r::ExPolygons polys = offset_ex(expoly, -scale_(req.distance / 2));
 
+    if(polys.size() == 1) {
+        // we have a single second outline, we can chain them together for a nice flow
+        Polygon c = polys.front().contour;
+        c.make_clockwise();
+
+        // align start with last end
+        auto last_point = outline.last_point();
+        Polyline new_line = Polyline(c);
+
+        if(!new_line.points.empty()) {
+            // find closest point
+            double min_dist = FLT_MAX;
+            Point closest_point;
+            for(auto &pt : new_line.points) {
+                double dist = pt.distance_to(last_point);
+                if(dist < min_dist) {
+                    closest_point = pt;
+                    min_dist = dist;
+                }
+            }
+
+            Polyline before,after;
+            new_line.split_at(closest_point, &before, &after);
+
+            outline.append(after);
+            outline.append(before);
+        }
+        all_lines.push_back(outline);
+    } else {
+        // push the outline as is
+        all_lines.push_back(outline);
+
+        // add other poly outlines as well
+        for (auto &poly : polys) {
+            Polygon c = poly.contour;
+            c.make_clockwise();
+            all_lines.push_back(Polyline(c));
+        }
+    }
+
+
+
+
+
+    // Go through the innermost poly and create the fill path using a Fill object
     for (auto &poly : polys) {
         Slic3r::Surface surface(Slic3r::SurfaceType::stBottom, poly);
 
@@ -180,6 +230,12 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
     for(auto &hole : expoly.holes) {
         all_lines.push_back(Polyline(hole));
     }
+    for (auto &poly : polys) {
+        for(auto &hole : poly.holes) {
+            all_lines.push_back(Polyline(hole));
+        }
+    }
+
 
     if (visualize_plan) {
         visualization_msgs::MarkerArray arr;
