@@ -56,6 +56,10 @@ namespace ftc_local_planner {
         double last_lat_error = 0.0;
         double last_angle_error = 0.0;
 
+        double i_lon_error = 0.0;
+        double i_lat_error = 0.0;
+        double i_angle_error = 0.0;
+
         double dt;
 
         double current_movement_speed;

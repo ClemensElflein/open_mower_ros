@@ -173,7 +173,7 @@ namespace ftc_local_planner {
                 }
                 double remaining_distance_to_next_pose = pose_distance * (1.0 - current_progress);
 
-                ROS_INFO_STREAM("Distance to next: " << remaining_distance_to_next_pose);
+//                ROS_INFO_STREAM("Distance to next: " << remaining_distance_to_next_pose);
 
                 if (remaining_distance_to_next_pose < distance_to_move) {
                     // we need to move further than the remaining distance_to_move. Skip to the next point and decrease distance_to_move.
@@ -191,7 +191,7 @@ namespace ftc_local_planner {
                 }
             }
 
-            ROS_INFO_STREAM("Point: " << current_index << " progress: " << current_progress);
+//            ROS_INFO_STREAM("Point: " << current_index << " progress: " << current_progress);
 
             if (current_index == global_plan.size() - 2) {
                 ROS_INFO_STREAM("switching planner to position mode");
@@ -291,12 +291,31 @@ namespace ftc_local_planner {
         double lon_error = local_control_point.translation().x();
         double angle_error = local_control_point.rotation().eulerAngles(0,1,2).z();
 
+        i_lon_error += lon_error * dt;
+        i_lat_error += lat_error * dt;
+        i_angle_error += angle_error * dt;
 
+        if(i_lon_error > config.ki_lon_max) {
+            i_lon_error = config.ki_lon_max;
+        } else if(i_lon_error < -config.ki_lon_max) {
+            i_lon_error = -config.ki_lon_max;
+        }
+        if(i_lat_error > config.ki_lat_max) {
+            i_lat_error = config.ki_lat_max;
+        } else if(i_lat_error < -config.ki_lat_max) {
+            i_lat_error = -config.ki_lat_max;
+        }
+        if(i_angle_error > config.ki_ang_max) {
+            i_angle_error = config.ki_ang_max;
+        } else if(i_angle_error < -config.ki_ang_max) {
+            i_angle_error = -config.ki_ang_max;
+        }
 
 
         double d_lat = (lat_error - last_lat_error) / dt;
         double d_lon = (lon_error - last_lon_error) / dt;
         double d_angle = (angle_error - last_angle_error) / dt;
+
 
 
 
@@ -306,8 +325,8 @@ namespace ftc_local_planner {
 
 
 
-        double ang_speed = angle_error * config.kp_ang + d_angle * config.kd_ang +
-                lat_error * config.kp_lat + d_lat * config.kd_lat;
+        double ang_speed = angle_error * config.kp_ang + i_angle_error * config.ki_ang + d_angle * config.kd_ang +
+                lat_error * config.kp_lat + i_lat_error * config.ki_lat + d_lat * config.kd_lat;
         if (ang_speed > config.max_cmd_vel_ang) {
             ang_speed = config.max_cmd_vel_ang;
         } else if (ang_speed < -config.max_cmd_vel_ang) {
@@ -316,7 +335,7 @@ namespace ftc_local_planner {
 
         cmd_vel.angular.z = ang_speed;
 
-        double lin_speed = lon_error * config.kp_lon + d_lon * config.kd_lon;
+        double lin_speed = lon_error * config.kp_lon + i_lon_error * config.ki_lon + d_lon * config.kd_lon;
         if (lin_speed < 0) {
             lin_speed = 0;
         } else if (lin_speed > config.max_cmd_vel_speed) {
