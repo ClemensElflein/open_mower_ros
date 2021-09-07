@@ -52,6 +52,10 @@ namespace ftc_local_planner {
         last_time = ros::Time::now();
         current_movement_speed = config.speed_slow;
 
+        i_lon_error = 0.0;
+        i_lat_error = 0.0;
+        i_angle_error = 0.0;
+
         if(global_plan.size() > 2) {
             // duplicate last point
             global_plan.push_back(global_plan.back());
@@ -110,6 +114,8 @@ namespace ftc_local_planner {
             if(planner_step < 2 || abs(angle_error) > config.max_goal_angle_error * (M_PI/180.0)) {
                 return success;
             }
+
+            ROS_INFO_STREAM("FTC planner reached goal. Position error: " << goal_distance << ", angle error: " << (angle_error * (180.0/M_PI)));
 
             cmd_vel.linear.x = 0;
             cmd_vel.angular.z = 0;
@@ -335,14 +341,17 @@ namespace ftc_local_planner {
 
         cmd_vel.angular.z = ang_speed;
 
-        double lin_speed = lon_error * config.kp_lon + i_lon_error * config.ki_lon + d_lon * config.kd_lon;
-        if (lin_speed < 0) {
-            lin_speed = 0;
-        } else if (lin_speed > config.max_cmd_vel_speed) {
-            lin_speed = config.max_cmd_vel_speed;
+        if(planner_step < 2) {
+            double lin_speed = lon_error * config.kp_lon + i_lon_error * config.ki_lon + d_lon * config.kd_lon;
+            if (lin_speed < 0) {
+                lin_speed = 0;
+            } else if (lin_speed > config.max_cmd_vel_speed) {
+                lin_speed = config.max_cmd_vel_speed;
+            }
+            cmd_vel.linear.x = lin_speed;
+        } else {
+            cmd_vel.linear.x = 0.0;
         }
-        cmd_vel.linear.x = lin_speed;
-
 
         return true;
     }
