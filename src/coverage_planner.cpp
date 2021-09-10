@@ -144,7 +144,7 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
 
     // We want to trace the outline first, so we build it
     Polyline outline(expoly.contour);
-/*
+
     // We want to trace a second time with a little offset.
     Slic3r::ExPolygons polys = offset_ex(expoly, -scale_(req.distance / 2));
 
@@ -236,7 +236,7 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
         }
     }
 
-*/
+
     all_lines.push_back(outline);
 
 
