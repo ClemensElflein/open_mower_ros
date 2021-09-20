@@ -333,6 +333,28 @@ namespace ftc_local_planner {
 
         double ang_speed = angle_error * config.kp_ang + i_angle_error * config.ki_ang + d_angle * config.kd_ang +
                 lat_error * config.kp_lat + i_lat_error * config.ki_lat + d_lat * config.kd_lat;
+
+
+        if(planner_step < 2) {
+            double lin_speed = lon_error * config.kp_lon + i_lon_error * config.ki_lon + d_lon * config.kd_lon;
+            if (lin_speed < 0 && config.forward_only) {
+                lin_speed = 0;
+            } else {
+                if (lin_speed > config.max_cmd_vel_speed) {
+                    lin_speed = config.max_cmd_vel_speed;
+                } else if(lin_speed < -config.max_cmd_vel_speed) {
+                    lin_speed = -config.max_cmd_vel_speed;
+                }
+
+                if(lin_speed < 0) {
+                    ang_speed = -ang_speed;
+                }
+            }
+            cmd_vel.linear.x = lin_speed;
+        } else {
+            cmd_vel.linear.x = 0.0;
+        }
+
         if (ang_speed > config.max_cmd_vel_ang) {
             ang_speed = config.max_cmd_vel_ang;
         } else if (ang_speed < -config.max_cmd_vel_ang) {
@@ -341,17 +363,6 @@ namespace ftc_local_planner {
 
         cmd_vel.angular.z = ang_speed;
 
-        if(planner_step < 2) {
-            double lin_speed = lon_error * config.kp_lon + i_lon_error * config.ki_lon + d_lon * config.kd_lon;
-            if (lin_speed < 0 && config.forward_only) {
-                lin_speed = 0;
-            } else if (lin_speed > config.max_cmd_vel_speed) {
-                lin_speed = config.max_cmd_vel_speed;
-            }
-            cmd_vel.linear.x = lin_speed;
-        } else {
-            cmd_vel.linear.x = 0.0;
-        }
 
         return true;
     }
