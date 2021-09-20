@@ -343,7 +343,7 @@ namespace ftc_local_planner {
 
         if(planner_step < 2) {
             double lin_speed = lon_error * config.kp_lon + i_lon_error * config.ki_lon + d_lon * config.kd_lon;
-            if (lin_speed < 0) {
+            if (lin_speed < 0 && config.forward_only) {
                 lin_speed = 0;
             } else if (lin_speed > config.max_cmd_vel_speed) {
                 lin_speed = config.max_cmd_vel_speed;
