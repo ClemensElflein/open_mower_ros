@@ -331,9 +331,6 @@ namespace ftc_local_planner {
 
 
 
-        double ang_speed = angle_error * config.kp_ang + i_angle_error * config.ki_ang + d_angle * config.kd_ang +
-                lat_error * config.kp_lat + i_lat_error * config.ki_lat + d_lat * config.kd_lat;
-
 
         if(planner_step < 2) {
             double lin_speed = lon_error * config.kp_lon + i_lon_error * config.ki_lon + d_lon * config.kd_lon;
@@ -347,13 +344,18 @@ namespace ftc_local_planner {
                 }
 
                 if(lin_speed < 0) {
-                    ang_speed = -ang_speed;
+                    lat_error *= -1.0;
                 }
             }
             cmd_vel.linear.x = lin_speed;
         } else {
             cmd_vel.linear.x = 0.0;
         }
+
+
+        double ang_speed = angle_error * config.kp_ang + i_angle_error * config.ki_ang + d_angle * config.kd_ang +
+                           lat_error * config.kp_lat + i_lat_error * config.ki_lat + d_lat * config.kd_lat;
+
 
         if (ang_speed > config.max_cmd_vel_ang) {
             ang_speed = config.max_cmd_vel_ang;
