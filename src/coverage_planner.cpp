@@ -237,8 +237,7 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
     }
 
 
-    all_lines.push_back(outline);
-
+    
 
     if (visualize_plan) {
         visualization_msgs::MarkerArray arr;
