@@ -17,11 +17,12 @@
 #include <tf2_ros/transform_listener.h>
 #include <Eigen/Geometry>
 #include "tf2_eigen/tf2_eigen.h"
+#include <mbf_costmap_core/costmap_controller.h>
 
 
 namespace ftc_local_planner {
 
-    class FTCPlanner : public nav_core::BaseLocalPlanner {
+class FTCPlanner : public mbf_costmap_core::CostmapController {
 
     private:
         void reconfigureCB(FTCPlannerConfig &config, uint32_t level);
@@ -63,19 +64,17 @@ namespace ftc_local_planner {
         double dt;
 
         double current_movement_speed;
+        bool crashed;
 
 
         int moveControlPoint();
 
-        bool computeVelocityCommandsFollow(geometry_msgs::Twist &cmd_vel);
+        uint32_t computeVelocityCommandsFollow(geometry_msgs::Twist &cmd_vel);
         double distanceLookahead();
 
     public:
         FTCPlanner();
 
-        bool computeVelocityCommands(geometry_msgs::Twist &cmd_vel) override;
-
-        bool isGoalReached() override;
 
         bool setPlan(const std::vector<geometry_msgs::PoseStamped> &plan) override;
 
@@ -83,7 +82,15 @@ namespace ftc_local_planner {
 
         ~FTCPlanner() override;
 
+    uint32_t
+    computeVelocityCommands(const geometry_msgs::PoseStamped &pose, const geometry_msgs::TwistStamped &velocity,
+                            geometry_msgs::TwistStamped &cmd_vel, std::string &message) override;
 
-    };
+    bool isGoalReached(double dist_tolerance, double angle_tolerance) override;
+
+    bool cancel() override;
+
+
+};
 };
 #endif

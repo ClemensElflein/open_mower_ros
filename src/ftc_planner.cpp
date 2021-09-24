@@ -2,8 +2,13 @@
 #include <ftc_local_planner/ftc_planner.h>
 
 #include <pluginlib/class_list_macros.h>
+#include "mbf_msgs/ExePathAction.h"
 
-PLUGINLIB_EXPORT_CLASS(ftc_local_planner::FTCPlanner, nav_core::BaseLocalPlanner)
+PLUGINLIB_EXPORT_CLASS(ftc_local_planner::FTCPlanner, mbf_costmap_core::CostmapController)
+
+
+#define RET_SUCCESS 0
+#define RET_COLLISION 104
 
 namespace ftc_local_planner {
 
@@ -69,6 +74,7 @@ namespace ftc_local_planner {
             path.poses = plan;
         }
         global_plan_pub.publish(path);
+        crashed = false;
 
         ROS_INFO_STREAM("Got new global plan with " << plan.size() << " points.");
 
@@ -76,61 +82,6 @@ namespace ftc_local_planner {
         return true;
     }
 
-    bool FTCPlanner::computeVelocityCommands(geometry_msgs::Twist &cmd_vel) {
-        ros::Time now = ros::Time::now();
-        dt = now.toSec() - last_time.toSec();
-        last_time = now;
-
-        bool success = computeVelocityCommandsFollow(cmd_vel);
-
-
-        // allow planner to finish in the last two phases (position, orientation)
-        if(planner_step == 2) {
-            double time_since_finished = (ros::Time::now() - planner_rotation_time).toSec();
-            if(time_since_finished > config.goal_timeout) {
-                ROS_WARN_STREAM("Setting goal finished due to timeout");
-                cmd_vel.linear.x = 0;
-                cmd_vel.angular.z = 0;
-
-                goal_reached = true;
-                return success;
-            }
-
-            // wait for robot to get to the goal pose
-            auto map_to_base = tf_buffer->lookupTransform("base_link", "map", ros::Time(), ros::Duration(0.5));
-            Eigen::Affine3d local_control_point;
-            tf2::doTransform(current_control_point, local_control_point, map_to_base);
-
-
-            double goal_distance = local_control_point.translation().norm();
-            double angle_error = local_control_point.rotation().eulerAngles(0,1,2).z();
-
-            // Not yet finished
-            if(planner_step < 2 || goal_distance > config.max_goal_distance_error) {
-                return success;
-            }
-
-            // Not yet finished
-            if(planner_step < 2 || abs(angle_error) > config.max_goal_angle_error * (M_PI/180.0)) {
-                return success;
-            }
-
-            ROS_INFO_STREAM("FTC planner reached goal. Position error: " << goal_distance << ", angle error: " << (angle_error * (180.0/M_PI)));
-
-            cmd_vel.linear.x = 0;
-            cmd_vel.angular.z = 0;
-
-            goal_reached = true;
-        }
-
-        return success;
-    }
-
-
-    bool FTCPlanner::isGoalReached() {
-        // Since we want to ensure that the last command was 0 speeds, we need to calculate finished state in computeVelocityCommands
-        return goal_reached;
-    }
 
 
     FTCPlanner::~FTCPlanner() {
@@ -262,10 +213,10 @@ namespace ftc_local_planner {
         return planner_step;
     }
 
-    bool FTCPlanner::computeVelocityCommandsFollow(geometry_msgs::Twist &cmd_vel) {
+    uint32_t FTCPlanner::computeVelocityCommandsFollow(geometry_msgs::Twist &cmd_vel) {
         // check, if we're completely done
         if(goal_reached)
-            return true;
+            return RET_SUCCESS;
 
         int planner_step_new = moveControlPoint();
 
@@ -278,7 +229,7 @@ namespace ftc_local_planner {
         planner_step = planner_step_new;
 
 
-        auto map_to_base = tf_buffer->lookupTransform("base_link", "map", ros::Time(), ros::Duration(0.5));
+        auto map_to_base = tf_buffer->lookupTransform("base_link", "map", ros::Time(), ros::Duration(1.0));
         Eigen::Affine3d local_control_point;
         tf2::doTransform(current_control_point, local_control_point, map_to_base);
 
@@ -290,7 +241,8 @@ namespace ftc_local_planner {
             ROS_ERROR_STREAM("Robot is far away from global plan. It probably has crashed.");
             cmd_vel.angular.z = 0;
             cmd_vel.linear.x = 0;
-            return false;
+            crashed = true;
+            return RET_COLLISION;
         }
 
         double lat_error = local_control_point.translation().y();
@@ -366,7 +318,7 @@ namespace ftc_local_planner {
         cmd_vel.angular.z = ang_speed;
 
 
-        return true;
+        return RET_SUCCESS;
     }
 
     double FTCPlanner::distanceLookahead() {
@@ -386,6 +338,82 @@ namespace ftc_local_planner {
         }
 
         return (last_straight_point.translation() - current_control_point.translation()).norm();
+    }
+
+    uint32_t FTCPlanner::computeVelocityCommands(const geometry_msgs::PoseStamped &pose,
+                                                 const geometry_msgs::TwistStamped &velocity,
+                                                 geometry_msgs::TwistStamped &cmd_vel, std::string &message) {
+
+
+        if(crashed) {
+            cmd_vel.twist.linear.x = 0;
+            cmd_vel.twist.angular.z = 0;
+            return RET_COLLISION;
+        }
+
+        if(goal_reached) {
+            cmd_vel.twist.linear.x = 0;
+            cmd_vel.twist.angular.z = 0;
+            return RET_SUCCESS;
+        }
+
+        ros::Time now = ros::Time::now();
+        dt = now.toSec() - last_time.toSec();
+        last_time = now;
+
+        uint32_t res = computeVelocityCommandsFollow(cmd_vel.twist);
+
+
+        // allow planner to finish in the last two phases (position, orientation)
+        if(planner_step == 2) {
+            double time_since_finished = (ros::Time::now() - planner_rotation_time).toSec();
+            if(time_since_finished > config.goal_timeout) {
+                ROS_WARN_STREAM("Setting goal finished due to timeout");
+                cmd_vel.twist.linear.x = 0;
+                cmd_vel.twist.angular.z = 0;
+
+                goal_reached = true;
+                return res;
+            }
+
+            // wait for robot to get to the goal pose
+            auto map_to_base = tf_buffer->lookupTransform("base_link", "map", ros::Time(), ros::Duration(1.0));
+            Eigen::Affine3d local_control_point;
+            tf2::doTransform(current_control_point, local_control_point, map_to_base);
+
+
+            double goal_distance = local_control_point.translation().norm();
+            double angle_error = local_control_point.rotation().eulerAngles(0,1,2).z();
+
+            // Not yet finished
+            if(planner_step < 2 || goal_distance > config.max_goal_distance_error) {
+                return res;
+            }
+
+            // Not yet finished
+            if(planner_step < 2 || abs(angle_error) > config.max_goal_angle_error * (M_PI/180.0)) {
+                return res;
+            }
+
+            ROS_INFO_STREAM("FTC planner reached goal. Position error: " << goal_distance << ", angle error: " << (angle_error * (180.0/M_PI)));
+
+            cmd_vel.twist.linear.x = 0;
+            cmd_vel.twist.angular.z = 0;
+
+            goal_reached = true;
+        }
+
+        return res;
+    }
+
+    bool FTCPlanner::isGoalReached(double dist_tolerance, double angle_tolerance) {
+        // Since we want to ensure that the last command was 0 speeds, we need to calculate finished state in computeVelocityCommands
+        return goal_reached;
+    }
+
+    bool FTCPlanner::cancel() {
+        goal_reached = true;
+        return true;
     }
 
 
