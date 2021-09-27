@@ -3,6 +3,7 @@ uint8 FILL_CONCENTRIC=1
 uint8 fill_type
 float64 angle
 float64 distance
+uint8 outline_count
 geometry_msgs/Polygon outline
 geometry_msgs/Polygon[] holes
 ---

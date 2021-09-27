@@ -142,58 +142,76 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
     // Results are stored here
     Polylines all_lines;
 
-    // We want to trace the outline first, so we build it
-    Polyline outline(expoly.contour);
 
-    // We want to trace a second time with a little offset.
-    Slic3r::ExPolygons polys = offset_ex(expoly, -scale_(req.distance / 2));
 
-    if(polys.size() == 1) {
-        // we have a single second outline, we can chain them together for a nice flow
-        Polygon c = polys.front().contour;
-        c.make_clockwise();
+    // Store the innermost ouline. This will then be filled.
+    Slic3r::ExPolygons innermost_outlines;
+    if(req.outline_count == 0) {
+        // no outlines, we fill the outline directly
+        innermost_outlines.push_back(expoly);
+    } else if(req.outline_count == 1) {
+        // just add the outline to all_lines and set the innermost_polygon to the outline and we're done
+        all_lines.push_back(expoly.contour);
+        innermost_outlines.push_back(expoly);
+    } else if(req.outline_count == 2) {
+        Polyline outline(expoly.contour);
 
-        // align start with last end
-        auto last_point = outline.last_point();
-        Polyline new_line = Polyline(c);
+        // We want to trace a second time with a little offset.
+        innermost_outlines = offset_ex(expoly, -scale_(req.distance / 2));
 
-        if(!new_line.points.empty()) {
-            // find closest point
-            double min_dist = FLT_MAX;
-            Point closest_point;
-            for(auto &pt : new_line.points) {
-                double dist = pt.distance_to(last_point);
-                if(dist < min_dist) {
-                    closest_point = pt;
-                    min_dist = dist;
-                }
-            }
-
-            Polyline before,after;
-            new_line.split_at(closest_point, &before, &after);
-
-            outline.append(after);
-            outline.append(before);
-        }
-        all_lines.push_back(outline);
-    } else {
-        // push the outline as is
-        all_lines.push_back(outline);
-
-        // add other poly outlines as well
-        for (auto &poly : polys) {
-            Polygon c = poly.contour;
+        if(innermost_outlines.size() == 1) {
+            // we have a single second outline, we can chain them together for a nice flow
+            Polygon c = innermost_outlines.front().contour;
             c.make_clockwise();
-            all_lines.push_back(Polyline(c));
+
+            // align start with last end
+            auto last_point = outline.last_point();
+            Polyline new_line = Polyline(c);
+
+            if(!new_line.points.empty()) {
+                // find closest point
+                double min_dist = FLT_MAX;
+                Point closest_point;
+                for(auto &pt : new_line.points) {
+                    double dist = pt.distance_to(last_point);
+                    if(dist < min_dist) {
+                        closest_point = pt;
+                        min_dist = dist;
+                    }
+                }
+
+                Polyline before,after;
+                new_line.split_at(closest_point, &before, &after);
+
+                outline.append(after);
+                outline.append(before);
+            }
+            all_lines.push_back(outline);
+        } else {
+            // push the outline as is
+            all_lines.push_back(outline);
+
+            // add other poly outlines as well
+            for (auto &poly : innermost_outlines) {
+                Polygon c = poly.contour;
+                c.make_clockwise();
+                all_lines.push_back(Polyline(c));
+            }
         }
+    } else {
+        ROS_ERROR_STREAM("Invalid outline count: " << req.outline_count);
     }
 
 
 
 
 
+
+
+
+
     // Go through the innermost poly and create the fill path using a Fill object
-    for (auto &poly : polys) {
+    for (auto &poly : innermost_outlines) {
         Slic3r::Surface surface(Slic3r::SurfaceType::stBottom, poly);
 
 
@@ -227,11 +245,18 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
         }
     }
 
-    for(auto &hole : expoly.holes) {
-        all_lines.push_back(Polyline(hole));
-    }
-    for (auto &poly : polys) {
-        for(auto &hole : poly.holes) {
+
+    if(req.outline_count ==  1) {
+        for(auto &hole: expoly.holes) {
+            all_lines.push_back(Polyline(hole));
+        }
+    } else if(req.outline_count == 2) {
+        for (auto &poly : innermost_outlines) {
+            for(auto &hole : poly.holes) {
+                all_lines.push_back(Polyline(hole));
+            }
+        }
+        for(auto &hole: expoly.holes) {
             all_lines.push_back(Polyline(hole));
         }
     }
