@@ -24,8 +24,23 @@ namespace ftc_local_planner {
 
 class FTCPlanner : public mbf_costmap_core::CostmapController {
 
+    enum PlannerState {
+        PRE_ROTATE,
+        FOLLOWING,
+        WAITING_FOR_GOAL_APPROACH,
+        POST_ROTATE,
+        FINISHED
+    };
+
     private:
-        void reconfigureCB(FTCPlannerConfig &config, uint32_t level);
+        // State tracking
+        PlannerState current_state;
+        ros::Time state_entered_time;
+
+
+        bool is_crashed;
+
+
 
         dynamic_reconfigure::Server<FTCPlannerConfig> *reconfig_server;
 
@@ -34,7 +49,6 @@ class FTCPlanner : public mbf_costmap_core::CostmapController {
         std::vector<geometry_msgs::PoseStamped> global_plan;
 
         ros::Publisher global_point_pub;
-        ros::Publisher local_point_pub;
         ros::Publisher global_plan_pub;
 
         ftc_local_planner::FTCPlannerConfig config;
@@ -42,35 +56,47 @@ class FTCPlanner : public mbf_costmap_core::CostmapController {
 
         Eigen::Affine3d current_control_point;
 
-        uint32_t current_index;
-        double current_progress;
 
-
-        ros::Time last_time;
-
-        int planner_step = 0;
-        bool goal_reached = false;
-        ros::Time planner_position_time;
-        ros::Time planner_rotation_time;
-
+        /**
+         * PID State
+         */
+        double lat_error, lon_error, angle_error = 0.0;
         double last_lon_error = 0.0;
         double last_lat_error = 0.0;
         double last_angle_error = 0.0;
-
         double i_lon_error = 0.0;
         double i_lat_error = 0.0;
         double i_angle_error = 0.0;
+        ros::Time last_time;
 
-        double dt;
-
+        /**
+         * Speed ramp for acceleration and deceleration
+         */
         double current_movement_speed;
-        bool crashed;
+
+        /**
+         * State for point interpolation
+         */
+        uint32_t current_index;
+        double current_progress;
+        Eigen::Affine3d local_control_point;
 
 
-        int moveControlPoint();
 
-        uint32_t computeVelocityCommandsFollow(geometry_msgs::Twist &cmd_vel);
+        /**
+         * Private members
+         */
         double distanceLookahead();
+
+        PlannerState update_planner_state();
+        void update_control_point(double dt);
+        void calculate_velocity_commands(double dt, geometry_msgs::TwistStamped &cmd_vel);
+
+        double time_in_current_state() {
+            return (ros::Time::now() - state_entered_time).toSec();
+        }
+
+        void reconfigureCB(FTCPlannerConfig &config, uint32_t level);
 
     public:
         FTCPlanner();
