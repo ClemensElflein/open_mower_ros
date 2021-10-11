@@ -105,7 +105,7 @@ namespace ftc_local_planner {
             tf2::fromMsg(global_plan[i].pose, last_straight_point);
             // check, if direction is the same. if so, we add the distance
             Eigen::Quaternion<double> rot2(last_straight_point.linear());
-            if (abs(rot2.angularDistance(current_rot)) > 5.0 * (M_PI / 180.0)) {
+            if (abs(rot2.angularDistance(current_rot)) > config.speed_fast_threshold_angle * (M_PI / 180.0)) {
                 break;
             }
         }
