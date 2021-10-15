@@ -245,19 +245,11 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
         }
     }
 
-
-    if(req.outline_count ==  1) {
-        for(auto &hole: expoly.holes) {
-            all_lines.push_back(Polyline(hole));
-        }
-    } else if(req.outline_count == 2) {
+    if(req.outline_count == 2) {
         for (auto &poly : innermost_outlines) {
             for(auto &hole : poly.holes) {
                 all_lines.push_back(Polyline(hole));
             }
-        }
-        for(auto &hole: expoly.holes) {
-            all_lines.push_back(Polyline(hole));
         }
     }
 
