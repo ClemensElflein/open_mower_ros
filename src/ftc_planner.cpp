@@ -17,6 +17,11 @@ namespace ftc_local_planner {
 
     void FTCPlanner::initialize(std::string name, tf2_ros::Buffer *tf, costmap_2d::Costmap2DROS *costmap_ros) {
         ros::NodeHandle private_nh("~/" + name);
+
+        progress_server = private_nh.advertiseService(
+                "planner_get_progress",&FTCPlanner::getProgress, this);
+
+
         global_point_pub = private_nh.advertise<geometry_msgs::PoseStamped>("global_point", 1);
         global_plan_pub = private_nh.advertise<nav_msgs::Path>("global_plan", 1, true);
 
@@ -76,6 +81,7 @@ namespace ftc_local_planner {
             path.header = plan.front().header;
             path.poses = plan;
         } else {
+            ROS_WARN_STREAM("Global plan was too short. Cancelling.");
             current_state = FINISHED;
             state_entered_time = ros::Time::now();
         }
@@ -258,7 +264,7 @@ namespace ftc_local_planner {
                 }
 
                 double distance_to_move = dt * current_movement_speed;
-                double angle_to_move = dt * config.speed_angular * (M_PI/180.0);
+                double angle_to_move = dt * config.speed_angular * (M_PI / 180.0);
 
                 Eigen::Affine3d nextPose, currentPose;
                 while (angle_to_move > 0 && distance_to_move > 0 && current_index < global_plan.size() - 2) {
@@ -280,10 +286,11 @@ namespace ftc_local_planner {
                     }
 
                     double remaining_distance_to_next_pose = pose_distance * (1.0 - current_progress);
-                    double remaining_angular_distance_to_next_pose = pose_distance_angular *  (1.0 - current_progress);
+                    double remaining_angular_distance_to_next_pose = pose_distance_angular * (1.0 - current_progress);
 
 
-                    if (remaining_distance_to_next_pose < distance_to_move && remaining_angular_distance_to_next_pose < angle_to_move) {
+                    if (remaining_distance_to_next_pose < distance_to_move &&
+                        remaining_angular_distance_to_next_pose < angle_to_move) {
                         // we need to move further than the remaining distance_to_move. Skip to the next point and decrease distance_to_move.
                         current_progress = 0.0;
                         current_index++;
@@ -291,8 +298,10 @@ namespace ftc_local_planner {
                         angle_to_move -= remaining_angular_distance_to_next_pose;
                     } else {
                         // we cannot reach the next point yet, so we update the percentage
-                        double current_progress_distance = (pose_distance * current_progress + distance_to_move) / pose_distance;
-                        double current_progress_angle = (pose_distance_angular * current_progress + angle_to_move) / pose_distance_angular;
+                        double current_progress_distance =
+                                (pose_distance * current_progress + distance_to_move) / pose_distance;
+                        double current_progress_angle =
+                                (pose_distance_angular * current_progress + angle_to_move) / pose_distance_angular;
                         current_progress = fmin(current_progress_angle, current_progress_distance);
                         if (current_progress > 1.0) {
                             ROS_WARN_STREAM("FTC PLANNER: Progress > 1.0");
@@ -427,6 +436,11 @@ namespace ftc_local_planner {
             }
             cmd_vel.twist.angular.z = ang_speed;
         }
+    }
+
+    bool FTCPlanner::getProgress(PlannerGetProgressRequest &req, PlannerGetProgressResponse &res) {
+        res.index = current_index;
+        return true;
     }
 
 

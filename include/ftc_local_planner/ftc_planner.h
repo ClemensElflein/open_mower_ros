@@ -3,6 +3,7 @@
 #define FTC_LOCAL_PLANNER_FTC_PLANNER_H_
 
 #include <ros/ros.h>
+#include "ftc_local_planner/PlannerGetProgress.h"
 
 #include <nav_msgs/Odometry.h>
 #include <nav_msgs/Path.h>
@@ -33,6 +34,7 @@ class FTCPlanner : public mbf_costmap_core::CostmapController {
     };
 
     private:
+    ros::ServiceServer progress_server;
         // State tracking
         PlannerState current_state;
         ros::Time state_entered_time;
@@ -50,6 +52,7 @@ class FTCPlanner : public mbf_costmap_core::CostmapController {
 
         ros::Publisher global_point_pub;
         ros::Publisher global_plan_pub;
+        ros::Publisher progress_pub;
 
         ftc_local_planner::FTCPlannerConfig config;
 
@@ -101,6 +104,7 @@ class FTCPlanner : public mbf_costmap_core::CostmapController {
     public:
         FTCPlanner();
 
+        bool getProgress(ftc_local_planner::PlannerGetProgressRequest &req, ftc_local_planner::PlannerGetProgressResponse &res);
 
         bool setPlan(const std::vector<geometry_msgs::PoseStamped> &plan) override;
 

@@ -20,6 +20,9 @@
     <build_depend>tf2_geometry_msgs</build_depend>
     <build_depend>tf2_ros</build_depend>
     <build_depend>mbf_costmap_core</build_depend>
+    <build_depend>message_runtime</build_depend>
+    <build_depend>std_msgs</build_depend>
+    <build_depend>message_generation</build_depend>
 
     <run_depend>tf2_ros</run_depend>
     <run_depend>tf2_geometry_msgs</run_depend>
@@ -32,7 +35,9 @@
     <run_depend>roscpp</run_depend>
     <run_depend>tf</run_depend>
     <run_depend>mbf_costmap_core</run_depend>
-    
+    <run_depend>message_runtime</run_depend>
+    <run_depend>std_msgs</run_depend>
+
     <export><mbf_costmap_core plugin="${prefix}/mbf_plugin.xml"/></export>
 
 </package>

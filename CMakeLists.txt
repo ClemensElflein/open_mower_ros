@@ -14,6 +14,8 @@ find_package(catkin REQUIRED
 		tf2_geometry_msgs
 		tf2_ros
 		geometry_msgs
+		std_msgs
+		message_generation
         )
 
 
@@ -31,6 +33,17 @@ generate_dynamic_reconfigure_options(
     cfg/FTCPlanner.cfg
 )
 
+## Generate services in the 'srv' folder
+add_service_files(
+		FILES
+		PlannerGetProgress.srv
+)
+
+generate_messages(
+		DEPENDENCIES
+		std_msgs
+)
+
 catkin_package(
     INCLUDE_DIRS include
     LIBRARIES ftc_local_planner
@@ -41,6 +54,10 @@ catkin_package(
 		tf
 		tf2_geometry_msgs
 		tf2_ros
+)
+
+catkin_package(
+		CATKIN_DEPENDS message_runtime
 )
 
 add_library(ftc_local_planner 
