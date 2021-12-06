@@ -357,7 +357,7 @@ VescPacketSetDuty::VescPacketSetDuty(double duty) : VescPacket("SetDuty", 5, COM
     duty = -1.0;
   }
 
-  uint32_t v = static_cast<uint32_t>(duty * 100000.0);
+  const int32_t v = static_cast<int32_t>(duty * 100000.0);
 
   *(payload_end_.first + 1) = static_cast<uint8_t>((v >> 24) & 0xFF);
   *(payload_end_.first + 2) = static_cast<uint8_t>((v >> 16) & 0xFF);
@@ -378,7 +378,7 @@ VescPacketSetDuty::VescPacketSetDuty(double duty) : VescPacket("SetDuty", 5, COM
  **/
 VescPacketSetCurrent::VescPacketSetCurrent(double current) : VescPacket("SetCurrent", 5, COMM_SET_CURRENT)
 {
-  uint32_t v = static_cast<uint32_t>(current * 1000.0);
+  const int32_t v = static_cast<int32_t>(current * 1000.0);
 
   *(payload_end_.first + 1) = static_cast<uint8_t>((v >> 24) & 0xFF);
   *(payload_end_.first + 2) = static_cast<uint8_t>((v >> 16) & 0xFF);
@@ -400,7 +400,7 @@ VescPacketSetCurrent::VescPacketSetCurrent(double current) : VescPacket("SetCurr
 VescPacketSetCurrentBrake::VescPacketSetCurrentBrake(double current_brake)
   : VescPacket("SetCurrentBrake", 5, COMM_SET_CURRENT_BRAKE)
 {
-  uint32_t v = static_cast<uint32_t>(current_brake * 1000.0);
+  const int32_t v = static_cast<int32_t>(current_brake * 1000.0);
 
   *(payload_end_.first + 1) = static_cast<uint8_t>((v >> 24) & 0xFF);
   *(payload_end_.first + 2) = static_cast<uint8_t>((v >> 16) & 0xFF);
@@ -421,7 +421,7 @@ VescPacketSetCurrentBrake::VescPacketSetCurrentBrake(double current_brake)
  **/
 VescPacketSetVelocityERPM::VescPacketSetVelocityERPM(double vel_erpm) : VescPacket("SetERPM", 5, COMM_SET_ERPM)
 {
-  uint32_t v = static_cast<uint32_t>(vel_erpm);
+  const int32_t v = static_cast<int32_t>(vel_erpm);
 
   *(payload_end_.first + 1) = static_cast<uint8_t>((v >> 24) & 0xFF);
   *(payload_end_.first + 2) = static_cast<uint8_t>((v >> 16) & 0xFF);
@@ -444,7 +444,7 @@ VescPacketSetPos::VescPacketSetPos(double pos) : VescPacket("SetPos", 5, COMM_SE
 {
   /** @todo range check pos */
 
-  uint32_t v = static_cast<uint32_t>(pos * 1000000.0);
+  const int32_t v = static_cast<int32_t>(pos * 1000000.0);
 
   *(payload_end_.first + 1) = static_cast<uint8_t>((v >> 24) & 0xFF);
   *(payload_end_.first + 2) = static_cast<uint8_t>((v >> 16) & 0xFF);
