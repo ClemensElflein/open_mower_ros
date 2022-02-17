@@ -234,6 +234,7 @@ namespace vesc_driver {
 
 
     bool VescInterface::send(const VescPacket &packet) {
+        std::unique_lock<std::mutex> lk(serial_tx_mutex_);
         if (!serial_.isOpen()) {
             error_handler_("trying to send to VESC while connection is closed");
             return false;

@@ -154,6 +154,8 @@ namespace vesc_driver {
         serial::Serial serial_;
         std::string port_;
         std::mutex status_mutex_;
+        // since multiple threads will call the send() function, we need a mutex.
+        std::mutex serial_tx_mutex_;
         std::condition_variable status_cv_;
         struct VescStatusStruct status_;
 
