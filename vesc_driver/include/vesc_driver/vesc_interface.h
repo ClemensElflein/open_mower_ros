@@ -44,8 +44,11 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <chrono>
+#include <condition_variable>
 
 #include <pthread.h>
+#include <mutex>
 #include <serial/serial.h>
 #include <boost/crc.hpp>
 #include <boost/noncopyable.hpp>
@@ -53,112 +56,109 @@
 #include "vesc_driver/vesc_packet.h"
 #include "vesc_driver/vesc_packet_factory.h"
 
-namespace vesc_driver
-{
+namespace vesc_driver {
+    enum VESC_CONNECTION_STATE {
+        DISCONNECTED,
+        WAITING_FOR_FW,
+        CONNECTED_INCOMPATIBLE_FW,
+        CONNECTED,
+    };
+
+    struct VescStatusStruct {
+        uint32_t seq;
+        uint8_t fw_version_major;
+        uint8_t fw_version_minor;
+        VESC_CONNECTION_STATE connection_state;
+        double voltage_input;        // input voltage (volt)
+        double temperature_pcb;      // temperature of printed circuit board (degrees Celsius)
+        double current_motor;        // motor current (ampere)
+        double current_input;        // input current (ampere)
+        double speed_erpm;                // motor velocity (rad/s)
+        double duty_cycle;           // duty cycle (0 to 1)
+        double charge_drawn;         // electric charge drawn from input (ampere-hour)
+        double charge_regen;         // electric charge regenerated to input (ampere-hour)
+        double energy_drawn;         // energy drawn from input (watt-hour)
+        double energy_regen;         // energy regenerated to input (watt-hour)
+        double displacement;         // net tachometer (counts)
+        double distance_traveled;    // total tachnometer (counts)
+        int32_t fault_code;
+    };
+
 /**
  * Class providing an interface to the Vedder VESC motor controller via a serial port interface.
  */
-class VescInterface : private boost::noncopyable
-{
-public:
-  typedef std::function<void(const VescPacketConstPtr&)> PacketHandlerFunction;
-  typedef std::function<void(const std::string&)> ErrorHandlerFunction;
+    class VescInterface : private boost::noncopyable {
+    public:
+        typedef std::function<void(const std::string &)> ErrorHandlerFunction;
 
-  /**
-   * Creates a VescInterface object. Opens the serial port interface to the VESC if @p port is not
-   * empty, otherwise the serial port remains closed until connect() is called.
-   *
-   * @param port Address of the serial port, e.g. '/dev/ttyUSB0'.
-   * @param packet_handler Function this class calls when a VESC packet is received.
-   * @param error_handler Function this class calls when an error is detected, such as a bad
-   *                      checksum.
-   *
-   * @throw SerialException
-   */
-  VescInterface(const std::string& port = std::string(),
-                const PacketHandlerFunction& packet_handler = PacketHandlerFunction(),
-                const ErrorHandlerFunction& error_handler = ErrorHandlerFunction());
+        /**
+         * Creates a VescInterface object. Opens the serial port interface to the VESC if @p port is not
+         * empty, otherwise the serial port remains closed until connect() is called.
+         *
+         * @param port Address of the serial port, e.g. '/dev/ttyUSB0'.
+         *
+         */
+        VescInterface(const ErrorHandlerFunction &error_handler, uint32_t state_request_millis = 20);
 
-  /**
-   * VescInterface destructor.
-   */
-  ~VescInterface();
+        /**
+         * VescInterface destructor.
+         */
+        ~VescInterface();
 
-  /**
-   * Sets / updates the function that this class calls when a VESC packet is received.
-   */
-  void setPacketHandler(const PacketHandlerFunction& handler);
+        void setDutyCycle(double duty_cycle);
 
-  /**
-   * Sets / updates the function that this class calls when an error is detected, such as a bad
-   * checksum.
-   */
-  void setErrorHandler(const ErrorHandlerFunction& handler);
+        void setCurrent(double current);
 
-  /**
-   * Opens the serial port interface to the VESC.
-   *
-   * @throw SerialException
-   */
-  void connect(const std::string& port);
+        void setBrake(double brake);
 
-  /**
-   * Closes the serial port interface to the VESC.
-   */
-  void disconnect();
+        void setSpeed(double speed);
 
-  /**
-   * Gets the status of the serial interface to the VESC.
-   *
-   * @return Returns true if the serial port is open, false otherwise.
-   */
-  bool isConnected() const;
+        void setPosition(double position);
 
-  /**
-   * Send a VESC packet.
-   */
-  void send(const VescPacket& packet);
+        void start(const std::string &port);
 
-  void requestFWVersion();
-  void requestState();
-  void setDutyCycle(double duty_cycle);
-  void setCurrent(double current);
-  void setBrake(double brake);
-  void setSpeed(double speed);
-  void setPosition(double position);
-  void setServo(double servo);
+        void stop();
 
-private:
-  // Pimpl - hide serial port members from class users
-  class Impl;
-  std::unique_ptr<Impl> impl_;
-};
+        void get_status(VescStatusStruct *status);
+        void wait_for_status(VescStatusStruct *status);
+        void requestFWVersion();
+        void requestState();
 
-// todo: review
-class SerialException : public std::exception
-{
-  // Disable copy constructors
-  SerialException& operator=(const SerialException&);
-  std::string e_what_;
+    private:
+        /**
+         * Send a VESC packet.
+         */
+        bool send(const VescPacket &packet);
 
-public:
-  explicit SerialException(const char* description)
-  {
-    std::stringstream ss;
-    ss << "SerialException " << description << " failed.";
-    e_what_ = ss.str();
-  }
-  SerialException(const SerialException& other) : e_what_(other.e_what_)
-  {
-  }
-  virtual ~SerialException() throw()
-  {
-  }
-  virtual const char* what() const throw()
-  {
-    return e_what_.c_str();
-  }
-};
+        static void *rx_thread_helper(void *context) {
+            return ((VescInterface *) context)->rx_thread();
+        }
+        static void *update_thread_helper(void *context) {
+            return ((VescInterface *) context)->update_thread();
+        }
+
+
+        void *rx_thread();
+        void *update_thread();
+
+        void handle_packet(VescPacketConstPtr packet);
+
+
+        pthread_t rx_thread_handle_;
+        pthread_t update_thread_handle_;
+        bool rx_thread_run_;
+        bool update_thread_run_;
+
+
+        ErrorHandlerFunction error_handler_;
+        serial::Serial serial_;
+        std::string port_;
+        std::mutex status_mutex_;
+        std::condition_variable status_cv_;
+        struct VescStatusStruct status_;
+
+        uint32_t state_request_millis;
+    };
 
 }  // namespace vesc_driver
 
