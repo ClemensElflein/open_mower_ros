@@ -1,7 +1,11 @@
 # VESC
 ## ROS Interfaces for VESC Motor Drivers
 
-<!-- TODO: CI setting -->
+## Purpose of this fork
+This implementation aims to provide a stable, high performance VESC driver implementation.
+
+I've read through the original code and there were multiple parts which I didn't like about it. E.g. "TODO: we need a mutex here". Additionally, I didn't like the threading model of the driver implementation.
+
 
 ## Composition
 This repository is composed as follows:
