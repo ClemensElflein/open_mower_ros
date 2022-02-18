@@ -1,0 +1,4 @@
+<launch>
+    <!-- TODO: Add parameter for simulation -->
+    <include file="$(find mower_simulation)/launch/_mower_simulation.launch" />
+</launch>

@@ -37,13 +37,11 @@ dynamic_reconfigure::Server<mower_simulation::MowerSimulationConfig> *reconfig_s
 geometry_msgs::Twist last_cmd_vel;
 
 
-
 bool setGpsState(mower_msgs::GPSControlSrvRequest &req, mower_msgs::GPSControlSrvResponse &res) {
     return true;
 }
 
 bool setMowEnabled(mower_msgs::MowerControlSrvRequest &req, mower_msgs::MowerControlSrvResponse &res) {
-
     config.mower_running = req.mow_enabled;
     reconfig_server->updateConfig(config);
     return true;
@@ -73,10 +71,10 @@ void publishStatus(const ros::TimerEvent &timer_event) {
 
     fake_mow_status.mow_esc_status = mower_msgs::Status::ESC_STATUS_OK;
     if (config.mower_error) {
-        fake_mow_status.mow_esc_status= mower_msgs::Status::ESC_STATUS_ERROR;;
+        fake_mow_status.mow_esc_status = mower_msgs::Status::ESC_STATUS_ERROR;;
     }
     if (config.mower_running) {
-        fake_mow_status.mow_esc_status= mower_msgs::Status::ESC_STATUS_RUNNING;
+        fake_mow_status.mow_esc_status = mower_msgs::Status::ESC_STATUS_RUNNING;
     }
     fake_mow_status.v_battery = config.battery_voltage;
     fake_mow_status.v_charge = config.is_charging ? config.battery_voltage + 0.2 : 0.0;
