@@ -12,13 +12,18 @@
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>mower_msgs</build_depend>
   <build_depend>mower_simulation</build_depend>
+  <build_depend>mower_map</build_depend>
+
   <build_export_depend>mower_msgs</build_export_depend>
   <build_export_depend>mower_simulation</build_export_depend>
+  <build_export_depend>mower_map</build_export_depend>
+
   <exec_depend>mower_msgs</exec_depend>
   <exec_depend>mower_simulation</exec_depend>
   <exec_depend>joy</exec_depend>
   <exec_depend>joy_teleop</exec_depend>
   <exec_depend>teleop_twist_joy</exec_depend>
+  <exec_depend>mower_map</exec_depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->
