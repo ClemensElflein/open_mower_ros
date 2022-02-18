@@ -1,4 +1,4 @@
-#Mower Simulation
+# Mower Simulation
 
 The purpose of this package is to allow simulating an OpenMower on your PC without any additional hardware.
 

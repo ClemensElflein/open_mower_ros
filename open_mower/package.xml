@@ -8,7 +8,7 @@
   <license>CC BY-NC-SA 4.0</license>
 
   <url type="website">https://github.com/ClemensElflein/OpenMower</url>
-  
+
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>mower_msgs</build_depend>
   <build_depend>mower_simulation</build_depend>
