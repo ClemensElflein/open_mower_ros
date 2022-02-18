@@ -31,6 +31,7 @@
   <exec_depend>mower_msgs</exec_depend>
   <exec_depend>dynamic_reconfigure</exec_depend>
   <exec_depend>mobile_robot_simulator</exec_depend>
+  <exec_depend>rqt_reconfigure</exec_depend>
 
 
   <export>
