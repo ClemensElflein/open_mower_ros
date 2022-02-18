@@ -1,0 +1,12 @@
+<launch>
+    <!-- Mobile robot simulator -->
+    <node pkg="mobile_robot_simulator" type="mobile_robot_simulator_node" name="mobile_robot_simulator" output="screen" required="true">
+        <param name="publish_map_transform" value="true"/>
+        <param name="publish_rate" value="10.0"/>
+        <param name="velocity_topic" value="/cmd_vel_out"/>
+        <param name="odometry_topic" value="/mower/odom"/>
+    </node>
+
+    <node pkg="mower_simulation" type="mower_simulation" name="mower_simulation"></node>
+
+</launch>

@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>open_mower</name>
+  <version>0.0.0</version>
+  <description>The open_mower package</description>
+
+  <maintainer email="clemens1@familie-elflein.de">Clemens Elflein</maintainer>
+  <license>CC BY-NC-SA 4.0</license>
+
+  <url type="website">https://github.com/ClemensElflein/OpenMower</url>
+  
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>mower_msgs</build_depend>
+  <build_depend>mower_simulation</build_depend>
+  <build_export_depend>mower_msgs</build_export_depend>
+  <build_export_depend>mower_simulation</build_export_depend>
+  <exec_depend>mower_msgs</exec_depend>
+  <exec_depend>mower_simulation</exec_depend>
+  <exec_depend>joy</exec_depend>
+  <exec_depend>joy_teleop</exec_depend>
+  <exec_depend>teleop_twist_joy</exec_depend>
+
+
+  <!-- The export tag contains other, unspecified, tags -->
+  <export>
+    <!-- Other tools can request additional information be placed here -->
+
+  </export>
+</package>
