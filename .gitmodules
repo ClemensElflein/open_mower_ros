@@ -7,3 +7,6 @@
 [submodule "xesc_ros"]
 	path = xesc_ros
 	url = https://github.com/ClemensElflein/xesc_ros.git
+[submodule "slic3r_coverage_planner"]
+	path = slic3r_coverage_planner
+	url = https://github.com/ClemensElflein/slic3r_coverage_planner.git
