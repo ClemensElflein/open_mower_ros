@@ -1,0 +1,10 @@
+global_costmap:
+  inflation_radius: 1.0
+  global_frame: map
+  robot_base_frame: base_link
+  update_frequency: 1.0
+  publish_frequency: 1.0
+  static_map: true
+  rolling_window: false
+  resolution: 0.10
+  map_topic: mower_map_service/map

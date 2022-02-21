@@ -1,0 +1,21 @@
+FTCPlanner:
+  acceleration: 2.0
+  goal_timeout: 2.5
+  kd_ang: 0.1
+  kd_lat: 0.2
+  kd_lon: 0.0
+  kp_ang: 5.0
+  kp_lat: 10.0
+  kp_lon: 10.0
+  max_cmd_vel_ang: 99.9
+  max_cmd_vel_speed: 99.9
+  max_follow_distance: 1.0
+  max_goal_angle_error: 2.0
+  max_goal_distance_error: 0.1
+  restore_defaults: false
+  speed_fast: 2.0
+  speed_fast_threshold: 1.5
+  speed_slow: 1.0
+  forward_only: true
+  speed_angular: 100.0
+
