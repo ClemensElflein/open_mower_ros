@@ -30,7 +30,7 @@ DockingBehavior DockingBehavior::INSTANCE;
 bool DockingBehavior::approach_docking_point() {
     mbf_msgs::MoveBaseGoal moveBaseGoal;
     moveBaseGoal.target_pose = docking_pose_stamped;
-
+    moveBaseGoal.controller = "FreePlanner";
     auto result = mbfClient->sendGoalAndWait(moveBaseGoal);
     if (result.state_ != result.SUCCEEDED) {
         return false;
