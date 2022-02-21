@@ -1,0 +1,52 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>mower_logic</name>
+  <version>0.0.0</version>
+  <description>The mower_logic package</description>
+  <maintainer email="clemens1@familie-elflein.de">Clemens Elflein</maintainer>
+  <license>CC BY-NC-SA 4.0</license>
+
+  <url type="website">https://github.com/ClemensElflein/OpenMower</url>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>dynamic_reconfigure</build_depend>
+  <build_depend>ftc_local_planner</build_depend>
+  <build_depend>mbf_msgs</build_depend>
+  <build_depend>mower_map</build_depend>
+  <build_depend>mower_msgs</build_depend>
+  <build_depend>nav_msgs</build_depend>
+  <build_depend>roscpp</build_depend>
+  <build_depend>slic3r_coverage_planner</build_depend>
+  <build_depend>tf2</build_depend>
+  <build_depend>tf2_geometry_msgs</build_depend>
+  <build_depend>tf2_ros</build_depend>
+  <build_export_depend>dynamic_reconfigure</build_export_depend>
+  <build_export_depend>ftc_local_planner</build_export_depend>
+  <build_export_depend>mbf_msgs</build_export_depend>
+  <build_export_depend>mower_map</build_export_depend>
+  <build_export_depend>mower_msgs</build_export_depend>
+  <build_export_depend>nav_msgs</build_export_depend>
+  <build_export_depend>roscpp</build_export_depend>
+  <build_export_depend>slic3r_coverage_planner</build_export_depend>
+  <build_export_depend>tf2</build_export_depend>
+  <build_export_depend>tf2_geometry_msgs</build_export_depend>
+  <build_export_depend>tf2_ros</build_export_depend>
+  <exec_depend>dynamic_reconfigure</exec_depend>
+  <exec_depend>ftc_local_planner</exec_depend>
+  <exec_depend>mbf_msgs</exec_depend>
+  <exec_depend>mower_map</exec_depend>
+  <exec_depend>mower_msgs</exec_depend>
+  <exec_depend>nav_msgs</exec_depend>
+  <exec_depend>roscpp</exec_depend>
+  <exec_depend>slic3r_coverage_planner</exec_depend>
+  <exec_depend>tf2</exec_depend>
+  <exec_depend>tf2_geometry_msgs</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
+
+
+  <!-- The export tag contains other, unspecified, tags -->
+  <export>
+    <!-- Other tools can request additional information be placed here -->
+
+  </export>
+</package>
