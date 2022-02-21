@@ -100,7 +100,7 @@ void velReceived(const geometry_msgs::Twist::ConstPtr &msg) {
 }
 
 int main(int argc, char **argv) {
-    ros::init(argc, argv, "mower_odometry");
+    ros::init(argc, argv, "mower_simulation");
 
 
     ros::NodeHandle n;
@@ -121,7 +121,7 @@ int main(int argc, char **argv) {
 
     ros::Subscriber cmd_vel_sub = n.subscribe("/cmd_vel", 0, velReceived, ros::TransportHints().tcpNoDelay(true));
     ros::ServiceServer mow_service = n.advertiseService("mower_service/mow_enabled", setMowEnabled);
-    ros::ServiceServer gps_service = n.advertiseService("mower_odom_service/set_gps_state", setGpsState);
+    ros::ServiceServer gps_service = n.advertiseService("mower_service/set_gps_state", setGpsState);
     ros::ServiceServer emergency_service = n.advertiseService("mower_service/emergency", setEmergencyStop);
 
     ros::Timer publish_timer = n.createTimer(ros::Duration(0.02), publishStatus);
