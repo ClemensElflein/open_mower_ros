@@ -215,7 +215,7 @@ void reconfigureCB(mower_logic::MowerLogicConfig &c, uint32_t level) {
 
 
 int main(int argc, char **argv) {
-    ros::init(argc, argv, "mow_area");
+    ros::init(argc, argv, "mower_logic");
 
     ros::NodeHandle n;
     ros::NodeHandle paramNh("~");
@@ -235,7 +235,7 @@ int main(int argc, char **argv) {
 
     ros::Publisher path_pub;
 
-    path_pub = n.advertise<nav_msgs::Path>("mower/mowing_path", 100, true);
+    path_pub = n.advertise<nav_msgs::Path>("mower_logic/mowing_path", 100, true);
 
     pathClient = n.serviceClient<slic3r_coverage_planner::PlanPath>(
             "slic3r_coverage_planner/plan_path");

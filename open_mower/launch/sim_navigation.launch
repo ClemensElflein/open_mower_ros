@@ -2,7 +2,7 @@
     Use this file to record new mowing and navigation areas in the simulator.
  -->
 <launch>
-    <include file="$(find open_mower)/launch/include/_comms.launch" />
+    <include file="$(find mower_simulation)/launch/_mower_simulation.launch" />
     <include file="$(find open_mower)/launch/include/_move_base.launch" />
 
     <node name="joy" pkg="joy" type="joy_node" required="true" >
