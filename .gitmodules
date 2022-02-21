@@ -1,0 +1,3 @@
+[submodule "teb_local_planner"]
+	path = teb_local_planner
+	url = https://github.com/rst-tu-dortmund/teb_local_planner.git
