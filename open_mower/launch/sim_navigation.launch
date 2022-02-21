@@ -18,6 +18,6 @@
         <param name="~enable_turbo_button" value="4"/>
     </node>
 
-    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find open_mower)/rviz/sim_record_area.rviz" required="true" />
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find open_mower)/rviz/sim_navigation_test.rviz" required="true" />
     <node pkg="mower_map" type="mower_map_service" name="mower_map" required="true" />
 </launch>
