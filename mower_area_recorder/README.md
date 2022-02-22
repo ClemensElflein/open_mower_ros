@@ -17,15 +17,15 @@ The following controls are used for the are recorder (default XBox Gamepad):
 
 So, in order to record a new map, do the following:
 1. Drive to any point on the outline of your navigation area and press B
-2. Drive around the navigation area. Press B and Y to stop recording and to save the area.
+2. Drive around the navigation area **in clockwise direction**. Press B and Y to stop recording and to save the area.
 3. For each mowing area:
    - Drive to any point on the outline of the mowing Area
    - Press B to start recording
-   - Drive around the outline
+   - Drive around the outline **in clockwise direction**
    - Press B to stop recording
    - Drive to any obstacle
    - Press B to start recording
-   - Drive around the obstacle
+   - Drive around the obstacle **in anti-clockwise direction**
    - Press B to stop recording
    - Repeat for all obstacles
    - Press Y to save mowing area

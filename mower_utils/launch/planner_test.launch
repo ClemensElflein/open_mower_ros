@@ -1,0 +1,10 @@
+<!--
+    Use this file to record new mowing and navigation areas in the simulator.
+ -->
+<launch>
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find mower_utils)/rviz/planner_test.rviz" required="true" />
+    <node pkg="mower_map" type="mower_map_service" name="mower_map" required="true" />
+    <node pkg="slic3r_coverage_planner" type="slic3r_coverage_planner" name="slic3r_coverage_planner" required="true" />
+    <node pkg="mower_utils" type="planner_test" name="planner_test" required="false" />
+<!--    <node pkg="mower_logic" type="mower_logic" name="mower_logic" required="true" />-->
+</launch>
