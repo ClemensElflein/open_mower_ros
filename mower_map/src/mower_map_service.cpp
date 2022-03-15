@@ -30,7 +30,8 @@
 // Include Messages
 #include "geometry_msgs/Polygon.h"
 #include "geometry_msgs/Point32.h"
-#include "mower_map/MowingArea.h"
+#include "mower_map/MapArea.h"
+#include "mower_map/MapAreas.h"
 
 
 // Include Service Messages
@@ -44,7 +45,7 @@
 
 
 // Publishes the map as occupancy grid
-ros::Publisher map_pub;
+ros::Publisher map_pub, map_areas_pub;
 
 // Publishes the map as markers for rviz
 ros::Publisher map_server_viz_array_pub;
@@ -52,8 +53,8 @@ ros::Publisher map_server_viz_array_pub;
 
 // We store navigation_areas (i.e. robot is allowed to move here) and
 // mowing_areas (i.e. grass needs to be cut here)
-std::vector<mower_map::MowingArea> navigation_areas;
-std::vector<mower_map::MowingArea> mowing_areas;
+std::vector<mower_map::MapArea> navigation_areas;
+std::vector<mower_map::MapArea> mowing_areas;
 
 // The recorded docking pose. Note that this is the pose from which the docking attempt is started
 // I.e. the robot will drive to this pose and then drive forward
@@ -84,12 +85,27 @@ void fromMessage(geometry_msgs::Polygon &poly, grid_map::Polygon &out) {
  * Publish map visualizations for rviz.
  */
 void visualizeAreas() {
+    mower_map::MapAreas mapAreas;
+
+    mapAreas.mapWidth = map.getSize().x() * map.getResolution();
+    mapAreas.mapHeight = map.getSize().y() * map.getResolution();
+    auto mapPos = map.getPosition();
+    mapAreas.mapCenterX = mapPos.x();
+    mapAreas.mapCenterY = mapPos.y();
+
     visualization_msgs::MarkerArray markerArray;
 
     grid_map::Polygon p;
 
+    for(const auto& navigationArea:navigation_areas) {
+        mapAreas.navigationAreas.push_back(navigationArea);
+    }
+
     for (auto mowingArea: mowing_areas) {
+        // Push it to mapAreas
+        mapAreas.mowingAreas.push_back(mowingArea);
         {
+            // Create a marker
             fromMessage(mowingArea.area, p);
             std_msgs::ColorRGBA color;
             color.g = 1.0;
@@ -149,6 +165,7 @@ void visualizeAreas() {
 
 
     map_server_viz_array_pub.publish(markerArray);
+    map_areas_pub.publish(mapAreas);
 }
 
 /**
@@ -325,7 +342,7 @@ void readMapFromFile(const std::string& filename, bool append = false) {
         rosbag::View view(bag, rosbag::TopicQuery("mowing_areas"));
 
         for (rosbag::MessageInstance const m: view) {
-            auto area = m.instantiate<mower_map::MowingArea>();
+            auto area = m.instantiate<mower_map::MapArea>();
             mowing_areas.push_back(*area);
         }
     }
@@ -333,7 +350,7 @@ void readMapFromFile(const std::string& filename, bool append = false) {
         rosbag::View view(bag, rosbag::TopicQuery("navigation_areas"));
 
         for (rosbag::MessageInstance const m: view) {
-            auto area = m.instantiate<mower_map::MowingArea>();
+            auto area = m.instantiate<mower_map::MapArea>();
             navigation_areas.push_back(*area);
         }
     }
@@ -457,6 +474,7 @@ int main(int argc, char **argv) {
 
     ros::NodeHandle n;
     map_pub = n.advertise<nav_msgs::OccupancyGrid>("mower_map_service/map", 10, true);
+    map_areas_pub = n.advertise<mower_map::MapAreas>("mower_map_service/map_areas", 10, true);
     map_server_viz_array_pub = n.advertise<visualization_msgs::MarkerArray>("mower_map_service/map_viz", 10, true);
 
     // Load the default map file

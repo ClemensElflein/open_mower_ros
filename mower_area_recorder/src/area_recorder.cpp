@@ -252,7 +252,7 @@ int main(int argc, char **argv) {
 
     ros::Rate inputDelay(ros::Duration().fromSec(0.1));
     while(ros::ok()) {
-        mower_map::MowingArea result;
+        mower_map::MapArea result;
         bool has_outline = false;
 
 
