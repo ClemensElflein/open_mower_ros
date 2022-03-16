@@ -1,0 +1,10 @@
+uint16  dt           # dt in milliseconds
+float64 ax           # The linear acceleration in the X direction [m/s^2]
+float64 ay           # The linear acceleration in the Y direction [m/s^2]
+float64 az           # The linear acceleration in the Z direction [m/s^2]
+float64 gx           # The angular velocity about the X axis [rad/s]
+float64 gy           # The angular velocity about the Y axis [rad/s]
+float64 gz           # The angular velocity about the Z axis [rad/s]
+float64 mx           # The magnetic field strength in the X direction [uT]
+float64 my           # The magnetic field strength in the Y direction [uT]
+float64 mz           # The magnetic field strength in the Z direction [uT]

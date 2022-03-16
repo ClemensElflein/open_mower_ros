@@ -9,6 +9,7 @@ find_package(catkin REQUIRED COMPONENTS
 add_message_files(
         FILES
         Status.msg
+        ImuRaw.msg
 )
 
 add_service_files(

@@ -7,10 +7,24 @@ uint8 ESC_STATUS_RUNNING=254
 uint8 ESC_STATUS_OK=255
 
 time stamp
+# Low level stuff
+# Initialized or not
 uint8 mower_status
-float32 temperature_mow
+bool raspberry_pi_power
+bool gps_power
+bool esc_power
+bool rain_detected
+bool sound_module_available
+bool sound_module_busy
+bool ui_board_available
+float32[5] ultrasonic_ranges
+bool emergency
 float32 v_charge
 float32 v_battery
+float32 charge_current
+
+# ESC stuff
+float32 temperature_mow
 uint8 left_esc_status
 uint8 right_esc_status
 uint8 mow_esc_status
