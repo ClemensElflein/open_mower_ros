@@ -10,6 +10,7 @@ add_message_files(
         FILES
         Status.msg
         ImuRaw.msg
+        ESCStatus.msg
 )
 
 add_service_files(

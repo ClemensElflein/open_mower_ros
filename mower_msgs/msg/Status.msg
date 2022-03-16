@@ -1,10 +1,7 @@
 uint8 MOWER_STATUS_INITIALIZING=0
 uint8 MOWER_STATUS_OK=255
 
-uint8 ESC_STATUS_ERROR=0
-uint8 ESC_STATUS_STALLED=1
-uint8 ESC_STATUS_RUNNING=254
-uint8 ESC_STATUS_OK=255
+
 
 time stamp
 # Low level stuff
@@ -24,7 +21,7 @@ float32 v_battery
 float32 charge_current
 
 # ESC stuff
-float32 temperature_mow
-uint8 left_esc_status
-uint8 right_esc_status
-uint8 mow_esc_status
+ESCStatus left_esc_status
+ESCStatus right_esc_status
+ESCStatus mow_esc_status
+

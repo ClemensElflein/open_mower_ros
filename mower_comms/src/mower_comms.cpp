@@ -30,6 +30,9 @@
 #include "mower_msgs/EmergencyStopSrv.h"
 #include "mower_msgs/ImuRaw.h"
 
+#include "vesc_driver/vesc_interface.h"
+
+
 ros::Publisher status_pub;
 ros::Publisher imu_pub;
 
@@ -45,7 +48,6 @@ bool emergency_low_level = false;
 bool ll_clear_emergency = false;
 
 
-
 bool allow_send = false;
 bool first_status = true;
 uint16_t last_millis = 0;
@@ -58,6 +60,14 @@ uint8_t out_buf[1000];
 ros::Time last_cmd_vel(0.0);
 
 boost::crc_ccitt_type crc;
+
+
+vesc_driver::VescInterface *mow_vesc_interface;
+vesc_driver::VescInterface *left_vesc_interface;
+vesc_driver::VescInterface *right_vesc_interface;
+
+std::mutex ll_status_mutex;
+struct ll_status last_ll_status = {0};
 
 bool is_emergency() {
     return emergency_high_level || emergency_low_level;
@@ -81,6 +91,10 @@ void publishActuators() {
         speed_mow = 0;
     }
 
+    mow_vesc_interface->setDutyCycle(speed_mow);
+    left_vesc_interface->setDutyCycle(speed_mow);
+    right_vesc_interface->setDutyCycle(speed_mow);
+
     struct ll_heartbeat heartbeat = {
             .type = PACKET_ID_LL_HEARTBEAT,
             // If high level has emergency and LL does not know yet, we set it
@@ -90,7 +104,7 @@ void publishActuators() {
 
 
     crc.reset();
-    crc.process_bytes(&heartbeat, sizeof(struct ll_heartbeat)-2);
+    crc.process_bytes(&heartbeat, sizeof(struct ll_heartbeat) - 2);
     heartbeat.crc = crc.checksum();
 
     size_t encoded_size = cobs.encode((uint8_t *) &heartbeat, sizeof(struct ll_heartbeat), out_buf);
@@ -104,39 +118,84 @@ void publishActuators() {
             ROS_ERROR_STREAM("Error writing to serial port");
         }
     }
-
-    // TODO: implement xESC and LL / UI stuff here
-    /*
-    struct actuators actuators_msg = {
-            .speed_left = static_cast<int16_t>(speed_l * 4095.0),
-            .speed_right = static_cast<int16_t>(speed_r * -4095.0),
-            .speed_mow = static_cast<int16_t>(speed_mow * 4095.0),
-            .beeps = beeps,
-            .crcChecksum = 0
-    };
-
-    boost::crc_ccitt_false_t crc;
-    crc.reset();
-    actuators_msg.crcChecksum =crc.process_bytes(&actuators_msg, sizeof(struct actuators) - 2);
-
-    size_t encoded_size = cobs.encode((uint8_t *) &actuators_msg, sizeof(struct actuators), out_buf);
-    out_buf[encoded_size] = 0;
-    encoded_size++;
-
-    if (serial_port.isOpen() && allow_send) {
-        try {
-            serial_port.write(out_buf, encoded_size);
-
-            // reset beeps here, because we have actually written them now
-            beeps = 0;
-        } catch (std::exception &e) {
-            ROS_ERROR_STREAM("Error writing to serial port");
-        }
-    }
-     */
 }
+
+
+void convertStatus(vesc_driver::VescStatusStruct &vesc_status, mower_msgs::ESCStatus &ros_esc_status) {
+    if (vesc_status.connection_state != vesc_driver::VESC_CONNECTION_STATE::CONNECTED &&
+        vesc_status.connection_state != vesc_driver::VESC_CONNECTION_STATE::CONNECTED_INCOMPATIBLE_FW) {
+        // ESC is disconnected
+        ros_esc_status.status = mower_msgs::ESCStatus::ESC_STATUS_DISCONNECTED;
+    } else if(vesc_status.fault_code) {
+        // ESC has a fault
+        ros_esc_status.status = mower_msgs::ESCStatus::ESC_STATUS_ERROR;
+    } else if(abs(vesc_status.speed_erpm) > 100) {
+        // ESC is running
+        ros_esc_status.status = mower_msgs::ESCStatus::ESC_STATUS_RUNNING;
+    } else {
+        // ESC is OK but standing still
+        ros_esc_status.status = mower_msgs::ESCStatus::ESC_STATUS_OK;
+    }
+    ros_esc_status.tacho = vesc_status.tacho;
+    ros_esc_status.current = vesc_status.current_motor;
+    ros_esc_status.temperature_motor = vesc_status.temperature_motor;
+    ros_esc_status.temperature_pcb = vesc_status.temperature_pcb;
+}
+
+void publishStatus() {
+    mower_msgs::Status status_msg;
+    status_msg.stamp = ros::Time::now();
+
+    if (last_ll_status.status_bitmask & 1) {
+        // LL OK, fill the message
+        status_msg.mower_status = mower_msgs::Status::MOWER_STATUS_OK;
+    } else {
+        // LL initializing
+        status_msg.mower_status = mower_msgs::Status::MOWER_STATUS_INITIALIZING;
+    }
+
+    status_msg.raspberry_pi_power = (last_ll_status.status_bitmask & 0b00000010) != 0;
+    status_msg.gps_power = (last_ll_status.status_bitmask & 0b00000100) != 0;
+    status_msg.esc_power = (last_ll_status.status_bitmask & 0b00001000) != 0;
+    status_msg.rain_detected = (last_ll_status.status_bitmask & 0b00010000) != 0;
+    status_msg.sound_module_available = (last_ll_status.status_bitmask & 0b00100000) != 0;
+    status_msg.sound_module_busy = (last_ll_status.status_bitmask & 0b01000000) != 0;
+    status_msg.ui_board_available = (last_ll_status.status_bitmask & 0b10000000) != 0;
+
+    for (uint8_t i = 0; i < 5; i++) {
+        status_msg.ultrasonic_ranges[i] = last_ll_status.uss_ranges_m[i];
+    }
+
+    // overwrite emergency with the LL value.
+    emergency_low_level = last_ll_status.emergency_bitmask > 0;
+    if (!emergency_low_level) {
+        // it obviously worked, reset the request
+        ll_clear_emergency = false;
+    }
+
+    // True, if high or low level emergency condition is present
+    status_msg.emergency = is_emergency();
+
+    status_msg.v_battery = last_ll_status.v_system;
+    status_msg.v_charge = last_ll_status.v_charge;
+    status_msg.charge_current = last_ll_status.charging_current;
+
+
+    vesc_driver::VescStatusStruct mow_status, left_status, right_status;
+    mow_vesc_interface->get_status(&mow_status);
+    left_vesc_interface->get_status(&left_status);
+    right_vesc_interface->get_status(&right_status);
+
+    convertStatus(mow_status, status_msg.mow_esc_status);
+    convertStatus(left_status, status_msg.left_esc_status);
+    convertStatus(right_status, status_msg.right_esc_status);
+
+    status_pub.publish(status_msg);
+}
+
 void publishActuatorsTimerTask(const ros::TimerEvent &timer_event) {
     publishActuators();
+    publishStatus();
 }
 
 bool setMowEnabled(mower_msgs::MowerControlSrvRequest &req, mower_msgs::MowerControlSrvResponse &res) {
@@ -180,50 +239,10 @@ void velReceived(const geometry_msgs::Twist::ConstPtr &msg) {
     }
 }
 
+
 void handleLowLevelStatus(struct ll_status *status) {
-    mower_msgs::Status status_msg;
-    status_msg.stamp = ros::Time::now();
-
-    if (status->status_bitmask & 1) {
-        // LL OK, fill the message
-        status_msg.mower_status = mower_msgs::Status::MOWER_STATUS_OK;
-    } else {
-        // LL initializing
-        status_msg.mower_status = mower_msgs::Status::MOWER_STATUS_INITIALIZING;
-    }
-
-    status_msg.raspberry_pi_power = (status->status_bitmask & 0b00000010) != 0;
-    status_msg.gps_power = (status->status_bitmask & 0b00000100) != 0;
-    status_msg.esc_power = (status->status_bitmask & 0b00001000) != 0;
-    status_msg.rain_detected = (status->status_bitmask & 0b00010000) != 0;
-    status_msg.sound_module_available = (status->status_bitmask & 0b00100000) != 0;
-    status_msg.sound_module_busy = (status->status_bitmask & 0b01000000) != 0;
-    status_msg.ui_board_available = (status->status_bitmask & 0b10000000) != 0;
-
-    for (uint8_t i = 0; i < 5; i++) {
-        status_msg.ultrasonic_ranges[i] = status->uss_ranges_m[i];
-    }
-
-    // overwrite emergency with the LL value.
-    emergency_low_level = status->emergency_bitmask > 0;
-    if(!emergency_low_level) {
-        // it obviously worked, reset the request
-        ll_clear_emergency = false;
-    }
-
-    // True, if high or low level emergency condition is present
-    status_msg.emergency = is_emergency();
-
-    status_msg.v_battery = status->v_system;
-    status_msg.v_charge = status->v_charge;
-    status_msg.charge_current = status->charging_current;
-
-    status_msg.right_esc_status = 0;
-    status_msg.left_esc_status = 0;
-    status_msg.mow_esc_status = 0;
-    status_msg.temperature_mow = 0;
-
-    status_pub.publish(status_msg);
+    std::unique_lock<std::mutex> lk(ll_status_mutex);
+    last_ll_status = *status;
 }
 
 void handleLowLevelIMU(struct ll_imu *imu) {
@@ -242,6 +261,18 @@ void handleLowLevelIMU(struct ll_imu *imu) {
     imu_pub.publish(imu_msg);
 }
 
+void mowVescError(const std::string &error) {
+    ROS_ERROR_STREAM("Mower VESC error: " << error);
+}
+
+void leftVescError(const std::string &error) {
+    ROS_ERROR_STREAM("LEFT VESC error: " << error);
+}
+
+void rightVescError(const std::string &error) {
+    ROS_ERROR_STREAM("RIGHT VESC error: " << error);
+}
+
 
 int main(int argc, char **argv) {
     ros::init(argc, argv, "mower_comms");
@@ -257,13 +288,21 @@ int main(int argc, char **argv) {
     }
 
     speed_l = speed_r = speed_mow = 0;
+
+
+    // Setup VESC interfaces
+    mow_vesc_interface = new vesc_driver::VescInterface(mowVescError);
+    left_vesc_interface = new vesc_driver::VescInterface(leftVescError);
+    right_vesc_interface = new vesc_driver::VescInterface(rightVescError);
+
+    mow_vesc_interface->start("/dev/ttyACM1");
+    left_vesc_interface->start("/dev/null");
+    right_vesc_interface->start("/dev/null");
     status_pub = n.advertise<mower_msgs::Status>("mower/status", 1);
     imu_pub = n.advertise<mower_msgs::ImuRaw>("mower/imu", 1);
     ros::ServiceServer mow_service = n.advertiseService("mower_service/mow_enabled", setMowEnabled);
     ros::ServiceServer emergency_service = n.advertiseService("mower_service/emergency", setEmergencyStop);
-
     ros::Subscriber cmd_vel_sub = n.subscribe("cmd_vel", 0, velReceived, ros::TransportHints().tcpNoDelay(true));
-
     ros::Timer publish_timer = n.createTimer(ros::Duration(0.02), publishActuatorsTimerTask);
 
 
@@ -364,6 +403,18 @@ int main(int argc, char **argv) {
     }
 
     spinner.stop();
+
+    mow_vesc_interface->setDutyCycle(0.0);
+    left_vesc_interface->setDutyCycle(0.0);
+    right_vesc_interface->setDutyCycle(0.0);
+
+    mow_vesc_interface->stop();
+    left_vesc_interface->stop();
+    right_vesc_interface->stop();
+
+    delete mow_vesc_interface;
+    delete left_vesc_interface;
+    delete right_vesc_interface;
 
     return 0;
 }

@@ -11,6 +11,7 @@ find_package(catkin REQUIRED COMPONENTS
   mower_msgs
   roscpp
   serial
+        vesc_driver
 )
 
 find_package(
