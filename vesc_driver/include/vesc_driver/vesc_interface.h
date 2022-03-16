@@ -71,6 +71,7 @@ namespace vesc_driver {
         VESC_CONNECTION_STATE connection_state;
         double voltage_input;        // input voltage (volt)
         double temperature_pcb;      // temperature of printed circuit board (degrees Celsius)
+        double temperature_motor;      // temperature of printed circuit board (degrees Celsius)
         double current_motor;        // motor current (ampere)
         double current_input;        // input current (ampere)
         double speed_erpm;                // motor velocity (rad/s)
@@ -81,6 +82,7 @@ namespace vesc_driver {
         double energy_regen;         // energy regenerated to input (watt-hour)
         double displacement;         // net tachometer (counts)
         double distance_traveled;    // total tachnometer (counts)
+        uint32_t tacho;
         int32_t fault_code;
     };
 

@@ -98,7 +98,7 @@ namespace vesc_driver {
                 try {
                     serial_.setPort(port_);
                     serial_.open();
-                } catch (serial::IOException &e) {
+                } catch (std::exception &e) {
                     // retry later
                     sleep(1);
                     continue;
@@ -171,7 +171,7 @@ namespace vesc_driver {
                 if (bytes_needed > 0 && 0 == bytes_read && !buffer.empty()) {
                     error_handler_("Possibly out-of-sync with VESC, read timout in the middle of a frame.");
                 }
-            } catch (serial::IOException &e) {
+            } catch (std::exception &e) {
                 error_handler_("error during serial read. reconnecting.");
                 {
                     std::unique_lock<std::mutex> lk(status_mutex_);
@@ -198,6 +198,7 @@ namespace vesc_driver {
             status_.seq++;
             status_.voltage_input = values->getInputVoltage();
             status_.temperature_pcb = values->getMosTemp();
+            status_.temperature_motor = values->getMotorTemp();
             status_.current_motor = values->getMotorCurrent();
             status_.current_input = values->getInputCurrent();
             status_.speed_erpm = values->getVelocityERPM();
@@ -209,8 +210,7 @@ namespace vesc_driver {
             status_.displacement = values->getPosition();
             status_.distance_traveled = values->getDisplacement();
             status_.fault_code = values->getFaultCode();
-            status_.connection_state = CONNECTED;
-
+            status_.tacho = values->getPosition();
             status_cv_.notify_all();
         } else if (packet->getName() == "FWVersion") {
             std::lock_guard<std::mutex> lk(status_mutex_);
@@ -236,7 +236,6 @@ namespace vesc_driver {
     bool VescInterface::send(const VescPacket &packet) {
         std::unique_lock<std::mutex> lk(serial_tx_mutex_);
         if (!serial_.isOpen()) {
-            error_handler_("trying to send to VESC while connection is closed");
             return false;
         }
         size_t written = serial_.write(packet.getFrame());

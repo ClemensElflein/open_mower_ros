@@ -277,9 +277,14 @@ double VescPacketValues::getInputPower() const
  * @brief Gets the current position
  * @return The current position
  **/
-double VescPacketValues::getPosition() const
+uint32_t VescPacketValues::getPosition() const
 {
-  return readBuffer(TACHOMETER, 4);
+    int32_t value = 0;
+    value += static_cast<int32_t>(*(payload_end_.first + TACHOMETER) << 24);
+    value += static_cast<int32_t>(*(payload_end_.first + TACHOMETER + 1) << 16);
+    value += static_cast<int32_t>(*(payload_end_.first + TACHOMETER + 2) << 8);
+    value += static_cast<int32_t>(*(payload_end_.first + TACHOMETER + 3));
+    return static_cast<uint32_t>(value);
 }
 
 /**

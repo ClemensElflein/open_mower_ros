@@ -190,7 +190,7 @@ public:
   double getInputCharge() const;
   double getConsumedPower() const;
   double getInputPower() const;
-  double getPosition() const;
+  uint32_t getPosition() const;
   double getDisplacement() const;
   int getFaultCode() const;
 
