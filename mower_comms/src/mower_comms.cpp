@@ -91,9 +91,9 @@ void publishActuators() {
         speed_mow = 0;
     }
 
-    mow_vesc_interface->setDutyCycle(speed_mow);
-    left_vesc_interface->setDutyCycle(speed_mow);
-    right_vesc_interface->setDutyCycle(speed_mow);
+    mow_vesc_interface->setDutyCycle(speed_mow+0.15);
+    left_vesc_interface->setDutyCycle(speed_l);
+    right_vesc_interface->setDutyCycle(speed_r);
 
     struct ll_heartbeat heartbeat = {
             .type = PACKET_ID_LL_HEARTBEAT,
@@ -281,9 +281,21 @@ int main(int argc, char **argv) {
     ros::NodeHandle n;
     ros::NodeHandle paramNh("~");
 
-    std::string ll_serial_port_name;
+    std::string ll_serial_port_name, left_esc_port_name, right_esc_port_name, mow_esc_port_name;
     if (!paramNh.getParam("ll_serial_port", ll_serial_port_name)) {
         ROS_ERROR_STREAM("Error getting low level serial port parameter. Quitting.");
+        return 1;
+    }
+    if (!paramNh.getParam("left_esc_serial_port", left_esc_port_name)) {
+        ROS_ERROR_STREAM("Error getting left ESC serial port parameter. Quitting.");
+        return 1;
+    }
+    if (!paramNh.getParam("right_esc_serial_port", right_esc_port_name)) {
+        ROS_ERROR_STREAM("Error getting right ESC serial port parameter. Quitting.");
+        return 1;
+    }
+    if (!paramNh.getParam("mow_esc_serial_port", mow_esc_port_name)) {
+        ROS_ERROR_STREAM("Error getting mow ESC serial port parameter. Quitting.");
         return 1;
     }
 
@@ -295,9 +307,10 @@ int main(int argc, char **argv) {
     left_vesc_interface = new vesc_driver::VescInterface(leftVescError);
     right_vesc_interface = new vesc_driver::VescInterface(rightVescError);
 
-    mow_vesc_interface->start("/dev/ttyACM1");
-    left_vesc_interface->start("/dev/null");
-    right_vesc_interface->start("/dev/null");
+    mow_vesc_interface->start(mow_esc_port_name);
+    left_vesc_interface->start(left_esc_port_name);
+    right_vesc_interface->start(right_esc_port_name);
+    
     status_pub = n.advertise<mower_msgs::Status>("mower/status", 1);
     imu_pub = n.advertise<mower_msgs::ImuRaw>("mower/imu", 1);
     ros::ServiceServer mow_service = n.advertiseService("mower_service/mow_enabled", setMowEnabled);
