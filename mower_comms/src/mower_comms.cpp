@@ -310,7 +310,7 @@ int main(int argc, char **argv) {
     mow_vesc_interface->start(mow_esc_port_name);
     left_vesc_interface->start(left_esc_port_name);
     right_vesc_interface->start(right_esc_port_name);
-    
+
     status_pub = n.advertise<mower_msgs::Status>("mower/status", 1);
     imu_pub = n.advertise<mower_msgs::ImuRaw>("mower/imu", 1);
     ros::ServiceServer mow_service = n.advertiseService("mower_service/mow_enabled", setMowEnabled);

@@ -173,7 +173,7 @@ void checkSafety(const ros::TimerEvent &timer_event) {
         return;
     }
 
-    if (last_status.right_esc_status != mower_msgs::Status::ESC_STATUS_OK || last_status.left_esc_status != mower_msgs::Status::ESC_STATUS_OK) {
+    if (last_status.right_esc_status.status <= mower_msgs::ESCStatus::ESC_STATUS_ERROR || last_status.left_esc_status.status <= mower_msgs::ESCStatus ::ESC_STATUS_ERROR) {
         setEmergencyMode(true);
         ROS_ERROR_STREAM(
                 "EMERGENCY: at least one motor control errored. errors left: " << (last_status.left_esc_status)
@@ -198,7 +198,7 @@ void checkSafety(const ros::TimerEvent &timer_event) {
     // we are in non emergency, check if we should pause. This could be empty battery, rain or hot mower motor etc.
     bool dockingNeeded = false;
 
-    if (last_status.v_battery < last_config.battery_empty_voltage || last_status.temperature_mow > 600.0 ||
+    if (last_status.v_battery < last_config.battery_empty_voltage || last_status.mow_esc_status.temperature_motor > 60.0 ||
         last_config.manual_pause_mowing) {
         dockingNeeded = true;
     }

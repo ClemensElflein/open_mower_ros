@@ -69,23 +69,24 @@ void publishStatus(const ros::TimerEvent &timer_event) {
         cmd_vel_pub.publish(last_cmd_vel);
     }
 
-    fake_mow_status.mow_esc_status = mower_msgs::Status::ESC_STATUS_OK;
+    fake_mow_status.mow_esc_status.temperature_motor = config.temperature_mower;
+    fake_mow_status.mow_esc_status.status = mower_msgs::ESCStatus::ESC_STATUS_OK;
     if (config.mower_error) {
-        fake_mow_status.mow_esc_status = mower_msgs::Status::ESC_STATUS_ERROR;;
+        fake_mow_status.mow_esc_status.status = mower_msgs::ESCStatus ::ESC_STATUS_ERROR;;
     }
     if (config.mower_running) {
-        fake_mow_status.mow_esc_status = mower_msgs::Status::ESC_STATUS_RUNNING;
+        fake_mow_status.mow_esc_status.status = mower_msgs::ESCStatus::ESC_STATUS_RUNNING;
     }
+
     fake_mow_status.v_battery = config.battery_voltage;
     fake_mow_status.v_charge = config.is_charging ? config.battery_voltage + 0.2 : 0.0;
     if (config.wheels_stalled) {
-        fake_mow_status.left_esc_status = mower_msgs::Status::ESC_STATUS_STALLED;
-        fake_mow_status.right_esc_status = mower_msgs::Status::ESC_STATUS_STALLED;
+        fake_mow_status.left_esc_status.status = mower_msgs::ESCStatus ::ESC_STATUS_STALLED;
+        fake_mow_status.right_esc_status.status = mower_msgs::ESCStatus ::ESC_STATUS_STALLED;
     } else {
-        fake_mow_status.left_esc_status = mower_msgs::Status::ESC_STATUS_OK;
-        fake_mow_status.right_esc_status = mower_msgs::Status::ESC_STATUS_OK;
+        fake_mow_status.left_esc_status.status = mower_msgs::ESCStatus::ESC_STATUS_OK;
+        fake_mow_status.right_esc_status.status = mower_msgs::ESCStatus::ESC_STATUS_OK;
     }
-    fake_mow_status.temperature_mow = config.temperature_mower * 10.0;
 
 
     status_pub.publish(fake_mow_status);
@@ -113,8 +114,8 @@ int main(int argc, char **argv) {
     fake_mow_status.v_charge = 0.0;
     fake_mow_status.v_battery = 29.0;
     fake_mow_status.stamp = ros::Time::now();
-    fake_mow_status.left_esc_status = fake_mow_status.right_esc_status = fake_mow_status.mow_esc_status = mower_msgs::Status::ESC_STATUS_OK;
-    fake_mow_status.temperature_mow = 500;
+    fake_mow_status.left_esc_status.status = fake_mow_status.right_esc_status.status = fake_mow_status.mow_esc_status.status = mower_msgs::ESCStatus::ESC_STATUS_OK;
+    fake_mow_status.mow_esc_status.temperature_motor = 50;
 
     status_pub = n.advertise<mower_msgs::Status>("mower/status", 1);
     cmd_vel_pub = n.advertise<geometry_msgs::Twist>("/cmd_vel_out", 1);
