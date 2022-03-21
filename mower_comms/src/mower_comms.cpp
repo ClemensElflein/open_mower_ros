@@ -91,9 +91,9 @@ void publishActuators() {
     }
 
     mow_vesc_interface->setDutyCycle(speed_mow);
-    left_vesc_interface->setDutyCycle(speed_l);
     // We need to invert the speed, because the ESC has the same config as the left one, so the motor is running in the "wrong" direction
-    right_vesc_interface->setDutyCycle(-speed_r);
+    left_vesc_interface->setDutyCycle(-speed_l);
+    right_vesc_interface->setDutyCycle(speed_r);
 
     struct ll_heartbeat heartbeat = {
             .type = PACKET_ID_LL_HEARTBEAT,
