@@ -224,8 +224,8 @@ bool setEmergencyStop(mower_msgs::EmergencyStopSrvRequest &req, mower_msgs::Emer
 void velReceived(const geometry_msgs::Twist::ConstPtr &msg) {
     // TODO: update this to rad/s values and implement xESC speed control
     last_cmd_vel = ros::Time::now();
-    speed_l = msg->linear.x - msg->angular.z;
-    speed_r = msg->linear.x + msg->angular.z;
+    speed_l = msg->linear.x + msg->angular.z;
+    speed_r = msg->linear.x - msg->angular.z;
 
     if (speed_l >= 1.0) {
         speed_l = 1.0;
