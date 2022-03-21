@@ -91,7 +91,7 @@ void publishActuators() {
         speed_mow = 0;
     }
 
-    mow_vesc_interface->setDutyCycle(speed_mow+0.15);
+    mow_vesc_interface->setDutyCycle(speed_mow);
     left_vesc_interface->setDutyCycle(speed_l);
     right_vesc_interface->setDutyCycle(speed_r);
 
@@ -129,7 +129,7 @@ void convertStatus(vesc_driver::VescStatusStruct &vesc_status, mower_msgs::ESCSt
     } else if(vesc_status.fault_code) {
         // ESC has a fault
         ros_esc_status.status = mower_msgs::ESCStatus::ESC_STATUS_ERROR;
-    } else if(abs(vesc_status.speed_erpm) > 100) {
+    } else if(abs(vesc_status.speed_erpm) > 500) {
         // ESC is running
         ros_esc_status.status = mower_msgs::ESCStatus::ESC_STATUS_RUNNING;
     } else {
@@ -334,7 +334,7 @@ int main(int argc, char **argv) {
             allow_send = false;
             try {
                 serial_port.setPort(ll_serial_port_name);
-                serial_port.setBaudrate(500000);
+                serial_port.setBaudrate(115200);
                 auto to = serial::Timeout::simpleTimeout(100);
                 serial_port.setTimeout(to);
                 serial_port.open();
