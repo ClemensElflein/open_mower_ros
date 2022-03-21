@@ -47,15 +47,14 @@ bool emergency_low_level = false;
 // True, if the LL emergency should be cleared in the next request
 bool ll_clear_emergency = false;
 
-
+// True, if we can send to the low level board
 bool allow_send = false;
-bool first_status = true;
-uint16_t last_millis = 0;
 
+// Current speeds (duty cycle) for the three ESCs
 float speed_l = 0, speed_r = 0, speed_mow = 0;
 
+// Serial port and buffer for the low level connection
 serial::Serial serial_port;
-
 uint8_t out_buf[1000];
 ros::Time last_cmd_vel(0.0);
 
@@ -330,7 +329,6 @@ int main(int argc, char **argv) {
     while (ros::ok()) {
         if (!serial_port.isOpen()) {
             ROS_INFO_STREAM("connecting serial interface: " << ll_serial_port_name);
-            first_status = true;
             allow_send = false;
             try {
                 serial_port.setPort(ll_serial_port_name);
