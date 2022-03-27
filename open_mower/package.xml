@@ -29,6 +29,7 @@
   <exec_depend>ftc_local_planner</exec_depend>
   <exec_depend>global_planner</exec_depend>
   <exec_depend>teb_local_planner</exec_depend>
+  <exec_depend>ublox</exec_depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->
