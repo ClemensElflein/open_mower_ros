@@ -167,7 +167,7 @@ void gpsPositionReceived(const ublox_msgs::NavRELPOSNED9::ConstPtr &msg) {
     bool refObsMiss = (msg->flags & 0b0000100) >> 7;
 
     if (!gnssFixOK || !diffSoln || !relPosValid || carrSoln != 2) {
-        ROS_INFO_STREAM("Dropping GPS update due to flags.\r\nFlags:\r\n" <<
+        ROS_INFO_STREAM_THROTTLE(1,"Dropped at least one GPS update due to flags.\r\nFlags:\r\n" <<
                                                                           "accuracy:" << gps_accuracy_m << "\r\n" <<
                                                                           "gnssFixOK:" << gnssFixOK << "\r\n" <<
                                                                           "diffSoln:" << diffSoln << "\r\n" <<
@@ -176,6 +176,7 @@ void gpsPositionReceived(const ublox_msgs::NavRELPOSNED9::ConstPtr &msg) {
                                                                           "refPosMiss:" << refPosMiss << "\r\n" <<
                                                                           "refObsMiss:" << refObsMiss << "\r\n"
         );
+        return;
     }
 
     if (gps_accuracy_m > 0.05) {
@@ -208,7 +209,7 @@ void gpsPositionReceived(const ublox_msgs::NavRELPOSNED9::ConstPtr &msg) {
             getGPSX(gps), getGPSY(gps), getGPSZ(gps)
     );
 
-    ROS_INFO_STREAM("GOT GPS: " << gps_pos.x() << ", " << gps_pos.y());
+//    ROS_INFO_STREAM("GOT GPS: " << gps_pos.x() << ", " << gps_pos.y());
 
 
     double distance_to_last_gps = (last_gps_pos - gps_pos).length();

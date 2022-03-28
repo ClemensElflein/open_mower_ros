@@ -91,7 +91,7 @@ Visualization Manager:
           Value: true
         Value: false
       Enabled: true
-      Keep: 100
+      Keep: 10090
       Name: Odometry
       Position Tolerance: 0.10000000149011612
       Queue Size: 10
@@ -247,10 +247,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Scale: 125.9991683959961
+      Scale: 41.10435485839844
       Target Frame: <Fixed Frame>
-      X: 25.51528549194336
-      Y: -0.4693392515182495
+      X: 25.764389038085938
+      Y: -2.078235626220703
     Saved:
       - Angle: 0
         Class: rviz/TopDownOrtho
