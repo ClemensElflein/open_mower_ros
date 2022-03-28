@@ -98,6 +98,7 @@ find_package(catkin REQUIRED COMPONENTS
 ## Generate dynamic reconfigure parameters in the 'cfg' folder
  generate_dynamic_reconfigure_options(
    cfg/MowerLogic.cfg
+   cfg/MowerOdometry.cfg
  )
 
 ###################################
@@ -158,19 +159,23 @@ include_directories(
 # )
 
 add_executable(mower_logic
-        src/mower_logic.cpp
-        src/behaviors/Behavior.h
-        src/behaviors/DockingBehavior.h
-        src/behaviors/DockingBehavior.cpp
-        src/behaviors/UndockingBehavior.h
-        src/behaviors/UndockingBehavior.cpp
-        src/behaviors/IdleBehavior.h
-        src/behaviors/IdleBehavior.cpp
-        src/behaviors/MowingBehavior.h
-        src/behaviors/MowingBehavior.cpp
+        src/mower_logic/mower_logic.cpp
+        src/mower_logic/behaviors/Behavior.h
+        src/mower_logic/behaviors/DockingBehavior.h
+        src/mower_logic/behaviors/DockingBehavior.cpp
+        src/mower_logic/behaviors/UndockingBehavior.h
+        src/mower_logic/behaviors/UndockingBehavior.cpp
+        src/mower_logic/behaviors/IdleBehavior.h
+        src/mower_logic/behaviors/IdleBehavior.cpp
+        src/mower_logic/behaviors/MowingBehavior.h
+        src/mower_logic/behaviors/MowingBehavior.cpp
         )
 add_dependencies(mower_logic ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
 target_link_libraries(mower_logic ${catkin_LIBRARIES})
+
+add_executable(mower_odometry src/mower_odometry/mower_odometry.cpp)
+add_dependencies(mower_odometry ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
+target_link_libraries(mower_odometry ${catkin_LIBRARIES})
 
 #############
 ## Install ##
