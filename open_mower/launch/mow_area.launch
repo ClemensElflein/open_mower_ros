@@ -1,0 +1,21 @@
+<launch>
+    <include file="$(find open_mower)/launch/include/_comms.launch"/>
+    <include file="$(find open_mower)/launch/include/_gps.launch"/>
+    <include file="$(find open_mower)/launch/include/_move_base.launch"/>
+    <include file="$(find open_mower)/launch/include/_localization.launch"/>
+    <include file="$(find open_mower)/launch/include/_record.launch">
+        <arg name="prefix" value="mow_area"/>
+    </include>
+
+
+    <node pkg="mower_map" type="mower_map_service" name="map_service" output="screen"/>
+    <node pkg="mower_logic" type="mower_logic" name="mower_logic" output="screen">
+	<param name="undock_distance" value="1.5"/>
+	<param name="tool_width" value="0.2" />
+    </node>
+    <node pkg="slic3r_coverage_planner" type="slic3r_coverage_planner" name="slic3r_coverage_planner" output="screen"/>
+
+
+
+
+</launch>

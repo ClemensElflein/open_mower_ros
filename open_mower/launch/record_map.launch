@@ -1,0 +1,27 @@
+<!--
+Use this file to record a new map. Use a usb gamepad to move the bot. Controls are in the wiki.
+-->
+<launch>
+    <include file="$(find open_mower)/launch/include/_comms.launch"/>
+    <include file="$(find open_mower)/launch/include/_gps.launch"/>
+    <include file="$(find open_mower)/launch/include/_localization.launch"/>
+    <include file="$(find open_mower)/launch/include/_record.launch">
+        <arg name="prefix" value="record_map"/>
+    </include>
+
+    <node pkg="mower_map" type="mower_map_service" name="map_service" output="screen" required="true"/>
+    <node pkg="mower_area_recorder" type="area_recorder" name="area_recorder" required="true" />
+
+    <node name="joy" pkg="joy" type="joy_node" required="true" >
+        <param name="~autorepeat_rate" value="10.0"/>
+        <param name="~coalesce_interval" value="0.06"/>
+    </node>
+
+    <node name="joy_teleop" pkg="teleop_twist_joy" type="teleop_node" required="true" >
+        <param name="~scale_linear" value="0.5"/>
+        <param name="~scale_angular" value="0.5"/>
+        <param name="~scale_linear_turbo" value="1.0"/>
+        <param name="~scale_angular_turbo" value="1.0"/>
+        <param name="~enable_turbo_button" value="4"/>
+    </node>
+</launch>
