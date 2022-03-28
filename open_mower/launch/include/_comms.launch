@@ -1,4 +1,20 @@
+<!--
+    This launch file starts all communication needed in order to control and localize the bot.
+    I.e. the raw data comms to the Low Level Board, the GPS, etc.
+-->
 <launch>
     <!-- TODO: Add parameter for simulation -->
+
     <include file="$(find mower_simulation)/launch/_mower_simulation.launch" />
+
+    <include file="$(find mower_simulation)/launch/_gps.launch">
+        <arg name="serial_port" value="ttyAMA1"/>
+        <arg name="ntrip_ip" value="192.168.178.55"/>
+        <arg name="ntrip_port" value="2101"/>
+        <arg name="ntrip_endpoint" value="BASE1"/>
+        <arg name="ntrip_user" value="gps"/>
+        <arg name="ntrip_password" value="gps"/>
+    </include>
+
+
 </launch>
