@@ -14,8 +14,7 @@
 
   <exec_depend>vesc_driver</exec_depend>
   <exec_depend>vesc_msgs</exec_depend>
-  <exec_depend>vesc_hw_interface</exec_depend>
-
+  
   <export>
     <metapackage/>
   </export>
