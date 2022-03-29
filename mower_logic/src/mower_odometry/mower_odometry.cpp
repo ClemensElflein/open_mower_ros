@@ -70,9 +70,11 @@ tf2_ros::Buffer tfBuffer;
 double getGPSY(ublox_msgs::NavRELPOSNED9 &msg) {
     return ((double) msg.relPosN * 0.01) + ((double) msg.relPosHPN * 0.0001);
 }
+
 double getGPSX(ublox_msgs::NavRELPOSNED9 &msg) {
     return ((double) msg.relPosE * 0.01) + ((double) msg.relPosHPE * 0.0001);
 }
+
 double getGPSZ(ublox_msgs::NavRELPOSNED9 &msg) {
     // For now, we assume a plane
     return 0.0;
@@ -127,8 +129,8 @@ void publishOdometry() {
     };
 
     if (gpsOdometryValid && gpsEnabled && ros::Time::now() - last_gps_odometry_time < ros::Duration(5.0)) {
-        odom.pose.covariance[0] = last_gps.accLength/10000.0;
-        odom.pose.covariance[7] = last_gps.accLength/10000.0;
+        odom.pose.covariance[0] = last_gps.accLength / 10000.0;
+        odom.pose.covariance[7] = last_gps.accLength / 10000.0;
     }
 
     odom.twist.covariance = {
@@ -156,6 +158,27 @@ void imuReceived(const mower_msgs::ImuRaw::ConstPtr &msg) {
 void gpsPositionReceived(const ublox_msgs::NavRELPOSNED9::ConstPtr &msg) {
     ublox_msgs::NavRELPOSNED9 gps = *msg;
     double gps_accuracy_m = (double) gps.accLength / 10000.0f;
+
+    bool gnssFixOK = (msg->flags & 0b0000001);
+    bool diffSoln = (msg->flags & 0b0000010) >> 1;
+    bool relPosValid = (msg->flags & 0b0000100) >> 2;
+    auto carrSoln = (uint8_t) ((msg->flags & 0b0011000) >> 3);
+    bool refPosMiss = (msg->flags & 0b0000100) >> 6;
+    bool refObsMiss = (msg->flags & 0b0000100) >> 7;
+
+    if (!gnssFixOK || !diffSoln || !relPosValid || carrSoln != 2) {
+        ROS_INFO_STREAM_THROTTLE(1,"Dropped at least one GPS update due to flags.\r\nFlags:\r\n" <<
+                                                                          "accuracy:" << gps_accuracy_m << "\r\n" <<
+                                                                          "gnssFixOK:" << gnssFixOK << "\r\n" <<
+                                                                          "diffSoln:" << diffSoln << "\r\n" <<
+                                                                          "relPosValid:" << relPosValid << "\r\n" <<
+                                                                          "carrSoln:" << (int) carrSoln << "\r\n" <<
+                                                                          "refPosMiss:" << refPosMiss << "\r\n" <<
+                                                                          "refObsMiss:" << refObsMiss << "\r\n"
+        );
+        return;
+    }
+
     if (gps_accuracy_m > 0.05) {
         ROS_INFO_STREAM("dropping gps with accuracy: " << gps_accuracy_m << "m");
         return;
@@ -186,7 +209,7 @@ void gpsPositionReceived(const ublox_msgs::NavRELPOSNED9::ConstPtr &msg) {
             getGPSX(gps), getGPSY(gps), getGPSZ(gps)
     );
 
-    ROS_INFO_STREAM("GOT GPS: " << gps_pos.x() << ", " << gps_pos.y());
+//    ROS_INFO_STREAM("GOT GPS: " << gps_pos.x() << ", " << gps_pos.y());
 
 
     double distance_to_last_gps = (last_gps_pos - gps_pos).length();
@@ -196,8 +219,8 @@ void gpsPositionReceived(const ublox_msgs::NavRELPOSNED9::ConstPtr &msg) {
 
         // calculate current base_link position from orientation and distance parameter
 
-        double base_link_x = gps_pos.x() - config.gps_antenna_offset*cos(r);
-        double base_link_y = gps_pos.y() - config.gps_antenna_offset*sin(r);
+        double base_link_x = gps_pos.x() - config.gps_antenna_offset * cos(r);
+        double base_link_y = gps_pos.y() - config.gps_antenna_offset * sin(r);
 
 
         // store the gps as last
@@ -265,7 +288,7 @@ bool statusReceivedOrientation(const mower_msgs::Status::ConstPtr &msg) {
 
 
     double yaw = atan2(lastImu.my - (config.magnetic_offset_y),
-                        lastImu.mx - (config.magnetic_offset_x));
+                       lastImu.mx - (config.magnetic_offset_x));
 
     yaw += config.imu_offset * (M_PI / 180.0);
     yaw = fmod(yaw + (M_PI_2), 2.0 * M_PI);
