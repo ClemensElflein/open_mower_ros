@@ -3,7 +3,6 @@ Use this file to record a new map. Use a usb gamepad to move the bot. Controls a
 -->
 <launch>
     <include file="$(find open_mower)/launch/include/_comms.launch"/>
-    <include file="$(find open_mower)/launch/include/_gps.launch"/>
     <include file="$(find open_mower)/launch/include/_localization.launch"/>
     <include file="$(find open_mower)/launch/include/_record.launch">
         <arg name="prefix" value="record_map"/>
