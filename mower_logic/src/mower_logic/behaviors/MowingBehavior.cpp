@@ -149,7 +149,7 @@ bool MowingBehavior::execute_mowing_plan() {
         {
             mbf_msgs::MoveBaseGoal moveBaseGoal;
             moveBaseGoal.target_pose = path.poses.front();
-            moveBaseGoal.controller = "FreePlanner";
+            moveBaseGoal.controller = "FTCPlanner";
             auto result = mbfClient->sendGoalAndWait(moveBaseGoal);
             if (result.state_ != result.SUCCEEDED) {
                 // We cannot reach the start point, drop the current path segment

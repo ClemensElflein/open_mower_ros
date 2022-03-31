@@ -1,15 +1,15 @@
 FreePlanner:
 
-  odom_topic: odom
-  map_frame: /odom
+  odom_topic: /mower/odom
+  map_frame: /map
 
     # Trajectory
 
   teb_autosize: True
-  dt_ref: 0.5
-  dt_hysteresis: 0.1
+  dt_ref: 1.5
+  dt_hysteresis: 0.3
   global_plan_overwrite_orientation: True
-  max_global_plan_lookahead_dist: 1.0
+  max_global_plan_lookahead_dist: 0.5
   feasibility_check_no_poses: 5
 
     # Robot
@@ -49,8 +49,8 @@ FreePlanner:
 
     # Optimization
 
-  no_inner_iterations: 5
-  no_outer_iterations: 4
+  no_inner_iterations: 3
+  no_outer_iterations: 3
   optimization_activate: True
   optimization_verbose: False
   penalty_epsilon: 0.1

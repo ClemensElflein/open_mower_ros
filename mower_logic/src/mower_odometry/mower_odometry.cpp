@@ -381,7 +381,7 @@ int main(int argc, char **argv) {
     ros::NodeHandle n;
     ros::NodeHandle paramNh("~");
 
-    ros::ServiceServer gps_service = n.advertiseService("mower_odom_service/set_gps_state", setGpsState);
+    ros::ServiceServer gps_service = n.advertiseService("mower_service/set_gps_state", setGpsState);
 
     dynamic_reconfigure::Server<mower_logic::MowerOdometryConfig> reconfig_server(paramNh);
     reconfig_server.setCallback(reconfigureCB);

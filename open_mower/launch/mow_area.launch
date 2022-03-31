@@ -1,6 +1,5 @@
 <launch>
     <include file="$(find open_mower)/launch/include/_comms.launch"/>
-    <include file="$(find open_mower)/launch/include/_gps.launch"/>
     <include file="$(find open_mower)/launch/include/_move_base.launch"/>
     <include file="$(find open_mower)/launch/include/_localization.launch"/>
     <include file="$(find open_mower)/launch/include/_record.launch">
