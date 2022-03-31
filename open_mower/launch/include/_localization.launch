@@ -6,8 +6,8 @@
 
         <param name="gps_filter_factor" value="0.05"/>
         <param name="magnetic_filter_factor" value="0.01"/>
-        <param name="magnetic_offset_x" value="11.4452"/>
-        <param name="magnetic_offset_y" value="12.2336"/>
+        <param name="magnetic_offset_x" value="88.6881"/>
+        <param name="magnetic_offset_y" value="105.254"/>
     </node>
 
 </launch>
