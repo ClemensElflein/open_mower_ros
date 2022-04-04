@@ -210,7 +210,7 @@ Visualization Manager:
       Marker Topic: /slic3r_coverage_planner/path_marker_array
       Name: MarkerArray
       Namespaces:
-        mower_map_service_lines: true
+        {}
       Queue Size: 100
       Value: true
   Enabled: true
@@ -250,10 +250,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Scale: 71.97769927978516
+      Scale: 45.425209045410156
       Target Frame: <Fixed Frame>
-      X: 1.2418220043182373
-      Y: 0.022295210510492325
+      X: 27.458694458007812
+      Y: -4.758345127105713
     Saved:
       - Angle: 0
         Class: rviz/TopDownOrtho

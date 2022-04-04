@@ -22,6 +22,8 @@
 #include "mower_msgs/GPSControlSrv.h"
 #include "mower_msgs/EmergencyStopSrv.h"
 #include "geometry_msgs/Twist.h"
+#include "geometry_msgs/PoseWithCovarianceStamped.h"
+#include "mower_map/GetDockingPointSrv.h"
 
 #include "dynamic_reconfigure/server.h"
 #include "mower_simulation/MowerSimulationConfig.h"
@@ -29,6 +31,8 @@
 
 ros::Publisher status_pub;
 ros::Publisher cmd_vel_pub;
+ros::Publisher initial_pose_publisher;
+ros::ServiceClient docking_point_client;
 
 mower_msgs::Status fake_mow_status;
 mower_simulation::MowerSimulationConfig config;
@@ -109,6 +113,26 @@ int main(int argc, char **argv) {
 
     reconfig_server = new dynamic_reconfigure::Server<mower_simulation::MowerSimulationConfig>(paramNh);
     reconfig_server->setCallback(reconfigureCB);
+
+    docking_point_client = n.serviceClient<mower_map::GetDockingPointSrv>(
+            "mower_map_service/get_docking_point");
+
+
+    initial_pose_publisher = n.advertise<geometry_msgs::PoseWithCovarianceStamped>("initialpose", 1);
+
+    ROS_INFO("Waiting for map service");
+    if (!docking_point_client.waitForExistence(ros::Duration(60.0, 0.0))) {
+        ROS_ERROR("No map client found; we can't set robot's initial pose.");
+    } else {
+        mower_map::GetDockingPointSrv get_docking_point_srv;
+        geometry_msgs::PoseWithCovarianceStamped docking_pose_stamped;
+
+        docking_point_client.call(get_docking_point_srv);
+        docking_pose_stamped.pose.pose = get_docking_point_srv.response.docking_pose;
+        docking_pose_stamped.header.frame_id = "map";
+        docking_pose_stamped.header.stamp = ros::Time::now();
+        initial_pose_publisher.publish(docking_pose_stamped);
+    }
 
     fake_mow_status.mower_status = mower_msgs::Status::MOWER_STATUS_OK;
     fake_mow_status.v_charge = 0.0;

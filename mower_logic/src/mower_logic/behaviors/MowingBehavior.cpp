@@ -76,7 +76,7 @@ void MowingBehavior::reset() {
 }
 
 bool MowingBehavior::needs_gps() {
-    return false;
+    return true;
 }
 
 bool MowingBehavior::mower_enabled() {
