@@ -171,6 +171,8 @@ void publishStatus() {
     if (!emergency_low_level) {
         // it obviously worked, reset the request
         ll_clear_emergency = false;
+    } else {
+        ROS_ERROR_STREAM_THROTTLE(1, "Low Level Emergency. Bitmask was: " << (int)last_ll_status.emergency_bitmask);
     }
 
     // True, if high or low level emergency condition is present
