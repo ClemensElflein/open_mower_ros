@@ -8,11 +8,12 @@ Panels:
         - /Status1
         - /Odometry1
         - /Odometry1/Shape1
-        - /TF1
-        - /Path1
-        - /Path2
+        - /Odometry2/Shape1
+        - /Odometry2/Covariance1
+        - /MarkerArray1
+        - /MarkerArray2
       Splitter Ratio: 0.5
-    Tree Height: 1069
+    Tree Height: 719
   - Class: rviz/Selection
     Name: Selection
   - Class: rviz/Tool Properties
@@ -57,24 +58,6 @@ Visualization Manager:
       Plane Cell Count: 10
       Reference Frame: <Fixed Frame>
       Value: true
-    - Alpha: 0.699999988079071
-      Class: rviz/Map
-      Color Scheme: map
-      Draw Behind: false
-      Enabled: true
-      Name: Map
-      Topic: /mower_map_service/map
-      Unreliable: false
-      Use Timestamp: false
-      Value: true
-    - Class: rviz/MarkerArray
-      Enabled: true
-      Marker Topic: /mower_map_service/map_viz
-      Name: MarkerArray
-      Namespaces:
-        mower_map_service: true
-      Queue Size: 100
-      Value: true
     - Angle Tolerance: 0.10000000149011612
       Class: rviz/Odometry
       Covariance:
@@ -91,9 +74,44 @@ Visualization Manager:
           Color: 204; 51; 204
           Scale: 1
           Value: true
-        Value: true
+        Value: false
       Enabled: true
-      Keep: 1
+      Keep: 10
+      Name: Odometry
+      Position Tolerance: 0.10000000149011612
+      Queue Size: 1
+      Shape:
+        Alpha: 1
+        Axes Length: 1
+        Axes Radius: 0.10000000149011612
+        Color: 255; 25; 0
+        Head Length: 0.10000000149011612
+        Head Radius: 0.05000000074505806
+        Shaft Length: 0.20000000298023224
+        Shaft Radius: 0.019999999552965164
+        Value: Arrow
+      Topic: /mower/odom
+      Unreliable: false
+      Value: true
+    - Angle Tolerance: 0.10000000149011612
+      Class: rviz/Odometry
+      Covariance:
+        Orientation:
+          Alpha: 0.5
+          Color: 255; 255; 127
+          Color Style: Unique
+          Frame: Local
+          Offset: 1
+          Scale: 1
+          Value: false
+        Position:
+          Alpha: 0.30000001192092896
+          Color: 204; 51; 204
+          Scale: 1
+          Value: true
+        Value: true
+      Enabled: false
+      Keep: 100
       Name: Odometry
       Position Tolerance: 0.10000000149011612
       Queue Size: 10
@@ -101,15 +119,15 @@ Visualization Manager:
         Alpha: 1
         Axes Length: 1
         Axes Radius: 0.10000000149011612
-        Color: 255; 25; 0
+        Color: 52; 101; 164
         Head Length: 0.10000000149011612
-        Head Radius: 0.10000000149011612
+        Head Radius: 0.05000000074505806
         Shaft Length: 0.20000000298023224
-        Shaft Radius: 0.05000000074505806
+        Shaft Radius: 0.019999999552965164
         Value: Arrow
-      Topic: /mower/odom
+      Topic: /map2odom/odometry/filtered
       Unreliable: false
-      Value: true
+      Value: false
     - Class: rviz/TF
       Enabled: true
       Frame Timeout: 15
@@ -119,8 +137,6 @@ Visualization Manager:
           Value: true
         map:
           Value: true
-        odom:
-          Value: true
       Marker Alpha: 1
       Marker Scale: 1
       Name: TF
@@ -129,10 +145,43 @@ Visualization Manager:
       Show Names: true
       Tree:
         map:
-          odom:
-            base_link:
-              {}
+          base_link:
+            {}
       Update Interval: 0
+      Value: true
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /mower_map_service/map_viz
+      Name: MarkerArray
+      Namespaces:
+        mower_map_service: true
+      Queue Size: 100
+      Value: true
+    - Alpha: 0.699999988079071
+      Class: rviz/Map
+      Color Scheme: map
+      Draw Behind: false
+      Enabled: true
+      Name: Map
+      Topic: /mower_map_service/map
+      Unreliable: false
+      Use Timestamp: false
+      Value: true
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /area_recorder/progress_visualization_array
+      Name: MarkerArray
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /area_recorder/progress_visualization
+      Name: Marker
+      Namespaces:
+        {}
+      Queue Size: 100
       Value: true
     - Alpha: 1
       Buffer Length: 1
@@ -155,7 +204,7 @@ Visualization Manager:
       Radius: 0.029999999329447746
       Shaft Diameter: 0.10000000149011612
       Shaft Length: 0.10000000149011612
-      Topic: /move_base_flex/GlobalPlanner/plan
+      Topic: /move_base_flex/FreePlanner/global_plan
       Unreliable: false
       Value: true
     - Alpha: 1
@@ -207,13 +256,29 @@ Visualization Manager:
       Topic: /move_base_flex/FreePlanner/teb_poses
       Unreliable: false
       Value: true
-    - Class: rviz/MarkerArray
+    - Alpha: 1
+      Buffer Length: 1
+      Class: rviz/Path
+      Color: 25; 255; 0
       Enabled: true
-      Marker Topic: /slic3r_coverage_planner/path_marker_array
-      Name: MarkerArray
-      Namespaces:
-        {}
-      Queue Size: 100
+      Head Diameter: 0.30000001192092896
+      Head Length: 0.20000000298023224
+      Length: 0.30000001192092896
+      Line Style: Lines
+      Line Width: 0.029999999329447746
+      Name: Path
+      Offset:
+        X: 0
+        Y: 0
+        Z: 0
+      Pose Color: 255; 85; 255
+      Pose Style: None
+      Queue Size: 10
+      Radius: 0.029999999329447746
+      Shaft Diameter: 0.10000000149011612
+      Shaft Length: 0.10000000149011612
+      Topic: /move_base_flex/GlobalPlanner/plan
+      Unreliable: false
       Value: true
     - Alpha: 1
       Buffer Length: 1
@@ -236,8 +301,72 @@ Visualization Manager:
       Radius: 0.029999999329447746
       Shaft Diameter: 0.10000000149011612
       Shaft Length: 0.10000000149011612
-      Topic: /move_base_flex/DockingFTCPlanner/global_plan
+      Topic: /move_base_flex/FTCPlanner/global_plan
       Unreliable: false
+      Value: true
+    - Alpha: 1
+      Buffer Length: 1
+      Class: rviz/Path
+      Color: 25; 255; 0
+      Enabled: true
+      Head Diameter: 0.30000001192092896
+      Head Length: 0.20000000298023224
+      Length: 0.30000001192092896
+      Line Style: Lines
+      Line Width: 0.029999999329447746
+      Name: Path
+      Offset:
+        X: 0
+        Y: 0
+        Z: 0
+      Pose Color: 255; 85; 255
+      Pose Style: None
+      Queue Size: 10
+      Radius: 0.029999999329447746
+      Shaft Diameter: 0.10000000149011612
+      Shaft Length: 0.10000000149011612
+      Topic: /mower_logic/mowing_path
+      Unreliable: false
+      Value: true
+    - Alpha: 1
+      Buffer Length: 1
+      Class: rviz/Path
+      Color: 25; 255; 0
+      Enabled: true
+      Head Diameter: 0.30000001192092896
+      Head Length: 0.20000000298023224
+      Length: 0.30000001192092896
+      Line Style: Lines
+      Line Width: 0.029999999329447746
+      Name: Path
+      Offset:
+        X: 0
+        Y: 0
+        Z: 0
+      Pose Color: 255; 85; 255
+      Pose Style: None
+      Queue Size: 10
+      Radius: 0.029999999329447746
+      Shaft Diameter: 0.10000000149011612
+      Shaft Length: 0.10000000149011612
+      Topic: /mower_logic/mowing_path
+      Unreliable: false
+      Value: true
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /mower_map_service/map_viz
+      Name: MarkerArray
+      Namespaces:
+        mower_map_service: true
+      Queue Size: 100
+      Value: true
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /slic3r_coverage_planner/path_marker_array
+      Name: MarkerArray
+      Namespaces:
+        mower_map_service_lines: true
+      Queue Size: 100
       Value: true
     - Alpha: 1
       Axes Length: 1
@@ -252,7 +381,7 @@ Visualization Manager:
       Shaft Length: 1
       Shaft Radius: 0.05000000074505806
       Shape: Arrow
-      Topic: /move_base_flex/DockingFTCPlanner/global_point
+      Topic: /move_base_flex/FTCPlanner/global_point
       Unreliable: false
       Value: true
   Enabled: true
@@ -282,42 +411,34 @@ Visualization Manager:
   Value: true
   Views:
     Current:
-      Angle: 0
-      Class: rviz/TopDownOrtho
+      Class: rviz/Orbit
+      Distance: 4.99418830871582
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
+      Field of View: 0.7853981852531433
+      Focal Point:
+        X: 30.771549224853516
+        Y: -4.523839473724365
+        Z: 0.45071476697921753
+      Focal Shape Fixed Size: true
+      Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Scale: 131.17161560058594
+      Pitch: 1.5647963285446167
       Target Frame: <Fixed Frame>
-      X: 24.637229919433594
-      Y: -1.2546207904815674
-    Saved:
-      - Angle: 0
-        Class: rviz/TopDownOrtho
-        Enable Stereo Rendering:
-          Stereo Eye Separation: 0.05999999865889549
-          Stereo Focal Distance: 1
-          Swap Stereo Eyes: false
-          Value: false
-        Invert Z Axis: false
-        Name: TopDownOrtho
-        Near Clip Distance: 0.009999999776482582
-        Scale: 71.52006530761719
-        Target Frame: <Fixed Frame>
-        X: 0
-        Y: 0
+      Yaw: 0.485392302274704
+    Saved: ~
 Window Geometry:
   Displays:
     collapsed: false
-  Height: 1366
+  Height: 1016
   Hide Left Dock: false
   Hide Right Dock: false
-  QMainWindow State: 000000ff00000000fd0000000400000000000001b5000004b8fc0200000008fb0000001200530065006c0065006300740069006f006e00000001e10000009b0000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000003d000004b8000000c900fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261000000010000010f000004b8fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073010000003d000004b8000000a400fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000007e00000003efc0100000002fb0000000800540069006d00650100000000000007e0000002eb00fffffffb0000000800540069006d0065010000000000000450000000000000000000000510000004b800000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd0000000400000000000001930000035afc0200000008fb0000001200530065006c0065006300740069006f006e00000001e10000009b0000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000003d0000035a000000c900fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261000000010000010f0000035afc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073010000003d0000035a000000a400fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000007380000003efc0100000002fb0000000800540069006d0065010000000000000738000002eb00fffffffb0000000800540069006d006501000000000000045000000000000000000000048a0000035a00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Selection:
     collapsed: false
   Time:
@@ -326,6 +447,6 @@ Window Geometry:
     collapsed: false
   Views:
     collapsed: false
-  Width: 2016
-  X: 2653
-  Y: 646
+  Width: 1848
+  X: 72
+  Y: 27

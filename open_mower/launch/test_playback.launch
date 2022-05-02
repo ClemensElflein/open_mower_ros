@@ -2,7 +2,7 @@
     <arg name="path" default="/home/clemens/" />
     <arg name="bagfile" />
 
-    <node pkg="rosbag" type="play" name="player" output="log" args="--clock $(arg path)$(arg bagfile).bag -s600 -r1 /tf:=/tf_null"/>
+    <node pkg="rosbag" type="play" name="player" output="log" args="--clock $(arg path)$(arg bagfile).bag -s0 -r1 /tf:=/tf_null"/>
 
 <!--    <include file="$(find open_mower)/launch/_transforms.launch" />-->
     <include file="$(find open_mower)/launch/include/_localization.launch" />
