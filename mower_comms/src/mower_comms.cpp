@@ -68,6 +68,8 @@ vesc_driver::VescInterface *right_vesc_interface;
 std::mutex ll_status_mutex;
 struct ll_status last_ll_status = {0};
 
+#define WHEEL_DISTANCE_M 0.325
+
 bool is_emergency() {
     return emergency_high_level || emergency_low_level;
 }
@@ -226,8 +228,8 @@ bool setEmergencyStop(mower_msgs::EmergencyStopSrvRequest &req, mower_msgs::Emer
 void velReceived(const geometry_msgs::Twist::ConstPtr &msg) {
     // TODO: update this to rad/s values and implement xESC speed control
     last_cmd_vel = ros::Time::now();
-    speed_l = msg->linear.x + msg->angular.z;
-    speed_r = msg->linear.x - msg->angular.z;
+    speed_l = msg->linear.x + 0.5*WHEEL_DISTANCE_M*msg->angular.z;
+    speed_r = msg->linear.x - 0.5*WHEEL_DISTANCE_M*msg->angular.z;
 
     if (speed_l >= 1.0) {
         speed_l = 1.0;
