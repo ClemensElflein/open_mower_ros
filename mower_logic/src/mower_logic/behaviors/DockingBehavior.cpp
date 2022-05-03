@@ -179,8 +179,8 @@ Behavior *DockingBehavior::execute() {
     bool approachSuccess = approach_docking_point();
 
     if (!approachSuccess) {
-        ROS_ERROR("Error during docking approach. Quitting to emergency mode.");
-        return nullptr;
+        ROS_ERROR("Error during docking approach. Quitting to IDLE.");
+        return &IdleBehavior::INSTANCE;
     }
 
     // Disable GPS
@@ -190,8 +190,8 @@ Behavior *DockingBehavior::execute() {
     bool docked = dock_straight();
 
     if (!docked) {
-        ROS_ERROR_STREAM("Error during docking.");
-        return nullptr;
+        ROS_ERROR_STREAM("Error during docking. Quitting to IDLE");
+        return &IdleBehavior::INSTANCE;
     }
 
     return &IdleBehavior::INSTANCE;
