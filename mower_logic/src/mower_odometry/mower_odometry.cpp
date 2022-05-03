@@ -57,9 +57,6 @@ double x = 0, y = 0, vx = 0.0, r = 0.0, vy = 0.0, vr = 0.0;
 geometry_msgs::Quaternion orientation_result;
 
 
-#define WHEEL_DISTANCE_M 0.325
-#define WHEEL_DIAMETER 0.19
-
 // (ticks / revolution) / (m / revolution)
 #define TICKS_PER_M (993.0 / (0.19*M_PI))
 
