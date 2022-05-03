@@ -49,6 +49,8 @@ nav_msgs::Odometry last_odom;
 visualization_msgs::MarkerArray markers;
 visualization_msgs::Marker marker;
 
+bool hasFirstDockingPos = false;
+geometry_msgs::Pose firstDockingPos;
 
 void odom_received(const nav_msgs::Odometry &odom_msg) {
     last_odom = odom_msg;
@@ -201,16 +203,25 @@ bool recordNewPolygon(geometry_msgs::Polygon &polygon) {
 }
 
 bool getDockingPosition(geometry_msgs::Pose &pos) {
-    ROS_INFO_STREAM("setDockingPosition");
+    if(!hasFirstDockingPos) {
+        ROS_INFO_STREAM("Recording first docking position");
+        auto odom_ptr = ros::topic::waitForMessage<nav_msgs::Odometry>("mower/odom", ros::Duration(1, 0));
 
-    auto odom_ptr = ros::topic::waitForMessage<nav_msgs::Odometry>("mower/odom", ros::Duration(1, 0));
+        firstDockingPos = odom_ptr->pose.pose;
+        hasFirstDockingPos = true;
+        return false;
+    } else {
+        ROS_INFO_STREAM("Recording second docking position");
+        auto odom_ptr = ros::topic::waitForMessage<nav_msgs::Odometry>("mower/odom", ros::Duration(1, 0));
 
-    pos = odom_ptr->pose.pose;
+        pos.position = odom_ptr->pose.pose.position;
 
-    std_msgs::Empty e;
-    beep_pub.publish(e);
+        double yaw = atan2(pos.position.y - firstDockingPos.position.y,pos.position.x -  firstDockingPos.position.x);
+        tf2::Quaternion docking_orientation(0.0, 0.0, yaw);
+        pos.orientation = tf2::toMsg(docking_orientation);
 
-    return true;
+        return true;
+    }
 }
 
 
@@ -240,8 +251,9 @@ int main(int argc, char **argv) {
                                           odom_received);
 
 
-    poly_recording_enabled = finished_all = false;
+    hasFirstDockingPos = poly_recording_enabled = finished_all = false;
     markers = visualization_msgs::MarkerArray();
+
 
 
 
@@ -261,14 +273,16 @@ int main(int argc, char **argv) {
 
             if(set_docking_position) {
                 geometry_msgs::Pose pos;
-                getDockingPosition(pos);
+                if(getDockingPosition(pos)) {
 
-                ROS_INFO_STREAM("new docking pos = " <<pos);
+                    ROS_INFO_STREAM("new docking pos = " << pos);
 
-                mower_map::SetDockingPointSrv set_docking_point_srv;
-                set_docking_point_srv.request.docking_pose = pos;
-                auto result = set_docking_point_client.call(set_docking_point_srv);
+                    mower_map::SetDockingPointSrv set_docking_point_srv;
+                    set_docking_point_srv.request.docking_pose = pos;
+                    auto result = set_docking_point_client.call(set_docking_point_srv);
 
+                    hasFirstDockingPos = false;
+                }
 
                 set_docking_position = false;
             }

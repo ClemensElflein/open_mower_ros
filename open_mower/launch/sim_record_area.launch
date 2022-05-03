@@ -19,5 +19,5 @@
 
     <node name="rviz" pkg="rviz" type="rviz" args="-d $(find open_mower)/rviz/sim_record_area.rviz" required="true" />
     <node pkg="mower_map" type="mower_map_service" name="mower_map" required="true" />
-    <node pkg="mower_area_recorder" type="area_recorder" name="area_recorder" required="true" />
+    <node pkg="mower_area_recorder" type="area_recorder" name="area_recorder" required="true" output="screen" />
 </launch>

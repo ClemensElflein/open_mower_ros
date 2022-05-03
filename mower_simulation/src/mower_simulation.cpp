@@ -118,6 +118,8 @@ int main(int argc, char **argv) {
             "mower_map_service/get_docking_point");
 
 
+    /*
+    This introduces more issues than it solves..
     initial_pose_publisher = n.advertise<geometry_msgs::PoseWithCovarianceStamped>("initialpose", 1);
 
     ROS_INFO("Waiting for map service");
@@ -133,6 +135,7 @@ int main(int argc, char **argv) {
         docking_pose_stamped.header.stamp = ros::Time::now();
         initial_pose_publisher.publish(docking_pose_stamped);
     }
+    */
 
     fake_mow_status.mower_status = mower_msgs::Status::MOWER_STATUS_OK;
     fake_mow_status.v_charge = 0.0;
