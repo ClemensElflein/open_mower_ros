@@ -28,12 +28,64 @@ extern bool setGPS(bool enabled);
 DockingBehavior DockingBehavior::INSTANCE;
 
 bool DockingBehavior::approach_docking_point() {
-    mbf_msgs::MoveBaseGoal moveBaseGoal;
-    moveBaseGoal.target_pose = docking_pose_stamped;
-    moveBaseGoal.controller = "FTCPlanner";
-    auto result = mbfClient->sendGoalAndWait(moveBaseGoal);
-    if (result.state_ != result.SUCCEEDED) {
-        return false;
+    ROS_INFO_STREAM("Calculating approach path");
+
+    // Calculate a docking approaching point behind the actual docking point
+    tf2::Quaternion quat;
+    tf2::fromMsg(docking_pose_stamped.pose.orientation, quat);
+    tf2::Matrix3x3 m(quat);
+    double roll, pitch, yaw;
+    m.getRPY(roll, pitch, yaw);
+
+
+    // Get the approach start point
+    {
+        geometry_msgs::PoseStamped docking_approach_point = docking_pose_stamped;
+        docking_approach_point.pose.position.x -= cos(yaw) * config.docking_approach_distance;
+        docking_approach_point.pose.position.y -= sin(yaw) * config.docking_approach_distance;
+        mbf_msgs::MoveBaseGoal moveBaseGoal;
+        moveBaseGoal.target_pose = docking_approach_point;
+        moveBaseGoal.controller = "FTCPlanner";
+        auto result = mbfClient->sendGoalAndWait(moveBaseGoal);
+        if (result.state_ != result.SUCCEEDED) {
+            return false;
+        }
+    }
+
+    {
+        mbf_msgs::ExePathGoal exePathGoal;
+
+        nav_msgs::Path path;
+
+        int dock_point_count = config.docking_approach_distance * 10.0;
+        for (int i = 0; i <= dock_point_count; i++) {
+            geometry_msgs::PoseStamped docking_pose_stamped_front = docking_pose_stamped;
+            docking_pose_stamped_front.pose.position.x -= cos(yaw) * ((dock_point_count - i) / 10.0);
+            docking_pose_stamped_front.pose.position.y -= sin(yaw) * ((dock_point_count - i) / 10.0);
+            path.poses.push_back(docking_pose_stamped_front);
+        }
+
+        exePathGoal.path = path;
+        exePathGoal.angle_tolerance = 1.0 * (M_PI / 180.0);
+        exePathGoal.dist_tolerance = 0.1;
+        exePathGoal.tolerance_from_action = true;
+        exePathGoal.controller = "FTCPlanner";
+        ROS_INFO_STREAM("Executing Docking Approach");
+
+        auto approachResult = mbfClientExePath->sendGoalAndWait(exePathGoal);
+        if (approachResult.state_ != approachResult.SUCCEEDED) {
+            return false;
+        }
+    }
+
+    {
+        mbf_msgs::MoveBaseGoal moveBaseGoal;
+        moveBaseGoal.target_pose = docking_pose_stamped;
+        moveBaseGoal.controller = "FTCPlanner";
+        auto result = mbfClient->sendGoalAndWait(moveBaseGoal);
+        if (result.state_ != result.SUCCEEDED) {
+            return false;
+        }
     }
     return true;
 }

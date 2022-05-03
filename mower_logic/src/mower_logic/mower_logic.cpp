@@ -182,11 +182,11 @@ void checkSafety(const ros::TimerEvent &timer_event) {
         return;
     }
     bool gpsGood = last_odom.pose.covariance[0] < 0.05 && last_odom.pose.covariance[0] > 0;
-    if (gpsGood) {
+    if (gpsGood || last_config.ignore_gps_errors) {
         last_good_gps = ros::Time::now();
     }
 
-    if (currentBehavior != nullptr && currentBehavior->needs_gps() && ros::Time::now() - last_good_gps > ros::Duration(5.0)) {
+    if (currentBehavior != nullptr && currentBehavior->needs_gps() && ros::Time::now() - last_good_gps > ros::Duration(2.0)) {
         ROS_WARN_STREAM("gps lost, stopping");
         setEmergencyMode(true);
         return;

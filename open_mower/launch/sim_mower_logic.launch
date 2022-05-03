@@ -10,5 +10,7 @@
     <node name="rviz" pkg="rviz" type="rviz" args="-d $(find open_mower)/rviz/sim_mower_logic.rviz" required="true" />
     <node pkg="mower_map" type="mower_map_service" name="mower_map" required="true" />
     <node pkg="slic3r_coverage_planner" type="slic3r_coverage_planner" name="slic3r_coverage_planner" required="true" />
-    <node pkg="mower_logic" type="mower_logic" name="mower_logic" required="true" />
+    <node pkg="mower_logic" type="mower_logic" name="mower_logic" required="true">
+        <param name="ignore_gps_errors" value="true"/>
+    </node>
 </launch>
