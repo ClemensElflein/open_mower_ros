@@ -60,8 +60,6 @@ void IdleBehavior::enter() {
 }
 
 void IdleBehavior::exit() {
-    // disable emergency during undocking
-    setEmergencyMode(false);
     // disable it again so that we don't get stuck in a loop and drain the battery
     if (last_config.manual_start_mowing) {
         last_config.manual_start_mowing = false;
