@@ -94,8 +94,8 @@ void publishActuators() {
 
     mow_vesc_interface->setDutyCycle(speed_mow);
     // We need to invert the speed, because the ESC has the same config as the left one, so the motor is running in the "wrong" direction
-    left_vesc_interface->setDutyCycle(-speed_l);
-    right_vesc_interface->setDutyCycle(speed_r);
+    left_vesc_interface->setDutyCycle(speed_l);
+    right_vesc_interface->setDutyCycle(-speed_r);
 
     struct ll_heartbeat heartbeat = {
             .type = PACKET_ID_LL_HEARTBEAT,
@@ -228,8 +228,8 @@ bool setEmergencyStop(mower_msgs::EmergencyStopSrvRequest &req, mower_msgs::Emer
 void velReceived(const geometry_msgs::Twist::ConstPtr &msg) {
     // TODO: update this to rad/s values and implement xESC speed control
     last_cmd_vel = ros::Time::now();
-    speed_l = msg->linear.x + 0.5*WHEEL_DISTANCE_M*msg->angular.z;
-    speed_r = msg->linear.x - 0.5*WHEEL_DISTANCE_M*msg->angular.z;
+    speed_l = msg->linear.x - 0.5*WHEEL_DISTANCE_M*msg->angular.z;
+    speed_r = msg->linear.x + 0.5*WHEEL_DISTANCE_M*msg->angular.z;
 
     if (speed_l >= 1.0) {
         speed_l = 1.0;
