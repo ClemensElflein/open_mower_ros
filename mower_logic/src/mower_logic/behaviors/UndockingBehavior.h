@@ -32,7 +32,11 @@
 class UndockingBehavior : public Behavior {
 public:
     static UndockingBehavior INSTANCE;
+    static UndockingBehavior RETRY_INSTANCE;
+
+    UndockingBehavior(Behavior* nextBehavior);
 private:
+    Behavior* nextBehavior;
     geometry_msgs::PoseStamped docking_pose_stamped;
     bool gpsRequired;
 

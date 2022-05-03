@@ -35,6 +35,7 @@ class DockingBehavior : public Behavior {
 public:
     static DockingBehavior INSTANCE;
 private:
+    uint retryCount;
     bool inApproachMode;
     geometry_msgs::PoseStamped docking_pose_stamped;
 

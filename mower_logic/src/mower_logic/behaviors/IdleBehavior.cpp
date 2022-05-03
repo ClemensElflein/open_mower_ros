@@ -52,6 +52,9 @@ Behavior *IdleBehavior::execute() {
 }
 
 void IdleBehavior::enter() {
+    // Reset the docking behavior, to allow docking
+    DockingBehavior::INSTANCE.reset();
+
     // disable it again so that we don't get stuck in a loop and drain the battery
     if (last_config.manual_start_mowing) {
         last_config.manual_start_mowing = false;

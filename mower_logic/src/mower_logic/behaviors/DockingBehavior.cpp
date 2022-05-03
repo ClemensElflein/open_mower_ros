@@ -179,7 +179,15 @@ Behavior *DockingBehavior::execute() {
     bool approachSuccess = approach_docking_point();
 
     if (!approachSuccess) {
-        ROS_ERROR("Error during docking approach. Quitting to IDLE.");
+        ROS_ERROR("Error during docking approach.");
+
+        retryCount++;
+        if(retryCount <= config.docking_retry_count) {
+            ROS_ERROR("Retrying docking");
+            return &UndockingBehavior::RETRY_INSTANCE;
+        }
+
+        ROS_ERROR("Giving up on docking");
         return &IdleBehavior::INSTANCE;
     }
 
@@ -190,7 +198,15 @@ Behavior *DockingBehavior::execute() {
     bool docked = dock_straight();
 
     if (!docked) {
-        ROS_ERROR_STREAM("Error during docking. Quitting to IDLE");
+        ROS_ERROR("Error during docking.");
+
+        retryCount++;
+        if(retryCount <= config.docking_retry_count) {
+            ROS_ERROR_STREAM("Retrying docking. Try " << retryCount << " / " << config.docking_retry_count);
+            return &UndockingBehavior::RETRY_INSTANCE;
+        }
+
+        ROS_ERROR("Giving up on docking");
         return &IdleBehavior::INSTANCE;
     }
 
@@ -198,7 +214,8 @@ Behavior *DockingBehavior::execute() {
 }
 
 void DockingBehavior::enter() {
-    reset();
+    // start with target approach and then dock later
+    inApproachMode = true;
 
     // Get the docking pose in map
     mower_map::GetDockingPointSrv get_docking_point_srv;
@@ -213,8 +230,7 @@ void DockingBehavior::exit() {
 }
 
 void DockingBehavior::reset() {
-    // start with target approach and then dock later
-    inApproachMode = true;
+    retryCount = 0;
 }
 
 bool DockingBehavior::needs_gps() {
