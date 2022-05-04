@@ -344,8 +344,8 @@ void statusReceived(const mower_msgs::Status::ConstPtr &msg) {
     dt = (msg->stamp - last_status.stamp).toSec();
 
 
-    d_wheel_l = -(int32_t) (msg->left_esc_status.tacho - last_status.left_esc_status.tacho) / TICKS_PER_M;
-    d_wheel_r = (int32_t) (msg->right_esc_status.tacho - last_status.right_esc_status.tacho) / TICKS_PER_M;
+    d_wheel_l = (int32_t) (msg->left_esc_status.tacho - last_status.left_esc_status.tacho) / TICKS_PER_M;
+    d_wheel_r = -(int32_t) (msg->right_esc_status.tacho - last_status.right_esc_status.tacho) / TICKS_PER_M;
 
 
 //    ROS_INFO_STREAM("d_wheel_l = " << d_wheel_l << ", d_wheel_r = " << d_wheel_r);

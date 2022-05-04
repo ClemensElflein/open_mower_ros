@@ -7,8 +7,8 @@
 
     <node pkg="mower_comms" type="mower_comms" name="mower_comms">
         <param name="ll_serial_port" value="/dev/ttyAMA0"/>
-        <param name="left_esc_serial_port" value="/dev/ttyAMA2"/>
-        <param name="right_esc_serial_port" value="/dev/ttyAMA4"/>
+        <param name="left_esc_serial_port" value="/dev/ttyAMA4"/>
+        <param name="right_esc_serial_port" value="/dev/ttyAMA2"/>
         <param name="mow_esc_serial_port" value="/dev/ttyAMA3"/>
     </node>
     

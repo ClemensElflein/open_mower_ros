@@ -18,9 +18,9 @@ Use this file to record a new map. Use a usb gamepad to move the bot. Controls a
 
     <node name="joy_teleop" pkg="teleop_twist_joy" type="teleop_node" required="true" >
         <param name="~scale_linear" value="0.5"/>
-        <param name="~scale_angular" value="0.5"/>
+        <param name="~scale_angular" value="1.5"/>
         <param name="~scale_linear_turbo" value="1.0"/>
-        <param name="~scale_angular_turbo" value="1.0"/>
+        <param name="~scale_angular_turbo" value="3.0"/>
         <param name="~enable_turbo_button" value="4"/>
     </node>
 </launch>
