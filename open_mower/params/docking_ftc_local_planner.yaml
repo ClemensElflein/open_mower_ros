@@ -11,8 +11,8 @@ DockingFTCPlanner:
   ki_lat_max: 10.0
   ki_lon: 0.0
   ki_lon_max: 10.0
-  kp_ang: 1.0
-  kp_lat: 1.0
+  kp_ang: 6.15
+  kp_lat: 6.15
   kp_lon: 6.0
   max_cmd_vel_ang: 3.1
   max_cmd_vel_speed: 0.6

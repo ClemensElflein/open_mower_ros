@@ -2,17 +2,17 @@ FTCPlanner:
   acceleration: 0.1
   forward_only: true
   goal_timeout: 60.0
-  kd_ang: 0.2
-  kd_lat: 0.2
+  kd_ang: 1.23
+  kd_lat: 1.23
   kd_lon: 0.0
-  ki_ang: 0.05
-  ki_ang_max: 10.0
-  ki_lat: 0.01
-  ki_lat_max: 10.0
+  ki_ang: 0.307
+  ki_ang_max: 62
+  ki_lat: 0.06153
+  ki_lat_max: 62
   ki_lon: 0.0
   ki_lon_max: 10.0
-  kp_ang: 1.0
-  kp_lat: 8.0
+  kp_ang: 6.1538
+  kp_lat: 49.2307
   kp_lon: 10.0
   max_cmd_vel_ang: 3.1
   max_cmd_vel_speed: 1.0
