@@ -21,8 +21,8 @@ FTCPlanner:
   max_goal_distance_error: 0.1
   restore_defaults: false
   speed_angular: 45.0
-  speed_fast: 0.3
+  speed_fast: 0.4
   speed_fast_threshold: 1.0
   speed_fast_threshold_angle: 20.0
-  speed_slow: 0.15
+  speed_slow: 0.2
 
