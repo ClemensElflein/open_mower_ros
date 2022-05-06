@@ -290,7 +290,7 @@ bool statusReceivedOrientation(const mower_msgs::Status::ConstPtr &msg) {
 
 
     tf2::Quaternion q;
-    tf2::fromMsg(orientation_result, q);
+    tf2::fromMsg(lastImu.orientation, q);
 
 
     tf2::Matrix3x3 m(q);
