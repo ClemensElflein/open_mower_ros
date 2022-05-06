@@ -36,7 +36,7 @@ std::string MowingBehavior::state_name() {
 Behavior *MowingBehavior::execute() {
 
     while (ros::ok() && !paused) {
-        if (currentMowingPaths.empty() && !create_mowing_plan(currentAreaIndex)) {
+        if (currentMowingPaths.empty() && !create_mowing_plan(last_config.current_area)) {
             ROS_INFO_STREAM("Could not create mowing plan, docking");
             // Start again from first area next time.
             reset();
@@ -50,7 +50,8 @@ Behavior *MowingBehavior::execute() {
 
         if (finished) {
             // skip to next area if current
-            currentAreaIndex++;
+            last_config.current_area++;
+            reconfigServer->updateConfig(last_config);
         }
     }
 
@@ -72,7 +73,8 @@ void MowingBehavior::exit() {
 
 void MowingBehavior::reset() {
     currentMowingPaths.clear();
-    currentAreaIndex = 0;
+    last_config.current_area = 0;
+    reconfigServer->updateConfig(last_config);
 }
 
 bool MowingBehavior::needs_gps() {

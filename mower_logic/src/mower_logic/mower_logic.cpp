@@ -186,7 +186,7 @@ void checkSafety(const ros::TimerEvent &timer_event) {
         last_good_gps = ros::Time::now();
     }
 
-    if (currentBehavior != nullptr && currentBehavior->needs_gps() && ros::Time::now() - last_good_gps > ros::Duration(2.0)) {
+    if (currentBehavior != nullptr && currentBehavior->needs_gps() && ros::Time::now() - last_good_gps > ros::Duration(last_config.gps_timeout)) {
         ROS_WARN_STREAM("gps lost, stopping");
         setEmergencyMode(true);
         return;

@@ -32,7 +32,6 @@ private:
 
     // Progress
     bool mowerEnabled = false;
-    int currentAreaIndex = 0;
     std::vector<nav_msgs::Path> currentMowingPaths;
 
 
