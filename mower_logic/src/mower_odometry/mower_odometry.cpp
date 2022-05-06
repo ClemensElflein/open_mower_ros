@@ -309,18 +309,12 @@ bool statusReceivedOrientation(const mower_msgs::Status::ConstPtr &msg) {
 
 
     r = yaw;
-    //dr = lastImu.angular_velocity.z;
-
 
     double d_ticks = (d_wheel_l + d_wheel_r) / 2.0;
 
 
-    //dr = yaw - r;
-    //dr = fmod(dr, 2.0 * M_PI);
 
-
-
-    tf2::toMsg(q_mag, orientation_result);
+    orientation_result = tf2::toMsg(q_mag);
     //orientation_result = q_mag;
 
 
