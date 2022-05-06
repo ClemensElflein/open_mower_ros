@@ -398,7 +398,7 @@ int main(int argc, char **argv) {
     gpsOdometryValid = false;
 
     ros::Subscriber status_sub = n.subscribe("mower/status", 100, statusReceived);
-    ros::Subscriber imu_sub = n.subscribe("mower/imu", 100, imuReceived);
+    ros::Subscriber imu_sub = n.subscribe("imu/data", 100, imuReceived);
     ros::Subscriber gps_sub = n.subscribe("ublox/navrelposned", 100, gpsPositionReceived);
 
     ros::spin();
