@@ -286,6 +286,17 @@ bool statusReceivedOrientation(const mower_msgs::Status::ConstPtr &msg) {
 
     double yaw = atan2(lastImu.my - (config.magnetic_offset_y),
                        lastImu.mx - (config.magnetic_offset_x));
+*/
+
+
+    tf2::Quaternion q;
+    tf2::fromMsg(orientation_result, q);
+
+
+    tf2::Matrix3x3 m(q);
+    double unused1, unused2, yaw;
+
+    m.getRPY(unused1, unused2, yaw);
 
     yaw += config.imu_offset * (M_PI / 180.0);
     yaw = fmod(yaw + (M_PI_2), 2.0 * M_PI);
@@ -297,29 +308,20 @@ bool statusReceivedOrientation(const mower_msgs::Status::ConstPtr &msg) {
     tf2::Quaternion q_mag(0.0, 0.0, yaw);
 
 
-//    r = yaw;
-//    dr = lastImu.angular_velocity.z;
+    r = yaw;
+    //dr = lastImu.angular_velocity.z;
 
-*/
+
     double d_ticks = (d_wheel_l + d_wheel_r) / 2.0;
-    /*
-
-//    dr = yaw - r;
-//    dr = fmod(dr, 2.0 * M_PI);
 
 
-    tf2::Quaternion q = q_gyro.slerp(q_mag, config.magnetic_filter_factor);
-*/
-
-    orientation_result = lastImu.orientation;
-    tf2::Quaternion q;
-    tf2::fromMsg(orientation_result, q);
+    //dr = yaw - r;
+    //dr = fmod(dr, 2.0 * M_PI);
 
 
-    tf2::Matrix3x3 m(q);
-    double unused1, unused2;
 
-    m.getRPY(unused1, unused2, r);
+    tf2::toMsg(q_mag, orientation_result);
+    //orientation_result = q_mag;
 
 
     x += d_ticks * cos(r);
