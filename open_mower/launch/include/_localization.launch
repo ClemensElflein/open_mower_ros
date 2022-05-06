@@ -12,6 +12,7 @@
 
     <node pkg="imu_filter_madgwick" type="imu_filter_node" name="imu_filter_node" required="true">
         <rosparam file="$(env HOME)/mower_conf/imu_filter.yaml" command="load" />
+        <param name="publish_tf" value="false"/>
     </node>
     
 </launch>
