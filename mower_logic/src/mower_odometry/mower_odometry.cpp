@@ -18,7 +18,7 @@
 #include "ros/ros.h"
 
 #include <mower_msgs/Status.h>
-#include <mower_msgs/ImuRaw.h>
+#include <sensor_msgs/Imu.h>
 #include <nav_msgs/Odometry.h>
 #include "ublox_msgs/NavRELPOSNED9.h"
 #include <tf2_ros/transform_broadcaster.h>
@@ -34,7 +34,7 @@ ros::Publisher odometry_pub;
 
 ublox_msgs::NavRELPOSNED9 last_gps;
 
-mower_msgs::ImuRaw lastImu;
+sensor_msgs::Imu lastImu;
 mower_logic::MowerOdometryConfig config;
 
 int gps_outlier_count = 0;
@@ -146,7 +146,7 @@ void publishOdometry() {
     odometry_pub.publish(odom);
 }
 
-void imuReceived(const mower_msgs::ImuRaw::ConstPtr &msg) {
+void imuReceived(const sensor_msgs::Imu::ConstPtr &msg) {
     lastImu = *msg;
     hasImuMessage = true;
 }
@@ -270,7 +270,7 @@ bool statusReceivedOrientation(const mower_msgs::Status::ConstPtr &msg) {
 
 
 
-
+/*
     double r_gyro = r - lastImu.gz * dt;
     while (r_gyro < 0) {
         r_gyro += 2.0 * M_PI;
@@ -300,16 +300,20 @@ bool statusReceivedOrientation(const mower_msgs::Status::ConstPtr &msg) {
 //    r = yaw;
 //    dr = lastImu.angular_velocity.z;
 
-
+*/
     double d_ticks = (d_wheel_l + d_wheel_r) / 2.0;
+    /*
 
 //    dr = yaw - r;
 //    dr = fmod(dr, 2.0 * M_PI);
 
 
-
     tf2::Quaternion q = q_gyro.slerp(q_mag, config.magnetic_filter_factor);
-    orientation_result = tf2::toMsg(q);
+*/
+
+    orientation_result = lastImu.orientation;
+    tf2::Quaternion q;
+    tf2::fromMsg(orientation_result, q);
 
 
     tf2::Matrix3x3 m(q);
@@ -323,7 +327,7 @@ bool statusReceivedOrientation(const mower_msgs::Status::ConstPtr &msg) {
 
     vy = 0;
     vx = d_ticks / dt;
-    vr = lastImu.gz;
+    vr = lastImu.angular_velocity.z;
 
 
     return true;

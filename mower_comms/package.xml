@@ -10,6 +10,7 @@
 
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>mower_msgs</build_depend>
+  <build_depend>sensor_msgs</build_depend>
   <build_depend>roscpp</build_depend>
   <build_depend>serial</build_depend>
   <build_depend>vesc_driver</build_depend>

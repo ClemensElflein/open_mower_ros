@@ -30,6 +30,8 @@
   <exec_depend>global_planner</exec_depend>
   <exec_depend>teb_local_planner</exec_depend>
   <exec_depend>ublox</exec_depend>
+  <exec_depend>imu_tools</exec_depend>
+  <exec_depend>imu_filter_madgwick</exec_depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->

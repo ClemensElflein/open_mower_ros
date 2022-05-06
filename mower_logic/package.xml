@@ -45,6 +45,7 @@
   <exec_depend>tf2_geometry_msgs</exec_depend>
   <exec_depend>tf2_ros</exec_depend>
   <exec_depend>ublox_msgs</exec_depend>
+  <exec_depend>imu_tools</exec_depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->

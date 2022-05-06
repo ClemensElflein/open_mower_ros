@@ -10,4 +10,8 @@
         <param name="magnetic_offset_y" value="177.29"/>
     </node>
 
+    <node pkg="imu_filter_madgwick" type="imu_filter_node" name="imu_filter_node" required="true">
+
+    </node>
+    
 </launch>

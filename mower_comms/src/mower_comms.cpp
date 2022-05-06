@@ -29,12 +29,16 @@
 #include "mower_msgs/MowerControlSrv.h"
 #include "mower_msgs/EmergencyStopSrv.h"
 #include "mower_msgs/ImuRaw.h"
+#include "sensor_msgs/Imu.h"
+#include "sensor_msgs/MagneticField.h"
 
 #include "vesc_driver/vesc_interface.h"
 
 
 ros::Publisher status_pub;
-ros::Publisher imu_pub;
+ros::Publisher mower_imu_pub;
+ros::Publisher sensor_imu_pub;
+ros::Publisher sensor_mag_pub;
 
 COBS cobs;
 
@@ -67,6 +71,10 @@ vesc_driver::VescInterface *right_vesc_interface;
 
 std::mutex ll_status_mutex;
 struct ll_status last_ll_status = {0};
+
+sensor_msgs::MagneticField sensor_mag_msg;
+sensor_msgs::Imu sensor_imu_msg;
+
 
 #define WHEEL_DISTANCE_M 0.325
 
@@ -262,7 +270,27 @@ void handleLowLevelIMU(struct ll_imu *imu) {
     imu_msg.my = imu->mag_uT[1];
     imu_msg.mz = imu->mag_uT[2];
 
-    imu_pub.publish(imu_msg);
+
+    sensor_mag_msg.header.stamp = ros::Time::now();
+    sensor_mag_msg.header.seq++;
+    sensor_mag_msg.header.frame_id = "base_link";
+    sensor_mag_msg.magnetic_field.x = imu_msg.mx/1000.0;
+    sensor_mag_msg.magnetic_field.y = imu_msg.my/1000.0;
+    sensor_mag_msg.magnetic_field.z = imu_msg.mz/1000.0;
+
+    sensor_imu_msg.header.stamp = ros::Time::now();
+    sensor_imu_msg.header.seq++;
+    sensor_imu_msg.header.frame_id = "base_link";
+    sensor_imu_msg.linear_acceleration.x = imu_msg.ax;
+    sensor_imu_msg.linear_acceleration.y = imu_msg.ay;
+    sensor_imu_msg.linear_acceleration.z = imu_msg.az;
+    sensor_imu_msg.angular_velocity.x = imu_msg.gx;
+    sensor_imu_msg.angular_velocity.y = imu_msg.gy;
+    sensor_imu_msg.angular_velocity.z = imu_msg.gz;
+
+    mower_imu_pub.publish(imu_msg);
+    sensor_imu_pub.publish(sensor_imu_msg);
+    sensor_mag_pub.publish(sensor_mag_msg);
 }
 
 void mowVescError(const std::string &error) {
@@ -281,6 +309,8 @@ void rightVescError(const std::string &error) {
 int main(int argc, char **argv) {
     ros::init(argc, argv, "mower_comms");
 
+    sensor_mag_msg.header.seq = 0;
+    sensor_imu_msg.header.seq = 0;
 
     ros::NodeHandle n;
     ros::NodeHandle paramNh("~");
@@ -316,7 +346,9 @@ int main(int argc, char **argv) {
     right_vesc_interface->start(right_esc_port_name);
 
     status_pub = n.advertise<mower_msgs::Status>("mower/status", 1);
-    imu_pub = n.advertise<mower_msgs::ImuRaw>("mower/imu", 1);
+    mower_imu_pub = n.advertise<mower_msgs::ImuRaw>("mower/imu", 1);
+    sensor_imu_pub = n.advertise<sensor_msgs::Imu>("imu/data_raw", 1);
+    sensor_mag_pub = n.advertise<sensor_msgs::MagneticField>("imu/mag", 1);
     ros::ServiceServer mow_service = n.advertiseService("mower_service/mow_enabled", setMowEnabled);
     ros::ServiceServer emergency_service = n.advertiseService("mower_service/emergency", setEmergencyStop);
     ros::Subscriber cmd_vel_sub = n.subscribe("cmd_vel", 0, velReceived, ros::TransportHints().tcpNoDelay(true));
