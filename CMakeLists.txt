@@ -37,7 +37,7 @@ ExternalProject_Add(
 
 
 ## System dependencies are found with CMake's conventions
-# find_package(Boost REQUIRED COMPONENTS system)
+ find_package(Boost REQUIRED COMPONENTS system thread)
 
 
 ## Uncomment this if the package has a setup.py. This macro ensures
@@ -70,11 +70,10 @@ ExternalProject_Add(
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-# add_message_files(
-#   FILES
-#   Message1.msg
-#   Message2.msg
-# )
+ add_message_files(
+   FILES
+   Path.msg
+ )
 
 ## Generate services in the 'srv' folder
 add_service_files(
@@ -238,6 +237,8 @@ include_directories(${SOURCE_DIR}/xs/src)
 
 add_executable(slic3r_coverage_planner
         src/coverage_planner.cpp
+        src/OutlinePoly.h
+        src/OutlinePoly.cpp
         )
 add_dependencies(slic3r_coverage_planner ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
 add_dependencies(slic3r_coverage_planner ${EP_SLIC3R})
@@ -253,4 +254,5 @@ target_link_libraries(slic3r_coverage_planner ${catkin_LIBRARIES}
         ${BINARY_DIR}/libpolypartition.a
         ${BINARY_DIR}/libZipArchive.a
         ${BINARY_DIR}/libclipper.a
+        ${Boost_LIBRARIES}
         )

@@ -7,4 +7,4 @@ uint8 outline_count
 geometry_msgs/Polygon outline
 geometry_msgs/Polygon[] holes
 ---
-nav_msgs/Path[] paths
+Path[] paths
