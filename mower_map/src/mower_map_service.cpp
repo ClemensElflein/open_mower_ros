@@ -32,6 +32,7 @@
 #include "geometry_msgs/Point32.h"
 #include "mower_map/MapArea.h"
 #include "mower_map/MapAreas.h"
+#include "geometry_msgs/PoseStamped.h"
 
 
 // Include Service Messages
@@ -42,6 +43,10 @@
 #include "mower_map/AppendMapSrv.h"
 #include "mower_map/SetDockingPointSrv.h"
 #include "mower_map/GetDockingPointSrv.h"
+#include "mower_map/SetNavPointSrv.h"
+#include "mower_map/ClearNavPointSrv.h"
+
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
 
 // Publishes the map as occupancy grid
@@ -59,6 +64,8 @@ std::vector<mower_map::MapArea> mowing_areas;
 // The recorded docking pose. Note that this is the pose from which the docking attempt is started
 // I.e. the robot will drive to this pose and then drive forward
 geometry_msgs::Pose docking_point;
+bool show_fake_obstacle = false;
+geometry_msgs::Pose fake_obstacle_pose;
 
 // The grid map. This is built from the polygons loaded from the file.
 grid_map::GridMap map;
@@ -284,6 +291,60 @@ void buildMap() {
         }
     }
 
+    if(show_fake_obstacle)
+    {
+        grid_map::Polygon poly;
+        tf2::Quaternion q;
+        tf2::fromMsg(fake_obstacle_pose.orientation, q);
+
+        tf2::Matrix3x3 m(q);
+        double unused1, unused2, yaw;
+
+        m.getRPY(unused1, unused2, yaw);
+
+        Eigen::Vector2d front(cos(yaw),sin(yaw));
+        Eigen::Vector2d left(-sin(yaw),cos(yaw));
+        Eigen::Vector2d obstacle_pos(fake_obstacle_pose.position.x,fake_obstacle_pose.position.y);
+
+        {
+            grid_map::Position pos = obstacle_pos + 0.1*left + 0.25*front;
+            poly.addVertex(pos);
+        }
+        {
+            grid_map::Position pos = obstacle_pos + 0.2*left - 0.1*front;
+            poly.addVertex(pos);
+        }
+        {
+            grid_map::Position pos = obstacle_pos + 0.6*left - 0.1*front;
+            poly.addVertex(pos);
+        }
+        {
+            grid_map::Position pos = obstacle_pos + 0.6*left + 0.7*front;
+            poly.addVertex(pos);
+        }
+
+        {
+            grid_map::Position pos = obstacle_pos - 0.6*left + 0.7*front;
+            poly.addVertex(pos);
+        }
+        {
+            grid_map::Position pos = obstacle_pos - 0.6*left - 0.1*front;
+            poly.addVertex(pos);
+        }
+        {
+            grid_map::Position pos = obstacle_pos - 0.2*left - 0.1*front;
+            poly.addVertex(pos);
+        }
+        {
+            grid_map::Position pos = obstacle_pos - 0.1*left + 0.25*front;
+            poly.addVertex(pos);
+        }
+        for (grid_map::PolygonIterator iterator(map, poly); !iterator.isPastEnd(); ++iterator) {
+            const grid_map::Index index(*iterator);
+            data(index[0], index[1]) = 1.0;
+        }
+
+    }
 
     cv::Mat cv_map;
     grid_map::GridMapCvConverter::toImage<unsigned char, 1>(map, "navigation_area", CV_8UC1, cv_map);
@@ -467,6 +528,28 @@ bool getDockingPoint(mower_map::GetDockingPointSrvRequest &req, mower_map::GetDo
 
     return true;
 }
+bool setNavPoint(mower_map::SetNavPointSrvRequest &req, mower_map::SetNavPointSrvResponse &res) {
+    ROS_INFO_STREAM("Setting Nav Point");
+
+    fake_obstacle_pose = req.nav_pose;
+
+    show_fake_obstacle = true;
+
+    buildMap();
+
+    return true;
+}
+
+
+bool clearNavPoint(mower_map::ClearNavPointSrvRequest &req, mower_map::ClearNavPointSrvResponse &res) {
+    ROS_INFO_STREAM("Clearing Nav Point");
+
+    show_fake_obstacle = false;
+
+    buildMap();
+
+    return true;
+}
 
 
 int main(int argc, char **argv) {
@@ -493,6 +576,10 @@ int main(int argc, char **argv) {
                                                                   setDockingPoint);
     ros::ServiceServer get_docking_point_srv = n.advertiseService("mower_map_service/get_docking_point",
                                                                   getDockingPoint);
+    ros::ServiceServer set_nav_point_srv = n.advertiseService("mower_map_service/set_nav_point",
+                                                                  setNavPoint);
+    ros::ServiceServer clear_nav_point_srv = n.advertiseService("mower_map_service/clear_nav_point",
+                                                                  clearNavPoint);
 
 
     ros::spin();

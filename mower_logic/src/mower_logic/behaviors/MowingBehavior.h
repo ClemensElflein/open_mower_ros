@@ -21,6 +21,7 @@
 #include "UndockingBehavior.h"
 
 #include "slic3r_coverage_planner/PlanPath.h"
+#include "slic3r_coverage_planner/Path.h"
 #include "ftc_local_planner/PlannerGetProgress.h"
 
 class MowingBehavior : public Behavior {
@@ -32,7 +33,7 @@ private:
 
     // Progress
     bool mowerEnabled = false;
-    std::vector<nav_msgs::Path> currentMowingPaths;
+    std::vector<slic3r_coverage_planner::Path> currentMowingPaths;
 
 
 public:

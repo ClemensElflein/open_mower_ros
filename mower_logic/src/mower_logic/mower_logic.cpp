@@ -20,6 +20,8 @@
 #include "mower_map/GetMowingAreaSrv.h"
 #include "mower_map/GetDockingPointSrv.h"
 #include "mower_map/SetDockingPointSrv.h"
+#include "mower_map/ClearNavPointSrv.h"
+#include "mower_map/SetNavPointSrv.h"
 #include <actionlib/client/simple_action_client.h>
 #include <tf2/LinearMath/Transform.h>
 #include "mower_msgs/GPSControlSrv.h"
@@ -39,7 +41,7 @@
 #include "behaviors/IdleBehavior.h"
 
 
-ros::ServiceClient pathClient, mapClient, dockingPointClient, gpsClient, mowClient, emergencyClient, setDockingPointClient, pathProgressClient;
+ros::ServiceClient pathClient, mapClient, dockingPointClient, gpsClient, mowClient, emergencyClient, setDockingPointClient, pathProgressClient, setNavPointClient, clearNavPointClient;
 
 dynamic_reconfigure::Server<mower_logic::MowerLogicConfig> *reconfigServer;
 actionlib::SimpleActionClient<mbf_msgs::MoveBaseAction> *mbfClient;
@@ -256,6 +258,12 @@ int main(int argc, char **argv) {
     pathProgressClient = n.serviceClient<ftc_local_planner::PlannerGetProgress>(
             "/move_base_flex/FTCPlanner/planner_get_progress");
 
+    setNavPointClient = n.serviceClient<mower_map::SetNavPointSrv>(
+            "mower_map_service/set_nav_point");
+    clearNavPointClient = n.serviceClient<mower_map::ClearNavPointSrv>(
+            "mower_map_service/clear_nav_point");
+
+
 
     mbfClient = new actionlib::SimpleActionClient<mbf_msgs::MoveBaseAction>("/move_base_flex/move_base");
     mbfClientExePath = new actionlib::SimpleActionClient<mbf_msgs::ExePathAction>("/move_base_flex/exe_path");
@@ -342,6 +350,22 @@ int main(int argc, char **argv) {
     ROS_INFO("Waiting for docking point server");
     if (!dockingPointClient.waitForExistence(ros::Duration(60.0, 0.0))) {
         ROS_ERROR("Docking server service not found.");
+        delete (reconfigServer);
+        delete (mbfClient);
+        delete (mbfClientExePath);
+        return 2;
+    }
+    ROS_INFO("Waiting for nav point server");
+    if (!setNavPointClient.waitForExistence(ros::Duration(60.0, 0.0))) {
+        ROS_ERROR("Set Nav Point server service not found.");
+        delete (reconfigServer);
+        delete (mbfClient);
+        delete (mbfClientExePath);
+        return 2;
+    }
+    ROS_INFO("Waiting for clear nav point server");
+    if (!clearNavPointClient.waitForExistence(ros::Duration(60.0, 0.0))) {
+        ROS_ERROR("Clear Nav Point server service not found.");
         delete (reconfigServer);
         delete (mbfClient);
         delete (mbfClientExePath);
