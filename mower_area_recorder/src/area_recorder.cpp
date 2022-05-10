@@ -241,12 +241,7 @@ int main(int argc, char **argv) {
     emergencyClient = n.serviceClient<mower_msgs::EmergencyStopSrv>(
             "mower_service/emergency");
 
-    ROS_INFO("Waiting for emergency service");
-    if (!emergencyClient.waitForExistence(ros::Duration(60.0, 0.0))) {
-        ROS_ERROR("Emergency server not found.");
 
-        return 1;
-    }
 
     marker_pub = n.advertise<visualization_msgs::Marker>("area_recorder/progress_visualization", 10);
     beep_pub = n.advertise<std_msgs::Empty>("mower/beep", 10);
@@ -266,16 +261,6 @@ int main(int argc, char **argv) {
     markers = visualization_msgs::MarkerArray();
 
 
-    ROS_INFO("Waiting for a odometry message");
-    while (!has_odom) {
-        if (!ros::ok()) {
-            return 1;
-        }
-    }
-
-    mower_msgs::EmergencyStopSrv emergencyStop;
-    emergencyStop.request.emergency = false;
-    emergencyClient.call(emergencyStop);
 
 
     bool error = false;
