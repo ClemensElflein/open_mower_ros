@@ -67,13 +67,13 @@ Visualization Manager:
       Use Timestamp: false
       Value: false
     - Class: rviz/MarkerArray
-      Enabled: false
+      Enabled: true
       Marker Topic: /mower_map_service/map_viz
       Name: MarkerArray
       Namespaces:
-        {}
+        mower_map_service: true
       Queue Size: 100
-      Value: false
+      Value: true
     - Angle Tolerance: 0.10000000149011612
       Class: rviz/Odometry
       Covariance:
@@ -207,13 +207,13 @@ Visualization Manager:
       Unreliable: false
       Value: true
     - Class: rviz/MarkerArray
-      Enabled: false
+      Enabled: true
       Marker Topic: /slic3r_coverage_planner/path_marker_array
       Name: MarkerArray
       Namespaces:
-        {}
+        mower_map_service_lines: true
       Queue Size: 100
-      Value: false
+      Value: true
     - Alpha: 1
       Buffer Length: 1
       Class: rviz/Path
@@ -341,10 +341,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Scale: -184.8888397216797
+      Scale: -78.72224426269531
       Target Frame: <Fixed Frame>
-      X: 21.447357177734375
-      Y: -1.2208080291748047
+      X: 10.885823249816895
+      Y: 3.383115291595459
     Saved:
       - Angle: 0
         Class: rviz/TopDownOrtho

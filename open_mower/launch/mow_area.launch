@@ -14,7 +14,9 @@
 	<param name="tool_width" value="0.13" />
         <param name="enable_mower" value="true" />
         <param name="battery_empty_voltage" value="23.0" />
-	<param name="battery_full_voltage" value="28.0" />
+        <param name="outline_count" value="4"/>
+        <param name="outline_offset" value="0.05"/>
+        <param name="battery_full_voltage" value="28.0" />
     </node>
     <node pkg="slic3r_coverage_planner" type="slic3r_coverage_planner" name="slic3r_coverage_planner" output="screen"/>
 

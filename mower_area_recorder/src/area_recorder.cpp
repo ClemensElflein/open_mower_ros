@@ -265,6 +265,14 @@ int main(int argc, char **argv) {
     hasFirstDockingPos = poly_recording_enabled = finished_all = false;
     markers = visualization_msgs::MarkerArray();
 
+
+    ROS_INFO("Waiting for a odometry message");
+    while (!has_odom) {
+        if (!ros::ok()) {
+            return 1;
+        }
+    }
+
     mower_msgs::EmergencyStopSrv emergencyStop;
     emergencyStop.request.emergency = false;
     emergencyClient.call(emergencyStop);
