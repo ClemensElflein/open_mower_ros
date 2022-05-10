@@ -218,6 +218,7 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
 
 
     coord_t distance = scale_(req.distance);
+    coord_t outer_distance = scale_(req.outer_offset);
 
     // detect how many perimeters must be generated for this island
     int loops = req.outline_count;
@@ -241,7 +242,7 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
             if (i == 0) {
                 offsets = offset(
                         last,
-                        0
+                        -outer_distance
                 );
             } else {
                 offsets = offset(
