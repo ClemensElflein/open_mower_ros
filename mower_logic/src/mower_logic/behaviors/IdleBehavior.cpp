@@ -39,7 +39,7 @@ Behavior *IdleBehavior::execute() {
         stop();
 
         if (last_config.manual_start_mowing ||
-            (last_status.v_battery > config.battery_full_voltage && last_status.mow_esc_status.temperature_motor < 45.0 &&
+            (last_status.v_battery > last_config.battery_full_voltage && last_status.mow_esc_status.temperature_motor < last_config.motor_cold_temperature &&
              !last_config.manual_pause_mowing)) {
             mowingPaused = false;
             return &UndockingBehavior::INSTANCE;

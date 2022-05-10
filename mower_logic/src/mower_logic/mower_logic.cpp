@@ -200,7 +200,7 @@ void checkSafety(const ros::TimerEvent &timer_event) {
     // we are in non emergency, check if we should pause. This could be empty battery, rain or hot mower motor etc.
     bool dockingNeeded = false;
 
-    if (last_status.v_battery < last_config.battery_empty_voltage || last_status.mow_esc_status.temperature_motor > 60.0 ||
+    if (last_status.v_battery < last_config.battery_empty_voltage || last_status.mow_esc_status.temperature_motor >= last_config.motor_hot_temperature ||
         last_config.manual_pause_mowing) {
         dockingNeeded = true;
     }
