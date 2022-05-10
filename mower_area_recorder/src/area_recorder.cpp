@@ -28,11 +28,14 @@
 #include "std_msgs/ColorRGBA.h"
 #include "mower_map/AddMowingAreaSrv.h"
 #include "mower_map/SetDockingPointSrv.h"
+#include "mower_msgs/EmergencyStopSrv.h"
+
 
 ros::Publisher marker_pub;
 ros::Publisher beep_pub;
 ros::Publisher marker_array_pub;
 tf2_ros::Buffer tfBuffer;
+ros::ServiceClient emergencyClient;
 
 // true, if we should be recording the current data into a polygon
 bool poly_recording_enabled = false;
@@ -235,7 +238,15 @@ int main(int argc, char **argv) {
     ros::ServiceClient client = n.serviceClient<mower_map::AddMowingAreaSrv>("mower_map_service/add_mowing_area");
     ros::ServiceClient set_docking_point_client = n.serviceClient<mower_map::SetDockingPointSrv>("mower_map_service/set_docking_point");
 
+    emergencyClient = n.serviceClient<mower_msgs::EmergencyStopSrv>(
+            "mower_service/emergency");
 
+    ROS_INFO("Waiting for emergency service");
+    if (!emergencyClient.waitForExistence(ros::Duration(60.0, 0.0))) {
+        ROS_ERROR("Emergency server not found.");
+
+        return 1;
+    }
 
     marker_pub = n.advertise<visualization_msgs::Marker>("area_recorder/progress_visualization", 10);
     beep_pub = n.advertise<std_msgs::Empty>("mower/beep", 10);
@@ -254,7 +265,9 @@ int main(int argc, char **argv) {
     hasFirstDockingPos = poly_recording_enabled = finished_all = false;
     markers = visualization_msgs::MarkerArray();
 
-
+    mower_msgs::EmergencyStopSrv emergencyStop;
+    emergencyStop.request.emergency = false;
+    emergencyClient.call(emergencyStop);
 
 
     bool error = false;
