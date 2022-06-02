@@ -5,14 +5,12 @@
         <param name="gps_antenna_offset" value="0.3"/>
 
         <param name="gps_filter_factor" value="0.05"/>
-        <param name="magnetic_filter_factor" value="0.01"/>
-        <param name="magnetic_offset_x" value="87.91"/>
-        <param name="magnetic_offset_y" value="177.29"/>
+
     </node>
 
-    <node pkg="imu_filter_madgwick" type="imu_filter_node" name="imu_filter_node" required="true">
+<!--     <node pkg="imu_filter_madgwick" type="imu_filter_node" name="imu_filter_node" required="true">
         <rosparam file="$(env HOME)/mower_conf/imu_filter.yaml" command="load" />
         <param name="publish_tf" value="false"/>
-    </node>
+    </node> -->
     
 </launch>

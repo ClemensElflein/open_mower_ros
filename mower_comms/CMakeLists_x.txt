@@ -11,8 +11,8 @@ find_package(catkin REQUIRED COMPONENTS
   mower_msgs
         sensor_msgs
   roscpp
-  serial
-        vesc_driver
+ # serial
+  #      vesc_driver
 )
 
 find_package(
@@ -157,7 +157,7 @@ include_directories(
 # )
 
 add_executable(mower_comms
-        src/mower_comms.cpp
+    #    src/mower_comms.cpp
         src/COBS.h
         src/ll_datatypes.h
         )

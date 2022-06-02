@@ -49,16 +49,11 @@ bool gpsEnabled = true;
 bool firstData = true;
 mower_msgs::Status last_status;
 
-// inputs here
-double d_wheel_r, d_wheel_l, dt = 1.0;
-
+// inouts here
+double dt = 1.0;
 // outputs here
 double x = 0, y = 0, vx = 0.0, r = 0.0, vy = 0.0, vr = 0.0;
 geometry_msgs::Quaternion orientation_result;
-
-
-// (ticks / revolution) / (m / revolution)
-#define TICKS_PER_M (993.0 / (0.19*M_PI))
 
 
 tf2_ros::Buffer tfBuffer;
@@ -216,8 +211,8 @@ void gpsPositionReceived(const ublox_msgs::NavRELPOSNED9::ConstPtr &msg) {
 
         // calculate current base_link position from orientation and distance parameter
 
-        double base_link_x = gps_pos.x() - config.gps_antenna_offset * cos(r);
-        double base_link_y = gps_pos.y() - config.gps_antenna_offset * sin(r);
+      //  double base_link_x = gps_pos.x() - config.gps_antenna_offset * cos(r);
+      //  double base_link_y = gps_pos.y() - config.gps_antenna_offset * sin(r);
 
 
         // store the gps as last
@@ -230,13 +225,13 @@ void gpsPositionReceived(const ublox_msgs::NavRELPOSNED9::ConstPtr &msg) {
             ROS_INFO_STREAM("GPS data now valid");
             ROS_INFO_STREAM("First GPS data, moving odometry to " << x << ", " << y);
             // we don't even have gps yet, set odometry to first estimate
-            x = base_link_x;
-            y = base_link_y;
+           // x = base_link_x;
+           // y = base_link_y;
             gpsOdometryValid = true;
         } else if (gpsOdometryValid) {
             // gps was valid before, we apply the filter
-            x = x * (1.0 - config.gps_filter_factor) + config.gps_filter_factor * base_link_x;
-            y = y * (1.0 - config.gps_filter_factor) + config.gps_filter_factor * base_link_y;
+            x = x * (1.0 - config.gps_filter_factor);
+            y = y * (1.0 - config.gps_filter_factor);
         }
     } else {
         ROS_WARN_STREAM("GPS outlier found. Distance was: " << distance_to_last_gps);
@@ -262,33 +257,6 @@ bool statusReceivedOrientation(const mower_msgs::Status::ConstPtr &msg) {
         return false;
     }
 
-
-
-
-//    geometry_msgs::TransformStamped imu_to_base_link = tfBuffer.lookupTransform(lastImu.header.frame_id, "base_link",
-//                                                                                lastImu.header.stamp);
-
-
-
-/*
-    double r_gyro = r - lastImu.gz * dt;
-    while (r_gyro < 0) {
-        r_gyro += 2.0 * M_PI;
-    }
-    r_gyro = fmod(r_gyro, 2.0 * M_PI);
-    tf2::Quaternion q_gyro(0.0, 0.0, r_gyro);
-
-
-
-//    geometry_msgs::Quaternion base_link_pose;
-//    tf2::doTransform(imu_pose, base_link_pose, imu_to_base_link);
-
-
-    double yaw = atan2(lastImu.my - (config.magnetic_offset_y),
-                       lastImu.mx - (config.magnetic_offset_x));
-*/
-
-
     tf2::Quaternion q;
     tf2::fromMsg(lastImu.orientation, q);
 
@@ -298,7 +266,7 @@ bool statusReceivedOrientation(const mower_msgs::Status::ConstPtr &msg) {
 
     m.getRPY(unused1, unused2, yaw);
 
-    yaw += config.imu_offset * (M_PI / 180.0);
+    //yaw += config.imu_offset * (M_PI / 180.0);
     yaw = fmod(yaw + (M_PI_2), 2.0 * M_PI);
     while (yaw < 0) {
         yaw += M_PI * 2.0;
@@ -310,7 +278,7 @@ bool statusReceivedOrientation(const mower_msgs::Status::ConstPtr &msg) {
 
     r = yaw;
 
-    double d_ticks = (d_wheel_l + d_wheel_r) / 2.0;
+   // double d_ticks = (d_wheel_l + d_wheel_r) / 2.0;
 
 
 
@@ -318,11 +286,11 @@ bool statusReceivedOrientation(const mower_msgs::Status::ConstPtr &msg) {
     //orientation_result = q_mag;
 
 
-    x += d_ticks * cos(r);
-    y += d_ticks * sin(r);
+   // x += d_ticks * cos(r);
+   // y += d_ticks * sin(r);
 
     vy = 0;
-    vx = d_ticks / dt;
+   // vx = d_ticks / dt;
     vr = lastImu.angular_velocity.z;
 
 
@@ -344,8 +312,8 @@ void statusReceived(const mower_msgs::Status::ConstPtr &msg) {
     dt = (msg->stamp - last_status.stamp).toSec();
 
 
-    d_wheel_l = (int32_t) (msg->left_esc_status.tacho - last_status.left_esc_status.tacho) / TICKS_PER_M;
-    d_wheel_r = -(int32_t) (msg->right_esc_status.tacho - last_status.right_esc_status.tacho) / TICKS_PER_M;
+   // d_wheel_l = (int32_t) (msg->left_esc_status.tacho - last_status.left_esc_status.tacho) / TICKS_PER_M;
+    //d_wheel_r = -(int32_t) (msg->right_esc_status.tacho - last_status.right_esc_status.tacho) / TICKS_PER_M;
 
 
 //    ROS_INFO_STREAM("d_wheel_l = " << d_wheel_l << ", d_wheel_r = " << d_wheel_r);

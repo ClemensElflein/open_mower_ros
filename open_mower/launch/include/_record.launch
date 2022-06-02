@@ -12,10 +12,7 @@
 /tf_static
 /joy
 /cmd_vel
-/mower/status
-/mower/imu
 /imu/data_raw
-/imu/mag
 /ublox/navrelposned
 /ublox/fix " />
 </launch>

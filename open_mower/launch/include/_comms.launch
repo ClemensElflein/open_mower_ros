@@ -5,20 +5,14 @@
 <launch>
     <!-- TODO: Add parameter for simulation -->
 
-    <node pkg="mower_comms" type="mower_comms" name="mower_comms">
-        <param name="ll_serial_port" value="/dev/ttyAMA0"/>
-        <param name="left_esc_serial_port" value="/dev/ttyAMA4"/>
-        <param name="right_esc_serial_port" value="/dev/ttyAMA2"/>
-        <param name="mow_esc_serial_port" value="/dev/ttyAMA3"/>
-    </node>
     
     <include file="$(find open_mower)/launch/include/_gps.launch">
-        <arg name="serial_port" value="ttyAMA1"/>
-        <arg name="ntrip_ip" value="192.168.178.55"/>
+        <arg name="serial_port" value="ttyACM0"/>
+        <arg name="ntrip_ip" value="192.168.178.151"/>
         <arg name="ntrip_port" value="2101"/>
-        <arg name="ntrip_endpoint" value="BASE1"/>
-        <arg name="ntrip_user" value="gps"/>
-        <arg name="ntrip_password" value="gps"/>
+        <arg name="ntrip_endpoint" value="Pelm01"/>
+        <arg name="ntrip_user" value="rtk"/>
+        <arg name="ntrip_password" value="rtk_base"/>
     </include>
 
 

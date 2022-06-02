@@ -1,5 +1,5 @@
 device: tcp://127.0.0.1:4242
-frame_id: gps
+frame_id: gps_frame
 config_on_startup: false
 
 publish:
