@@ -36,6 +36,8 @@ add_library(vesc_driver
   src/vesc_packet_factory.cpp
 )
 
+add_dependencies(vesc_driver ${catkin_EXPORTED_TARGETS})
+
 # node executable
 add_executable(vesc_driver_node src/vesc_driver_node.cpp)
 add_dependencies(vesc_driver_node ${catkin_EXPORTED_TARGETS})
