@@ -32,6 +32,7 @@ ExternalProject_Add(
 
         CMAKE_CACHE_ARGS
         SOURCE_SUBDIR src
+        CMAKE_ARGS -DSLIC3R_BUILD_TESTS=OFF
         BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release
 )
 
