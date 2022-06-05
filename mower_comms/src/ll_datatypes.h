@@ -22,6 +22,7 @@
 
 #define PACKET_ID_LL_STATUS 1
 #define PACKET_ID_LL_IMU 2
+#define PACKET_ID_LL_UI_EVENT 3
 #define PACKET_ID_LL_HEARTBEAT 0x42
 
 
@@ -87,6 +88,19 @@ struct ll_heartbeat {
 } __attribute__((packed));
 #pragma pack(pop)
 
+#pragma pack(push, 1)
+struct ui_command
+{
+    // Type of this message. Has to be PACKET_ID_LL_UI_EVENT if sent to ROS.
+    uint8_t type;       // command type
+    uint8_t cmd1;       // parameter to set 1
+    uint8_t cmd2;       // parameter to set 2
+    uint8_t cmd3;       // parameter to set 3
+    uint8_t ack;        // is set to 0 , buttonboard replys alwas the command with the identical structure but set this byte to 0xff
+    uint8_t res;        // not used
+    uint16_t crc;       // CRC 16 from element "type" to element "res"
+} __attribute__((packed));
+#pragma pack(pop)
 
 
 

@@ -29,6 +29,7 @@
 #include "mower_msgs/MowerControlSrv.h"
 #include "mower_msgs/EmergencyStopSrv.h"
 #include "mower_msgs/ImuRaw.h"
+#include "mower_msgs/HighLevelControlSrv.h"
 #include "sensor_msgs/Imu.h"
 #include "sensor_msgs/MagneticField.h"
 
@@ -75,6 +76,7 @@ struct ll_status last_ll_status = {0};
 sensor_msgs::MagneticField sensor_mag_msg;
 sensor_msgs::Imu sensor_imu_msg;
 
+ros::ServiceClient highLevelClient;
 
 #define WHEEL_DISTANCE_M 0.325
 
@@ -251,6 +253,38 @@ void velReceived(const geometry_msgs::Twist::ConstPtr &msg) {
     }
 }
 
+void handleLowLevelUIEvent(struct ui_command *ui_command) {
+    ROS_INFO_STREAM("Got UI button with code:" << ui_command->cmd1);
+
+    mower_msgs::HighLevelControlSrv srv;
+
+    switch(ui_command->cmd1) {
+        case 2:
+            // Home
+            srv.request.command = mower_msgs::HighLevelControlSrvRequest::COMMAND_HOME;
+            break;
+        case 3:
+            // Play
+            srv.request.command = mower_msgs::HighLevelControlSrvRequest::COMMAND_START;
+            break;
+        case 4:
+            // S1
+            srv.request.command = mower_msgs::HighLevelControlSrvRequest::COMMAND_S1;
+            break;
+        case 5:
+            // S2
+            srv.request.command = mower_msgs::HighLevelControlSrvRequest::COMMAND_S2;
+            break;
+        default:
+            // Return, don't call the service.
+            return;
+    }
+
+    if(!highLevelClient.call(srv)) {
+        ROS_ERROR_STREAM("Error calling high level control service");
+    }
+
+}
 
 void handleLowLevelStatus(struct ll_status *status) {
     std::unique_lock<std::mutex> lk(ll_status_mutex);
@@ -314,6 +348,10 @@ int main(int argc, char **argv) {
 
     ros::NodeHandle n;
     ros::NodeHandle paramNh("~");
+
+    highLevelClient = n.serviceClient<mower_msgs::HighLevelControlSrv>(
+            "mower_service/high_level_control");
+
 
     std::string ll_serial_port_name, left_esc_port_name, right_esc_port_name, mow_esc_port_name;
     if (!paramNh.getParam("ll_serial_port", ll_serial_port_name)) {
@@ -431,6 +469,14 @@ int main(int argc, char **argv) {
                                 } else {
                                     ROS_INFO_STREAM(
                                             "Low Level Board sent a valid packet with the wrong size. Type was IMU");
+                                }
+                                break;
+                            case PACKET_ID_LL_UI_EVENT:
+                                if(data_size == sizeof(struct ui_command)) {
+                                    handleLowLevelUIEvent((struct ui_command*) buffer_decoded);
+                                } else {
+                                    ROS_INFO_STREAM(
+                                            "Low Level Board sent a valid packet with the wrong size. Type was UI_EVENT");
                                 }
                                 break;
                             default:
