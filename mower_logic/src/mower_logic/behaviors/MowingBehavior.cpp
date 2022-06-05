@@ -69,6 +69,7 @@ Behavior *MowingBehavior::execute() {
 }
 
 void MowingBehavior::enter() {
+    skip_area = false;
 
 }
 
@@ -204,7 +205,7 @@ bool MowingBehavior::execute_mowing_plan() {
                     current_status.state_ == actionlib::SimpleClientGoalState::PENDING) {
                     // path is being executed, everything seems fine.
                     // check if we should pause or abort mowing
-                    if (paused || last_config.manual_skip_area) {
+                    if (paused || skip_area) {
                         ROS_INFO_STREAM("cancel mowing was requested - stopping path execution.");
                         mbfClientExePath->cancelAllGoals();
                         break;
@@ -218,12 +219,11 @@ bool MowingBehavior::execute_mowing_plan() {
                 r.sleep();
             }
 
-            if(last_config.manual_skip_area) {
+            if(skip_area) {
                 // remove all paths in current area and return true
                 mowerEnabled = false;
                 currentMowingPaths.clear();
-                last_config.manual_skip_area = false;
-                reconfigServer->updateConfig(last_config);
+                skip_area = false;
                 return true;
             }
 
@@ -266,4 +266,24 @@ bool MowingBehavior::execute_mowing_plan() {
 
     // true, if we have executed all paths
     return currentMowingPaths.empty();
+}
+
+void MowingBehavior::command_home() {
+    this->pause();
+}
+
+void MowingBehavior::command_start() {
+
+}
+
+void MowingBehavior::command_s1() {
+
+}
+
+void MowingBehavior::command_s2() {
+skip_area = true;
+}
+
+bool MowingBehavior::redirect_joystick() {
+    return false;
 }

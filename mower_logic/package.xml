@@ -21,6 +21,9 @@
   <build_depend>tf2_geometry_msgs</build_depend>
   <build_depend>tf2_ros</build_depend>
   <build_depend>ublox_msgs</build_depend>
+  <build_depend>visualization_msgs</build_depend>
+  <build_depend>visualization_msgs</build_depend>
+  <build_depend>sensor_msgs</build_depend>
   <build_export_depend>dynamic_reconfigure</build_export_depend>
   <build_export_depend>ftc_local_planner</build_export_depend>
   <build_export_depend>mbf_msgs</build_export_depend>
@@ -36,6 +39,7 @@
   <exec_depend>dynamic_reconfigure</exec_depend>
   <exec_depend>ftc_local_planner</exec_depend>
   <exec_depend>mbf_msgs</exec_depend>
+  <exec_depend>joy</exec_depend>
   <exec_depend>mower_map</exec_depend>
   <exec_depend>mower_msgs</exec_depend>
   <exec_depend>nav_msgs</exec_depend>

@@ -170,6 +170,8 @@ add_executable(mower_logic
         src/mower_logic/behaviors/IdleBehavior.cpp
         src/mower_logic/behaviors/MowingBehavior.h
         src/mower_logic/behaviors/MowingBehavior.cpp
+        src/mower_logic/behaviors/AreaRecordingBehavior.h
+        src/mower_logic/behaviors/AreaRecordingBehavior.cpp
         )
 add_dependencies(mower_logic ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
 target_link_libraries(mower_logic ${catkin_LIBRARIES})

@@ -27,6 +27,7 @@
 class MowingBehavior : public Behavior {
 
 private:
+    bool skip_area;
     bool create_mowing_plan(int area_index);
 
     bool execute_mowing_plan();
@@ -53,6 +54,15 @@ public:
 
     bool mower_enabled() override;
 
+    void command_home() override;
+
+    void command_start() override;
+
+    void command_s1() override;
+
+    void command_s2() override;
+
+    bool redirect_joystick() override;
 };
 
 

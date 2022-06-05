@@ -211,7 +211,7 @@ Visualization Manager:
       Marker Topic: /slic3r_coverage_planner/path_marker_array
       Name: MarkerArray
       Namespaces:
-        mower_map_service_lines: true
+        {}
       Queue Size: 100
       Value: true
     - Alpha: 1
@@ -304,6 +304,22 @@ Visualization Manager:
       Topic: /move_base_flex/FTCPlanner/global_plan
       Unreliable: false
       Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /area_recorder/progress_visualization
+      Name: Marker
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: true
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /area_recorder/progress_visualization_array
+      Name: MarkerArray
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -341,10 +357,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Scale: -78.72224426269531
+      Scale: -47.2093620300293
       Target Frame: <Fixed Frame>
-      X: 10.885823249816895
-      Y: 3.383115291595459
+      X: 21.94986343383789
+      Y: -1.2103580236434937
     Saved:
       - Angle: 0
         Class: rviz/TopDownOrtho

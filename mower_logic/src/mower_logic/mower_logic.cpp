@@ -39,9 +39,13 @@
 #include "mower_logic/MowerLogicConfig.h"
 #include "behaviors/Behavior.h"
 #include "behaviors/IdleBehavior.h"
+#include "behaviors/AreaRecordingBehavior.h"
+#include "mower_msgs/HighLevelControlSrv.h"
 
+ros::ServiceClient pathClient, mapClient, dockingPointClient, gpsClient, mowClient, emergencyClient, pathProgressClient, setNavPointClient, clearNavPointClient;
 
-ros::ServiceClient pathClient, mapClient, dockingPointClient, gpsClient, mowClient, emergencyClient, setDockingPointClient, pathProgressClient, setNavPointClient, clearNavPointClient;
+ros::NodeHandle *n;
+ros::NodeHandle *paramNh;
 
 dynamic_reconfigure::Server<mower_logic::MowerLogicConfig> *reconfigServer;
 actionlib::SimpleActionClient<mbf_msgs::MoveBaseAction> *mbfClient;
@@ -59,7 +63,7 @@ mower_msgs::Status last_status;
 
 ros::Time last_good_gps(0.0);
 
-bool teachDockingPointMode = false;
+
 bool mowerEnabled = false;
 
 // true, if bot needs to dock or needs to stay docked.
@@ -215,52 +219,76 @@ void reconfigureCB(mower_logic::MowerLogicConfig &c, uint32_t level) {
     last_config = c;
 }
 
+bool highLevelCommand(mower_msgs::HighLevelControlSrvRequest &req, mower_msgs::HighLevelControlSrvResponse &res) {
+    switch(req.command) {
+        case mower_msgs::HighLevelControlSrvRequest::COMMAND_HOME:
+            if(currentBehavior) {
+                currentBehavior->command_home();
+            }
+            break;
+        case mower_msgs::HighLevelControlSrvRequest::COMMAND_START:
+            if(currentBehavior) {
+                currentBehavior->command_start();
+            }
+            break;
+            case mower_msgs::HighLevelControlSrvRequest::COMMAND_S1:
+            if(currentBehavior) {
+                currentBehavior->command_s1();
+            }
+            break;
+            case mower_msgs::HighLevelControlSrvRequest::COMMAND_S2:
+            if(currentBehavior) {
+                currentBehavior->command_s2();
+            }
+            break;
+
+    }
+    return true;
+}
+
+void joyVelReceived(const geometry_msgs::Twist::ConstPtr &joy_vel) {
+    if(currentBehavior && currentBehavior->redirect_joystick()) {
+        cmd_vel_pub.publish(joy_vel);
+    }
+}
 
 int main(int argc, char **argv) {
     ros::init(argc, argv, "mower_logic");
 
-    ros::NodeHandle n;
-    ros::NodeHandle paramNh("~");
+    n = new ros::NodeHandle();
+    paramNh = new ros::NodeHandle("~");
 
     boost::recursive_mutex mutex;
 
-    reconfigServer = new dynamic_reconfigure::Server<mower_logic::MowerLogicConfig>(mutex, paramNh);
+    reconfigServer = new dynamic_reconfigure::Server<mower_logic::MowerLogicConfig>(mutex, *paramNh);
     reconfigServer->setCallback(reconfigureCB);
 
-    teachDockingPointMode = paramNh.param("teach_docking_point_mode", false);
-
-    if (teachDockingPointMode) {
-        ROS_WARN_STREAM("Running in teach docking point mode!!");
-    }
-
-    cmd_vel_pub = n.advertise<geometry_msgs::Twist>("/cmd_vel", 1);
+    cmd_vel_pub = n->advertise<geometry_msgs::Twist>("/logic_vel", 1);
 
     ros::Publisher path_pub;
 
-    path_pub = n.advertise<nav_msgs::Path>("mower_logic/mowing_path", 100, true);
+    path_pub = n->advertise<nav_msgs::Path>("mower_logic/mowing_path", 100, true);
 
-    pathClient = n.serviceClient<slic3r_coverage_planner::PlanPath>(
+    pathClient = n->serviceClient<slic3r_coverage_planner::PlanPath>(
             "slic3r_coverage_planner/plan_path");
-    mapClient = n.serviceClient<mower_map::GetMowingAreaSrv>(
+    mapClient = n->serviceClient<mower_map::GetMowingAreaSrv>(
             "mower_map_service/get_mowing_area");
-    gpsClient = n.serviceClient<mower_msgs::GPSControlSrv>(
+    gpsClient = n->serviceClient<mower_msgs::GPSControlSrv>(
             "mower_service/set_gps_state");
-    mowClient = n.serviceClient<mower_msgs::MowerControlSrv>(
+    mowClient = n->serviceClient<mower_msgs::MowerControlSrv>(
             "mower_service/mow_enabled");
-    emergencyClient = n.serviceClient<mower_msgs::EmergencyStopSrv>(
+    emergencyClient = n->serviceClient<mower_msgs::EmergencyStopSrv>(
             "mower_service/emergency");
 
-    dockingPointClient = n.serviceClient<mower_map::GetDockingPointSrv>(
+    dockingPointClient = n->serviceClient<mower_map::GetDockingPointSrv>(
             "mower_map_service/get_docking_point");
-    setDockingPointClient = n.serviceClient<mower_map::SetDockingPointSrv>(
-            "mower_map_service/set_docking_point");
 
-    pathProgressClient = n.serviceClient<ftc_local_planner::PlannerGetProgress>(
+    pathProgressClient = n->serviceClient<ftc_local_planner::PlannerGetProgress>(
             "/move_base_flex/FTCPlanner/planner_get_progress");
 
-    setNavPointClient = n.serviceClient<mower_map::SetNavPointSrv>(
+    setNavPointClient = n->serviceClient<mower_map::SetNavPointSrv>(
             "mower_map_service/set_nav_point");
-    clearNavPointClient = n.serviceClient<mower_map::ClearNavPointSrv>(
+    clearNavPointClient = n->serviceClient<mower_map::ClearNavPointSrv>(
             "mower_map_service/clear_nav_point");
 
 
@@ -269,9 +297,13 @@ int main(int argc, char **argv) {
     mbfClientExePath = new actionlib::SimpleActionClient<mbf_msgs::ExePathAction>("/move_base_flex/exe_path");
 
 
-    ros::Subscriber status_sub = n.subscribe("/mower/status", 0, statusReceived,
+    ros::Subscriber status_sub = n->subscribe("/mower/status", 0, statusReceived,
                                              ros::TransportHints().tcpNoDelay(true));
-    ros::Subscriber odom_sub = n.subscribe("/mower/odom", 0, odomReceived, ros::TransportHints().tcpNoDelay(true));
+    ros::Subscriber odom_sub = n->subscribe("/mower/odom", 0, odomReceived, ros::TransportHints().tcpNoDelay(true));
+    ros::Subscriber joy_cmd = n->subscribe("/joy_vel", 0, joyVelReceived, ros::TransportHints().tcpNoDelay(true));
+
+    ros::ServiceServer high_level_control_srv = n->advertiseService("mower_service/high_level_control", highLevelCommand);
+
 
     ros::AsyncSpinner asyncSpinner(1);
     asyncSpinner.start();
@@ -372,17 +404,6 @@ int main(int argc, char **argv) {
         return 2;
     }
 
-    if (teachDockingPointMode) {
-        ROS_INFO("Waiting for set docking point server");
-        if (!setDockingPointClient.waitForExistence(ros::Duration(60.0, 0.0))) {
-            ROS_ERROR("Set Docking server service not found.");
-            delete (reconfigServer);
-            delete (mbfClient);
-            delete (mbfClientExePath);
-            return 2;
-        }
-    }
-
     ROS_INFO("Waiting for move base flex");
     if (!mbfClient->waitForServer(ros::Duration(60.0, 0.0))) {
         ROS_ERROR("Move base flex not found.");
@@ -408,7 +429,7 @@ int main(int argc, char **argv) {
     // release emergency if it was set
     setEmergencyMode(false);
 
-    ros::Timer safety_timer = n.createTimer(ros::Duration(0.5), checkSafety);
+    ros::Timer safety_timer = n->createTimer(ros::Duration(0.5), checkSafety);
 
 
     // Behavior execution loop
@@ -431,6 +452,8 @@ int main(int argc, char **argv) {
         }
     }
 
+    delete (n);
+    delete (paramNh);
     delete (reconfigServer);
     delete (mbfClient);
     delete (mbfClientExePath);

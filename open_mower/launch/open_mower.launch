@@ -20,5 +20,25 @@
     </node>
     <node pkg="slic3r_coverage_planner" type="slic3r_coverage_planner" name="slic3r_coverage_planner" output="screen"/>
 
+    <node name="joy" pkg="joy" type="joy_node" required="true" >
+        <param name="~autorepeat_rate" value="10.0"/>
+        <param name="~coalesce_interval" value="0.06"/>
+    </node>
+
+    <node name="joy_teleop" pkg="teleop_twist_joy" type="teleop_node" required="true" >
+        <remap from="cmd_vel" to="joy_vel"/>
+        <param name="~scale_linear" value="0.5"/>
+        <param name="~scale_angular" value="1.5"/>
+        <param name="~scale_linear_turbo" value="1.0"/>
+        <param name="~scale_angular_turbo" value="3.0"/>
+        <param name="~enable_turbo_button" value="4"/>
+    </node>
+
+
+    <node pkg="twist_mux" type="twist_mux" name="twist_mux" output="screen">
+        <remap from="cmd_vel_out" to="/cmd_vel"/>
+
+        <rosparam file="$(find open_mower)/params/twist_mux_topics.yaml"  command="load"/>
+    </node>
 
 </launch>

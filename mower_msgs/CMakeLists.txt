@@ -18,6 +18,7 @@ add_service_files(
         EmergencyStopSrv.srv
         GPSControlSrv.srv
         MowerControlSrv.srv
+        HighLevelControlSrv.srv
 )
 
 ## Generate added messages and services with any dependencies listed here
