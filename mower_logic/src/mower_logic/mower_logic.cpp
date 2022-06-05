@@ -41,6 +41,7 @@
 #include "behaviors/IdleBehavior.h"
 #include "behaviors/AreaRecordingBehavior.h"
 #include "mower_msgs/HighLevelControlSrv.h"
+#include "std_msgs/String.h"
 
 ros::ServiceClient pathClient, mapClient, dockingPointClient, gpsClient, mowClient, emergencyClient, pathProgressClient, setNavPointClient, clearNavPointClient;
 
@@ -266,8 +267,11 @@ int main(int argc, char **argv) {
     cmd_vel_pub = n->advertise<geometry_msgs::Twist>("/logic_vel", 1);
 
     ros::Publisher path_pub;
+    ros::Publisher current_state_pub;
+
 
     path_pub = n->advertise<nav_msgs::Path>("mower_logic/mowing_path", 100, true);
+    current_state_pub = n->advertise<std_msgs::String>("mower_logic/current_state", 100, true);
 
     pathClient = n->serviceClient<slic3r_coverage_planner::PlanPath>(
             "slic3r_coverage_planner/plan_path");
@@ -436,6 +440,9 @@ int main(int argc, char **argv) {
 
     while (ros::ok()) {
         if (currentBehavior != nullptr) {
+            std_msgs::String state_name;
+            state_name.data = currentBehavior->state_name();
+            current_state_pub.publish(state_name);
             currentBehavior->start(last_config);
             if (mowingPaused) {
                 currentBehavior->pause();
@@ -444,6 +451,9 @@ int main(int argc, char **argv) {
             currentBehavior->exit();
             currentBehavior = newBehavior;
         } else {
+            std_msgs::String state_name;
+            state_name.data = "NULL";
+            current_state_pub.publish(state_name);
             // we have no defined behavior, set emergency
             ROS_ERROR_STREAM("null behavior - emergency mode");
             setEmergencyMode(true);
