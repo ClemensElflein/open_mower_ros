@@ -43,6 +43,8 @@ export OM_USE_RELATIVE_POSITION=False
 # export OM_DATUM_LONG=11.575605219552623
 
 # NTRIP Settings
+# Set to False if using external radio.
+export OM_USE_NTRIP=True
 export OM_NTRIP_HOSTNAME=192.168.178.55
 export OM_NTRIP_PORT=2101
 export OM_NTRIP_USER=gps

@@ -1,4 +1,3 @@
-device: tcp://127.0.0.1:4242
 frame_id: gps
 config_on_startup: false
 
