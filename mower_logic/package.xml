@@ -24,6 +24,7 @@
   <build_depend>visualization_msgs</build_depend>
   <build_depend>visualization_msgs</build_depend>
   <build_depend>sensor_msgs</build_depend>
+  <depend>robot_localization</depend>
   <build_export_depend>dynamic_reconfigure</build_export_depend>
   <build_export_depend>ftc_local_planner</build_export_depend>
   <build_export_depend>mbf_msgs</build_export_depend>

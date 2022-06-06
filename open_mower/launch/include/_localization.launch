@@ -3,6 +3,9 @@
     <node pkg="mower_logic" type="mower_odometry" name="mower_odometry" output="screen" required="true">
         <param name="imu_offset" value="$(env OM_IMU_OFFSET)"/>
         <param name="gps_antenna_offset" value="$(env OM_GPS_ANTENNA_OFFSET)"/>
+        <param name="use_relative_position" value="$(env OM_USE_RELATIVE_POSITION)"/>
+        <param unless="$(env OM_USE_RELATIVE_POSITION)" name="datum_lat" value="$(env OM_DATUM_LAT)"/>
+        <param unless="$(env OM_USE_RELATIVE_POSITION)" name="datum_long" value="$(env OM_DATUM_LONG)"/>
     </node>
 
     <node pkg="imu_filter_madgwick" type="imu_filter_node" name="imu_filter_node" required="true">

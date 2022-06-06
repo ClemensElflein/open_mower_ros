@@ -29,6 +29,19 @@ export OM_GPS_SERIAL_PORT=ttyAMA1
 ##        GPS Settings        ##
 ################################
 
+# Relative Positioning vs LatLng coordinates
+# If OM_USE_RELATIVE_POSITION=True, we're using the ublox NAVRELPOSNED messages as position.
+# This makes your base station the map origin
+# If OM_USE_RELATIVE_POSITION=False, we're using an arbitrary point as map origin. This point is called the DATUM point and
+# needs to be set using OM_DATUM_LAT and OM_DATUM_LONG below.
+# If you DON'T have your own base station (e.g. you're using an NTRIP service provider) you should use LAT_LONG positioning, else relative positioning
+export OM_USE_RELATIVE_POSITION=False
+
+# If needed, uncomment and set to coordinates near you (these default coordinates are somewhere in Germany).
+# This will be your map origin!
+# export OM_DATUM_LAT=48.13724720055111
+# export OM_DATUM_LONG=11.575605219552623
+
 # NTRIP Settings
 export OM_NTRIP_HOSTNAME=192.168.178.55
 export OM_NTRIP_PORT=2101
