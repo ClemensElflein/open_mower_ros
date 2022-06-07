@@ -11,6 +11,8 @@
   <url type="website">https://github.com/ClemensElflein/OpenMower</url>
 
   <build_depend>message_generation</build_depend>
+  <build_depend>vesc_msgs</build_depend>
+
   <buildtool_depend>catkin</buildtool_depend>
 
   <export>

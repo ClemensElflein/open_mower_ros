@@ -14,8 +14,8 @@
 // SOFTWARE.
 //
 //
-#ifndef SRC_DOCKINGBEHAVIOR_H
-#define SRC_DOCKINGBEHAVIOR_H
+#ifndef SRC_AREA_RECORDING_BEHAVIOR_H
+#define SRC_AREA_RECORDING_BEHAVIOR_H
 
 #include <actionlib/client/simple_action_client.h>
 #include <mbf_msgs/ExePathAction.h>
@@ -29,19 +29,53 @@
 #include "tf2_geometry_msgs/tf2_geometry_msgs.h"
 #include "mower_msgs/Status.h"
 #include <mower_map/GetDockingPointSrv.h>
+#include "visualization_msgs/MarkerArray.h"
+#include "visualization_msgs/Marker.h"
+#include "sensor_msgs/Joy.h"
+#include "mower_map/MapArea.h"
+#include "mower_map/MapAreas.h"
 
+#include "mower_map/AddMowingAreaSrv.h"
+#include "mower_map/SetDockingPointSrv.h"
+#include "mower_msgs/EmergencyStopSrv.h"
 
-class DockingBehavior : public Behavior {
+#include "geometry_msgs/Twist.h"
+
+class AreaRecordingBehavior : public Behavior {
 public:
-    static DockingBehavior INSTANCE;
+    static AreaRecordingBehavior INSTANCE;
 private:
-    uint retryCount;
-    bool inApproachMode;
-    geometry_msgs::PoseStamped docking_pose_stamped;
 
-    bool approach_docking_point();
+    bool has_odom = false;
 
-    bool dock_straight();
+    sensor_msgs::Joy last_joy;
+    nav_msgs::Odometry last_odom;
+
+    ros::Publisher marker_pub;
+    ros::Publisher marker_array_pub;
+
+    ros::Subscriber joy_sub, odom_sub;
+
+    ros::ServiceClient add_mowing_area_client, set_docking_point_client;
+
+    bool has_first_docking_pos = false;
+    geometry_msgs::Pose first_docking_pos;
+
+    // true, if we should be recording the current data into a polygon
+    bool poly_recording_enabled = false;
+
+    // true, if all polys were recorded and the complete area is finished
+    bool finished_all = false;
+    bool set_docking_position = false;
+
+    visualization_msgs::MarkerArray markers;
+    visualization_msgs::Marker marker;
+
+private:
+    bool recordNewPolygon(geometry_msgs::Polygon &polygon);
+    bool getDockingPosition(geometry_msgs::Pose &pos);
+    void joy_received(const sensor_msgs::Joy &joy_msg);
+    void odom_received(const nav_msgs::Odometry &odom_msg);
 
 public:
     std::string state_name() override;
@@ -70,5 +104,5 @@ public:
 };
 
 
-#endif //SRC_DOCKINGBEHAVIOR_H
+#endif //SRC_AREA_RECORDING_BEHAVIOR_H
 

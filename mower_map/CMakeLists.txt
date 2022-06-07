@@ -72,6 +72,8 @@ add_service_files(
         GetDockingPointSrv.srv
         GetMowingAreaSrv.srv
         SetDockingPointSrv.srv
+        ClearNavPointSrv.srv
+        SetNavPointSrv.srv
 )
 
 ## Generate actions in the 'action' folder
