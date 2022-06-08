@@ -18,27 +18,20 @@
         2. Return back all received data to the GPS device.
         3. Connect to socket server for ROS and publish data there
      -->
-    <node if="$(env OM_USE_NTRIP)" name="str2str1" type="str2str.sh" pkg="open_mower"
+    <node name="str2str1" type="str2str.sh" pkg="open_mower"
           required="true"
           args="-b 1 -in serial://$(arg serial_port):921600 -out tcpsvr://127.0.0.1:4242"/>
 
     <!-- The second instance connects to the base via NTRIP and publishes the data to the local socket created earlier  -->
-    <node if="$(env OM_USE_NTRIP)" name="str2str2" type="str2str.sh" pkg="open_mower"
+    <node name="str2str2" type="str2str.sh" pkg="open_mower"
           required="true"
           args="-in ntrip://$(arg ntrip_user):$(arg ntrip_password)@$(arg ntrip_ip):$(arg ntrip_port)/$(arg ntrip_endpoint) -out tcpcli://127.0.0.1:4242"/>
 
 
-
-    <node pkg="ublox_gps" type="ublox_gps" name="ublox"
-          output="screen"
-          clear_params="true"
-          respawn="true"
-          respawn_delay="5">
-        <rosparam command="load"
-                  file="$(find open_mower)/params/gps.yaml" />
-        <param name="device" value="tcp://127.0.0.1:4242" if="$(env OM_USE_NTRIP)" />
-        <param name="device" value="/dev/$(arg serial_port)" unless="$(env OM_USE_NTRIP)" />
-    </node>
+    <include file="$(find ublox_gps)/launch/ublox_device.launch">
+        <arg name="param_file_name" value="gps"/>
+        <arg name="param_file_dir" value="$(find open_mower)/params"/>
+    </include>
 
 
 

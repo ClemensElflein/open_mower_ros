@@ -13,5 +13,6 @@
         <arg name="ntrip_endpoint" value="Pelm01"/>
         <arg name="ntrip_user" value="rtk"/>
         <arg name="ntrip_password" value="rtk_base"/>
+    </include>    
 
 </launch>
