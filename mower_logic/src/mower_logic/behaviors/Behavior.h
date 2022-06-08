@@ -83,6 +83,15 @@ public:
 
     // return true, if the mower motor should currently be running.
     virtual bool mower_enabled() = 0;
+
+    // return true to redirect joystick speeds to the controller
+    virtual bool redirect_joystick() = 0;
+
+
+    virtual void command_home() = 0;
+    virtual void command_start() = 0;
+    virtual void command_s1() = 0;
+    virtual void command_s2() = 0;
 };
 
 #endif //SRC_BEHAVIOR_H

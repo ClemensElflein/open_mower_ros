@@ -1,6 +1,7 @@
 <launch>
 
   <node name="move_base_flex" pkg="mbf_costmap_nav" type="mbf_costmap_nav" required="true" output="screen">
+    <remap from="cmd_vel" to="/nav_vel"/>
     <rosparam file="$(find open_mower)/params/costmap_common_params.yaml" command="load" ns="global_costmap" />
     <rosparam file="$(find open_mower)/params/costmap_common_params.yaml" command="load" ns="local_costmap" />
     <rosparam file="$(find open_mower)/params/local_costmap_params.yaml" command="load" />

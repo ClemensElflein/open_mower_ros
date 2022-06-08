@@ -233,3 +233,25 @@ bool DockingBehavior::mower_enabled() {
     // No mower during docking
     return false;
 }
+
+void DockingBehavior::command_home() {
+
+}
+
+void DockingBehavior::command_start() {
+
+}
+
+void DockingBehavior::command_s1() {
+
+}
+
+void DockingBehavior::command_s2() {
+
+}
+
+bool DockingBehavior::redirect_joystick() {
+    return false;
+}
+
+

@@ -21,18 +21,20 @@
 #include "UndockingBehavior.h"
 
 #include "slic3r_coverage_planner/PlanPath.h"
+#include "slic3r_coverage_planner/Path.h"
 #include "ftc_local_planner/PlannerGetProgress.h"
 
 class MowingBehavior : public Behavior {
 
 private:
+    bool skip_area;
     bool create_mowing_plan(int area_index);
 
     bool execute_mowing_plan();
 
     // Progress
     bool mowerEnabled = false;
-    std::vector<nav_msgs::Path> currentMowingPaths;
+    std::vector<slic3r_coverage_planner::Path> currentMowingPaths;
 
 
 public:
@@ -52,6 +54,15 @@ public:
 
     bool mower_enabled() override;
 
+    void command_home() override;
+
+    void command_start() override;
+
+    void command_s1() override;
+
+    void command_s2() override;
+
+    bool redirect_joystick() override;
 };
 
 

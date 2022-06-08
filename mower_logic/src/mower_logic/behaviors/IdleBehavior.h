@@ -22,6 +22,9 @@
 
 
 class IdleBehavior : public Behavior {
+private:
+    bool manual_start_mowing = false;
+    bool start_area_recorder = false;
 public:
     static IdleBehavior INSTANCE;
 
@@ -39,6 +42,15 @@ public:
 
     bool mower_enabled() override;
 
+    void command_home() override;
+
+    void command_start() override;
+
+    void command_s1() override;
+
+    void command_s2() override;
+
+    bool redirect_joystick() override;
 };
 
 

@@ -146,3 +146,23 @@ bool UndockingBehavior::waitForGPS() {
 UndockingBehavior::UndockingBehavior(Behavior* next) {
     this->nextBehavior = next;
 }
+
+void UndockingBehavior::command_home() {
+
+}
+
+void UndockingBehavior::command_start() {
+
+}
+
+void UndockingBehavior::command_s1() {
+
+}
+
+void UndockingBehavior::command_s2() {
+
+}
+
+bool UndockingBehavior::redirect_joystick() {
+    return false;
+}

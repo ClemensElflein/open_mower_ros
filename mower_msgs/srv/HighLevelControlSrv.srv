@@ -1,0 +1,6 @@
+uint8 COMMAND_START=1
+uint8 COMMAND_HOME=2
+uint8 COMMAND_S1=3
+uint8 COMMAND_S2=4
+uint8 command
+---
