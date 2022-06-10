@@ -3,7 +3,7 @@
 -->
 <launch>
    <!-- <include file="$(find open_mower)/launch/include/_comms.launch"/> -->
-    <include file="$(find open_mower)/launch/include/_move_base.launch"/>
+    <include file="$(find open_mower)/launch/include/_move_base.launch"/> 
     <include file="$(find rosmower)/launch/robot_localization.launch"/>
 <!--    <include file="$(find open_mower)/launch/include/_record.launch">-->
 <!--        <arg name="prefix" value="move_around"/>-->

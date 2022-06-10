@@ -1,7 +1,30 @@
-obstacle_range: 3.0
-raytrace_range: 4.0
-#footprint: [[x0, y0], [x1, y1], ... [xn, yn]]
-robot_radius: 0.0
+obstacle_range: 2.5  # max Distance to object to get marked as obstacle
+raytrace_range: 3.0  # max distance to get accounted as free space
+footprint: [[ 0.45,  0.2], [-0.15,  0.2], [-0.15, -0.2], [ 0.45, -0.2]]
 
 max_obstacle_height: 1.0
 
+plugins:
+- {name: obstacles_layer, type: "costmap_2d::ObstacleLayer"}
+- {name: inflater_layer, type: "costmap_2d::InflationLayer"}
+
+obstacles_layer:
+  observation_sources: bumper scan
+
+  scan: {
+    sensor_frame: lidar_frame, 
+    data_type: LaserScan, 
+    topic: /scan, 
+    marking: true, 
+    clearing: true}
+
+  bumper: {
+    sensor_frame: base_link,
+    data_type: PointCloud2,
+    topic: /hovermower/sensors/Bumper_pointcloud, 
+    marking: true,
+    clearing: true}
+
+inflater_layer:
+ inflation_radius: 0.1 # was 0.1
+ cost_scaling_factor: 1.0 # was 0.5

@@ -4,15 +4,16 @@
 <launch>
     <arg name="prefix" default="record"/>
 
-    <node if="$(optenv OM_ENABLE_RECORDING False)" pkg="rosbag" type="record" name="rosbag_record_diag"
-          args="record -o /home/ubuntu/$(arg prefix)
+    <node  pkg="rosbag" type="record" name="rosbag_record_diag"
+          args="record -o /home/ros/$(arg prefix)
 /clock
 /time_reference
 /tf
 /tf_static
 /joy
-/cmd_vel
-/imu/data_raw
+/hoverboard_velocity_controller/cmd_vel
+/bno08x/raw
 /ublox/navrelposned
+/ublox/navstatus
 /ublox/fix " />
 </launch>

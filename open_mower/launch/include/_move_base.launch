@@ -16,7 +16,7 @@
 
   <node name="move_base_legacy_relay" pkg="mbf_costmap_nav" type="move_base_legacy_relay.py">
     <remap from="mower/odom" to="/odometry/filtered_map"/>
-    <param name="base_local_planner" value="FreePlanner" />
+    <param name="base_local_planner" value="FTCPlanner" />
     <param name="base_global_planner" value="GlobalPlanner" />
   </node>
 

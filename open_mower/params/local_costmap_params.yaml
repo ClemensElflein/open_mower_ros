@@ -7,6 +7,6 @@ local_costmap:
   rolling_window: true
   width: 1.5
   height: 1.5
-  resolution: 0.15
+  resolution: 0.05
   static_map: true
   map_topic: mower_map_service/map

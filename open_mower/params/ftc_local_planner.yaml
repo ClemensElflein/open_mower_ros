@@ -1,6 +1,6 @@
 FTCPlanner:
   acceleration: 0.1
-  forward_only: true
+  forward_only: false
   goal_timeout: 20.0
   kd_ang: 0.5
   kd_lat: 1.23
@@ -14,8 +14,8 @@ FTCPlanner:
   kp_ang: 6.1538
   kp_lat: 49.2307
   kp_lon: 10.0
-  max_cmd_vel_ang: 3.1
-  max_cmd_vel_speed: 1.0
+  max_cmd_vel_ang: 0.35
+  max_cmd_vel_speed: .20
   max_follow_distance: 1.0
   max_goal_angle_error: 20.0
   max_goal_distance_error: 0.2
