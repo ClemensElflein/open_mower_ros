@@ -37,7 +37,7 @@
 
 
 ros::Publisher status_pub;
-ros::Publisher mower_imu_pub;
+
 ros::Publisher sensor_imu_pub;
 ros::Publisher sensor_mag_pub;
 
@@ -321,8 +321,7 @@ void handleLowLevelIMU(struct ll_imu *imu) {
     sensor_imu_msg.angular_velocity.x = imu_msg.gx;
     sensor_imu_msg.angular_velocity.y = imu_msg.gy;
     sensor_imu_msg.angular_velocity.z = imu_msg.gz;
-
-    mower_imu_pub.publish(imu_msg);
+ 
     sensor_imu_pub.publish(sensor_imu_msg);
     sensor_mag_pub.publish(sensor_mag_msg);
 }
@@ -384,7 +383,7 @@ int main(int argc, char **argv) {
     right_vesc_interface->start(right_esc_port_name);
 
     status_pub = n.advertise<mower_msgs::Status>("mower/status", 1);
-    mower_imu_pub = n.advertise<mower_msgs::ImuRaw>("mower/imu", 1);
+
     sensor_imu_pub = n.advertise<sensor_msgs::Imu>("imu/data_raw", 1);
     sensor_mag_pub = n.advertise<sensor_msgs::MagneticField>("imu/mag", 1);
     ros::ServiceServer mow_service = n.advertiseService("mower_service/mow_enabled", setMowEnabled);
