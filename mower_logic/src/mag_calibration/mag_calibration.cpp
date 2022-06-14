@@ -68,8 +68,8 @@ void magReceived(const sensor_msgs::MagneticField::ConstPtr &msg) {
 int main(int argc, char **argv) {
     ros::init(argc, argv, "mag_calibration");
 
-    minX = minY=minZ=INFINITY;
-    maxX = maxY = maxY = -INFINITY;
+    minX = minY = minZ=INFINITY;
+    maxX = maxY = maxZ = -INFINITY;
 
     std::cout << "Rotate the mower around all axes and press enter once you are done.";
     sleep(2);
