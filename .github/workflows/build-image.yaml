@@ -42,4 +42,4 @@ jobs:
           context: .
           platforms: linux/amd64,linux/arm/v7
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{github.repository}}/${{secrets.REPO}}:latest
+          tags: ${{github.repository}}:latest
