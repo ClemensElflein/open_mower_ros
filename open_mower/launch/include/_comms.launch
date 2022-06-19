@@ -5,12 +5,23 @@
 <launch>
     <!-- TODO: Add parameter for simulation -->
 
-    <node pkg="mower_comms" type="mower_comms" name="mower_comms">
-        <param name="ll_serial_port" value="/dev/$(env OM_LL_SERIAL_PORT)"/>
-        <param name="left_esc_serial_port" value="/dev/$(env OM_LEFT_SERIAL_PORT)"/>
-        <param name="right_esc_serial_port" value="/dev/$(env OM_RIGHT_SERIAL_PORT)"/>
-        <param name="mow_esc_serial_port" value="/dev/$(env OM_MOW_SERIAL_PORT)"/>
-    </node>
+    <!-- depends on a hardware implementation, comms node implementation can be specified e.g. rosserial for mowgli -->
+    <arg name="comms_node" default="openmower"/>
+
+    <group if="$(eval comms_node == 'openmower')">
+        <node pkg="mower_comms" type="mower_comms" name="mower_comms">
+            <param name="ll_serial_port" value="/dev/$(env OM_LL_SERIAL_PORT)"/>
+            <param name="left_esc_serial_port" value="/dev/$(env OM_LEFT_SERIAL_PORT)"/>
+            <param name="right_esc_serial_port" value="/dev/$(env OM_RIGHT_SERIAL_PORT)"/>
+            <param name="mow_esc_serial_port" value="/dev/$(env OM_MOW_SERIAL_PORT)"/>
+        </node>
+    </group>
+    <group if="$(eval comms_node == 'rosserial')">
+        <node pkg="rosserial_python" type="serial_node.py" name="serial_node">
+            <param name="port" value="/dev/$(env OM_ROSSERIAL_SERIAL_PORT)"/>
+            <param name="baud" value="115200"/>
+        </node>
+    </group>
     
     <include file="$(find open_mower)/launch/include/_gps.launch">
         <arg name="serial_port" value="$(env OM_GPS_SERIAL_PORT)"/>
