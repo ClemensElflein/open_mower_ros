@@ -1,5 +1,7 @@
 FROM ros:noetic-ros-base
 
+ENV DEBIAN_FRONTEND=noninteractive
+
 RUN rosdep update
 RUN apt update && \
     apt install -y git
