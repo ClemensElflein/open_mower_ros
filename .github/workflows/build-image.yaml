@@ -2,13 +2,10 @@ name: Build
 
 # Controls when the workflow will run
 on:
-  workflow_dispatch
   push:
     branches:
       - 'main'
       - 'dev'
-    tags:
-      - 'v*.*.*'
   pull_request:
     branches:
       - 'main'
