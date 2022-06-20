@@ -10,7 +10,7 @@ RUN git clone --recurse-submodules https://github.com/ClemensElflein/OpenMower /
 
 WORKDIR /opt/openmower/ROS
 RUN rosdep install --from-paths src --ignore-src -y
-RUN bash -c "source "/opt/ros/$ROS_DISTRO/setup.bash" && catkin_make"
+RUN bash -c "source /opt/ros/$ROS_DISTRO/setup.bash && catkin_make"
 
 COPY .github/assets/openmower_entrypoint.sh /openmower_entrypoint.sh
 RUN chmod +x /openmower_entrypoint.sh
