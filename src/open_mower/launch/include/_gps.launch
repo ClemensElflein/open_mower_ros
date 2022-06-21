@@ -6,12 +6,6 @@
     TAG: b34c
  -->
 <launch>
-    <arg name="serial_port" default="ttyS0"/>
-    <arg name="ntrip_ip" default="192.168.178.55"/>
-    <arg name="ntrip_port" default="2101"/>
-    <arg name="ntrip_endpoint" default="BASE1"/>
-    <arg name="ntrip_user" default="gps"/>
-    <arg name="ntrip_password" default="gps"/>
 
     <!-- Run the first str2str instance which does the following:
         1. connect to serial port and publish the stream on a local server socket.
@@ -20,13 +14,12 @@
      -->
     <node if="$(env OM_USE_NTRIP)" name="str2str1" type="str2str.sh" pkg="open_mower"
           required="true"
-          args="-b 1 -in serial://$(arg serial_port):921600 -out tcpsvr://127.0.0.1:4242"/>
+          args="-b 1 -in serial://$(env OM_GPS_SERIAL_PORT):921600 -out tcpsvr://127.0.0.1:4242"/>
 
     <!-- The second instance connects to the base via NTRIP and publishes the data to the local socket created earlier  -->
     <node if="$(env OM_USE_NTRIP)" name="str2str2" type="str2str.sh" pkg="open_mower"
           required="true"
-          args="-in ntrip://$(arg ntrip_user):$(arg ntrip_password)@$(arg ntrip_ip):$(arg ntrip_port)/$(arg ntrip_endpoint) -out tcpcli://127.0.0.1:4242"/>
-
+          args="-in ntrip://$(env OM_NTRIP_USER):$(env OM_NTRIP_PASSWORD)@$(env OM_NTRIP_HOSTNAME):$(env OM_NTRIP_PORT)/$(env OM_NTRIP_ENDPOINT) -out tcpcli://127.0.0.1:4242"/>
 
 
     <node pkg="ublox_gps" type="ublox_gps" name="ublox"
@@ -37,7 +30,7 @@
         <rosparam command="load"
                   file="$(find open_mower)/params/gps.yaml" />
         <param name="device" value="tcp://127.0.0.1:4242" if="$(env OM_USE_NTRIP)" />
-        <param name="device" value="/dev/$(arg serial_port)" unless="$(env OM_USE_NTRIP)" />
+        <param name="device" value="/dev/$(env OM_GPS_SERIAL_PORT)" unless="$(env OM_USE_NTRIP)" />
     </node>
 
 

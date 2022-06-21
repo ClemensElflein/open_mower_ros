@@ -13,12 +13,7 @@
     </node>
     
     <include file="$(find open_mower)/launch/include/_gps.launch">
-        <arg name="serial_port" value="$(env OM_GPS_SERIAL_PORT)"/>
-        <arg name="ntrip_ip" value="$(env OM_NTRIP_HOSTNAME)"/>
-        <arg name="ntrip_port" value="$(env OM_NTRIP_PORT)"/>
-        <arg name="ntrip_endpoint" value="$(env OM_NTRIP_ENDPOINT)"/>
-        <arg name="ntrip_user" value="$(env OM_NTRIP_USER)"/>
-        <arg name="ntrip_password" value="$(env OM_NTRIP_PASSWORD)"/>
+
     </include>
 
 
