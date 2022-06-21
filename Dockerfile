@@ -4,11 +4,14 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 RUN rosdep update
 RUN apt update && \
-    apt install -y git
+    apt install -y git libmodule-build-perl
 
-RUN git clone --recurse-submodules https://github.com/ClemensElflein/OpenMower /opt/openmower
+COPY ./ /opt/openmower
 
-WORKDIR /opt/openmower/ROS
+WORKDIR /opt/openmower
+
+RUN git submodule update --init --recursive
+
 RUN rosdep install --from-paths src --ignore-src -y
 RUN bash -c "source /opt/ros/$ROS_DISTRO/setup.bash && catkin_make"
 
