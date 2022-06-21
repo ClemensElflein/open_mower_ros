@@ -4,7 +4,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 RUN rosdep update
 RUN apt update && \
-    apt install -y git libmodule-build-perl
+    apt install -y git
 
 COPY ./ /opt/openmower
 
