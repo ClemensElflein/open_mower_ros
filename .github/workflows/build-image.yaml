@@ -4,12 +4,12 @@ name: Build
 on:
   push:
     branches:
-      - 'main'
-      - 'dev'
+      - '**'
+    tags:
+      - 'v*.*.*'
   pull_request:
     branches:
       - 'main'
-      - 'dev'
 
 # permissions are needed if pushing to ghcr.io
 permissions:
@@ -22,6 +22,23 @@ jobs:
       # Get the repository's code
       - name: Checkout
         uses: actions/checkout@v2
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          # list of Docker images to use as base name for tags
+          images: |
+            ${{github.repository}}
+            ghcr.io/${{github.repository}}
+          # generate Docker tags based on the following events/attributes
+          tags: |
+            type=schedule
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha
       # https://github.com/docker/setup-qemu-action
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
@@ -40,6 +57,7 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: .
-          platforms: linux/amd64,linux/arm/v7
+          platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{github.repository}}:latest
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
