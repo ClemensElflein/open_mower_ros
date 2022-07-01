@@ -73,7 +73,11 @@ export OM_GPS_TIMEOUT_SEC=5.0
 
 
 # Mowing Behavior Settings
+# True to enable mowing motor
 export OM_ENABLE_MOWER=true
+
+# True to start mowing automatically. If this is false, you need to start manually by pressing the start button
+export OM_AUTOMATIC_START=false
 
 export OM_OUTLINE_OFFSET=0.05
 export OM_OUTLINE_COUNT=4
