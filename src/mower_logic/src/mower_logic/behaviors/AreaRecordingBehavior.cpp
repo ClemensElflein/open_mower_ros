@@ -109,11 +109,15 @@ Behavior *AreaRecordingBehavior::execute() {
 
 
         if(!error && has_outline) {
-            ROS_INFO_STREAM("Area recording completed.");
+            if(is_mowing_area) {
+                ROS_INFO_STREAM("Area recording completed. Adding mowing area.");
+            } else {
+                ROS_INFO_STREAM("Area recording completed. Adding navigation area.");
+            }
             mower_map::AddMowingAreaSrv srv;
-            srv.request.isNavigationArea = last_joy.buttons[5];
+            srv.request.isNavigationArea = !is_mowing_area;
             srv.request.area = result;
-            if(add_mowing_area_client.call(srv)) {
+            if (add_mowing_area_client.call(srv)) {
                 ROS_INFO_STREAM("Area added successfully");
             } else {
                 ROS_ERROR_STREAM("error adding area");
@@ -190,13 +194,24 @@ void AreaRecordingBehavior::joy_received(const sensor_msgs::Joy &joy_msg) {
         ROS_INFO_STREAM("B PRESSED");
         poly_recording_enabled = !poly_recording_enabled;
     }
-    // Y was pressed, we finish the recording
-    if (joy_msg.buttons[3] && !last_joy.buttons[3]) {
-        ROS_INFO_STREAM("Y PRESSED");
+    // Y + up was pressed, we finish the recording for a navigation area
+    if ((joy_msg.buttons[3] && joy_msg.axes[7] > 0.5) && !(last_joy.buttons[3] && last_joy.axes[7] > 0.5)) {
+        ROS_INFO_STREAM("Y + UP PRESSED, recording navigation area");
         // stop current poly recording
         poly_recording_enabled = false;
 
         // set finished
+        is_mowing_area = false;
+        finished_all = true;
+    }
+    // Y + down was pressed, we finish the recording for a navigation area
+    if ((joy_msg.buttons[3] && joy_msg.axes[7] < -0.5) && !(last_joy.buttons[3] && last_joy.axes[7] < -0.5)) {
+        ROS_INFO_STREAM("Y + DOWN PRESSED, recording mowing area");
+        // stop current poly recording
+        poly_recording_enabled = false;
+
+        // set finished
+        is_mowing_area = true;
         finished_all = true;
     }
 

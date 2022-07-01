@@ -441,7 +441,12 @@ void readMapFromFile(const std::string& filename, bool append = false) {
 bool addMowingArea(mower_map::AddMowingAreaSrvRequest &req, mower_map::AddMowingAreaSrvResponse &res) {
     ROS_INFO_STREAM("Got addMowingArea call");
 
-    mowing_areas.push_back(req.area);
+    if(req.isNavigationArea) {
+        navigation_areas.push_back(req.area);
+    } else {
+        mowing_areas.push_back(req.area);
+    }
+
     saveMapToFile();
     buildMap();
     return true;

@@ -65,6 +65,7 @@ private:
     bool poly_recording_enabled = false;
 
     // true, if all polys were recorded and the complete area is finished
+    bool is_mowing_area = false;
     bool finished_all = false;
     bool set_docking_position = false;
 
