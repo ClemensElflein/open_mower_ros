@@ -11,4 +11,10 @@
 
 
     <node pkg="mower_map" type="mower_map_service" name="map_service" output="screen"/>
+
+    <node pkg="twist_mux" type="twist_mux" name="twist_mux" output="screen">
+        <remap from="cmd_vel_out" to="/cmd_vel"/>
+
+        <rosparam file="$(find open_mower)/params/twist_mux_topics.yaml"  command="load"/>
+    </node>
 </launch>
