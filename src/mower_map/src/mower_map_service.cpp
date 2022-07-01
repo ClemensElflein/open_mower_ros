@@ -64,6 +64,7 @@ std::vector<mower_map::MapArea> mowing_areas;
 // The recorded docking pose. Note that this is the pose from which the docking attempt is started
 // I.e. the robot will drive to this pose and then drive forward
 geometry_msgs::Pose docking_point;
+bool has_docking_point = false;
 bool show_fake_obstacle = false;
 geometry_msgs::Pose fake_obstacle_pose;
 
@@ -417,15 +418,15 @@ void readMapFromFile(const std::string& filename, bool append = false) {
     }
 
     {
-        bool found_docking_point = false;
+        has_docking_point = false;
         rosbag::View view(bag, rosbag::TopicQuery("docking_point"));
         for (rosbag::MessageInstance const m: view) {
             auto pt = m.instantiate<geometry_msgs::Pose>();
             docking_point = *pt;
-            found_docking_point = true;
+            has_docking_point = true;
             break;
         }
-        if (!found_docking_point) {
+        if (!has_docking_point) {
             geometry_msgs::Pose empty;
             empty.orientation.w = 1.0;
             docking_point = empty;
@@ -513,6 +514,7 @@ bool setDockingPoint(mower_map::SetDockingPointSrvRequest &req, mower_map::SetDo
     ROS_INFO_STREAM("Setting Docking Point");
 
     docking_point = req.docking_pose;
+    has_docking_point = true;
 
     saveMapToFile();
     buildMap();
@@ -526,7 +528,7 @@ bool getDockingPoint(mower_map::GetDockingPointSrvRequest &req, mower_map::GetDo
 
     res.docking_pose = docking_point;
 
-    return true;
+    return has_docking_point;
 }
 bool setNavPoint(mower_map::SetNavPointSrvRequest &req, mower_map::SetNavPointSrvResponse &res) {
     ROS_INFO_STREAM("Setting Nav Point");
@@ -554,7 +556,7 @@ bool clearNavPoint(mower_map::ClearNavPointSrvRequest &req, mower_map::ClearNavP
 
 int main(int argc, char **argv) {
     ros::init(argc, argv, "mower_map_service");
-
+    has_docking_point = false;
     ros::NodeHandle n;
     map_pub = n.advertise<nav_msgs::OccupancyGrid>("mower_map_service/map", 10, true);
     map_areas_pub = n.advertise<mower_map::MapAreas>("mower_map_service/map_areas", 10, true);

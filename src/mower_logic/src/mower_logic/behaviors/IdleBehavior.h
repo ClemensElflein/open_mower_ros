@@ -19,7 +19,9 @@
 
 #include "Behavior.h"
 #include "UndockingBehavior.h"
-
+#include <dynamic_reconfigure/server.h>
+#include "mower_map/GetMowingAreaSrv.h"
+#include "AreaRecordingBehavior.h"
 
 class IdleBehavior : public Behavior {
 private:

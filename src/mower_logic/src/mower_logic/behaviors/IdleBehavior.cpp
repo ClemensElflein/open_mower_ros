@@ -14,9 +14,7 @@
 // SOFTWARE.
 //
 //
-#include <dynamic_reconfigure/server.h>
 #include "IdleBehavior.h"
-#include "AreaRecordingBehavior.h"
 
 extern void stop();
 extern void setEmergencyMode(bool emergency);
@@ -26,6 +24,9 @@ extern bool mowingPaused;
 extern mower_logic::MowerLogicConfig last_config;
 extern dynamic_reconfigure::Server<mower_logic::MowerLogicConfig> *reconfigServer;
 
+extern ros::ServiceClient mapClient;
+extern ros::ServiceClient dockingPointClient;
+
 IdleBehavior IdleBehavior::INSTANCE;
 
 std::string IdleBehavior::state_name() {
@@ -34,6 +35,21 @@ std::string IdleBehavior::state_name() {
 
 Behavior *IdleBehavior::execute() {
 
+    // Check, if we have a configured map. If not, print info and go to area recorder
+    mower_map::GetMowingAreaSrv mapSrv;
+    mapSrv.request.index = 0;
+    if (!mapClient.call(mapSrv)) {
+        ROS_WARN("We don't have a map configured. Starting Area Recorder!");
+        return &AreaRecordingBehavior::INSTANCE;
+    }
+
+
+    // Check, if we have a docking position. If not, print info and go to area recorder
+    mower_map::GetDockingPointSrv get_docking_point_srv;
+    if(!dockingPointClient.call(get_docking_point_srv)) {
+        ROS_WARN("We don't have a docking point configured. Starting Area Recorder!");
+        return &AreaRecordingBehavior::INSTANCE;
+    }
 
     ros::Rate r(25);
     while (ros::ok()) {
