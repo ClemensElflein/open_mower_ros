@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(vesc_msgs)
+project(xesc_msgs)
 
 find_package(catkin REQUIRED COMPONENTS
   std_msgs
@@ -8,7 +8,7 @@ find_package(catkin REQUIRED COMPONENTS
 
 add_message_files(
   DIRECTORY msg
-  FILES VescState.msg VescStateStamped.msg
+  FILES XescState.msg XescStateStamped.msg
 )
 
 generate_messages(

@@ -11,14 +11,11 @@
 
   <buildtool_depend>catkin</buildtool_depend>
 
-  <depend>nodelet</depend>
+  <depend>xesc</depend>
   <depend>pluginlib</depend>
   <depend>roscpp</depend>
   <depend>std_msgs</depend>
-  <depend>vesc_msgs</depend>
+  <depend>xesc_msgs</depend>
   <depend>serial</depend>
 
-  <export>
-    <nodelet plugin="${prefix}/vesc_driver_nodelet.xml"/>
-  </export>
 </package>

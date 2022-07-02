@@ -4,18 +4,18 @@ project(xesc_2040_driver)
 add_compile_options(-std=c++11)
 
 find_package(catkin REQUIRED COMPONENTS
-  nodelet
   pluginlib
   roscpp
   std_msgs
   serial
-        vesc_msgs
+        xesc_msgs
+        xesc
 )
 
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES xesc_2040_driver
-  CATKIN_DEPENDS nodelet pluginlib roscpp std_msgs vesc_msgs serial
+  CATKIN_DEPENDS pluginlib roscpp std_msgs xesc_msgs serial
 )
 
 ###########
@@ -31,10 +31,19 @@ include_directories(
 # driver libraries
 add_library(xesc_2040_driver
         src/xesc_2040_interface.cpp
+        src/xesc_2040_driver.cpp
         include/xesc_2040_driver/COBS.h
-        include/xesc_2040_driver/xesc_2040_datatypes.h)
+        include/xesc_2040_driver/xesc_2040_datatypes.h include/xesc_2040_driver/xesc_2040_driver.h)
 
 add_dependencies(xesc_2040_driver ${catkin_EXPORTED_TARGETS})
+
+# node executable
+add_executable(xesc_2040_driver_node src/xesc_2040_driver_node.cpp)
+add_dependencies(xesc_2040_driver_node ${catkin_EXPORTED_TARGETS})
+target_link_libraries(xesc_2040_driver_node
+        xesc_2040_driver
+        ${catkin_LIBRARIES}
+        )
 
 #############
 ## Install ##
@@ -47,15 +56,6 @@ install(TARGETS xesc_2040_driver
 install(DIRECTORY include/${PROJECT_NAME}
   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
 )
-
-# node executable
-add_executable(xesc_2040_driver_node src/xesc_2040_driver_node.cpp)
-add_dependencies(xesc_2040_driver_node ${catkin_EXPORTED_TARGETS})
-target_link_libraries(xesc_2040_driver_node
-        xesc_2040_driver
-        ${catkin_LIBRARIES}
-        )
-
 
 #install(DIRECTORY launch
 #  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch

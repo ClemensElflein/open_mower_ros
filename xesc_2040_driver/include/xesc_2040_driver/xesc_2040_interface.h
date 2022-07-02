@@ -42,25 +42,12 @@ namespace xesc_2040_driver {
         int32_t fault_code;
     };
 
-/**
- * Class providing an interface to the Vedder VESC motor controller via a serial port interface.
- */
     class Xesc2040Interface : private boost::noncopyable {
     public:
         typedef std::function<void(const std::string &)> ErrorHandlerFunction;
 
-        /**
-         * Creates a VescInterface object. Opens the serial port interface to the VESC if @p port is not
-         * empty, otherwise the serial port remains closed until connect() is called.
-         *
-         * @param port Address of the serial port, e.g. '/dev/ttyUSB0'.
-         *
-         */
         Xesc2040Interface(const ErrorHandlerFunction &error_handler);
 
-        /**
-         * VescInterface destructor.
-         */
         ~Xesc2040Interface();
 
         void setDutyCycle(double duty_cycle);
@@ -83,9 +70,7 @@ namespace xesc_2040_driver {
                              float max_pcb_temp);
 
     private:
-        /**
-         * Send a VESC packet.
-         */
+
         bool send(uint8_t *packet, size_t size);
 
         void send_settings();
@@ -122,4 +107,4 @@ namespace xesc_2040_driver {
 
 }  // namespace xesc_2040_driver
 
-#endif  // VESC_DRIVER_VESC_INTERFACE_H_
+#endif
