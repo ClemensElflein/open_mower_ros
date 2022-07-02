@@ -164,6 +164,6 @@ namespace vesc_driver {
         uint32_t state_request_millis;
     };
 
-}  // namespace vesc_driver
+}  // namespace xesc_2040_driver
 
 #endif  // VESC_DRIVER_VESC_INTERFACE_H_

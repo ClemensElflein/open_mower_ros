@@ -275,6 +275,6 @@ public:
   explicit VescPacketSetServoPos(double servo_pos);
 };
 
-}  // namespace vesc_driver
+}  // namespace xesc_2040_driver
 
 #endif  // VESC_DRIVER_VESC_PACKET_H_

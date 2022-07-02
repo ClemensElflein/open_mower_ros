@@ -196,4 +196,4 @@ VescPacketFactory::FactoryMap* VescPacketFactory::getMap()
 REGISTER_PACKET_TYPE(COMM_FW_VERSION, VescPacketFWVersion)
 REGISTER_PACKET_TYPE(COMM_GET_VALUES, VescPacketValues)
 
-}  // namespace vesc_driver
+}  // namespace xesc_2040_driver

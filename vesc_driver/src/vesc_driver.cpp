@@ -223,4 +223,4 @@ namespace vesc_driver {
         return value;
     }
 
-}  // namespace vesc_driver
+}  // namespace xesc_2040_driver

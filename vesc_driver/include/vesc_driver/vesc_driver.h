@@ -102,6 +102,6 @@ private:
   void positionCallback(const std_msgs::Float64::ConstPtr& position);
 };
 
-}  // namespace vesc_driver
+}  // namespace xesc_2040_driver
 
 #endif  // VESC_DRIVER_VESC_DRIVER_H_

@@ -60,6 +60,6 @@ void VescDriverNodelet::onInit()
   vesc_driver_.reset(new VescDriver(getNodeHandle(), getPrivateNodeHandle()));
 }
 
-}  // namespace vesc_driver
+}  // namespace xesc_2040_driver
 
 PLUGINLIB_EXPORT_CLASS(vesc_driver::VescDriverNodelet, nodelet::Nodelet);

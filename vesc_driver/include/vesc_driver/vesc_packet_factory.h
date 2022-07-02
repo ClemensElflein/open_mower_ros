@@ -92,6 +92,6 @@ private:
   };                                                                                                                   \
   static klass##Factory global_##klass##Factory;
 
-}  // namespace vesc_driver
+}  // namespace xesc_2040_driver
 
 #endif  // VESC_DRIVER_VESC_PACKET_FACTORY_H_
