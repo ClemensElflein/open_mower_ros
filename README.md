@@ -79,7 +79,7 @@ nohup <your_absolute_path_to_clion>/clion.sh >/dev/null 2>&1 &
 
 Then, open the `src` directory. CLion will prompt with the following screen:
 
-![CLion CMake Settings](../img/clion_cmake_settings.png)
+![CLion CMake Settings](./clion_cmake_settings.png)
 
 Copy the settings for **Build directory** and **CMake options**. Everything else can stay the same. This is all you need!
 
