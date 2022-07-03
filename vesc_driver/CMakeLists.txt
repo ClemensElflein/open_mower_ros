@@ -9,6 +9,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   xesc_msgs
   serial
+        xesc
 )
 
 catkin_package(

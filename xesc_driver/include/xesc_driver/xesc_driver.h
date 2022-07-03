@@ -1,0 +1,32 @@
+//
+// Created by clemens on 03.07.22.
+//
+
+#ifndef SRC_XESC_DRIVER_H
+#define SRC_XESC_DRIVER_H
+
+#include <ros/ros.h>
+#include <xesc_driver_interface/xesc_driver_interface.h>
+#include "xesc_2040_driver/xesc_2040_driver.h"
+#include "vesc_driver/vesc_driver.h"
+
+namespace xesc_driver  {
+    class XescDriver: public xesc_driver_interface::XescDriverInterface {
+    public:
+        XescDriver(ros::NodeHandle &nh, ros::NodeHandle &private_nh);
+        ~XescDriver();
+
+        void getStatus(xesc_msgs::XescStateStamped &state) override;
+
+        void getStatusBlocking(xesc_msgs::XescStateStamped &state) override;
+
+        void setDutyCycle(float duty_cycle) override;
+
+        void stop() override;
+
+    private:
+        xesc_driver_interface::XescDriverInterface *xesc_driver = nullptr;
+    };
+}
+
+#endif //SRC_XESC_DRIVER_H

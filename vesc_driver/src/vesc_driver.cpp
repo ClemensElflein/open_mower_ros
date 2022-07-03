@@ -38,28 +38,15 @@
 namespace vesc_driver {
     VescDriver::VescDriver(ros::NodeHandle &nh, ros::NodeHandle &private_nh)
             : vesc_(std::bind(&VescDriver::vescErrorCallback, this, std::placeholders::_1)),
-              duty_cycle_limit_(private_nh, "duty_cycle", -1.0, 1.0), current_limit_(private_nh, "current"),
-              brake_limit_(private_nh, "brake"), speed_limit_(private_nh, "speed"),
-              position_limit_(private_nh, "position") {
+              duty_cycle_limit_(private_nh, "duty_cycle", -1.0, 1.0) {
         // get vesc serial port address
         std::string port;
-        if (!private_nh.getParam("port", port)) {
+        if (!private_nh.getParam("serial_port", port)) {
             ROS_FATAL("VESC communication port parameter required.");
-            ros::shutdown();
-            return;
+            throw ros::InvalidParameterException("VESC communication port parameter required.");
         }
 
         vesc_.start(port);
-
-        // create vesc state (telemetry) publisher
-        state_pub_ = nh.advertise<vesc_msgs::VescStateStamped>("sensors/core", 10);
-
-        // subscribe to motor and servo command topics
-        duty_cycle_sub_ = nh.subscribe("commands/motor/duty_cycle", 10, &VescDriver::dutyCycleCallback, this);
-        current_sub_ = nh.subscribe("commands/motor/current", 10, &VescDriver::currentCallback, this);
-        brake_sub_ = nh.subscribe("commands/motor/brake", 10, &VescDriver::brakeCallback, this);
-        speed_sub_ = nh.subscribe("commands/motor/speed", 10, &VescDriver::speedCallback, this);
-        position_sub_ = nh.subscribe("commands/motor/position", 10, &VescDriver::positionCallback, this);
     }
 
 
@@ -67,80 +54,45 @@ namespace vesc_driver {
         ROS_ERROR("%s", error.c_str());
     }
 
-/**
- * @param duty_cycle Commanded VESC duty cycle. Valid range for this driver is -1 to +1. However,
- *                   note that the VESC may impose a more restrictive bounds on the range depending
- *                   on its configuration, e.g. absolute value is between 0.05 and 0.95.
- */
-    void VescDriver::dutyCycleCallback(const std_msgs::Float64::ConstPtr &duty_cycle) {
-        vesc_.setDutyCycle(duty_cycle_limit_.clip(duty_cycle->data));
-
-    }
-
-/**
- * @param current Commanded VESC current in Amps. Any value is accepted by this driver. However,
- *                note that the VESC may impose a more restrictive bounds on the range depending on
- *                its configuration.
- */
-    void VescDriver::currentCallback(const std_msgs::Float64::ConstPtr &current) {
-        vesc_.setCurrent(current_limit_.clip(current->data));
-    }
-
-/**
- * @param brake Commanded VESC braking current in Amps. Any value is accepted by this driver.
- *              However, note that the VESC may impose a more restrictive bounds on the range
- *              depending on its configuration.
- */
-    void VescDriver::brakeCallback(const std_msgs::Float64::ConstPtr &brake) {
-        vesc_.setBrake(brake_limit_.clip(brake->data));
-
-    }
-
-/**
- * @param speed Commanded VESC speed in rad/s. Although any value is accepted by this driver, the VESC may impose a
- *              more restrictive bounds on the range depending on its configuration.
- */
-    void VescDriver::speedCallback(const std_msgs::Float64::ConstPtr &speed) {
-        vesc_.setSpeed(speed_limit_.clip(speed->data));
-    }
-
-/**
- * @param position Commanded VESC motor position in radians. Any value is accepted by this driver.
- *                 Note that the VESC must be in encoder mode for this command to have an effect.
- */
-    void VescDriver::positionCallback(const std_msgs::Float64::ConstPtr &position) {
-        // ROS uses radians but VESC seems to use degrees. Convert to degrees.
-        double position_deg = position_limit_.clip(position->data) * 180.0 / M_PI;
-        vesc_.setPosition(position_deg);
-    }
-
-    void VescDriver::waitForStateAndPublish() {
-        vesc_.wait_for_status(&vesc_status);
-
-        vesc_msgs::VescStateStamped::Ptr state_msg(new vesc_msgs::VescStateStamped);
-        state_msg->header.stamp = ros::Time::now();
-        state_msg->state.connection_state = vesc_status.connection_state;
-        state_msg->state.fw_major = vesc_status.fw_version_major;
-        state_msg->state.fw_minor = vesc_status.fw_version_minor;
-        state_msg->state.voltage_input = vesc_status.voltage_input;
-        state_msg->state.temperature_pcb = vesc_status.temperature_pcb;
-        state_msg->state.current_motor = vesc_status.current_motor;
-        state_msg->state.current_input = vesc_status.current_input;
-        state_msg->state.speed = vesc_status.speed_erpm;
-        state_msg->state.duty_cycle = vesc_status.duty_cycle;
-        state_msg->state.charge_drawn = vesc_status.charge_drawn;
-        state_msg->state.charge_regen = vesc_status.charge_regen;
-        state_msg->state.energy_drawn = vesc_status.energy_drawn;
-        state_msg->state.energy_regen = vesc_status.energy_regen;
-        state_msg->state.displacement = vesc_status.displacement;
-        state_msg->state.distance_traveled = vesc_status.distance_traveled;
-        state_msg->state.fault_code = vesc_status.fault_code;
-
-        state_pub_.publish(state_msg);
-    }
 
     void VescDriver::stop() {
         vesc_.stop();
+    }
+
+    void VescDriver::getStatus(xesc_msgs::XescStateStamped &state_msg) {
+        vesc_.get_status(&vesc_status);
+
+        state_msg.header.stamp = ros::Time::now();
+        state_msg.state.connection_state = vesc_status.connection_state;
+        state_msg.state.fw_major = vesc_status.fw_version_major;
+        state_msg.state.fw_minor = vesc_status.fw_version_minor;
+        state_msg.state.voltage_input = vesc_status.voltage_input;
+        state_msg.state.temperature_pcb = vesc_status.temperature_pcb;
+        state_msg.state.temperature_motor = vesc_status.temperature_motor;
+        state_msg.state.current_input = vesc_status.current_input;
+        state_msg.state.duty_cycle = vesc_status.duty_cycle;
+        state_msg.state.tacho = vesc_status.tacho;
+        state_msg.state.fault_code = vesc_status.fault_code;
+    }
+
+    void VescDriver::getStatusBlocking(xesc_msgs::XescStateStamped &state_msg) {
+        vesc_.wait_for_status(&vesc_status);
+
+        state_msg.header.stamp = ros::Time::now();
+        state_msg.state.connection_state = vesc_status.connection_state;
+        state_msg.state.fw_major = vesc_status.fw_version_major;
+        state_msg.state.fw_minor = vesc_status.fw_version_minor;
+        state_msg.state.voltage_input = vesc_status.voltage_input;
+        state_msg.state.temperature_pcb = vesc_status.temperature_pcb;
+        state_msg.state.temperature_motor = vesc_status.temperature_motor;
+        state_msg.state.current_input = vesc_status.current_input;
+        state_msg.state.duty_cycle = vesc_status.duty_cycle;
+        state_msg.state.tacho = vesc_status.tacho;
+        state_msg.state.fault_code = vesc_status.fault_code;
+    }
+
+    void VescDriver::setDutyCycle(float duty_cycle) {
+        vesc_.setDutyCycle(duty_cycle);
     }
 
 

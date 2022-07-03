@@ -51,15 +51,21 @@
 
 #include "vesc_driver/vesc_interface.h"
 #include "vesc_driver/vesc_packet.h"
+#include "xesc_driver_interface/xesc_driver_interface.h"
 
 namespace vesc_driver
 {
-class VescDriver
+class VescDriver : public xesc_driver_interface::XescDriverInterface
 {
 public:
-  VescDriver(ros::NodeHandle &nh, ros::NodeHandle &private_nh);
+    void getStatus(xesc_msgs::XescStateStamped &state) override;
 
-    void waitForStateAndPublish();
+    void getStatusBlocking(xesc_msgs::XescStateStamped &state) override;
+
+    void setDutyCycle(float duty_cycle) override;
+
+    VescDriver(ros::NodeHandle &nh, ros::NodeHandle &private_nh);
+
     void stop();
 private:
   // interface to the VESC
@@ -78,28 +84,8 @@ private:
     boost::optional<double> upper;
   };
   CommandLimit duty_cycle_limit_;
-  CommandLimit current_limit_;
-  CommandLimit brake_limit_;
-  CommandLimit speed_limit_;
-  CommandLimit position_limit_;
-
-  // ROS services
-  ros::Publisher state_pub_;
-  ros::Subscriber duty_cycle_sub_;
-  ros::Subscriber current_sub_;
-  ros::Subscriber brake_sub_;
-  ros::Subscriber speed_sub_;
-  ros::Subscriber position_sub_;
-
 
   VescStatusStruct vesc_status = {0};
-
-  // ROS callbacks
-  void dutyCycleCallback(const std_msgs::Float64::ConstPtr& duty_cycle);
-  void currentCallback(const std_msgs::Float64::ConstPtr& current);
-  void brakeCallback(const std_msgs::Float64::ConstPtr& brake);
-  void speedCallback(const std_msgs::Float64::ConstPtr& speed);
-  void positionCallback(const std_msgs::Float64::ConstPtr& position);
 };
 
 }  // namespace xesc_2040_driver
