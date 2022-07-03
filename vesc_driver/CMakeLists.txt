@@ -9,7 +9,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   xesc_msgs
   serial
-        xesc
+        xesc_interface
 )
 
 catkin_package(
@@ -38,14 +38,6 @@ add_library(vesc_driver
 
 add_dependencies(vesc_driver ${catkin_EXPORTED_TARGETS})
 
-# node executable
-add_executable(vesc_driver_node src/vesc_driver_node.cpp)
-add_dependencies(vesc_driver_node ${catkin_EXPORTED_TARGETS})
-target_link_libraries(vesc_driver_node
-  vesc_driver
-  ${catkin_LIBRARIES}
-)
-
 
 #############
 ## Install ##
@@ -55,15 +47,6 @@ install(TARGETS vesc_driver
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 )
 
-install(TARGETS vesc_driver_node
-  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)
-
-
 install(DIRECTORY include/${PROJECT_NAME}
   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-)
-
-install(DIRECTORY launch
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
 )

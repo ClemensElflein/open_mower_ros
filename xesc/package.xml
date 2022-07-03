@@ -10,7 +10,11 @@
   <license>Apache 2.0</license>
 
   <buildtool_depend>catkin</buildtool_depend>
-
   <exec_depend>xesc_msgs</exec_depend>
+  <exec_depend>xesc_driver</exec_depend>
+
+  <export>
+    <metapackage/>
+  </export>
 
 </package>

@@ -51,11 +51,11 @@
 
 #include "vesc_driver/vesc_interface.h"
 #include "vesc_driver/vesc_packet.h"
-#include "xesc_driver_interface/xesc_driver_interface.h"
+#include "xesc_interface/xesc_interface.h"
 
 namespace vesc_driver
 {
-class VescDriver : public xesc_driver_interface::XescDriverInterface
+class VescDriver : public xesc_interface::XescInterface
 {
 public:
     void getStatus(xesc_msgs::XescStateStamped &state) override;

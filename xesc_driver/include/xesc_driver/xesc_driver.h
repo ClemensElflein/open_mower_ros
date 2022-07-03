@@ -6,12 +6,13 @@
 #define SRC_XESC_DRIVER_H
 
 #include <ros/ros.h>
-#include <xesc_driver_interface/xesc_driver_interface.h>
+#include <xesc_interface/xesc_interface.h>
 #include "xesc_2040_driver/xesc_2040_driver.h"
 #include "vesc_driver/vesc_driver.h"
 
+
 namespace xesc_driver  {
-    class XescDriver: public xesc_driver_interface::XescDriverInterface {
+    class XescDriver: public xesc_interface::XescInterface {
     public:
         XescDriver(ros::NodeHandle &nh, ros::NodeHandle &private_nh);
         ~XescDriver();
@@ -25,7 +26,7 @@ namespace xesc_driver  {
         void stop() override;
 
     private:
-        xesc_driver_interface::XescDriverInterface *xesc_driver = nullptr;
+        xesc_interface::XescInterface *xesc_driver = nullptr;
     };
 }
 

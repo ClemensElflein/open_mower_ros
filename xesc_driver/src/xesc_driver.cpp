@@ -16,6 +16,11 @@ xesc_driver::XescDriver::XescDriver(ros::NodeHandle &nh, ros::NodeHandle &privat
         xesc_driver = new xesc_2040_driver::Xesc2040Driver(nh, private_nh);
     } else if(xesc_type == "xesc_mini") {
         xesc_driver = new vesc_driver::VescDriver(nh, private_nh);
+    } else {
+        ROS_ERROR_STREAM("Error: xesc_type invalid. Type was: " << xesc_type);
+        ros::shutdown();
+        xesc_driver = nullptr;
+        return;
     }
 }
 

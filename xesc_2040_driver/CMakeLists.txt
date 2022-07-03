@@ -9,7 +9,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   serial
         xesc_msgs
-        xesc
+        xesc_interface
 )
 
 catkin_package(
@@ -37,13 +37,6 @@ add_library(xesc_2040_driver
 
 add_dependencies(xesc_2040_driver ${catkin_EXPORTED_TARGETS})
 
-# node executable
-add_executable(xesc_2040_driver_node src/xesc_2040_driver_node.cpp)
-add_dependencies(xesc_2040_driver_node ${catkin_EXPORTED_TARGETS})
-target_link_libraries(xesc_2040_driver_node
-        xesc_2040_driver
-        ${catkin_LIBRARIES}
-        )
 
 #############
 ## Install ##

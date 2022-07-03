@@ -5,9 +5,8 @@
 // SPDX-License-Identifier: MIT
 //
 
-
-#pragma once
-
+#ifndef SRC_COBS_H
+#define SRC_COBS_H
 
 
 /// \brief A Consistent Overhead Byte Stuffing (COBS) Encoder.
@@ -125,3 +124,6 @@ public:
     }
 
 };
+
+
+#endif

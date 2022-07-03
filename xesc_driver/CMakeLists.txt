@@ -9,9 +9,9 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   serial
         xesc_msgs
-        xesc
         vesc_driver
         xesc_2040_driver
+        xesc_interface
 )
 
 catkin_package(

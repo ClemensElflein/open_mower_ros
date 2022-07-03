@@ -2,14 +2,14 @@
 // Created by clemens on 02.07.22.
 //
 
-#ifndef SRC_XESC_DRIVER_INTERFACE_H
-#define SRC_XESC_DRIVER_INTERFACE_H
+#ifndef SRC_XESC_INTERFACE_H
+#define SRC_XESC_INTERFACE_H
 
 #include <xesc_msgs/XescStateStamped.h>
 
 
-namespace xesc_driver_interface {
-    class XescDriverInterface {
+namespace xesc_interface {
+    class XescInterface {
     public:
         virtual void getStatus(xesc_msgs::XescStateStamped &state)=0;
         virtual void getStatusBlocking(xesc_msgs::XescStateStamped &state)=0;
@@ -19,4 +19,4 @@ namespace xesc_driver_interface {
     };
 }
 
-#endif //SRC_XESC_DRIVER_INTERFACE_H
+#endif
