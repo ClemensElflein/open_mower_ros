@@ -33,7 +33,8 @@
 #include "sensor_msgs/Imu.h"
 #include "sensor_msgs/MagneticField.h"
 
-#include "vesc_driver/vesc_interface.h"
+#include <xesc_driver/xesc_driver.h>
+#include <xesc_msgs/XescStateStamped.h>
 
 
 ros::Publisher status_pub;
@@ -66,9 +67,9 @@ ros::Time last_cmd_vel(0.0);
 boost::crc_ccitt_type crc;
 
 
-vesc_driver::VescInterface *mow_vesc_interface;
-vesc_driver::VescInterface *left_vesc_interface;
-vesc_driver::VescInterface *right_vesc_interface;
+xesc_driver::XescDriver *mow_xesc_interface;
+xesc_driver::XescDriver *left_xesc_interface;
+xesc_driver::XescDriver *right_xesc_interface;
 
 std::mutex ll_status_mutex;
 struct ll_status last_ll_status = {0};
@@ -102,10 +103,12 @@ void publishActuators() {
         speed_mow = 0;
     }
 
-    mow_vesc_interface->setDutyCycle(speed_mow);
+    if(mow_xesc_interface) {
+        mow_xesc_interface->setDutyCycle(speed_mow);
+    }
     // We need to invert the speed, because the ESC has the same config as the left one, so the motor is running in the "wrong" direction
-    left_vesc_interface->setDutyCycle(speed_l);
-    right_vesc_interface->setDutyCycle(-speed_r);
+    left_xesc_interface->setDutyCycle(speed_l);
+    right_xesc_interface->setDutyCycle(-speed_r);
 
     struct ll_heartbeat heartbeat = {
             .type = PACKET_ID_LL_HEARTBEAT,
@@ -133,25 +136,22 @@ void publishActuators() {
 }
 
 
-void convertStatus(vesc_driver::VescStatusStruct &vesc_status, mower_msgs::ESCStatus &ros_esc_status) {
-    if (vesc_status.connection_state != vesc_driver::VESC_CONNECTION_STATE::CONNECTED &&
-        vesc_status.connection_state != vesc_driver::VESC_CONNECTION_STATE::CONNECTED_INCOMPATIBLE_FW) {
+void convertStatus(xesc_msgs::XescStateStamped &vesc_status, mower_msgs::ESCStatus &ros_esc_status) {
+    if (vesc_status.state.connection_state != xesc_msgs::XescState::XESC_CONNECTION_STATE_CONNECTED &&
+            vesc_status.state.connection_state != xesc_msgs::XescState::XESC_CONNECTION_STATE_CONNECTED_INCOMPATIBLE_FW) {
         // ESC is disconnected
         ros_esc_status.status = mower_msgs::ESCStatus::ESC_STATUS_DISCONNECTED;
-    } else if(vesc_status.fault_code) {
+    } else if(vesc_status.state.fault_code) {
         // ESC has a fault
         ros_esc_status.status = mower_msgs::ESCStatus::ESC_STATUS_ERROR;
-    } else if(abs(vesc_status.speed_erpm) > 500) {
-        // ESC is running
-        ros_esc_status.status = mower_msgs::ESCStatus::ESC_STATUS_RUNNING;
     } else {
         // ESC is OK but standing still
         ros_esc_status.status = mower_msgs::ESCStatus::ESC_STATUS_OK;
     }
-    ros_esc_status.tacho = vesc_status.tacho;
-    ros_esc_status.current = vesc_status.current_motor;
-    ros_esc_status.temperature_motor = vesc_status.temperature_motor;
-    ros_esc_status.temperature_pcb = vesc_status.temperature_pcb;
+    ros_esc_status.tacho = vesc_status.state.tacho;
+    ros_esc_status.current = vesc_status.state.current_input;
+    ros_esc_status.temperature_motor = vesc_status.state.temperature_motor;
+    ros_esc_status.temperature_pcb = vesc_status.state.temperature_pcb;
 }
 
 void publishStatus() {
@@ -195,10 +195,14 @@ void publishStatus() {
     status_msg.charge_current = last_ll_status.charging_current;
 
 
-    vesc_driver::VescStatusStruct mow_status, left_status, right_status;
-    mow_vesc_interface->get_status(&mow_status);
-    left_vesc_interface->get_status(&left_status);
-    right_vesc_interface->get_status(&right_status);
+    xesc_msgs::XescStateStamped mow_status, left_status, right_status;
+    if(mow_xesc_interface) {
+        mow_xesc_interface->getStatus(mow_status);
+    } else {
+        mow_status.state.connection_state = xesc_msgs::XescState::XESC_CONNECTION_STATE_DISCONNECTED;
+    }
+    left_xesc_interface->getStatus(left_status);
+    right_xesc_interface->getStatus(right_status);
 
     convertStatus(mow_status, status_msg.mow_esc_status);
     convertStatus(left_status, status_msg.left_esc_status);
@@ -326,18 +330,6 @@ void handleLowLevelIMU(struct ll_imu *imu) {
     sensor_mag_pub.publish(sensor_mag_msg);
 }
 
-void mowVescError(const std::string &error) {
-    ROS_ERROR_STREAM("Mower VESC error: " << error);
-}
-
-void leftVescError(const std::string &error) {
-    ROS_ERROR_STREAM("LEFT VESC error: " << error);
-}
-
-void rightVescError(const std::string &error) {
-    ROS_ERROR_STREAM("RIGHT VESC error: " << error);
-}
-
 
 int main(int argc, char **argv) {
     ros::init(argc, argv, "mower_comms");
@@ -347,40 +339,35 @@ int main(int argc, char **argv) {
 
     ros::NodeHandle n;
     ros::NodeHandle paramNh("~");
+    ros::NodeHandle leftParamNh("~/left_xesc");
+    ros::NodeHandle mowerParamNh("~/mower_xesc");
+    ros::NodeHandle rightParamNh("~/right_xesc");
+
+
 
     highLevelClient = n.serviceClient<mower_msgs::HighLevelControlSrv>(
             "mower_service/high_level_control");
 
 
-    std::string ll_serial_port_name, left_esc_port_name, right_esc_port_name, mow_esc_port_name;
+    std::string ll_serial_port_name;
     if (!paramNh.getParam("ll_serial_port", ll_serial_port_name)) {
         ROS_ERROR_STREAM("Error getting low level serial port parameter. Quitting.");
-        return 1;
-    }
-    if (!paramNh.getParam("left_esc_serial_port", left_esc_port_name)) {
-        ROS_ERROR_STREAM("Error getting left ESC serial port parameter. Quitting.");
-        return 1;
-    }
-    if (!paramNh.getParam("right_esc_serial_port", right_esc_port_name)) {
-        ROS_ERROR_STREAM("Error getting right ESC serial port parameter. Quitting.");
-        return 1;
-    }
-    if (!paramNh.getParam("mow_esc_serial_port", mow_esc_port_name)) {
-        ROS_ERROR_STREAM("Error getting mow ESC serial port parameter. Quitting.");
         return 1;
     }
 
     speed_l = speed_r = speed_mow = 0;
 
 
-    // Setup VESC interfaces
-    mow_vesc_interface = new vesc_driver::VescInterface(mowVescError);
-    left_vesc_interface = new vesc_driver::VescInterface(leftVescError);
-    right_vesc_interface = new vesc_driver::VescInterface(rightVescError);
+    // Setup XESC interfaces
+    if(mowerParamNh.hasParam("xesc_type")) {
+        mow_xesc_interface = new xesc_driver::XescDriver(n, mowerParamNh);
+    } else {
+        mow_xesc_interface = nullptr;
+    }
 
-    mow_vesc_interface->start(mow_esc_port_name);
-    left_vesc_interface->start(left_esc_port_name);
-    right_vesc_interface->start(right_esc_port_name);
+    left_xesc_interface = new xesc_driver::XescDriver(n, leftParamNh);
+    right_xesc_interface = new xesc_driver::XescDriver(n, rightParamNh);
+
 
     status_pub = n.advertise<mower_msgs::Status>("mower/status", 1);
 
@@ -497,17 +484,20 @@ int main(int argc, char **argv) {
 
     spinner.stop();
 
-    mow_vesc_interface->setDutyCycle(0.0);
-    left_vesc_interface->setDutyCycle(0.0);
-    right_vesc_interface->setDutyCycle(0.0);
+    if(mow_xesc_interface) {
+        mow_xesc_interface->setDutyCycle(0.0);
+        mow_xesc_interface->stop();
+    }
+    left_xesc_interface->setDutyCycle(0.0);
+    right_xesc_interface->setDutyCycle(0.0);
+    left_xesc_interface->stop();
+    right_xesc_interface->stop();
 
-    mow_vesc_interface->stop();
-    left_vesc_interface->stop();
-    right_vesc_interface->stop();
-
-    delete mow_vesc_interface;
-    delete left_vesc_interface;
-    delete right_vesc_interface;
+    if(mow_xesc_interface) {
+        delete mow_xesc_interface;
+    }
+    delete left_xesc_interface;
+    delete right_xesc_interface;
 
     return 0;
 }

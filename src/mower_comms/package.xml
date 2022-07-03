@@ -13,15 +13,16 @@
   <build_depend>sensor_msgs</build_depend>
   <build_depend>roscpp</build_depend>
   <build_depend>serial</build_depend>
-  <build_depend>vesc_driver</build_depend>
+  <build_depend>xesc_driver</build_depend>
   <build_export_depend>mower_msgs</build_export_depend>
   <build_export_depend>roscpp</build_export_depend>
   <build_export_depend>serial</build_export_depend>
-  <build_export_depend>vesc_driver</build_export_depend>
+  <build_export_depend>xesc_driver</build_export_depend>
   <exec_depend>mower_msgs</exec_depend>
   <exec_depend>roscpp</exec_depend>
   <exec_depend>serial</exec_depend>
-  <exec_depend>vesc_driver</exec_depend>
+  <exec_depend>xesc_driver</exec_depend>
+  <depend>xesc_msgs</depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->

@@ -1,0 +1,39 @@
+left_xesc:
+  type: "xesc_mini"
+  serial_port: "/dev/ttyACM0"
+  hall_table_0: 255
+  hall_table_1: 5
+  hall_table_2: 3
+  hall_table_3: 4
+  hall_table_4: 1
+  hall_table_5: 6
+  hall_table_6: 2
+  hall_table_7: 255
+  motor_current_limit: 0.5
+  acceleration: 20.0
+  has_motor_temp: false
+  min_motor_temp: 0
+  max_motor_temp: 0
+  min_pcb_temp: 0
+  max_pcb_temp: 60
+right_xesc:
+  type: "xesc_mini"
+  serial_port: "/dev/ttyACM3"
+  hall_table_0: 255
+  hall_table_1: 5
+  hall_table_2: 3
+  hall_table_3: 4
+  hall_table_4: 1
+  hall_table_5: 6
+  hall_table_6: 2
+  hall_table_7: 255
+  motor_current_limit: 0.5
+  acceleration: 20.0
+  has_motor_temp: false
+  min_motor_temp: 0
+  max_motor_temp: 0
+  min_pcb_temp: 0
+  max_pcb_temp: 60
+mower_xesc:
+  type: "vesc"
+  serial_port: "/dev/ttyACM2"

@@ -1,0 +1,22 @@
+<!--
+    Use this file to test your move_base config. You should be able to move the bot around the map using RVIZ.
+-->
+<launch>
+    <include file="$(find open_mower)/launch/include/_comms.launch"/>
+    <include file="$(find open_mower)/launch/include/_localization.launch"/>
+
+    <node pkg="mower_map" type="mower_map_service" name="map_service" output="screen"/>
+
+    <node name="joy" pkg="joy" type="joy_node">
+        <param name="~autorepeat_rate" value="10.0"/>
+        <param name="~coalesce_interval" value="0.06"/>
+    </node>
+    
+    <node name="joy_teleop" pkg="teleop_twist_joy" type="teleop_node" required="true" >
+        <param name="~scale_linear" value="0.5"/>
+        <param name="~scale_angular" value="1.5"/>
+        <param name="~scale_linear_turbo" value="1.0"/>
+        <param name="~scale_angular_turbo" value="3.0"/>
+        <param name="~enable_turbo_button" value="4"/>
+    </node>
+</launch>
