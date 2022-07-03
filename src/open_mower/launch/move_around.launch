@@ -1,0 +1,20 @@
+<!--
+    Use this file to test your move_base config. You should be able to move the bot around the map using RVIZ.
+-->
+<launch>
+    <include file="$(find open_mower)/launch/include/_comms.launch"/>
+    <include file="$(find open_mower)/launch/include/_move_base.launch"/>
+    <include file="$(find open_mower)/launch/include/_localization.launch"/>
+<!--    <include file="$(find open_mower)/launch/include/_record.launch">-->
+<!--        <arg name="prefix" value="move_around"/>-->
+<!--    </include>-->
+
+
+    <node pkg="mower_map" type="mower_map_service" name="map_service" output="screen"/>
+
+    <node pkg="twist_mux" type="twist_mux" name="twist_mux" output="screen">
+        <remap from="cmd_vel_out" to="/cmd_vel"/>
+
+        <rosparam file="$(find open_mower)/params/twist_mux_topics.yaml"  command="load"/>
+    </node>
+</launch>

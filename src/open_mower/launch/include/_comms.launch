@@ -1,0 +1,20 @@
+<!--
+    This launch file starts all communication needed in order to control and localize the bot.
+    I.e. the raw data comms to the Low Level Board, the GPS, etc.
+-->
+<launch>
+    <!-- TODO: Add parameter for simulation -->
+
+    <node pkg="mower_comms" type="mower_comms" name="mower_comms">
+        <param name="ll_serial_port" value="/dev/$(env OM_LL_SERIAL_PORT)"/>
+        <param name="left_esc_serial_port" value="/dev/$(env OM_LEFT_SERIAL_PORT)"/>
+        <param name="right_esc_serial_port" value="/dev/$(env OM_RIGHT_SERIAL_PORT)"/>
+        <param name="mow_esc_serial_port" value="/dev/$(env OM_MOW_SERIAL_PORT)"/>
+    </node>
+    
+    <include file="$(find open_mower)/launch/include/_gps.launch">
+
+    </include>
+
+
+</launch>

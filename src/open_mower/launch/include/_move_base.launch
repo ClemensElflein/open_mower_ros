@@ -1,0 +1,20 @@
+<launch>
+
+  <node name="move_base_flex" pkg="mbf_costmap_nav" type="mbf_costmap_nav" required="true" output="screen">
+    <remap from="cmd_vel" to="/nav_vel"/>
+    <rosparam file="$(find open_mower)/params/costmap_common_params.yaml" command="load" ns="global_costmap" />
+    <rosparam file="$(find open_mower)/params/costmap_common_params.yaml" command="load" ns="local_costmap" />
+    <rosparam file="$(find open_mower)/params/local_costmap_params.yaml" command="load" />
+    <rosparam file="$(find open_mower)/params/global_costmap_params.yaml" command="load" />
+    <rosparam file="$(find open_mower)/params/move_base_flex.yaml" command="load"/>
+    <rosparam file="$(find open_mower)/params/ftc_local_planner.yaml" command="load" />
+    <rosparam file="$(find open_mower)/params/docking_ftc_local_planner.yaml" command="load" />
+    <rosparam file="$(find open_mower)/params/global_planner_params.yaml" command="load" />
+  </node>
+
+  <node name="move_base_legacy_relay" pkg="mbf_costmap_nav" type="move_base_legacy_relay.py">
+    <param name="base_local_planner" value="FTCPlanner" />
+    <param name="base_global_planner" value="GlobalPlanner" />
+  </node>
+
+</launch>
