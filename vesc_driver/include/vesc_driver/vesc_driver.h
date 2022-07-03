@@ -47,7 +47,6 @@
 
 #include <ros/ros.h>
 #include <std_msgs/Float64.h>
-#include <vesc_msgs/VescStateStamped.h>
 
 #include "vesc_driver/vesc_interface.h"
 #include "vesc_driver/vesc_packet.h"
