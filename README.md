@@ -6,14 +6,8 @@ This implementation aims to provide a stable, high performance VESC driver imple
 
 I've read through the original code and there were multiple parts which I didn't like about it. E.g. "TODO: we need a mutex here". Additionally, I didn't like the threading model of the driver implementation.
 
+Additionally, I've added an abstraction layer so that we can drive multiple xESC motor controllers using the same ROS interface `xesc_driver`. Currently the xesc_mini and the xesc_2040 are supported.
 
-## Composition
-This repository is composed as follows:
-
-- `vesc` is a meta package to manage the other packages.
-- `vesc_driver` is the main library to drive VESCs.
-- `vesc_hw_interface` wraps `vesc_driver` as a hardware interface to use `ros_control` systems.
-- `vesc_msgs` defines messages to publish VESC status.
 
 ## License
 This repositry is licensed under the [Apache 2.0 License](https://www.apache.org/licenses/LICENSE-2.0.html).
