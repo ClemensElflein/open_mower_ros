@@ -25,7 +25,7 @@ namespace xesc_2040_driver {
 
     enum XESC2040_CONNECTION_STATE {
         DISCONNECTED = 0,
-        CONNECTED = 1,
+        CONNECTED = 3,
     };
 
     struct Xesc2040StatusStruct {

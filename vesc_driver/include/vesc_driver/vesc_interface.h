@@ -58,10 +58,10 @@
 
 namespace vesc_driver {
     enum VESC_CONNECTION_STATE {
-        DISCONNECTED,
-        WAITING_FOR_FW,
-        CONNECTED_INCOMPATIBLE_FW,
-        CONNECTED,
+        DISCONNECTED = 0,
+        WAITING_FOR_FW = 1,
+        CONNECTED_INCOMPATIBLE_FW = 2,
+        CONNECTED = 3,
     };
 
     struct VescStatusStruct {
