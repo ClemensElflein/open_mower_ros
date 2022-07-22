@@ -1,5 +1,5 @@
 left_xesc:
-  type: "xesc_mini"
+  xesc_type: "xesc_2040"
   serial_port: "/dev/ttyAMA4"
   hall_table_0: 255
   hall_table_1: 5
@@ -17,7 +17,7 @@ left_xesc:
   min_pcb_temp: 0
   max_pcb_temp: 60
 right_xesc:
-  type: "xesc_mini"
+  xesc_type: "xesc_2040"
   serial_port: "/dev/ttyAMA2"
   hall_table_0: 255
   hall_table_1: 5
