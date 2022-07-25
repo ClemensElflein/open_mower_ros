@@ -142,6 +142,7 @@ void convertStatus(xesc_msgs::XescStateStamped &vesc_status, mower_msgs::ESCStat
         // ESC is disconnected
         ros_esc_status.status = mower_msgs::ESCStatus::ESC_STATUS_DISCONNECTED;
     } else if(vesc_status.state.fault_code) {
+        ROS_ERROR_STREAM_THROTTLE(1, "Motor controller fault code: " << vesc_status.state.fault_code);
         // ESC has a fault
         ros_esc_status.status = mower_msgs::ESCStatus::ESC_STATUS_ERROR;
     } else {
