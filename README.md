@@ -17,6 +17,22 @@ OpenMower requires ROS Noetic. ([installation instruction](http://wiki.ros.org/n
 
 By default, OpenMower is supposed to run on an ARM-based Raspberry boards: https://x-tech.online/2022/01/installing-ros-noetic-on-a-headless-raspberry-pi-4-with-ubuntu-20-04/
 
+#### Cloning the project and it's submodules
+
+To clone this repository and it's submodules:
+
+```bash
+git clone https://github.com/ClemensElflein/open_mower_ros.git --recurse-submodules
+```
+
+If you already have a clone of the repository, but are missing the submodules,
+you will have to initialize and update the submodules.
+From repository's root directory:
+
+```bash
+git submodule update --init --recursive
+```
+
 #### Fetch Dependencies
 Before building, you need to fetch this project's dependencies. The best way to do this is by using rosdep:
 
