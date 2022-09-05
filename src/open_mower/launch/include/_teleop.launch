@@ -1,15 +1,16 @@
 <launch>
     <group if="$(eval env('OM_MOWER_GAMEPAD') == 'xbox360')">
-        <node name="joy" pkg="joy" type="joy_node">
+        <node name="joy" pkg="joy" type="joy_node" required="true">
             <param name="~autorepeat_rate" value="10.0"/>
             <param name="~coalesce_interval" value="0.06"/>
         </node>
 
-        <node name="joy_teleop" pkg="teleop_twist_joy" type="teleop_node">
+        <node name="joy_teleop" pkg="teleop_twist_joy" type="teleop_node" required="true">
+            <remap from="cmd_vel" to="joy_vel"/>
             <param name="~scale_linear" value="0.5"/>
-            <param name="~scale_angular" value="0.5"/>
+            <param name="~scale_angular" value="1.5"/>
             <param name="~scale_linear_turbo" value="1.0"/>
-            <param name="~scale_angular_turbo" value="1.0"/>
+            <param name="~scale_angular_turbo" value="3.0"/>
             <param name="~enable_turbo_button" value="4"/>
         </node>
     </group>
@@ -26,5 +27,4 @@
             <remap from="/joy" to="/teleop_joy"/>
         </node>
     </group>
-
 </launch>
