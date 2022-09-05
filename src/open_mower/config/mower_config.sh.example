@@ -11,6 +11,10 @@ export OM_MOWER="YardForce500"
 # Select your ESC type, xesc_mini for the STM32 version or xesc_2040 for the RP2040 version
 export OM_MOWER_ESC_TYPE="xesc_mini"
 
+# Select your gamepad
+# Currently supported: ps3, xbox360
+export OM_MOWER_GAMEPAD="xbox360"
+
 # Set to true to record your session
 # export OM_ENABLE_RECORDING=False
 
