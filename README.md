@@ -1,3 +1,10 @@
+# Changes compared to OM
+
+* More debug statements
+* pause() is in reality abort() so it and its related functions have been renamed
+* the new (real) pause() will interrupt an ongoing MBF mow path 
+* while in Mowing Behaviour - HOME will abort, then go to the Docking Behaviour, START will continue a manually pause, S1 will pause a mow path
+
 # ROS Workspace
 This folder is the ROS workspace, which should be used to build the OpenMower ROS software.
 This repository contains the ROS package for controlling the OpenMower.
