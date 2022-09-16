@@ -37,13 +37,13 @@ std::string AreaRecordingBehavior::state_name() {
 Behavior *AreaRecordingBehavior::execute() {
     bool error = false;
     ros::Rate inputDelay(ros::Duration().fromSec(0.1));
-    while(ros::ok() && !paused) {
+    while(ros::ok() && !aborted) {
         mower_map::MapArea result;
         bool has_outline = false;
 
 
 
-        while (ros::ok() && !finished_all && !error && !paused) {
+        while (ros::ok() && !finished_all && !error && !aborted) {
 
             if(set_docking_position) {
                 geometry_msgs::Pose pos;
@@ -256,7 +256,7 @@ bool AreaRecordingBehavior::recordNewPolygon(geometry_msgs::Polygon &polygon) {
     has_odom = false;
 
     while (true) {
-        if (!ros::ok() || paused) {
+        if (!ros::ok() || aborted) {
             ROS_WARN_STREAM("Preempting Area Recorder");
             success = false;
             break;
@@ -362,7 +362,7 @@ bool AreaRecordingBehavior::getDockingPosition(geometry_msgs::Pose &pos) {
 }
 
 void AreaRecordingBehavior::command_home() {
-    pause();
+    abort();
 }
 
 void AreaRecordingBehavior::command_start() {

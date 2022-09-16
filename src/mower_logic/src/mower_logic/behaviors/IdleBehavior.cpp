@@ -16,11 +16,12 @@
 //
 #include "IdleBehavior.h"
 
-extern void stop();
+extern void stopMoving();
+extern void stopBlade();
 extern void setEmergencyMode(bool emergency);
 
 extern mower_msgs::Status last_status;
-extern bool mowingPaused;
+extern bool mowingAborted;
 extern mower_logic::MowerLogicConfig last_config;
 extern dynamic_reconfigure::Server<mower_logic::MowerLogicConfig> *reconfigServer;
 
@@ -43,7 +44,6 @@ Behavior *IdleBehavior::execute() {
         return &AreaRecordingBehavior::INSTANCE;
     }
 
-
     // Check, if we have a docking position. If not, print info and go to area recorder
     mower_map::GetDockingPointSrv get_docking_point_srv;
     if(!dockingPointClient.call(get_docking_point_srv)) {
@@ -53,12 +53,12 @@ Behavior *IdleBehavior::execute() {
 
     ros::Rate r(25);
     while (ros::ok()) {
-        stop();
-
+        stopMoving();
+        stopBlade();
         if (manual_start_mowing ||
             (last_config.automatic_start && (last_status.v_battery > last_config.battery_full_voltage && last_status.mow_esc_status.temperature_motor < last_config.motor_cold_temperature &&
              !last_config.manual_pause_mowing))) {
-            mowingPaused = false;
+            mowingAborted = false;
             return &UndockingBehavior::INSTANCE;
         }
 

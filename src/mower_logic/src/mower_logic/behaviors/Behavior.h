@@ -27,8 +27,15 @@ class Behavior {
 
 private:
     ros::Time startTime;
+    ros::Time lastOdomTime;
+
 protected:
+    bool aborted;
     bool paused;
+
+    bool request_continue;
+    bool request_pause;
+
 
     double time_in_state() {
         return (ros::Time::now() - startTime).toSec();
@@ -45,9 +52,50 @@ public:
 
     virtual std::string state_name() = 0;
 
-    void start(mower_logic::MowerLogicConfig &c) {
-        ROS_INFO_STREAM("Entered state: " << state_name());
+    void updateOdomTime(void)
+    {
+        lastOdomTime = ros::Time::now();
+    }
+
+    // /odom is valid if received one in the last 1.0 seconds
+    bool isOdomValid()
+    {
+        return ( (ros::Time::now() - lastOdomTime).toSec() < 1.0 );
+    } 
+
+    void requestContinue()
+    {
+        request_continue = true;
+    }
+
+    void requestPause()
+    {
+        request_pause = true;
+    }
+
+    void setPause()
+    {
+        paused = true;
+    }
+
+    void setContinue()
+    {
         paused = false;
+        request_continue = false;
+        request_pause = false;
+    }
+
+
+    void start(mower_logic::MowerLogicConfig &c) {
+        ROS_INFO_STREAM("");
+        ROS_INFO_STREAM("");
+        ROS_INFO_STREAM("--------------------------------------");
+        ROS_INFO_STREAM("- Entered state: " << state_name());
+        ROS_INFO_STREAM("--------------------------------------");
+        aborted = false;
+        paused = false;
+        request_continue = false;
+        request_pause = false;
         this->config = c;
         startTime = ros::Time::now();
         enter();
@@ -73,12 +121,13 @@ public:
      * If called, save state internally and return the execute() method asap.
      * Execution should resume on the next execute() call.
      */
-    void pause() {
-        paused = true;
+    void abort() {
+        ROS_INFO_STREAM("- Behaviour.h: abort() called");
+        aborted = true;
     }
 
     // Return true, if this state needs absolute positioning.
-    // The state will be paused if GPS is lost and resumed at some later point in time.
+    // The state will be aborted if GPS is lost and resumed at some later point in time.
     virtual bool needs_gps() = 0;
 
     // return true, if the mower motor should currently be running.
