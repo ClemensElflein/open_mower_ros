@@ -500,7 +500,7 @@ int main(int argc, char **argv) {
             ros::Rate r(1.0);
             r.sleep();
         }
-        ros::spinOnce(); // MOWGLI switched to spinOnce, because async didnt really work (long svc call times)
+        // ros::spinOnce(); // MOWGLI switched to spinOnce, because async didnt really work (long svc call times)
     }
 
     delete (n);
