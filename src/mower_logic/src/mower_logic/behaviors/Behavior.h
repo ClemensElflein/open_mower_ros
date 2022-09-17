@@ -33,9 +33,8 @@ protected:
     bool aborted;
     bool paused;
 
-    bool request_continue;
-    bool request_pause;
-
+    bool requested_continue_flag;
+    bool requested_pause_flag;
 
     double time_in_state() {
         return (ros::Time::now() - startTime).toSec();
@@ -65,12 +64,12 @@ public:
 
     void requestContinue()
     {
-        request_continue = true;
+        requested_continue_flag = true;
     }
 
     void requestPause()
     {
-        request_pause = true;
+        requested_pause_flag = true;
     }
 
     void setPause()
@@ -81,10 +80,9 @@ public:
     void setContinue()
     {
         paused = false;
-        request_continue = false;
-        request_pause = false;
+        requested_continue_flag = false;
+        requested_pause_flag = false;
     }
-
 
     void start(mower_logic::MowerLogicConfig &c) {
         ROS_INFO_STREAM("");
@@ -94,8 +92,8 @@ public:
         ROS_INFO_STREAM("--------------------------------------");
         aborted = false;
         paused = false;
-        request_continue = false;
-        request_pause = false;
+        requested_continue_flag = false;
+        requested_pause_flag = false;
         this->config = c;
         startTime = ros::Time::now();
         enter();

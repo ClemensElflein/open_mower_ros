@@ -66,7 +66,7 @@ mower_msgs::Status last_status;
 
 ros::Time last_good_gps(0.0);
 
-
+bool emergencyEnabled = false;
 bool mowerEnabled = false;
 
 // true, if bot needs to dock or needs to stay docked.
@@ -189,27 +189,33 @@ void stopBlade()
     // ROS_INFO_STREAM("om_mower_logic: stopBlade() - finished");
 }
 
-void setEmergencyMode(bool emergency) {
-    mower_msgs::EmergencyStopSrv emergencyStop;
-    emergencyStop.request.emergency = emergency;
-    emergencyClient.call(emergencyStop);
+// stop blade and any movement
+void setEmergencyMode(bool emergency) 
+{
+    stopBlade();
+    stopMoving();   
 }
 
 void checkSafety(const ros::TimerEvent &timer_event) {
     // check if odometry is current. if not, we have a problem -> emergency
-    if (ros::Time::now() - odom_time > ros::Duration(1.0)) {
-        setEmergencyMode(true);
-        ROS_ERROR_STREAM("EMERGENCY: odometry values stopped. dt was: " << (ros::Time::now() - odom_time));
+    if (ros::Time::now() - odom_time > ros::Duration(1.0)) 
+    {
+        stopBlade();
+        stopMoving();
+        ROS_WARN_STREAM_THROTTLE(5, "om_mower_logic: EMERGENCY /odom values stopped. dt was: " << (ros::Time::now() - odom_time));
         return;
     }
  
     // check if status is current. if not, we have a problem since it contains wheel ticks and so on -> emergency
-    if (ros::Time::now() - status_time > ros::Duration(3)) {
-        setEmergencyMode(true);
-        ROS_ERROR_STREAM("EMERGENCY: status values stopped. dt was: " << (ros::Time::now() - status_time));
+    if (ros::Time::now() - status_time > ros::Duration(3)) 
+    {
+        stopBlade();
+        stopMoving();
+        ROS_WARN_STREAM_THROTTLE(5, "om_mower_logic: EMERGENCY /mower/status values stopped. dt was: " << (ros::Time::now() - status_time));
         return;
     }
 
+/*
     if (last_status.right_esc_status.status <= mower_msgs::ESCStatus::ESC_STATUS_ERROR || last_status.left_esc_status.status <= mower_msgs::ESCStatus ::ESC_STATUS_ERROR) {
         setEmergencyMode(true);
         ROS_ERROR_STREAM(
@@ -218,6 +224,7 @@ void checkSafety(const ros::TimerEvent &timer_event) {
                                                                                << last_status.right_esc_status);
         return;
     }
+*/
 
 // *** there is noGpsGood, we stop sending /odom if something is wrong in the proxy ***
 //    bool gpsGood = last_odom.pose.covariance[0] < 0.05 && last_odom.pose.covariance[0] > 0;
@@ -251,7 +258,7 @@ void checkSafety(const ros::TimerEvent &timer_event) {
 }
 
 void reconfigureCB(mower_logic::MowerLogicConfig &c, uint32_t level) {
-    ROS_INFO_STREAM(">>>>>>> Setting mower_logic config");
+    ROS_INFO_STREAM("om_mower_logic: Setting mower_logic config");
     last_config = c;
 }
 
@@ -469,12 +476,8 @@ int main(int argc, char **argv) {
 
 
     // release emergency if it was set
-
-    ROS_INFO("om_mower_logic: setEmergencyMode");
     setEmergencyMode(false);
-    ROS_INFO("om_mower_logic: setEmergencyMode DONE");
     ros::Timer safety_timer = n->createTimer(ros::Duration(0.5), checkSafety);
-
 
     while (ros::ok()) {
         ROS_INFO("om_mower_logic: main loop");
