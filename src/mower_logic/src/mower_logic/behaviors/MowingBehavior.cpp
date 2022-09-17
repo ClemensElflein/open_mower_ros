@@ -372,6 +372,10 @@ bool MowingBehavior::execute_mowing_plan() {
                 // if something else -> Recovery Behaviour ?
                 auto &poses = path.path.poses;
                 ROS_INFO_STREAM("MowingBehavior (ErrorCatch): Poses before trim:" << poses.size());
+                if (currentIndex == 0) // currentIndex might be 0 if we never consumed one of the points, we trim at least 1 point
+                {
+                    currentIndex = 1;
+                }
                 ROS_INFO_STREAM("MowingBehavior (ErrorCatch): Trimming " << currentIndex << " points.");
                 poses.erase(poses.begin(), poses.begin() + currentIndex);
                 ROS_INFO_STREAM("MowingBehavior (ErrorCatch): Poses after trim:" << poses.size());
