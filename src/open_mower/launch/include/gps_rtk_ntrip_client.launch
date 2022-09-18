@@ -1,0 +1,21 @@
+
+<!--
+    This launch file sets up the RTK GPS. It assumes that str2str is installed on the host system.
+    The version used at the time of writing can be obtained using GIT:
+    URL: https://github.com/rtklibexplorer/RTKLIB
+    TAG: b34c
+ -->
+<launch>
+
+    <include file="$(find mowgli)/launch/include/ntrip_client.launch" />
+    <node pkg="ublox_gps" type="ublox_gps" name="ublox"
+          output="screen"
+          clear_params="true"
+          respawn="true"
+          respawn_delay="5">
+          <rosparam command="load" file="$(find mowgli)/params/gps.yaml" />
+	  <remap from="/rtcm" to="/ntrip_client/rtcm"/>
+    </node>
+
+
+</launch>
