@@ -182,6 +182,7 @@ bool MowingBehavior::execute_mowing_plan() {
         if (requested_pause_flag)
         {  // pause was requested
             this->setPause();  // set paused=true
+            mowerEnabled = false;
             while (!requested_continue_flag) // while not asked to continue, we wait
             {
                 ROS_INFO_STREAM("MowingBehavior: PAUSED (waiting for CONTINUE)");
@@ -196,7 +197,7 @@ bool MowingBehavior::execute_mowing_plan() {
             mowerEnabled = false;
             while (!this->isOdomValid()) // while no /odom we wait
             {
-                ROS_INFO_STREAM("MowingBehavior: PAUSED ( " << (ros::Time::now()-paused_time).toSec() << "s) (waiting for /odom)");
+                ROS_INFO_STREAM("MowingBehavior: PAUSED (" << (ros::Time::now()-paused_time).toSec() << "s) (waiting for /odom)");
                 ros::Rate r(1.0);
                 r.sleep();
             }
@@ -310,6 +311,8 @@ bool MowingBehavior::execute_mowing_plan() {
                         mbfClientExePath->cancelAllGoals();
                         break;
                     }
+                    // show progress
+                    ROS_INFO_STREAM_THROTTLE(5, "MowingBehavior: (MOW) Progress: " << getCurrentMowPathIndex() << "/" << path.path.poses.size());                    
                 } else {
                     ROS_INFO_STREAM("MowingBehavior: (MOW)  Got status " << current_status.state_ << " from MBF/FTCPlanner -> Stopping path execution.");
                     // we're done, break out of the loop

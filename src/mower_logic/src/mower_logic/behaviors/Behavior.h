@@ -28,6 +28,7 @@ class Behavior {
 private:
     ros::Time startTime;
     ros::Time lastOdomTime;
+    long valid_odom_counter;
 
 protected:
     bool aborted;
@@ -56,10 +57,19 @@ public:
         lastOdomTime = ros::Time::now();
     }
 
-    // /odom is valid if received one in the last 1.0 seconds
+    // /odom is valid for 5 seconds
+    // (assumes being called once a second)
     bool isOdomValid()
     {
-        return ( (ros::Time::now() - lastOdomTime).toSec() < 1.0 );
+        if ( (ros::Time::now() - lastOdomTime).toSec() < 1.0 ) // /odom received within last second
+        {
+            valid_odom_counter++;
+        }
+        else
+        {
+            valid_odom_counter = 0; // reset
+        }
+        return ( valid_odom_counter > 5.0 );
     } 
 
     void requestContinue()
@@ -96,6 +106,7 @@ public:
         requested_pause_flag = false;
         this->config = c;
         startTime = ros::Time::now();
+        valid_odom_counter = 0;
         enter();
     }
 
