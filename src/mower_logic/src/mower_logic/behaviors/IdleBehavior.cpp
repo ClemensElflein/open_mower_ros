@@ -66,6 +66,10 @@ Behavior *IdleBehavior::execute() {
             return &AreaRecordingBehavior::INSTANCE;
         }
 
+        if(go_docking) {
+            return &DockingBehavior::INSTANCE;
+        }
+
         r.sleep();
     }
 
@@ -97,7 +101,7 @@ bool IdleBehavior::mower_enabled() {
 }
 
 void IdleBehavior::command_home() {
-    // We're already idle, don't do anything
+    // go_docking = true; -> we need a MAP !
 }
 
 void IdleBehavior::command_start() {
@@ -109,7 +113,7 @@ void IdleBehavior::command_s1() {
 }
 
 void IdleBehavior::command_s2() {
-
+    
 }
 
 bool IdleBehavior::redirect_joystick() {
