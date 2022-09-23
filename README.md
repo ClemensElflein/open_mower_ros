@@ -6,6 +6,10 @@
 * while in Mowing Behaviour - HOME will abort, then go to the Docking Behaviour, START will continue a manually pause, S1 will pause a mow path
 
 
+# TODO
+
+* use async functions only for navigation
+
 
 
 # ROS Workspace
