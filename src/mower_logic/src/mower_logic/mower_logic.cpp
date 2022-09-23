@@ -117,31 +117,30 @@ bool setGPS(bool enabled) {
 }
 
 
+/// @brief If the BLADE Motor is not in the requested status (enabled),we call the 
+///        the mower_service/mow_enabled service to enable/disable. TODO: get feedback about spinup and delay if needed
+/// @param enabled 
+/// @return 
 bool setMowerEnabled(bool enabled) 
 {
-    //  ROS_INFO_STREAM("om_mower_logic: setMowerEnabled(" << enabled << " / " << mowerEnabled << ")");
-//    if(enabled == mowerEnabled) {
- //       return true;
- //   }
-
-
     if (!last_config.enable_mower && enabled) {
         // ROS_INFO_STREAM("om_mower_logic: setMowerEnabled() - Mower should be enabled but is hard-disabled in the config.");
         enabled = false;
     }
-
- //   ROS_INFO(">>>>>> om_mower_logic: Calling MowEnabled with %d", enabled);
     
     // status change ?
     if (mowerEnabled != enabled)
     {
         mower_msgs::MowerControlSrv mow_srv;
         mow_srv.request.mow_enabled = enabled;
-        mowClient.call(mow_srv);
-        ROS_INFO_STREAM("om_mower_logic: setMowerEnabled(" << enabled << ") finished");
+        ros::Time started = ros::Time::now();
+        ROS_WARN_STREAM("#### om_mower_logic: setMowerEnabled(" << enabled << ") call");
+        mowClient.call(mow_srv); 
+        ROS_WARN_STREAM("#### om_mower_logic: setMowerEnabled(" << enabled << ") call completed within " << (ros::Time::now()-started).toSec() << "s");
         mowerEnabled = enabled;
     }
 
+// TODO: Spinup feedback & delay
 /*    if (enabled) {
         ROS_INFO_STREAM("enabled mower, waiting for it to speed up");
 
@@ -169,7 +168,8 @@ bool setMowerEnabled(bool enabled)
 }
 
 
-// halt all bot movement
+
+/// @brief Halt all bot movement
 void stopMoving() {
    // ROS_INFO_STREAM("om_mower_logic: stopMoving() - stopping bot movement");
     geometry_msgs::Twist stop;
@@ -178,7 +178,7 @@ void stopMoving() {
     cmd_vel_pub.publish(stop);
 }
 
-// if blade is enabled, we stop it
+/// @brief If the BLADE motor is currently enabled, we stop it
 void stopBlade()
 {
    // ROS_INFO_STREAM("om_mower_logic: stopBlade() - stopping blade motor if running");
@@ -189,14 +189,22 @@ void stopBlade()
     // ROS_INFO_STREAM("om_mower_logic: stopBlade() - finished");
 }
 
-// stop blade and any movement
+
+/// @brief Stop BLADE motor and any movement
+/// @param emergency 
 void setEmergencyMode(bool emergency) 
 {
     stopBlade();
     stopMoving();   
 }
 
+/// @brief Called every 0.5s, used to control BLADE motor via mower_enabled variable and stop any movement in case of /odom and /mower/status outages
+/// @param timer_event 
 void checkSafety(const ros::TimerEvent &timer_event) {
+
+     // call the mower
+    setMowerEnabled(currentBehavior != nullptr && currentBehavior->mower_enabled());
+
     // check if odometry is current. if not, we have a problem -> emergency
     if (ros::Time::now() - odom_time > ros::Duration(1.0)) 
     {
@@ -242,8 +250,6 @@ void checkSafety(const ros::TimerEvent &timer_event) {
 //        return;
 //    }
 
-    // check if we need the mower.
-    setMowerEnabled(currentBehavior != nullptr && currentBehavior->mower_enabled());
 
     // we are in non emergency, check if we should pause. This could be empty battery, rain or hot mower motor etc.
     bool dockingNeeded = false;
