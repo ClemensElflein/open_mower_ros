@@ -8,7 +8,7 @@
 
 # TODO
 
-* use async functions only for navigation
+* use async functions only for navigation 
 
 
 
