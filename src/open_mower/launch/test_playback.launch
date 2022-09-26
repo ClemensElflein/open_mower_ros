@@ -9,12 +9,8 @@
 
     <node name="rviz" pkg="rviz" type="rviz" args="-d $(find open_mower)/rviz/playback.rviz" required="true" />
 
-
-
 <!--    <node pkg="open_mower_ros" type="area_recorder" name="area_recorder" output="screen">-->
 <!--    </node>-->
     <node pkg="mower_map" type="mower_map_service" name="map_service" output="screen" />
     <node pkg="rqt_reconfigure" type="rqt_reconfigure" name="rqt_reconfigure" />
-
-
 </launch>

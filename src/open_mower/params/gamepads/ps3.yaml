@@ -1,0 +1,59 @@
+teleop:
+  move:
+    type: topic
+    message_type: geometry_msgs/Twist
+    topic_name: joy_vel
+    deadman_buttons: [0]
+    axis_mappings:
+      -
+        axis: 1
+        target: linear.x
+        scale: 1
+      -
+        axis: 0
+        target: angular.z
+        scale: 1
+      -
+        axis: 2
+        target: linear.y
+        scale: 1
+  
+  record_polygon:
+    type: topic
+    message_type: std_msgs/Bool
+    topic_name: record_polygon
+    deadman_buttons: [1]
+    message_value:
+      -
+        target: data
+        value: 1
+  
+  record_dock:
+    type: topic
+    message_type: std_msgs/Bool
+    topic_name: record_dock
+    deadman_buttons: [2]
+    message_value:
+      -
+        target: data
+        value: 1
+  
+  record_mowing:
+    type: topic
+    message_type: std_msgs/Bool
+    topic_name: record_mowing
+    deadman_buttons: [3, 14]
+    message_value:
+      -
+        target: data
+        value: 1
+
+  record_navigation:
+    type: topic
+    message_type: std_msgs/Bool
+    topic_name: record_navigation
+    deadman_buttons: [3, 13]
+    message_value:
+      -
+        target: data
+        value: 1

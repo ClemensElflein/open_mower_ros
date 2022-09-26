@@ -4,19 +4,7 @@
 <launch>
     <include file="$(find mower_simulation)/launch/_mower_simulation.launch" />
     <include file="$(find open_mower)/launch/include/_move_base.launch" />
-
-    <node name="joy" pkg="joy" type="joy_node" required="true" >
-        <param name="~autorepeat_rate" value="10.0"/>
-        <param name="~coalesce_interval" value="0.06"/>
-    </node>
-
-    <node name="joy_teleop" pkg="teleop_twist_joy" type="teleop_node" required="true" >
-        <param name="~scale_linear" value="0.5"/>
-        <param name="~scale_angular" value="0.5"/>
-        <param name="~scale_linear_turbo" value="1.0"/>
-        <param name="~scale_angular_turbo" value="1.0"/>
-        <param name="~enable_turbo_button" value="4"/>
-    </node>
+    <include file="$(find open_mower)/launch/include/_teleop.launch"/>
 
     <node name="rviz" pkg="rviz" type="rviz" args="-d $(find open_mower)/rviz/sim_navigation_test.rviz" required="true" />
     <node pkg="mower_map" type="mower_map_service" name="mower_map" required="true" />

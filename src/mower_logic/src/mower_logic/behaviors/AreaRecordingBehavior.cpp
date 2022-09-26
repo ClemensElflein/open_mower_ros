@@ -143,7 +143,6 @@ void AreaRecordingBehavior::enter() {
     markers = visualization_msgs::MarkerArray();
 
 
-
     add_mowing_area_client = n->serviceClient<mower_map::AddMowingAreaSrv>("mower_map_service/add_mowing_area");
     set_docking_point_client = n->serviceClient<mower_map::SetDockingPointSrv>("mower_map_service/set_docking_point");
 
@@ -154,8 +153,14 @@ void AreaRecordingBehavior::enter() {
     ROS_INFO_STREAM("Starting recording area");
 
     ROS_INFO_STREAM("Subscribing to /joy for user input");
-    joy_sub = n->subscribe("/joy", 100,
-                                          &AreaRecordingBehavior::joy_received, this);
+    
+    joy_sub = n->subscribe("/joy", 100, &AreaRecordingBehavior::joy_received, this);
+
+    dock_sub = n->subscribe("/record_dock", 100, &AreaRecordingBehavior::record_dock_received, this);
+    polygon_sub = n->subscribe("/record_polygon", 100, &AreaRecordingBehavior::record_polygon_received, this);
+    mow_area_sub = n->subscribe("/record_mowing", 100, &AreaRecordingBehavior::record_mowing_received, this);
+    nav_area_sub = n->subscribe("/record_navigation", 100, &AreaRecordingBehavior::record_navigation_received, this);
+
     odom_sub = n->subscribe("mower/odom", 100,
                                            &AreaRecordingBehavior::odom_received, this);
 
@@ -165,6 +170,10 @@ void AreaRecordingBehavior::exit() {
     marker_pub.shutdown();
     marker_array_pub.shutdown();
     joy_sub.shutdown();
+    dock_sub.shutdown();
+    polygon_sub.shutdown();
+    mow_area_sub.shutdown();
+    nav_area_sub.shutdown();
     odom_sub.shutdown();
     add_mowing_area_client.shutdown();
     set_docking_point_client.shutdown();
@@ -224,6 +233,45 @@ void AreaRecordingBehavior::joy_received(const sensor_msgs::Joy &joy_msg) {
 
 
     last_joy = joy_msg;
+}
+
+void AreaRecordingBehavior::record_dock_received(std_msgs::Bool state_msg) {
+    if (state_msg.data) {
+        ROS_INFO_STREAM("Record dock position");
+        set_docking_position = true;
+    }
+}
+
+void AreaRecordingBehavior::record_polygon_received(std_msgs::Bool state_msg) {
+    if (state_msg.data) {
+        // We toggle recording state
+        ROS_INFO_STREAM("Toggle record polygon");
+        poly_recording_enabled = !poly_recording_enabled;
+    }
+}
+
+void AreaRecordingBehavior::record_navigation_received(std_msgs::Bool state_msg) {
+    if (state_msg.data) {
+        ROS_INFO_STREAM("Save polygon as navigation area");
+        // stop current poly recording
+        poly_recording_enabled = false;
+
+        // set finished
+        is_mowing_area = false;
+        finished_all = true;
+    }
+}
+
+void AreaRecordingBehavior::record_mowing_received(std_msgs::Bool state_msg) {
+    if (state_msg.data) {
+        ROS_INFO_STREAM("Save polygon as mowing area");
+        // stop current poly recording
+        poly_recording_enabled = false;
+
+        // set finished
+        is_mowing_area = true;
+        finished_all = true;
+    }
 }
 
 
