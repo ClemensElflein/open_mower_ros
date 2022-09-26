@@ -162,6 +162,10 @@ void imuReceived(const sensor_msgs::Imu::ConstPtr &msg) {
 
 void handleGPSUpdate(tf2::Vector3 gps_pos, double gps_accuracy_m) {
 
+    if(config.simulate_gps_outage) {
+        ROS_INFO_STREAM_THROTTLE(5, "Dropping GPS due to simulated outage!");
+        return;
+    }
 
     if (gps_accuracy_m > 0.05) {
         ROS_INFO_STREAM("dropping gps with accuracy: " << gps_accuracy_m << "m");
