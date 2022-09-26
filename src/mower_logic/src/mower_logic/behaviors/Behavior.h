@@ -27,8 +27,15 @@ class Behavior {
 
 private:
     ros::Time startTime;
+    ros::Time lastOdomTime;
+    long valid_odom_counter;
+
 protected:
+    bool aborted;
     bool paused;
+
+    bool requested_continue_flag;
+    bool requested_pause_flag;
 
     double time_in_state() {
         return (ros::Time::now() - startTime).toSec();
@@ -45,11 +52,61 @@ public:
 
     virtual std::string state_name() = 0;
 
-    void start(mower_logic::MowerLogicConfig &c) {
-        ROS_INFO_STREAM("Entered state: " << state_name());
+    void updateOdomTime(void)
+    {
+        lastOdomTime = ros::Time::now();
+    }
+
+    // /odom is valid for 5 seconds
+    // (assumes being called once a second)
+    bool isOdomValid()
+    {
+        if ( (ros::Time::now() - lastOdomTime).toSec() < 1.0 ) // /odom received within last second
+        {
+            valid_odom_counter++;
+        }
+        else
+        {
+            valid_odom_counter = 0; // reset
+        }
+        return ( valid_odom_counter > 5.0 );
+    } 
+
+    void requestContinue()
+    {
+        requested_continue_flag = true;
+    }
+
+    void requestPause()
+    {
+        requested_pause_flag = true;
+    }
+
+    void setPause()
+    {
+        paused = true;
+    }
+
+    void setContinue()
+    {
         paused = false;
+        requested_continue_flag = false;
+        requested_pause_flag = false;
+    }
+
+    void start(mower_logic::MowerLogicConfig &c) {
+        ROS_INFO_STREAM("");
+        ROS_INFO_STREAM("");
+        ROS_INFO_STREAM("--------------------------------------");
+        ROS_INFO_STREAM("- Entered state: " << state_name());
+        ROS_INFO_STREAM("--------------------------------------");
+        aborted = false;
+        paused = false;
+        requested_continue_flag = false;
+        requested_pause_flag = false;
         this->config = c;
         startTime = ros::Time::now();
+        valid_odom_counter = 0;
         enter();
     }
 
@@ -73,12 +130,13 @@ public:
      * If called, save state internally and return the execute() method asap.
      * Execution should resume on the next execute() call.
      */
-    void pause() {
-        paused = true;
+    void abort() {
+        ROS_INFO_STREAM("- Behaviour.h: abort() called");
+        aborted = true;
     }
 
     // Return true, if this state needs absolute positioning.
-    // The state will be paused if GPS is lost and resumed at some later point in time.
+    // The state will be aborted if GPS is lost and resumed at some later point in time.
     virtual bool needs_gps() = 0;
 
     // return true, if the mower motor should currently be running.
