@@ -27,7 +27,6 @@ class IdleBehavior : public Behavior {
 private:
     bool manual_start_mowing = false;
     bool start_area_recorder = false;
-    bool go_docking = false;
 public:
     static IdleBehavior INSTANCE;
 

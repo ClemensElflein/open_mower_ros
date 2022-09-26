@@ -206,8 +206,6 @@ bool MowingBehavior::execute_mowing_plan() {
             mowerEnabled = true;
         }
 
-        // enable mower (MOWGLI update: see below we only start when we reach the inital position of the mow path)
-        // mowerEnabled = true;
 
         auto &path = currentMowingPaths.front();
         ROS_INFO_STREAM("MowingBehavior: Path segment length: " << path.path.poses.size() << " poses.");
@@ -279,7 +277,7 @@ bool MowingBehavior::execute_mowing_plan() {
         // Execute the path segment and either drop it if we finished it successfully or trim it if we were aborted
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////
         {
-            // enable mower (MOWGLI update - only when we reach the start not on the way to mowing already)
+            // enable mower (only when we reach the start not on the way to mowing already)
             mowerEnabled = true;
 
             mbf_msgs::ExePathGoal exePathGoal;
@@ -336,31 +334,9 @@ bool MowingBehavior::execute_mowing_plan() {
             ROS_INFO_STREAM(">> MowingBehavior: (MOW) PlannerGetProgress currentIndex = " << currentIndex << " of " << path.path.poses.size());
             printNavState(current_status.state_);
             // if we have fully processed the segment or we have encountered an error, drop the path segment
-            // MOWGLI: we can not trust the SUCCEEDED state because the planner sometimes says suceeded with
-            // the currentIndex far from the size of the poses ! (BUG in planner ?)
-#ifdef BUGGY_CODE            
-            if (currentIndex < 0 || currentIndex >= path.path.poses.size() || !aborted) {
-                // TODO check if it was an error and maybe react to it
-                if (current_status.state_ != actionlib::SimpleClientGoalState::SUCCEEDED) {
-                    // remove currentMowingPathIndex points from the path, since we have already mowed those
-                    auto &poses = path.path.poses;
-                    ROS_INFO_STREAM("MowingBehavior (ErrorCatch): Poses before trim:" << poses.size());
-                    ROS_INFO_STREAM("MowingBehavior (ErrorCatch): Trimming " << currentIndex << " points.");
-                    poses.erase(poses.begin(), poses.begin() + currentIndex);
-                    ROS_INFO_STREAM("MowingBehavior (ErrorCatch): Poses after trim:" << poses.size());
-                    ROS_INFO_STREAM("MowingBehavior: (MOW) PAUSED due to MBF Error");
-                    this->setPause();
-                }
-                else
-                {
-                    ROS_INFO_STREAM("MowingBehavior: (MOW) Mow path finished, skipping to next mow path.");
-                    currentMowingPaths.erase(currentMowingPaths.begin());
-                    // continue with next segment
-                }
-                continue;
-            }
-#else
-            // MOWGLI: instead we trust only the currentIndex vs. poses.size()
+            /* TODO: we can not trust the SUCCEEDED state because the planner sometimes says suceeded with
+                the currentIndex far from the size of the poses ! (BUG in planner ?)
+                instead we trust only the currentIndex vs. poses.size() */
             if (currentIndex >= path.path.poses.size() ) // fully mowed the path ?
             {
                  ROS_INFO_STREAM("MowingBehavior: (MOW) Mow path finished, skipping to next mow path.");
@@ -385,17 +361,6 @@ bool MowingBehavior::execute_mowing_plan() {
                 ROS_INFO_STREAM("MowingBehavior: (MOW) PAUSED due to MBF Error");
                 this->setPause();
             }
-#endif
-
-/*
-            ROS_INFO_STREAM("MowingBehavior: Path segment was not fully finished, trimming it.");
-            // remove currentMowingPathIndex points from the path, since we have already mowed those
-            auto &poses = path.path.poses;
-            ROS_INFO_STREAM("MowingBehavior: Poses before trim:" << poses.size());
-            ROS_INFO_STREAM("MowingBehavior: Trimming " << currentIndex << " points.");
-            poses.erase(poses.begin(), poses.begin() + currentIndex);
-            ROS_INFO_STREAM("MowingBehavior: Poses after trim:" << poses.size());
-            */
         }
     }
 
@@ -408,7 +373,9 @@ bool MowingBehavior::execute_mowing_plan() {
 void MowingBehavior::command_home() {
     if (paused)
     {
+        // Request continue to wait for odom
         this->requestContinue();
+        // Then instantly abort i.e. go to dock.
     }
     this->abort();
 }

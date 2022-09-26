@@ -1,17 +1,3 @@
-# MOWGLI Changes compared to OM
-
-* More debug statements
-* pause() is in reality abort() so it and its related functions have been renamed
-* the new (real) pause() will interrupt an ongoing MBF mow path 
-* while in Mowing Behaviour - HOME will abort, then go to the Docking Behaviour, START will continue a manually pause, S1 will pause a mow path
-
-
-# TODO
-
-* use async functions only for navigation 
-
-
-
 # ROS Workspace
 This folder is the ROS workspace, which should be used to build the OpenMower ROS software.
 This repository contains the ROS package for controlling the OpenMower.
@@ -32,16 +18,7 @@ OpenMower requires ROS Noetic. ([installation instruction](http://wiki.ros.org/n
 By default, OpenMower is supposed to run on an ARM-based Raspberry boards: https://x-tech.online/2022/01/installing-ros-noetic-on-a-headless-raspberry-pi-4-with-ubuntu-20-04/
 
 #### Fetch Dependencies
-Before building, you need to fetch this project's dependencies. Some dependencies are distributed as git submodules, others can be installed using rosdep:
-
-
-First, fetch the Git submodules:
-```bash
-# Fetch Git Submodules
-git submodule update --init --recursive
-```
-
-Then, install the remaining dependencies using rosdep:
+Before building, you need to fetch this project's dependencies. The best way to do this is by using rosdep:
 
 ```bash
 sudo apt install python3-rosdep
