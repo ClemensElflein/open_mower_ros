@@ -195,7 +195,7 @@ bool MowingBehavior::execute_mowing_plan() {
         {   
             paused_time = ros::Time::now();
             mowerEnabled = false;
-            while (!this->isOdomValid()) // while no /odom we wait
+            while (!this->hasGoodGPS()) // while no good GPS we wait
             {
                 ROS_INFO_STREAM("MowingBehavior: PAUSED (" << (ros::Time::now()-paused_time).toSec() << "s) (waiting for /odom)");
                 ros::Rate r(1.0);

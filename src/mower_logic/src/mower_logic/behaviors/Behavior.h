@@ -27,8 +27,6 @@ class Behavior {
 
 private:
     ros::Time startTime;
-    ros::Time lastOdomTime;
-    long valid_odom_counter;
 
 protected:
     bool aborted;
@@ -36,6 +34,8 @@ protected:
 
     bool requested_continue_flag;
     bool requested_pause_flag;
+
+    bool isGPSGood;
 
     double time_in_state() {
         return (ros::Time::now() - startTime).toSec();
@@ -52,25 +52,14 @@ public:
 
     virtual std::string state_name() = 0;
 
-    void updateOdomTime(void)
+    bool hasGoodGPS()
     {
-        lastOdomTime = ros::Time::now();
+        return isGPSGood;
     }
 
-    // /odom is valid for 5 seconds
-    // (assumes being called once a second)
-    bool isOdomValid()
-    {
-        if ( (ros::Time::now() - lastOdomTime).toSec() < 1.0 ) // /odom received within last second
-        {
-            valid_odom_counter++;
-        }
-        else
-        {
-            valid_odom_counter = 0; // reset
-        }
-        return ( valid_odom_counter > 5.0 );
-    } 
+    void setGoodGPS(bool isGood) {
+        isGPSGood = isGood;
+    }
 
     void requestContinue()
     {
@@ -106,7 +95,7 @@ public:
         requested_pause_flag = false;
         this->config = c;
         startTime = ros::Time::now();
-        valid_odom_counter = 0;
+        isGPSGood = false;
         enter();
     }
 

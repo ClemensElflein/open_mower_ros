@@ -78,11 +78,6 @@ Behavior *currentBehavior = &IdleBehavior::INSTANCE;
 void odomReceived(const nav_msgs::Odometry::ConstPtr &msg) {
  
     last_odom = *msg;
-    if (currentBehavior)
-    {
-        currentBehavior->updateOdomTime();
-    }
- //   last_odom.pose.covariance[0]=0.0;
  #ifdef VERBOSE_DEBUG
     ROS_INFO("om_mower_logic: odomReceived with covariance of %f", last_odom.pose.covariance[0]);
 #endif
@@ -236,6 +231,21 @@ void checkSafety(const ros::TimerEvent &timer_event) {
                                                                                << ", status right: "
                                                                                << last_status.right_esc_status);
         return;
+    }
+    bool gpsGoodNow = last_odom.pose.covariance[0] < 0.05 && last_odom.pose.covariance[0] > 0;
+    if (gpsGoodNow || last_config.ignore_gps_errors) {
+        last_good_gps = ros::Time::now();
+    }
+
+    bool gpsTimeout = ros::Time::now() - last_good_gps > ros::Duration(last_config.gps_timeout);
+
+    if (currentBehavior != nullptr && currentBehavior->needs_gps()) {
+        // Stop the mower
+        if(gpsTimeout) {
+            stopBlade();
+            stopMoving();
+        }
+        currentBehavior->setGoodGPS(!gpsTimeout);
     }
 
 
