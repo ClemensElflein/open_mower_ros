@@ -13,3 +13,6 @@
 [submodule "src/lib/ublox"]
 	path = src/lib/ublox
 	url = https://github.com/ClemensElflein/ublox.git
+[submodule "src/lib/ntrip_client"]
+	path = src/lib/ntrip_client
+	url = https://github.com/LORD-MicroStrain/ntrip_client.git
