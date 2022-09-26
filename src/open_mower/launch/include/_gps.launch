@@ -3,7 +3,7 @@
     This launch file sets up the RTK GPS.
  -->
 <launch>
-    
+
     <include if="$(env OM_USE_NTRIP)" file="$(find open_mower)/launch/include/_ntrip_client.launch" />
 
     <node pkg="ublox_gps" type="ublox_gps" name="ublox"
