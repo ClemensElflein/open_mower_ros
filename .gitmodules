@@ -10,3 +10,6 @@
 [submodule "src/lib/slic3r_coverage_planner"]
 	path = src/lib/slic3r_coverage_planner
 	url = https://github.com/ClemensElflein/slic3r_coverage_planner.git
+[submodule "src/lib/ublox"]
+	path = src/lib/ublox
+	url = https://github.com/ClemensElflein/ublox.git
