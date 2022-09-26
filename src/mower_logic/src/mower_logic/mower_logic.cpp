@@ -15,7 +15,7 @@
 //
 //
 
-// #define MOWGLI   1
+// #define VERBOSE_DEBUG   1
 
 #include "ros/ros.h"
 #include "slic3r_coverage_planner/PlanPath.h"
@@ -66,7 +66,7 @@ mower_msgs::Status last_status;
 
 ros::Time last_good_gps(0.0);
 
-bool emergencyEnabled = false;
+
 bool mowerEnabled = false;
 
 // true, if bot needs to dock or needs to stay docked.
@@ -83,14 +83,14 @@ void odomReceived(const nav_msgs::Odometry::ConstPtr &msg) {
         currentBehavior->updateOdomTime();
     }
  //   last_odom.pose.covariance[0]=0.0;
- #ifdef MOWGLI  
+ #ifdef VERBOSE_DEBUG
     ROS_INFO("om_mower_logic: odomReceived with covariance of %f", last_odom.pose.covariance[0]);
 #endif
     odom_time = ros::Time::now();
 }
 
 void statusReceived(const mower_msgs::Status::ConstPtr &msg) {
-#ifdef MOWGLI        
+#ifdef VERBOSE_DEBUG
     ROS_INFO("om_mower_logic: statusReceived");
 #endif
     last_status = *msg;
@@ -195,7 +195,10 @@ void stopBlade()
 void setEmergencyMode(bool emergency) 
 {
     stopBlade();
-    stopMoving();   
+    stopMoving();
+    mower_msgs::EmergencyStopSrv emergencyStop;
+    emergencyStop.request.emergency = emergency;
+    emergencyClient.call(emergencyStop);
 }
 
 /// @brief Called every 0.5s, used to control BLADE motor via mower_enabled variable and stop any movement in case of /odom and /mower/status outages
@@ -205,7 +208,9 @@ void checkSafety(const ros::TimerEvent &timer_event) {
      // call the mower
     setMowerEnabled(currentBehavior != nullptr && currentBehavior->mower_enabled());
 
-    // check if odometry is current. if not, we have a problem -> emergency
+    // TODO: Have a single point where we check for this timeout instead of twice (here and in the behavior)
+    // check if odometry is current. If not, the GPS was bad so we stop moving.
+    // Note that the mowing behavior will pause as well by itself.
     if (ros::Time::now() - odom_time > ros::Duration(1.0)) 
     {
         stopBlade();
@@ -214,16 +219,16 @@ void checkSafety(const ros::TimerEvent &timer_event) {
         return;
     }
  
-    // check if status is current. if not, we have a problem since it contains wheel ticks and so on -> emergency
+    // check if status is current. if not, we have a problem since it contains wheel ticks and so on.
+    // Since these should never drop out, we enter emergency instead of "only" stopping
     if (ros::Time::now() - status_time > ros::Duration(3)) 
     {
-        stopBlade();
-        stopMoving();
+        setEmergencyMode(true);
         ROS_WARN_STREAM_THROTTLE(5, "om_mower_logic: EMERGENCY /mower/status values stopped. dt was: " << (ros::Time::now() - status_time));
         return;
     }
 
-/*
+    // If the motor controllers error, we enter emergency mode in the hope to save them. They should not error.
     if (last_status.right_esc_status.status <= mower_msgs::ESCStatus::ESC_STATUS_ERROR || last_status.left_esc_status.status <= mower_msgs::ESCStatus ::ESC_STATUS_ERROR) {
         setEmergencyMode(true);
         ROS_ERROR_STREAM(
@@ -232,23 +237,6 @@ void checkSafety(const ros::TimerEvent &timer_event) {
                                                                                << last_status.right_esc_status);
         return;
     }
-*/
-
-// *** there is noGpsGood, we stop sending /odom if something is wrong in the proxy ***
-//    bool gpsGood = last_odom.pose.covariance[0] < 0.05 && last_odom.pose.covariance[0] > 0;
-#ifdef MOWGLI  
-    ROS_INFO("om_mower_logic: gpsGood (last_odom.pose.covariance = %f) ", last_odom.pose.covariance[0]);
-#endif
-//    if (gpsGood || last_config.ignore_gps_errors) {
-//        // ROS_INFO("om_mower_logic: last_good_gps = now() !");
-//        last_good_gps = ros::Time::now();
-//    }
-
-//    if (currentBehavior != nullptr && currentBehavior->needs_gps() && ros::Time::now() - last_good_gps > ros::Duration(last_config.gps_timeout)) {
-//        ROS_WARN("om_mower_logic: GPS lost beause we didnt receive a valid message for more than %f seconds", last_config.gps_timeout);
-//        setEmergencyMode(true);
-//        return;
-//    }
 
 
     // we are in non emergency, check if we should pause. This could be empty battery, rain or hot mower motor etc.
@@ -360,7 +348,7 @@ int main(int argc, char **argv) {
     ros::ServiceServer high_level_control_srv = n->advertiseService("mower_service/high_level_control", highLevelCommand);
 
 
-    ros::AsyncSpinner asyncSpinner(4);  
+    ros::AsyncSpinner asyncSpinner(2);
     asyncSpinner.start();
 
     ROS_INFO("Waiting for a status message");
@@ -485,8 +473,9 @@ int main(int argc, char **argv) {
     setEmergencyMode(false);
     ros::Timer safety_timer = n->createTimer(ros::Duration(0.5), checkSafety);
 
+
+    // Behavior execution loop
     while (ros::ok()) {
-        ROS_INFO("om_mower_logic: main loop");
         if (currentBehavior != nullptr) {
             std_msgs::String state_name;
             state_name.data = currentBehavior->state_name();
@@ -498,8 +487,7 @@ int main(int argc, char **argv) {
             Behavior *newBehavior = currentBehavior->execute();
             currentBehavior->exit();
             currentBehavior = newBehavior;
-        } else 
-        {
+        } else {
             std_msgs::String state_name;
             state_name.data = "NULL";
             current_state_pub.publish(state_name);
@@ -509,7 +497,6 @@ int main(int argc, char **argv) {
             ros::Rate r(1.0);
             r.sleep();
         }
-        // ros::spinOnce(); // MOWGLI switched to spinOnce, because async didnt really work (long svc call times)
     }
 
     delete (n);
