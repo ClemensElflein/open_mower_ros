@@ -14,5 +14,7 @@
         <rosparam command="load"
                   file="$(find open_mower)/params/gps.yaml" />
         <param name="device" value="/dev/$(env OM_GPS_SERIAL_PORT)" />
+        <param name="uart1/baudrate" value="921600" />
+        <remap from="/rtcm" to="/ntrip_client/rtcm"/>
     </node>
 </launch>
