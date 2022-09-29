@@ -1,0 +1,19 @@
+<launch>
+    <group if="$(eval env('OM_MOWER_GAMEPAD') == 'xbox360')">
+        <node name="remote_joy" pkg="joy" type="joy_node" required="true">
+            <param name="~autorepeat_rate" value="10.0"/>
+            <param name="~coalesce_interval" value="0.06"/>
+        </node>
+
+    </group>
+
+    <group unless="$(eval env('OM_MOWER_GAMEPAD') == 'xbox360')">
+        <node name="remote_joy" pkg="joy" type="joy_node" required="true" >
+            <remap from="/joy" to="/teleop_joy"/>
+            <param name="~coalesce_interval" value="0.06"/>
+        </node>
+        
+        <rosparam file="$(find open_mower)/params/gamepads/$(env OM_MOWER_GAMEPAD).yaml" command="load"/>
+        
+    </group>
+</launch>
