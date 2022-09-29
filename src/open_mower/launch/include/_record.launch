@@ -19,7 +19,7 @@
 /ublox/navrelposned
 /ublox/fix " />
 
-    <node if="$(optenv OM_ENABLE_RECORDING_ALL False)" pkg="rosbag" type="record" name="rosbag_record_di>
+    <node if="$(optenv OM_ENABLE_RECORDING_ALL False)" pkg="rosbag" type="record" name="rosbag_record_diag"
           args="record -o /$(env HOME)/all_$(arg prefix) -a" />
 
 </launch>
