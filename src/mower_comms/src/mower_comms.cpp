@@ -36,8 +36,11 @@
 #include <xesc_driver/xesc_driver.h>
 #include <xesc_msgs/XescStateStamped.h>
 
+#include <ublox_msgs/WheelTicks.h>
+
 
 ros::Publisher status_pub;
+ros::Publisher wheel_tick_pub;
 
 ros::Publisher sensor_imu_pub;
 ros::Publisher sensor_mag_pub;
@@ -210,6 +213,15 @@ void publishStatus() {
     convertStatus(right_status, status_msg.right_esc_status);
 
     status_pub.publish(status_msg);
+
+    ublox_msgs::WheelTicks wheel_tick_msg;
+    wheel_tick_msg.stamp = status_msg.stamp;
+    wheel_tick_msg.wheelTicksLeft = left_status.state.tacho_absolute;
+    wheel_tick_msg.directionLeft = left_status.state.direction;
+    wheel_tick_msg.wheelTicksRight = right_status.state.tacho_absolute;
+    wheel_tick_msg.directionRight = right_status.state.direction;
+
+    wheel_tick_pub.publish(wheel_tick_msg);
 }
 
 void publishActuatorsTimerTask(const ros::TimerEvent &timer_event) {
@@ -371,6 +383,7 @@ int main(int argc, char **argv) {
 
 
     status_pub = n.advertise<mower_msgs::Status>("mower/status", 1);
+    wheel_tick_pub = n.advertise<ublox_msgs::WheelTicks>("mower/wheel_ticks", 1);
 
     sensor_imu_pub = n.advertise<sensor_msgs::Imu>("imu/data_raw", 1);
     sensor_mag_pub = n.advertise<sensor_msgs::MagneticField>("imu/mag", 1);

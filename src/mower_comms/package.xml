@@ -14,6 +14,7 @@
   <build_depend>roscpp</build_depend>
   <build_depend>serial</build_depend>
   <build_depend>xesc_driver</build_depend>
+  <build_depend>ublox_msgs</build_depend>
   <build_export_depend>mower_msgs</build_export_depend>
   <build_export_depend>roscpp</build_export_depend>
   <build_export_depend>serial</build_export_depend>
