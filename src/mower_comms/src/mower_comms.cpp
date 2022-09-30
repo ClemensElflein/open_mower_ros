@@ -219,7 +219,7 @@ void publishStatus() {
     wheel_tick_msg.wheelTicksLeft = left_status.state.tacho_absolute;
     wheel_tick_msg.directionLeft = left_status.state.direction;
     wheel_tick_msg.wheelTicksRight = right_status.state.tacho_absolute;
-    wheel_tick_msg.directionRight = right_status.state.direction;
+    wheel_tick_msg.directionRight = !right_status.state.direction;
 
     wheel_tick_pub.publish(wheel_tick_msg);
 }
