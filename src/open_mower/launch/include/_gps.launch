@@ -17,6 +17,6 @@
         <param name="uart1/baudrate" value="921600" />
         <param name="raw_data_server/enable" value="$(optenv OM_ENABLE_GPS_TCP_DEBUG_SERVER False)" />
         <remap from="/rtcm" to="/ntrip_client/rtcm"/>
-        <remap from="/wheel_ticks" to="/mower/wheel_ticks"/>
+        <remap from="wheel_ticks" to="/mower/wheel_ticks"/>
     </node>
 </launch>
