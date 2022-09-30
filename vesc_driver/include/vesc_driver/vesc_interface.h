@@ -83,6 +83,8 @@ namespace vesc_driver {
         double displacement;         // net tachometer (counts)
         double distance_traveled;    // total tachnometer (counts)
         uint32_t tacho;
+        uint32_t tacho_absolute;
+        bool direction;
         int32_t fault_code;
     };
 

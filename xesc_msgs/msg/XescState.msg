@@ -24,3 +24,5 @@ float64 current_input        # input current (ampere)
 float64 duty_cycle           # duty cycle (0 to 1)
 uint32 tacho                 # wheel ticks
 uint32   fault_code
+uint32 tacho_absolute        # wheel ticks absolute
+uint8 direction              # current direction

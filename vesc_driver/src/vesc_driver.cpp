@@ -73,6 +73,8 @@ namespace vesc_driver {
         state_msg.state.duty_cycle = vesc_status.duty_cycle;
         state_msg.state.tacho = vesc_status.tacho;
         state_msg.state.fault_code = vesc_status.fault_code;
+        state_msg.state.tacho_absolute = vesc_status.tacho_absolute;
+        state_msg.state.direction = vesc_status.direction;
     }
 
     void VescDriver::getStatusBlocking(xesc_msgs::XescStateStamped &state_msg) {
@@ -89,6 +91,8 @@ namespace vesc_driver {
         state_msg.state.duty_cycle = vesc_status.duty_cycle;
         state_msg.state.tacho = vesc_status.tacho;
         state_msg.state.fault_code = vesc_status.fault_code;
+        state_msg.state.tacho_absolute = vesc_status.tacho_absolute;
+        state_msg.state.direction = vesc_status.direction;
     }
 
     void VescDriver::setDutyCycle(float duty_cycle) {

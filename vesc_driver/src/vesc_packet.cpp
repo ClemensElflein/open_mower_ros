@@ -291,9 +291,14 @@ uint32_t VescPacketValues::getPosition() const
  * @brief Gets absolute displacement
  * @return Absolute displacement
  **/
-double VescPacketValues::getDisplacement() const
+uint32_t VescPacketValues::getDisplacement() const
 {
-  return readBuffer(TACHOMETER_ABS, 4);
+    int32_t value = 0;
+    value += static_cast<int32_t>(*(payload_end_.first + TACHOMETER_ABS) << 24);
+    value += static_cast<int32_t>(*(payload_end_.first + TACHOMETER_ABS + 1) << 16);
+    value += static_cast<int32_t>(*(payload_end_.first + TACHOMETER_ABS + 2) << 8);
+    value += static_cast<int32_t>(*(payload_end_.first + TACHOMETER_ABS + 3));
+    return static_cast<uint32_t>(value);
 }
 
 /**

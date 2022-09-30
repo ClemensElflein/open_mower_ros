@@ -211,6 +211,8 @@ namespace vesc_driver {
             status_.distance_traveled = values->getDisplacement();
             status_.fault_code = values->getFaultCode();
             status_.tacho = values->getPosition();
+            status_.tacho_absolute = values->getDisplacement();
+            status_.direction = values->getVelocityERPM() < 0;
             status_cv_.notify_all();
         } else if (packet->getName() == "FWVersion") {
             std::lock_guard<std::mutex> lk(status_mutex_);

@@ -191,7 +191,7 @@ public:
   double getConsumedPower() const;
   double getInputPower() const;
   uint32_t getPosition() const;
-  double getDisplacement() const;
+  uint32_t getDisplacement() const;
   int getFaultCode() const;
 
 private:
