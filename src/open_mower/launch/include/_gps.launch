@@ -16,5 +16,6 @@
         <param name="device" value="/dev/$(env OM_GPS_SERIAL_PORT)" />
         <param name="uart1/baudrate" value="921600" />
         <remap from="/rtcm" to="/ntrip_client/rtcm"/>
+        <remap from="/wheel_ticks" to="/mower/wheel_ticks"/>
     </node>
 </launch>
