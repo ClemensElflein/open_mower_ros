@@ -356,7 +356,7 @@ void gpsPositionReceivedRelPosNED(const ublox_msgs::NavRELPOSNED9::ConstPtr &msg
 bool statusReceivedOrientation(const mower_msgs::Status::ConstPtr &msg) {
 
     if (!hasImuMessage) {
-        ROS_INFO("waiting for imu message");
+        ROS_INFO_THROTTLE(1, "odometry is waiting for imu message");
         return false;
     }
 
@@ -477,6 +477,10 @@ int main(int argc, char **argv) {
 
     ros::Subscriber gps_sub;
     if(use_relative_position) {
+        if(use_f9r_sensor_fusion) {
+            ROS_ERROR("Can't use f9r with relative positioning, disable relative positioning!");
+            return 1;
+        }
         ROS_INFO("Odometry is using relative positioning.");
         gps_sub = n.subscribe("ublox/navrelposned", 100, gpsPositionReceivedRelPosNED);
         status_sub = n.subscribe("mower/status", 100, statusReceived);
@@ -495,7 +499,7 @@ int main(int argc, char **argv) {
 
         RobotLocalization::NavsatConversions::LLtoUTM(datumLat, datumLng, datumN,datumE,datumZone);
 
-        ROS_INFO_STREAM("Odometry is using LAT/LNG positioning. Datum coordinates are: " << datumLat<< ", " << datumLng);
+        ROS_INFO_STREAM("Odometry is using F9R positioning. Datum coordinates are: " << datumLat<< ", " << datumLng);
 
         gps_sub = n.subscribe("ublox/fix", 100, gpsPositionReceivedPVT);
     } else {
