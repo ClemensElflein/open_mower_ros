@@ -501,7 +501,7 @@ int main(int argc, char **argv) {
 
         ROS_INFO_STREAM("Odometry is using F9R positioning. Datum coordinates are: " << datumLat<< ", " << datumLng);
 
-        gps_sub = n.subscribe("ublox/fix", 100, gpsPositionReceivedPVT);
+        gps_sub = n.subscribe("ublox/navpvt", 100, gpsPositionReceivedPVT);
     } else {
         bool gotLatLng = true;
         gotLatLng &= paramNh.getParam("datum_lat", datumLat);
