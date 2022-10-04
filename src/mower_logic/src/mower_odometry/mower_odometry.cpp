@@ -280,6 +280,13 @@ void gpsPositionReceivedPVT(const ublox_msgs::NavPVT::ConstPtr &msg) {
                                                                                                  "invalidLlh:" << (int) invalidLlh << "\r\n" <<
                                                                                                  "fixType:" << (int) fixType << "\r\n"
         );
+
+        gpsOdometryValid = false;
+        // update the quaternion (it might not be initialized correctly)
+        tf2::Quaternion q_mag(0.0, 0.0, r);
+        orientation_result = tf2::toMsg(q_mag);
+        publishOdometry();
+
         return;
     }
 
@@ -307,10 +314,16 @@ void gpsPositionReceivedPVT(const ublox_msgs::NavPVT::ConstPtr &msg) {
     y = gps_pos.y();
     vx = velE;
     vy = velN;
-    r = hedVeh;
+    r = (hedVeh/100.0)*(M_PI/180.0);
+    
     // needed?
     vr = 0;
     last_gps_acc_m = gps_accuracy_m;
+
+
+    tf2::Quaternion q_mag(0.0, 0.0, r);
+    orientation_result = tf2::toMsg(q_mag);
+
     publishOdometry();
 }
 
