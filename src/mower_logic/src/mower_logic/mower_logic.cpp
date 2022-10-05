@@ -69,9 +69,6 @@ ros::Time last_good_gps(0.0);
 
 bool mowerEnabled = false;
 
-// true, if bot needs to dock or needs to stay docked.
-// This can be set to true by anyone but will only be set to false by the idle state on exit
-bool mowingAborted = false;
 
 Behavior *currentBehavior = &IdleBehavior::INSTANCE;
 
@@ -97,10 +94,6 @@ void abortExecution() {
     if (currentBehavior != nullptr) {
         currentBehavior->abort();
     }
-    if (!mowingAborted) {
-        ROS_INFO_STREAM("Requesting Pause");
-    }
-    mowingAborted = true;
 }
 
 bool setGPS(bool enabled) {
@@ -491,9 +484,6 @@ int main(int argc, char **argv) {
             state_name.data = currentBehavior->state_name();
             current_state_pub.publish(state_name);
             currentBehavior->start(last_config);
-            if (mowingAborted) {
-                currentBehavior->abort();
-            }
             Behavior *newBehavior = currentBehavior->execute();
             currentBehavior->exit();
             currentBehavior = newBehavior;
