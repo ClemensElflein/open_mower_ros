@@ -141,6 +141,8 @@ void AreaRecordingBehavior::enter() {
     finished_all = false;
     set_docking_position = false;
     markers = visualization_msgs::MarkerArray();
+    paused = aborted = false;
+
 
 
     add_mowing_area_client = n->serviceClient<mower_map::AddMowingAreaSrv>("mower_map_service/add_mowing_area");

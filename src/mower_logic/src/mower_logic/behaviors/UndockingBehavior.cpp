@@ -91,6 +91,7 @@ Behavior *UndockingBehavior::execute() {
 
 void UndockingBehavior::enter() {
     reset();
+    paused = aborted = false;
 
     // Get the docking pose in map
     mower_map::GetDockingPointSrv get_docking_point_srv;

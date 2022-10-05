@@ -70,6 +70,7 @@ Behavior *MowingBehavior::execute() {
 
 void MowingBehavior::enter() {
     skip_area = false;
+    paused = aborted = false;
 }
 
 void MowingBehavior::exit() {
