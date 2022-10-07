@@ -11,6 +11,7 @@
 #include <tf/transform_listener.h>
 #include <dynamic_reconfigure/server.h>
 #include <ftc_local_planner/FTCPlannerConfig.h>
+#include <ftc_local_planner/PID.h>
 #include <nav_core/base_local_planner.h>
 #include <tf2_ros/transform_broadcaster.h>
 #include <tf2/LinearMath/Quaternion.h>
@@ -89,6 +90,8 @@ class FTCPlanner : public mbf_costmap_core::CostmapController {
         /**
          * Private members
          */
+        ros::Publisher pubPid;
+        
         double distanceLookahead();
 
         PlannerState update_planner_state();

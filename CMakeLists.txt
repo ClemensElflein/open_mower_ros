@@ -39,10 +39,16 @@ add_service_files(
 		PlannerGetProgress.srv
 )
 
+add_message_files(
+        FILES
+        PID.msg
+)
+
 generate_messages(
 		DEPENDENCIES
 		std_msgs
 )
+
 
 catkin_package(
     INCLUDE_DIRS include
@@ -65,6 +71,7 @@ add_library(ftc_local_planner
 target_link_libraries(ftc_local_planner ${catkin_LIBRARIES})
 add_dependencies(ftc_local_planner ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
 add_dependencies(ftc_local_planner ftc_local_planner_gencfg)
+add_dependencies(ftc_local_planner ftc_local_planner_generate_messages_cpp)
 
 
 install(TARGETS ftc_local_planner

@@ -36,7 +36,12 @@ namespace ftc_local_planner {
 
         current_state = PRE_ROTATE;
 
-
+        // PID Debugging topic
+        if (config.debug_pid)
+        {
+            pubPid = private_nh.advertise<ftc_local_planner::PID>("debug_pid", 1, true);        
+        }
+        
         ROS_INFO("FTCPlanner: Version 2 Init.");
     }
 
@@ -81,7 +86,7 @@ namespace ftc_local_planner {
             path.header = plan.front().header;
             path.poses = plan;
         } else {
-            ROS_WARN_STREAM("Global plan was too short. Cancelling.");
+            ROS_WARN_STREAM("Global plan was too short. Need a minimum of 3 poses - Cancelling.");
             current_state = FINISHED;
             state_entered_time = ros::Time::now();
         }
@@ -177,7 +182,7 @@ namespace ftc_local_planner {
         switch (current_state) {
             case PRE_ROTATE: {
                 if (time_in_current_state() > config.goal_timeout) {
-                    ROS_ERROR_STREAM("Error reaching goal. Timeout in PRE_ROTATE phase.");
+                    ROS_ERROR_STREAM("Error reaching goal. config.goal_timeout (" << config.goal_timeout << ") reached - Timeout in PRE_ROTATE phase.");
                     is_crashed = true;
                     return FINISHED;
                 }
@@ -191,7 +196,7 @@ namespace ftc_local_planner {
                 double distance = local_control_point.translation().norm();
                 // check for crash
                 if (distance > config.max_follow_distance) {
-                    ROS_ERROR_STREAM("Robot is far away from global plan. It probably has crashed.");
+                    ROS_ERROR_STREAM("Robot is far away from global plan. distance (" << distance << ") > config.max_follow_distance (" << config.max_follow_distance << ") It probably has crashed.");
                     is_crashed = true;
                     return FINISHED;
                 }
@@ -206,7 +211,7 @@ namespace ftc_local_planner {
             case WAITING_FOR_GOAL_APPROACH: {
                 double distance = local_control_point.translation().norm();
                 if (time_in_current_state() > config.goal_timeout) {
-                    ROS_WARN_STREAM("Could not reach goal position. Attempting final rotation anyways.");
+                    ROS_WARN_STREAM("Could not reach goal position. config.goal_timeout (" << config.goal_timeout << ") reached - Attempting final rotation anyways.");
                     return POST_ROTATE;
                 }
                 if (distance < config.max_goal_distance_error) {
@@ -217,7 +222,7 @@ namespace ftc_local_planner {
                 break;
             case POST_ROTATE: {
                 if (time_in_current_state() > config.goal_timeout) {
-                    ROS_WARN_STREAM("Could not reach goal rotation");
+                    ROS_WARN_STREAM("Could not reach goal rotation. config.goal_timeout (" << config.goal_timeout << ") reached");
                     return FINISHED;
                 }
                 if (abs(angle_error) * (180.0 / M_PI) < config.max_goal_angle_error) {
@@ -435,6 +440,38 @@ namespace ftc_local_planner {
                 ang_speed = -config.max_cmd_vel_ang;
             }
             cmd_vel.twist.angular.z = ang_speed;
+        }
+
+        if (config.debug_pid)
+        {
+            ftc_local_planner::PID debugPidMsg;
+            debugPidMsg.kp_lon_set = lon_error;
+            
+            // proportional
+            debugPidMsg.kp_lat_set = lat_error * config.kp_lat;
+            debugPidMsg.kp_lon_set = lon_error * config.kp_lon;
+            debugPidMsg.kp_ang_set = angle_error * config.kp_ang;
+
+            // integral
+            debugPidMsg.ki_lat_set = i_lat_error * config.ki_lat;
+            debugPidMsg.ki_lon_set = i_lon_error * config.ki_lon;
+            debugPidMsg.ki_ang_set = i_angle_error * config.ki_ang;
+
+            // diff
+            debugPidMsg.kd_lat_set = d_lat * config.kd_lat;
+            debugPidMsg.kd_lon_set = d_lon * config.kd_lon;
+            debugPidMsg.kd_ang_set = d_angle * config.kd_ang;
+
+            // errors
+            debugPidMsg.lon_err = lon_error;
+            debugPidMsg.lat_err = lat_error;
+            debugPidMsg.ang_err = angle_error;
+
+            // speeds
+            debugPidMsg.ang_speed = cmd_vel.twist.angular.z;
+            debugPidMsg.lin_speed = cmd_vel.twist.linear.x;
+            
+            pubPid.publish(debugPidMsg);
         }
     }
 
