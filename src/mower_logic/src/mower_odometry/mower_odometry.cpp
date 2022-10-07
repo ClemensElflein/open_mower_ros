@@ -269,7 +269,7 @@ void gpsPositionReceivedPVT(const ublox_msgs::NavPVT::ConstPtr &msg) {
     auto carrSoln = (uint8_t) ((msg->flags & 0b11000000) >> 6);
     bool invalidLlh = (msg->flags3 & 0b1);
     uint8_t fixType = (msg->fixType);
-    if (!gnssFixOK || !diffSoln || !headVehValid || carrSoln != 2 || invalidLlh || (fixType != 1 && fixType != 4)) {
+    if (!headVehValid || invalidLlh || (fixType != 1 && fixType != 4)) {
         gpsOdometryValid = false;
         ROS_INFO_STREAM_THROTTLE(1,"Dropped at least one GPS update due to flags.\r\nFlags:\r\n" <<
                                                                                                  "accuracy:" << gps_accuracy_m << "\r\n" <<
@@ -291,7 +291,7 @@ void gpsPositionReceivedPVT(const ublox_msgs::NavPVT::ConstPtr &msg) {
     }
 
     gpsOdometryValid = true;
-
+    last_gps_odometry_time = ros::Time::now();
 
     double lat = msg->lat/10000000.0;
     double lon = msg->lon/10000000.0;
@@ -314,7 +314,12 @@ void gpsPositionReceivedPVT(const ublox_msgs::NavPVT::ConstPtr &msg) {
     y = gps_pos.y();
     vx = velE;
     vy = velN;
-    r = (hedVeh/100.0)*(M_PI/180.0);
+    r = -hedVeh*(M_PI/180.0);
+
+    r = fmod(r + (M_PI_2), 2.0 * M_PI);
+    while (r < 0) {
+        r += M_PI * 2.0;
+    }
     
     // needed?
     vr = 0;
