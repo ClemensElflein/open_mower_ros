@@ -162,14 +162,6 @@ void imuReceived(const sensor_msgs::Imu::ConstPtr &msg) {
     lastImu = *msg;
     hasImuMessage = true;
 }
-void imuReceivedF9R(const sensor_msgs::Imu::ConstPtr &msg) {
-    sensor_msgs::Imu tmp = *msg;
-    // flip the gyro Z
-    tmp.angular_velocity.z *= -1.0;
-    lastImu = tmp;
-    hasImuMessage = true;
-}
-
 
 void handleGPSUpdate(tf2::Vector3 gps_pos, double gps_accuracy_m) {
 
@@ -272,6 +264,7 @@ void gpsPositionReceivedPVT(const ublox_msgs::NavPVT::ConstPtr &msg) {
 
     // drop messages if we don't use the GPS (docking / undocking)
     if(!gpsEnabled){
+        ROS_INFO_STREAM_THROTTLE(1, "Dropped GPS Update, because gpsEnable = false");
         return;
     }
 
@@ -330,7 +323,8 @@ void gpsPositionReceivedPVT(const ublox_msgs::NavPVT::ConstPtr &msg) {
     while (r < 0) {
         r += M_PI * 2.0;
     }
-
+    tf2::Quaternion q_mag(0.0, 0.0, r);
+    orientation_result = tf2::toMsg(q_mag);
     last_gps_acc_m = gps_accuracy_m;
 
 }
@@ -436,7 +430,7 @@ bool statusReceivedGyro(const mower_msgs::Status::ConstPtr &msg) {
         return true;
 
     r += lastImu.angular_velocity.z * dt;
-    r = fmod(r + (M_PI_2), 2.0 * M_PI);
+    r = fmod(r, 2.0 * M_PI);
     while (r < 0) {
         r += M_PI * 2.0;
     }
@@ -565,7 +559,7 @@ int main(int argc, char **argv) {
 
         gps_sub = n.subscribe("ublox/navpvt", 100, gpsPositionReceivedPVT);
         status_sub = n.subscribe("mower/status", 100, statusReceived);
-        imu_sub = n.subscribe("ublox/imu_meas", 100, imuReceivedF9R);
+        imu_sub = n.subscribe("ublox/imu_meas", 100, imuReceived);
     } else {
         bool gotLatLng = true;
         gotLatLng &= paramNh.getParam("datum_lat", datumLat);
