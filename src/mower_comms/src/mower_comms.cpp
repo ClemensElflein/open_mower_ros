@@ -113,8 +113,8 @@ void publishActuators() {
     struct ll_heartbeat heartbeat = {
             .type = PACKET_ID_LL_HEARTBEAT,
             // If high level has emergency and LL does not know yet, we set it
-            .emergency_requested = (!emergency_low_level && emergency_high_level),
-            .emergency_release_requested = ll_clear_emergency
+            .emergency_requested = false,
+            .emergency_release_requested = true
     };
 
 
