@@ -11,6 +11,7 @@ add_message_files(
         Status.msg
         ImuRaw.msg
         ESCStatus.msg
+        HighLevelStatus.msg
 )
 
 add_service_files(

@@ -24,6 +24,7 @@
 #define PACKET_ID_LL_IMU 2
 #define PACKET_ID_LL_UI_EVENT 3
 #define PACKET_ID_LL_HEARTBEAT 0x42
+#define PACKET_ID_LL_HIGH_LEVEL_STATE 0x43
 
 
 #pragma pack(push, 1)
@@ -89,19 +90,23 @@ struct ll_heartbeat {
 #pragma pack(pop)
 
 #pragma pack(push, 1)
-struct ui_command
-{
-    // Type of this message. Has to be PACKET_ID_LL_UI_EVENT if sent to ROS.
-    uint8_t type;       // command type
-    uint8_t cmd1;       // parameter to set 1
-    uint8_t cmd2;       // parameter to set 2
-    uint8_t cmd3;       // parameter to set 3
-    uint8_t ack;        // is set to 0 , buttonboard replys alwas the command with the identical structure but set this byte to 0xff
-    uint8_t res;        // not used
-    uint16_t crc;       // CRC 16 from element "type" to element "res"
+struct ll_ui_event {
+    // Type of this message. Has to be PACKET_ID_LL_UI_EVENT
+    uint8_t type;
+    uint8_t button_id;
+    uint8_t press_duration;   // 0 for single press, 1 for long, 2 for very long press
+    uint16_t crc;
 } __attribute__((packed));
 #pragma pack(pop)
 
-
+#pragma pack(push, 1)
+struct ll_high_level_state {
+    // Type of this message. Has to be PACKET_ID_LL_HIGH_LEVEL_STATE
+    uint8_t type;
+    uint8_t current_mode; // see HighLevelMode
+    uint8_t gps_quality;   // GPS quality in percent (0-100)
+    uint16_t crc;
+} __attribute__((packed));
+#pragma pack(pop)
 
 #endif

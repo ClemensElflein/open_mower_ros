@@ -74,6 +74,7 @@ add_service_files(
         SetDockingPointSrv.srv
         ClearNavPointSrv.srv
         SetNavPointSrv.srv
+        ClearMapSrv.srv
 )
 
 ## Generate actions in the 'action' folder
