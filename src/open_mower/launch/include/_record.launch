@@ -5,7 +5,7 @@
     <arg name="prefix" default="record"/>
 
     <node if="$(optenv OM_ENABLE_RECORDING False)" pkg="rosbag" type="record" name="rosbag_record_diag"
-          args="record -o /home/ubuntu/$(arg prefix)
+          args="record -o /$(env HOME)/$(arg prefix)
 /clock
 /time_reference
 /tf
@@ -18,4 +18,8 @@
 /imu/mag
 /ublox/navrelposned
 /ublox/fix " />
+
+    <node if="$(optenv OM_ENABLE_RECORDING_ALL False)" pkg="rosbag" type="record" name="rosbag_record_diag"
+          args="record -o /$(env HOME)/all_$(arg prefix) -a" />
+
 </launch>

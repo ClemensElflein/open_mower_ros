@@ -1,0 +1,9 @@
+left_xesc:
+  xesc_type: "xesc_mini"
+  serial_port: "/dev/ttyAMA4"
+right_xesc:
+  xesc_type: "xesc_mini"
+  serial_port: "/dev/ttyAMA2"
+mower_xesc:
+  xesc_type: "xesc_mini"
+  serial_port: "/dev/ttyAMA3"

@@ -21,8 +21,7 @@ extern actionlib::SimpleActionClient<mbf_msgs::MoveBaseAction> *mbfClient;
 extern actionlib::SimpleActionClient<mbf_msgs::ExePathAction> *mbfClientExePath;
 extern mower_msgs::Status last_status;
 
-extern void stop();
-
+extern void stopMoving();
 extern bool setGPS(bool enabled);
 
 DockingBehavior DockingBehavior::INSTANCE;
@@ -129,7 +128,7 @@ bool DockingBehavior::dock_straight() {
                 if (last_status.v_charge > 5.0) {
                     ROS_INFO_STREAM("Got a voltage of " << last_status.v_charge << " V. Cancelling docking.");
                     mbfClientExePath->cancelGoal();
-                    stop();
+                    stopMoving();
                     dockingSuccess = true;
                     waitingForResult = false;
                 }
@@ -142,7 +141,7 @@ bool DockingBehavior::dock_straight() {
                 if (last_status.v_charge > 5.0) {
                     mbfClientExePath->cancelGoal();
                     dockingSuccess = true;
-                    stop();
+                    stopMoving();
                 }
                 waitingForResult = false;
                 break;
@@ -150,13 +149,13 @@ bool DockingBehavior::dock_straight() {
                 ROS_WARN_STREAM("Some error during path execution. Docking failed. status value was: "
                                         << mbfState.state_);
                 waitingForResult = false;
-                stop();
+                stopMoving();
                 break;
         }
     }
 
     // to be safe if the planner sent additional commands after cancel
-    stop();
+    stopMoving();
 
     return dockingSuccess;
 }

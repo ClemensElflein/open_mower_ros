@@ -1,8 +1,5 @@
 <launch>
-
-    
     <node name="rviz" pkg="rviz" type="rviz" args="-d $(find open_mower)/rviz/record_map.rviz" required="true" />
     <node pkg="rqt_reconfigure" type="rqt_reconfigure" name="rqt_reconfigure">
     </node>
-
 </launch>

@@ -20,7 +20,7 @@ extern ros::ServiceClient dockingPointClient;
 extern actionlib::SimpleActionClient<mbf_msgs::ExePathAction> *mbfClientExePath;
 extern nav_msgs::Odometry last_odom;
 
-extern void stop();
+extern void stopMoving();
 
 extern bool setGPS(bool enabled);
 
@@ -68,7 +68,7 @@ Behavior *UndockingBehavior::execute() {
     bool success = result.state_ == actionlib::SimpleClientGoalState::SUCCEEDED;
 
     // stop the bot for now
-    stop();
+    stopMoving();
 
     if (!success) {
         ROS_ERROR_STREAM("Error during undock");

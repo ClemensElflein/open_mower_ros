@@ -2,10 +2,10 @@
     <include file="$(find open_mower)/launch/include/_comms.launch"/>
     <include file="$(find open_mower)/launch/include/_move_base.launch"/>
     <include file="$(find open_mower)/launch/include/_localization.launch"/>
+    <include file="$(find open_mower)/launch/include/_teleop.launch"/>
     <include file="$(find open_mower)/launch/include/_record.launch">
         <arg name="prefix" value="mow_area"/>
     </include>
-
 
     <node pkg="mower_map" type="mower_map_service" name="map_service" output="screen"/>
     <node pkg="mower_logic" type="mower_logic" name="mower_logic" output="screen">
@@ -21,25 +21,9 @@
     </node>
     <node pkg="slic3r_coverage_planner" type="slic3r_coverage_planner" name="slic3r_coverage_planner" output="screen"/>
 
-    <node name="joy" pkg="joy" type="joy_node" required="true" >
-        <param name="~autorepeat_rate" value="10.0"/>
-        <param name="~coalesce_interval" value="0.06"/>
-    </node>
-
-    <node name="joy_teleop" pkg="teleop_twist_joy" type="teleop_node" required="true" >
-        <remap from="cmd_vel" to="joy_vel"/>
-        <param name="~scale_linear" value="0.5"/>
-        <param name="~scale_angular" value="1.5"/>
-        <param name="~scale_linear_turbo" value="1.0"/>
-        <param name="~scale_angular_turbo" value="3.0"/>
-        <param name="~enable_turbo_button" value="4"/>
-    </node>
-
-
     <node pkg="twist_mux" type="twist_mux" name="twist_mux" output="screen">
         <remap from="cmd_vel_out" to="/cmd_vel"/>
 
         <rosparam file="$(find open_mower)/params/twist_mux_topics.yaml"  command="load"/>
     </node>
-
 </launch>

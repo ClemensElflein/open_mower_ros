@@ -41,12 +41,15 @@
 
 #include "geometry_msgs/Twist.h"
 
+#include "std_msgs/Bool.h"
+
 class AreaRecordingBehavior : public Behavior {
 public:
     static AreaRecordingBehavior INSTANCE;
 private:
 
     bool has_odom = false;
+
 
     sensor_msgs::Joy last_joy;
     nav_msgs::Odometry last_odom;
@@ -55,6 +58,8 @@ private:
     ros::Publisher marker_array_pub;
 
     ros::Subscriber joy_sub, odom_sub;
+
+    ros::Subscriber dock_sub, polygon_sub, mow_area_sub, nav_area_sub;
 
     ros::ServiceClient add_mowing_area_client, set_docking_point_client;
 
@@ -75,8 +80,12 @@ private:
 private:
     bool recordNewPolygon(geometry_msgs::Polygon &polygon);
     bool getDockingPosition(geometry_msgs::Pose &pos);
-    void joy_received(const sensor_msgs::Joy &joy_msg);
     void odom_received(const nav_msgs::Odometry &odom_msg);
+    void joy_received(const sensor_msgs::Joy &joy_msg);
+    void record_dock_received(std_msgs::Bool state_msg);
+    void record_polygon_received(std_msgs::Bool state_msg);
+    void record_mowing_received(std_msgs::Bool state_msg);
+    void record_navigation_received(std_msgs::Bool state_msg);
 
 public:
     std::string state_name() override;

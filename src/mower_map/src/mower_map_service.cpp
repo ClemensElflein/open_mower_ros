@@ -45,6 +45,7 @@
 #include "mower_map/GetDockingPointSrv.h"
 #include "mower_map/SetNavPointSrv.h"
 #include "mower_map/ClearNavPointSrv.h"
+#include "mower_map/ClearMapSrv.h"
 
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
@@ -376,7 +377,9 @@ void saveMapToFile() {
         bag.write("navigation_areas", ros::Time::now(), area);
     }
 
-    bag.write("docking_point", ros::Time::now(), docking_point);
+    if(has_docking_point) {
+        bag.write("docking_point", ros::Time::now(), docking_point);
+    }
 
     bag.close();
 }
@@ -558,6 +561,17 @@ bool clearNavPoint(mower_map::ClearNavPointSrvRequest &req, mower_map::ClearNavP
     return true;
 }
 
+bool clearMap(mower_map::ClearMapSrvRequest &req, mower_map::ClearMapSrvResponse &res) {
+    ROS_INFO_STREAM("Clearing Map");
+
+    mowing_areas.clear();
+    navigation_areas.clear();
+    has_docking_point = false;
+
+    saveMapToFile();
+    return true;
+}
+
 
 int main(int argc, char **argv) {
     ros::init(argc, argv, "mower_map_service");
@@ -587,6 +601,9 @@ int main(int argc, char **argv) {
                                                                   setNavPoint);
     ros::ServiceServer clear_nav_point_srv = n.advertiseService("mower_map_service/clear_nav_point",
                                                                   clearNavPoint);
+    ros::ServiceServer clear_map_srv = n.advertiseService("mower_map_service/clear_map",
+                                                                  clearMap);
+
 
 
     ros::spin();
