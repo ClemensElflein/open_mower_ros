@@ -302,10 +302,11 @@ bool highLevelCommand(mower_msgs::HighLevelControlSrvRequest &req, mower_msgs::H
                 currentBehavior->command_s2();
             }
             break;
-        case mower_msgs::HighLevelControlSrvRequest::COMMAND_DELETE_MAPS:
-	        ROS_WARN_STREAM("COMMAND_DELETE_MAPS");
-            if(currentBehavior != &AreaRecordingBehavior::INSTANCE && currentBehavior != &IdleBehavior::INSTANCE && currentBehavior !=
-                                                                                                                          nullptr) {
+        case mower_msgs::HighLevelControlSrvRequest::COMMAND_DELETE_MAPS: {
+            ROS_WARN_STREAM("COMMAND_DELETE_MAPS");
+            if (currentBehavior != &AreaRecordingBehavior::INSTANCE && currentBehavior != &IdleBehavior::INSTANCE &&
+                currentBehavior !=
+                nullptr) {
                 ROS_ERROR_STREAM("Deleting maps is only allowed during IDLE or AreaRecording!");
                 return true;
             }
@@ -315,8 +316,12 @@ bool highLevelCommand(mower_msgs::HighLevelControlSrvRequest &req, mower_msgs::H
 
             // Abort the current behavior. Idle will refresh and go to AreaRecorder, AreaRecorder will to to Idle wich will go to a fresh AreaRecorder
             currentBehavior->abort();
+        }
             break;
-
+        case mower_msgs::HighLevelControlSrvRequest::COMMAND_RESET_EMERGENCY:
+            ROS_WARN_STREAM("COMMAND_RESET_EMERGENCY");
+            setEmergencyMode(false);
+            break;
     }
     return true;
 }

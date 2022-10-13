@@ -321,6 +321,12 @@ void handleLowLevelUIEvent(struct ll_ui_event *ui_event) {
                 srv.request.command = mower_msgs::HighLevelControlSrvRequest::COMMAND_S2;
             }
             break;
+        case 6:
+            //LOCK
+            if(ui_event->press_duration == 2) {
+                // very long press on lock
+                srv.request.command = mower_msgs::HighLevelControlSrvRequest::COMMAND_RESET_EMERGENCY;
+            }
         default:
             // Return, don't call the service.
             return;
