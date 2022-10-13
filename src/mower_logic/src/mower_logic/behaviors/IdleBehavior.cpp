@@ -66,6 +66,11 @@ Behavior *IdleBehavior::execute() {
             return &AreaRecordingBehavior::INSTANCE;
         }
 
+        // This gets called if we need to refresh, e.g. on clearing maps
+        if(aborted) {
+            return &IdleBehavior::INSTANCE;
+        }
+
         r.sleep();
     }
 

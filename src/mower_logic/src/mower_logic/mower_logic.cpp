@@ -319,6 +319,9 @@ bool highLevelCommand(mower_msgs::HighLevelControlSrvRequest &req, mower_msgs::H
             mower_map::ClearMapSrv clear_map_srv;
             // TODO check result
             clearMapClient.call(clear_map_srv);
+
+            // Abort the current behavior. Idle will refresh and go to AreaRecorder, AreaRecorder will to to Idle wich will go to a fresh AreaRecorder
+            currentBehavior->abort();
             break;
 
     }
