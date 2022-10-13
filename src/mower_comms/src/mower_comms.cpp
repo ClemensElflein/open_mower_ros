@@ -35,7 +35,7 @@
 
 #include <xesc_driver/xesc_driver.h>
 #include <xesc_msgs/XescStateStamped.h>
-
+#include "mower_msgs/HighLevelStatus.h"
 
 ros::Publisher status_pub;
 
@@ -66,6 +66,7 @@ ros::Time last_cmd_vel(0.0);
 
 boost::crc_ccitt_type crc;
 
+mower_msgs::HighLevelStatus last_high_level_status;
 
 xesc_driver::XescDriver *mow_xesc_interface;
 xesc_driver::XescDriver *left_xesc_interface;
@@ -240,6 +241,31 @@ bool setEmergencyStop(mower_msgs::EmergencyStopSrvRequest &req, mower_msgs::Emer
     return true;
 }
 
+void highLevelStatusReceived(const mower_msgs::HighLevelStatus::ConstPtr &msg) {
+    struct ll_high_level_state hl_state = {
+            .type = PACKET_ID_LL_HIGH_LEVEL_STATE,
+            .current_mode = msg->state,
+            .gps_quality = static_cast<uint8_t>(msg->gps_quality_percent*100.0)
+    };
+
+
+    crc.reset();
+    crc.process_bytes(&hl_state, sizeof(struct ll_high_level_state) - 2);
+    hl_state.crc = crc.checksum();
+
+    size_t encoded_size = cobs.encode((uint8_t *) &hl_state, sizeof(struct ll_high_level_state), out_buf);
+    out_buf[encoded_size] = 0;
+    encoded_size++;
+
+    if (serial_port.isOpen() && allow_send) {
+        try {
+            serial_port.write(out_buf, encoded_size);
+        } catch (std::exception &e) {
+            ROS_ERROR_STREAM("Error writing to serial port");
+        }
+    }
+}
+
 void velReceived(const geometry_msgs::Twist::ConstPtr &msg) {
     // TODO: update this to rad/s values and implement xESC speed control
     last_cmd_vel = ros::Time::now();
@@ -258,12 +284,12 @@ void velReceived(const geometry_msgs::Twist::ConstPtr &msg) {
     }
 }
 
-void handleLowLevelUIEvent(struct ui_command *ui_command) {
-    ROS_INFO_STREAM("Got UI button with code:" << ui_command->cmd1);
+void handleLowLevelUIEvent(struct ll_ui_event *ui_event) {
+    ROS_INFO_STREAM("Got UI button with code:" << ui_event->button_id << " and duration: " << ui_event->press_duration);
 
     mower_msgs::HighLevelControlSrv srv;
 
-    switch(ui_command->cmd1) {
+    switch(ui_event->button_id) {
         case 2:
             // Home
             srv.request.command = mower_msgs::HighLevelControlSrvRequest::COMMAND_HOME;
@@ -278,7 +304,11 @@ void handleLowLevelUIEvent(struct ui_command *ui_command) {
             break;
         case 5:
             // S2
-            srv.request.command = mower_msgs::HighLevelControlSrvRequest::COMMAND_S2;
+            if(ui_event->press_duration == 2) {
+                srv.request.command = mower_msgs::HighLevelControlSrvRequest::COMMAND_DELETE_MAPS;
+            } else {
+                srv.request.command = mower_msgs::HighLevelControlSrvRequest::COMMAND_S2;
+            }
             break;
         default:
             // Return, don't call the service.
@@ -377,6 +407,7 @@ int main(int argc, char **argv) {
     ros::ServiceServer mow_service = n.advertiseService("mower_service/mow_enabled", setMowEnabled);
     ros::ServiceServer emergency_service = n.advertiseService("mower_service/emergency", setEmergencyStop);
     ros::Subscriber cmd_vel_sub = n.subscribe("cmd_vel", 0, velReceived, ros::TransportHints().tcpNoDelay(true));
+    ros::Subscriber high_level_status_sub = n.subscribe("/mower_logic/current_state", 0, highLevelStatusReceived);
     ros::Timer publish_timer = n.createTimer(ros::Duration(0.02), publishActuatorsTimerTask);
 
 
@@ -459,8 +490,8 @@ int main(int argc, char **argv) {
                                 }
                                 break;
                             case PACKET_ID_LL_UI_EVENT:
-                                if(data_size == sizeof(struct ui_command)) {
-                                    handleLowLevelUIEvent((struct ui_command*) buffer_decoded);
+                                if(data_size == sizeof(struct ll_ui_event)) {
+                                    handleLowLevelUIEvent((struct ll_ui_event*) buffer_decoded);
                                 } else {
                                     ROS_INFO_STREAM(
                                             "Low Level Board sent a valid packet with the wrong size. Type was UI_EVENT");

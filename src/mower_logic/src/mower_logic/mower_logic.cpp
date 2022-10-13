@@ -44,8 +44,10 @@
 #include "behaviors/AreaRecordingBehavior.h"
 #include "mower_msgs/HighLevelControlSrv.h"
 #include "std_msgs/String.h"
+#include "mower_msgs/HighLevelStatus.h"
+#include "mower_map/ClearMapSrv.h"
 
-ros::ServiceClient pathClient, mapClient, dockingPointClient, gpsClient, mowClient, emergencyClient, pathProgressClient, setNavPointClient, clearNavPointClient;
+ros::ServiceClient pathClient, mapClient, dockingPointClient, gpsClient, mowClient, emergencyClient, pathProgressClient, setNavPointClient, clearNavPointClient, clearMapClient;
 
 ros::NodeHandle *n;
 ros::NodeHandle *paramNh;
@@ -54,7 +56,7 @@ dynamic_reconfigure::Server<mower_logic::MowerLogicConfig> *reconfigServer;
 actionlib::SimpleActionClient<mbf_msgs::MoveBaseAction> *mbfClient;
 actionlib::SimpleActionClient<mbf_msgs::ExePathAction> *mbfClientExePath;
 
-ros::Publisher cmd_vel_pub;
+ros::Publisher cmd_vel_pub, high_level_state_publisher;
 mower_logic::MowerLogicConfig last_config;
 
 
@@ -66,6 +68,7 @@ mower_msgs::Status last_status;
 
 ros::Time last_good_gps(0.0);
 
+mower_msgs::HighLevelStatus high_level_status;
 
 bool mowerEnabled = false;
 
@@ -196,6 +199,11 @@ void setEmergencyMode(bool emergency)
     emergencyClient.call(emergencyStop);
 }
 
+void updateUI(const ros::TimerEvent &timer_event) {
+    // TODO: add GPS quality indicator
+
+}
+
 /// @brief Called every 0.5s, used to control BLADE motor via mower_enabled variable and stop any movement in case of /odom and /mower/status outages
 /// @param timer_event 
 void checkSafety(const ros::TimerEvent &timer_event) {
@@ -232,12 +240,21 @@ void checkSafety(const ros::TimerEvent &timer_event) {
                                                                                << last_status.right_esc_status);
         return;
     }
-    bool gpsGoodNow = last_odom.pose.covariance[0] < 0.05 && last_odom.pose.covariance[0] > 0;
+    bool gpsGoodNow = last_odom.pose.covariance[0] < 0.10 && last_odom.pose.covariance[0] > 0;
     if (gpsGoodNow || last_config.ignore_gps_errors) {
         last_good_gps = ros::Time::now();
+        high_level_status.gps_quality_percent = 1.0 - fmax(1.0, last_odom.pose.covariance[0] / 0.10);
+    } else {
+        // GPS = bad, set quality to 0
+        high_level_status.gps_quality_percent = 0;
     }
 
     bool gpsTimeout = ros::Time::now() - last_good_gps > ros::Duration(last_config.gps_timeout);
+
+    if(gpsTimeout) {
+        // GPS = bad, set quality to 0
+        high_level_status.gps_quality_percent = 0;
+    }
 
     if (currentBehavior != nullptr && currentBehavior->needs_gps()) {
         // Stop the mower
@@ -292,6 +309,17 @@ bool highLevelCommand(mower_msgs::HighLevelControlSrvRequest &req, mower_msgs::H
                 currentBehavior->command_s2();
             }
             break;
+        case mower_msgs::HighLevelControlSrvRequest::COMMAND_DELETE_MAPS:
+	        ROS_WARN_STREAM("COMMAND_DELETE_MAPS");
+            if(currentBehavior != &AreaRecordingBehavior::INSTANCE && currentBehavior != &IdleBehavior::INSTANCE && currentBehavior !=
+                                                                                                                          nullptr) {
+                ROS_ERROR_STREAM("Deleting maps is only allowed during IDLE or AreaRecording!");
+                return true;
+            }
+            mower_map::ClearMapSrv clear_map_srv;
+            // TODO check result
+            clearMapClient.call(clear_map_srv);
+            break;
 
     }
     return true;
@@ -317,16 +345,18 @@ int main(int argc, char **argv) {
     cmd_vel_pub = n->advertise<geometry_msgs::Twist>("/logic_vel", 1);
 
     ros::Publisher path_pub;
-    ros::Publisher current_state_pub;
 
 
     path_pub = n->advertise<nav_msgs::Path>("mower_logic/mowing_path", 100, true);
-    current_state_pub = n->advertise<std_msgs::String>("mower_logic/current_state", 100, true);
+    high_level_state_publisher = n->advertise<mower_msgs::HighLevelStatus>("mower_logic/current_state", 100, true);
 
     pathClient = n->serviceClient<slic3r_coverage_planner::PlanPath>(
             "slic3r_coverage_planner/plan_path");
     mapClient = n->serviceClient<mower_map::GetMowingAreaSrv>(
             "mower_map_service/get_mowing_area");
+    clearMapClient = n->serviceClient<mower_map::ClearMapSrv>(
+            "mower_map_service/clear_map");
+
     gpsClient = n->serviceClient<mower_msgs::GPSControlSrv>(
             "mower_service/set_gps_state");
     mowClient = n->serviceClient<mower_msgs::MowerControlSrv>(
@@ -482,14 +512,16 @@ int main(int argc, char **argv) {
     // release emergency if it was set
     setEmergencyMode(false);
     ros::Timer safety_timer = n->createTimer(ros::Duration(0.5), checkSafety);
+    ros::Timer ui_timer = n->createTimer(ros::Duration(1.0), updateUI);
 
 
     // Behavior execution loop
     while (ros::ok()) {
         if (currentBehavior != nullptr) {
-            std_msgs::String state_name;
-            state_name.data = currentBehavior->state_name();
-            current_state_pub.publish(state_name);
+
+            high_level_status.state_name = currentBehavior->state_name();;
+            high_level_status.state = currentBehavior->redirect_joystick() ? mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_MANUAL : mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_AUTONOMOUS;
+            high_level_state_publisher.publish(high_level_status);
             currentBehavior->start(last_config);
             if (mowingAborted) {
                 currentBehavior->abort();
@@ -498,9 +530,9 @@ int main(int argc, char **argv) {
             currentBehavior->exit();
             currentBehavior = newBehavior;
         } else {
-            std_msgs::String state_name;
-            state_name.data = "NULL";
-            current_state_pub.publish(state_name);
+            high_level_status.state_name = "NULL";
+            high_level_status.state = mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_NULL;
+            high_level_state_publisher.publish(high_level_status);
             // we have no defined behavior, set emergency
             ROS_ERROR_STREAM("null behavior - emergency mode");
             setEmergencyMode(true);
