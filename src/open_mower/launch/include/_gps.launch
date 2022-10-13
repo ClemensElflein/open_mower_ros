@@ -15,6 +15,10 @@
                   file="$(find open_mower)/params/gps.yaml" />
         <param name="device" value="/dev/$(env OM_GPS_SERIAL_PORT)" />
         <param name="uart1/baudrate" value="921600" />
+        <param name="raw_data_server/enable" value="$(optenv OM_ENABLE_GPS_TCP_DEBUG_SERVER False)" />
+        <param name="raw_data_stream/publish" value="True" if="$(optenv OM_ENABLE_UBLOX_DUMP False)" />
+        <param name="raw_data_stream/dir" value="$(env HOME)" if="$(optenv OM_ENABLE_UBLOX_DUMP False)" />
         <remap from="/rtcm" to="/ntrip_client/rtcm"/>
+        <remap from="~wheel_ticks" to="/mower/wheel_ticks"/>
     </node>
 </launch>

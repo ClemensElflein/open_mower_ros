@@ -72,9 +72,6 @@ mower_msgs::HighLevelStatus high_level_status;
 
 bool mowerEnabled = false;
 
-// true, if bot needs to dock or needs to stay docked.
-// This can be set to true by anyone but will only be set to false by the idle state on exit
-bool mowingAborted = false;
 
 Behavior *currentBehavior = &IdleBehavior::INSTANCE;
 
@@ -100,10 +97,6 @@ void abortExecution() {
     if (currentBehavior != nullptr) {
         currentBehavior->abort();
     }
-    if (!mowingAborted) {
-        ROS_INFO_STREAM("Requesting Pause");
-    }
-    mowingAborted = true;
 }
 
 bool setGPS(bool enabled) {
@@ -309,10 +302,11 @@ bool highLevelCommand(mower_msgs::HighLevelControlSrvRequest &req, mower_msgs::H
                 currentBehavior->command_s2();
             }
             break;
-        case mower_msgs::HighLevelControlSrvRequest::COMMAND_DELETE_MAPS:
-	        ROS_WARN_STREAM("COMMAND_DELETE_MAPS");
-            if(currentBehavior != &AreaRecordingBehavior::INSTANCE && currentBehavior != &IdleBehavior::INSTANCE && currentBehavior !=
-                                                                                                                          nullptr) {
+        case mower_msgs::HighLevelControlSrvRequest::COMMAND_DELETE_MAPS: {
+            ROS_WARN_STREAM("COMMAND_DELETE_MAPS");
+            if (currentBehavior != &AreaRecordingBehavior::INSTANCE && currentBehavior != &IdleBehavior::INSTANCE &&
+                currentBehavior !=
+                nullptr) {
                 ROS_ERROR_STREAM("Deleting maps is only allowed during IDLE or AreaRecording!");
                 return true;
             }
@@ -322,8 +316,12 @@ bool highLevelCommand(mower_msgs::HighLevelControlSrvRequest &req, mower_msgs::H
 
             // Abort the current behavior. Idle will refresh and go to AreaRecorder, AreaRecorder will to to Idle wich will go to a fresh AreaRecorder
             currentBehavior->abort();
+        }
             break;
-
+        case mower_msgs::HighLevelControlSrvRequest::COMMAND_RESET_EMERGENCY:
+            ROS_WARN_STREAM("COMMAND_RESET_EMERGENCY");
+            setEmergencyMode(false);
+            break;
     }
     return true;
 }
@@ -526,9 +524,6 @@ int main(int argc, char **argv) {
             high_level_status.state = currentBehavior->redirect_joystick() ? mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_MANUAL : mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_AUTONOMOUS;
             high_level_state_publisher.publish(high_level_status);
             currentBehavior->start(last_config);
-            if (mowingAborted) {
-                currentBehavior->abort();
-            }
             Behavior *newBehavior = currentBehavior->execute();
             currentBehavior->exit();
             currentBehavior = newBehavior;

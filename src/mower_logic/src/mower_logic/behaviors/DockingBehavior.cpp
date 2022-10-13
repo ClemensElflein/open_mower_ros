@@ -204,6 +204,7 @@ Behavior *DockingBehavior::execute() {
 }
 
 void DockingBehavior::enter() {
+    paused = aborted = false;
     // start with target approach and then dock later
     inApproachMode = true;
 
