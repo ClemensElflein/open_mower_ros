@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(openbot_msgs)
+project(xbot_msgs)
 
 find_package(catkin REQUIRED COMPONENTS
         std_msgs
