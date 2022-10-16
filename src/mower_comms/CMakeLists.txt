@@ -15,6 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
         xesc_driver
         xesc_msgs
         xesc_interface
+        xbot_msgs
 )
 
 find_package(

@@ -193,8 +193,7 @@ void setEmergencyMode(bool emergency)
 }
 
 void updateUI(const ros::TimerEvent &timer_event) {
-    // TODO: add GPS quality indicator
-
+    high_level_state_publisher.publish(high_level_status);
 }
 
 /// @brief Called every 0.5s, used to control BLADE motor via mower_enabled variable and stop any movement in case of /odom and /mower/status outages
@@ -236,10 +235,12 @@ void checkSafety(const ros::TimerEvent &timer_event) {
     bool gpsGoodNow = last_odom.pose.covariance[0] < 0.10 && last_odom.pose.covariance[0] > 0;
     if (gpsGoodNow || last_config.ignore_gps_errors) {
         last_good_gps = ros::Time::now();
-        high_level_status.gps_quality_percent = 1.0 - fmax(1.0, last_odom.pose.covariance[0] / 0.10);
+        high_level_status.gps_quality_percent = 1.0 - fmin(1.0, last_odom.pose.covariance[0] / 0.10);
+        ROS_INFO_STREAM_THROTTLE(10, "GPS quality: " << high_level_status.gps_quality_percent);
     } else {
         // GPS = bad, set quality to 0
         high_level_status.gps_quality_percent = 0;
+        ROS_WARN_STREAM_THROTTLE(1,"Low quality GPS");
     }
 
     bool gpsTimeout = ros::Time::now() - last_good_gps > ros::Duration(last_config.gps_timeout);
@@ -247,6 +248,7 @@ void checkSafety(const ros::TimerEvent &timer_event) {
     if(gpsTimeout) {
         // GPS = bad, set quality to 0
         high_level_status.gps_quality_percent = 0;
+        ROS_WARN_STREAM_THROTTLE(1,"GPS timeout");
     }
 
     if (currentBehavior != nullptr && currentBehavior->needs_gps()) {

@@ -20,8 +20,6 @@
 #include <mower_msgs/Status.h>
 #include <sensor_msgs/Imu.h>
 #include <nav_msgs/Odometry.h>
-#include "ublox_msgs/NavRELPOSNED9.h"
-#include "ublox_msgs/NavPVT.h"
 #include <tf2_ros/transform_broadcaster.h>
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
@@ -31,6 +29,7 @@
 #include "mower_msgs/GPSControlSrv.h"
 #include "robot_localization/navsat_conversions.h"
 #include "sensor_msgs/NavSatFix.h"
+#include "xbot_msgs/AbsolutePose.h"
 
 
 ros::Publisher odometry_pub;
@@ -74,20 +73,6 @@ geometry_msgs::Quaternion orientation_result;
 
 
 tf2_ros::Buffer tfBuffer;
-
-
-double getGPSY(ublox_msgs::NavRELPOSNED9 &msg) {
-    return ((double) msg.relPosN * 0.01) + ((double) msg.relPosHPN * 0.0001);
-}
-
-double getGPSX(ublox_msgs::NavRELPOSNED9 &msg) {
-    return ((double) msg.relPosE * 0.01) + ((double) msg.relPosHPE * 0.0001);
-}
-
-double getGPSZ(ublox_msgs::NavRELPOSNED9 &msg) {
-    // For now, we assume a plane
-    return 0.0;
-}
 
 
 void publishOdometry() {
@@ -260,7 +245,7 @@ void gpsPositionReceivedFix(const sensor_msgs::NavSatFix::ConstPtr &msg) {
     handleGPSUpdate(gps_pos, acc_m);
 }
 
-void gpsPositionReceivedPVT(const ublox_msgs::NavPVT::ConstPtr &msg) {
+void gpsPositionReceivedF9R(const xbot_msgs::AbsolutePose::ConstPtr &msg) {
 
     // drop messages if we don't use the GPS (docking / undocking)
     if(!gpsEnabled){
@@ -268,58 +253,47 @@ void gpsPositionReceivedPVT(const ublox_msgs::NavPVT::ConstPtr &msg) {
         return;
     }
 
-    double gps_accuracy_m = (double) sqrt(msg->hAcc*msg->hAcc + msg->vAcc*msg->vAcc) / 1000.0f;
-
-    bool gnssFixOK = (msg->flags & 0b0000001);
-    bool diffSoln = (msg->flags & 0b0000010) >> 1;
-    bool headVehValid = (msg->flags & 0b100000) >> 5;
-    auto carrSoln = (uint8_t) ((msg->flags & 0b11000000) >> 6);
-    bool invalidLlh = (msg->flags3 & 0b1);
-    uint8_t fixType = (msg->fixType);
-    if (!headVehValid || invalidLlh || (fixType != 1 && fixType != 4)) {
+    if(msg->source != xbot_msgs::AbsolutePose::SOURCE_GPS) {
+        ROS_ERROR_STREAM("Please only feed GPS updates here fore now!");
         gpsOdometryValid = false;
-        ROS_INFO_STREAM_THROTTLE(1,"Dropped at least one GPS update due to flags.\r\nFlags:\r\n" <<
-                                                                                                 "accuracy:" << gps_accuracy_m << "\r\n" <<
-                                                                                                 "gnssFixOK:" << gnssFixOK << "\r\n" <<
-                                                                                                 "diffSoln:" << diffSoln << "\r\n" <<
-                                                                                                 "headVehValid:" << headVehValid << "\r\n" <<
-                                                                                                 "carrSoln:" << (int) carrSoln << "\r\n" <<
-                                                                                                 "invalidLlh:" << (int) invalidLlh << "\r\n" <<
-                                                                                                 "fixType:" << (int) fixType << "\r\n"
-        );
-
-        gpsOdometryValid = false;
-
         return;
     }
+
+
+    if(!msg->orientation_valid) {
+        ROS_INFO_THROTTLE(1, "Dropped at least one GPS update due to invalid vehicle heading.");
+        gpsOdometryValid = false;
+        return;
+    }
+
+    if(!(msg->flags & xbot_msgs::AbsolutePose::FLAG_GPS_RTK_FIXED) && !(msg->flags & xbot_msgs::AbsolutePose::FLAG_GPS_RTK_FIXED)) {
+        ROS_INFO_THROTTLE(1, "Dropped GPS update, because it neither has RTK nor DR");
+        gpsOdometryValid = false;
+        return;
+    }
+
+    // Ok, we have a heading and either DR or RTK fix from the F9R. Continue!
+
+
+    double gps_accuracy_m = msg->position_accuracy;
+
+    // We have "good" GPS according to flags. With dead reckoning, we want to continue driving even if the accuracy says otherwise.
+    if(gps_accuracy_m > 0.25) {
+        gps_accuracy_m = 0.25;
+    }
+
 
     gpsOdometryValid = true;
     last_gps_odometry_time = ros::Time::now();
 
-    double lat = msg->lat/10000000.0;
-    double lon = msg->lon/10000000.0;
 
-    double hedVeh = msg->headVeh / 100000.0;
-    double velN = msg->velN / 1000.0;
-    double velE = msg->velE / 1000.0;
+    x = msg->pose.pose.position.x;
+    y = msg->pose.pose.position.y;
+    vx = msg->motion_vector.x;
+    vy = msg->motion_vector.y;
+    r = msg->vehicle_heading;
 
-
-
-    double n,e;
-    std::string zone;
-    RobotLocalization::NavsatConversions::LLtoUTM(lat,lon, n,e,zone);
-
-    tf2::Vector3 gps_pos(
-            (e-datumE), (n-datumN), 0.0
-    );
-
-    x = gps_pos.x();
-    y = gps_pos.y();
-    vx = velE;
-    vy = velN;
-    r = -hedVeh*(M_PI/180.0);
-
-    r = fmod(r + (M_PI_2), 2.0 * M_PI);
+    r = fmod(r, 2.0 * M_PI);
     while (r < 0) {
         r += M_PI * 2.0;
     }
@@ -327,44 +301,6 @@ void gpsPositionReceivedPVT(const ublox_msgs::NavPVT::ConstPtr &msg) {
     orientation_result = tf2::toMsg(q_mag);
     last_gps_acc_m = gps_accuracy_m;
 
-}
-
-void gpsPositionReceivedRelPosNED(const ublox_msgs::NavRELPOSNED9::ConstPtr &msg) {
-    ublox_msgs::NavRELPOSNED9 gps = *msg;
-    double gps_accuracy_m = (double) gps.accLength / 10000.0f;
-
-    bool gnssFixOK = (msg->flags & 0b0000001);
-    bool diffSoln = (msg->flags & 0b0000010) >> 1;
-    bool relPosValid = (msg->flags & 0b0000100) >> 2;
-    auto carrSoln = (uint8_t) ((msg->flags & 0b0011000) >> 3);
-    bool refPosMiss = (msg->flags & 0b0000100) >> 6;
-    bool refObsMiss = (msg->flags & 0b0000100) >> 7;
-
-    if (!gnssFixOK || !diffSoln || !relPosValid || carrSoln != 2) {
-        ROS_INFO_STREAM_THROTTLE(1,"Dropped at least one GPS update due to flags.\r\nFlags:\r\n" <<
-                                                                          "accuracy:" << gps_accuracy_m << "\r\n" <<
-                                                                          "gnssFixOK:" << gnssFixOK << "\r\n" <<
-                                                                          "diffSoln:" << diffSoln << "\r\n" <<
-                                                                          "relPosValid:" << relPosValid << "\r\n" <<
-                                                                          "carrSoln:" << (int) carrSoln << "\r\n" <<
-                                                                          "refPosMiss:" << refPosMiss << "\r\n" <<
-                                                                          "refObsMiss:" << refObsMiss << "\r\n"
-        );
-        return;
-    }
-
-
-    if (!gpsEnabled) {
-        gpsOdometryValid = false;
-        valid_gps_samples = 0;
-        return;
-    }
-
-    tf2::Vector3 gps_pos(
-            getGPSX(gps), getGPSY(gps), getGPSZ(gps)
-    );
-
-    handleGPSUpdate(gps_pos, gps_accuracy_m);
 }
 
 
@@ -537,31 +473,22 @@ int main(int argc, char **argv) {
             ROS_ERROR("Can't use f9r with relative positioning, disable relative positioning!");
             return 1;
         }
+        /*
         ROS_INFO("Odometry is using relative positioning.");
         gps_sub = n.subscribe("ublox/navrelposned", 100, gpsPositionReceivedRelPosNED);
         status_sub = n.subscribe("mower/status", 100, statusReceived);
         imu_sub = n.subscribe("imu/data", 100, imuReceived);
+         */
+        ROS_ERROR("relative mode Not implemented yet");
+        return 1;
     } else if(use_f9r_sensor_fusion) {
         ROS_INFO("Odometry is using F9R sensor fusion");
 
-        bool gotLatLng = true;
-        gotLatLng &= paramNh.getParam("datum_lat", datumLat);
-        gotLatLng &= paramNh.getParam("datum_long", datumLng);
-
-        if(!gotLatLng) {
-            ROS_ERROR_STREAM("Error during odometry init: You need to provide a reference point if using lat/lng coordinates for positioning! Set datum_lat and datum_long");
-            return 1;
-        }
-
-        RobotLocalization::NavsatConversions::LLtoUTM(datumLat, datumLng, datumN,datumE,datumZone);
-
-        ROS_INFO_STREAM("Odometry is using F9R positioning. Datum coordinates are: " << datumLat<< ", " << datumLng);
-
-        gps_sub = n.subscribe("ublox/navpvt", 100, gpsPositionReceivedPVT);
+        gps_sub = n.subscribe("xbot_driver_gps/xb_pose", 100, gpsPositionReceivedF9R);
         status_sub = n.subscribe("mower/status", 100, statusReceived);
-        imu_sub = n.subscribe("ublox/imu_meas", 100, imuReceived);
+        imu_sub = n.subscribe("xbot_driver_gps/imu", 100, imuReceived);
     } else {
-        bool gotLatLng = true;
+        /*bool gotLatLng = true;
         gotLatLng &= paramNh.getParam("datum_lat", datumLat);
         gotLatLng &= paramNh.getParam("datum_long", datumLng);
 
@@ -576,6 +503,9 @@ int main(int argc, char **argv) {
         gps_sub = n.subscribe("ublox/fix", 100, gpsPositionReceivedFix);
         status_sub = n.subscribe("mower/status", 100, statusReceived);
         imu_sub = n.subscribe("imu/data", 100, imuReceived);
+         */
+        ROS_ERROR("absolute mode Not implemented yet");
+        return 1;
     }
 
     ros::spin();

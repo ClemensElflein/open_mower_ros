@@ -123,7 +123,7 @@ bool UndockingBehavior::waitForGPS() {
     setGPS(true);
     ros::Rate odom_rate(1.0);
     while (ros::ok()) {
-        if (last_odom.pose.covariance[0] < 0.05) {
+        if (last_odom.pose.covariance[0] < 0.10) {
             ROS_INFO("Got good gps, let's go");
             break;
         } else {
