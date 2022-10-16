@@ -19,8 +19,8 @@ uint32 received_stamp                   # A timestamp taken on receive
 
 uint8 source
 uint16 flags                            # Flags specific to the source
-uint8 orientation_valid                 # Set to true, if the sensor can also measure orientation
-uint8 motion_vector_valid               # Set to true, if the speed vector is valid
+uint8 orientation_valid                 # Set to true, if the sensor can also measure orientation. This applies to orientation and vehicle_heading
+uint8 motion_vector_valid               # Set to true, if the speed vector is valid. This also applies to the motion_heading.
 float32 position_accuracy               # Set to the estimated accuracy in m
 float32 orientation_accuracy            # Set to the estimated orientation accuracy in rad
 geometry_msgs/PoseWithCovariance pose   # The pose measured by the sensor
