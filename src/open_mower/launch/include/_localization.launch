@@ -7,6 +7,8 @@
         <param name="use_f9r_sensor_fusion" value="$(env OM_USE_F9P_SENSOR_FUSION)"/>
         <param unless="$(env OM_USE_RELATIVE_POSITION)" name="datum_lat" value="$(env OM_DATUM_LAT)"/>
         <param unless="$(env OM_USE_RELATIVE_POSITION)" name="datum_long" value="$(env OM_DATUM_LONG)"/>
+        <remap from="xbot_driver_gps/imu" to="driver_gps_node/imu"/>
+        <remap from="xbot_driver_gps/xb_pose" to="driver_gps_node/xb_pose" />
     </node>
 
     <node pkg="imu_filter_madgwick" type="imu_filter_node" name="imu_filter_node" required="true" unless="$(env OM_USE_F9P_SENSOR_FUSION)">

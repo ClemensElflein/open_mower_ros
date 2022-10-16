@@ -266,8 +266,8 @@ void gpsPositionReceivedF9R(const xbot_msgs::AbsolutePose::ConstPtr &msg) {
         return;
     }
 
-    if(!(msg->flags & xbot_msgs::AbsolutePose::FLAG_GPS_RTK_FIXED) && !(msg->flags & xbot_msgs::AbsolutePose::FLAG_GPS_RTK_FIXED)) {
-        ROS_INFO_THROTTLE(1, "Dropped GPS update, because it neither has RTK nor DR");
+    if(!(msg->flags & xbot_msgs::AbsolutePose::FLAG_GPS_RTK_FIXED) && !(msg->flags & xbot_msgs::AbsolutePose::FLAG_GPS_DEAD_RECKONING)) {
+        ROS_INFO_THROTTLE(1, "Dropped GPS update, because it neither has RTK FIXED nor DR");
         gpsOdometryValid = false;
         return;
     }
