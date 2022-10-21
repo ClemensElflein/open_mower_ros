@@ -398,3 +398,12 @@ void MowingBehavior::command_s2() {
 bool MowingBehavior::redirect_joystick() {
     return false;
 }
+
+
+uint8_t MowingBehavior::get_sub_state() {
+    return 0;
+
+}
+uint8_t MowingBehavior::get_state() {
+    return mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_AUTONOMOUS;
+}

@@ -64,6 +64,11 @@ Behavior *IdleBehavior::execute() {
             return &AreaRecordingBehavior::INSTANCE;
         }
 
+        if(last_status.emergency && last_status.v_charge > 10.0) {
+            // emergency and docked, reset it. It's safe since we won't start moving in this mode.
+            setEmergencyMode(false);
+        }
+
         // This gets called if we need to refresh, e.g. on clearing maps
         if(aborted) {
             return &IdleBehavior::INSTANCE;
@@ -119,3 +124,11 @@ bool IdleBehavior::redirect_joystick() {
     return false;
 }
 
+
+uint8_t IdleBehavior::get_sub_state() {
+    return 0;
+
+}
+uint8_t IdleBehavior::get_state() {
+    return mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_IDLE;
+}

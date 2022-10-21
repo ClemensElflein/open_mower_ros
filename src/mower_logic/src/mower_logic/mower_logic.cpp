@@ -190,18 +190,34 @@ void setEmergencyMode(bool emergency)
     mower_msgs::EmergencyStopSrv emergencyStop;
     emergencyStop.request.emergency = emergency;
     emergencyClient.call(emergencyStop);
+    abortExecution();
 }
 
 void updateUI(const ros::TimerEvent &timer_event) {
+    high_level_state_publisher.publish(high_level_status);
+
+    if(currentBehavior) {
+        high_level_status.state_name = currentBehavior->state_name();
+        high_level_status.state = (currentBehavior->get_state() & 0b11111) | (currentBehavior->get_sub_state() << mower_msgs::HighLevelStatus::SUBSTATE_SHIFT);
+    } else {
+        high_level_status.state_name = "NULL";
+        high_level_status.state = mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_NULL;
+    }
     high_level_state_publisher.publish(high_level_status);
 }
 
 /// @brief Called every 0.5s, used to control BLADE motor via mower_enabled variable and stop any movement in case of /odom and /mower/status outages
 /// @param timer_event 
 void checkSafety(const ros::TimerEvent &timer_event) {
-
-     // call the mower
+    // call the mower
     setMowerEnabled(currentBehavior != nullptr && currentBehavior->mower_enabled());
+
+    // send to idle if emergency and we're not recording
+    if(last_status.emergency) {
+        if(currentBehavior != &AreaRecordingBehavior::INSTANCE && currentBehavior != &IdleBehavior::INSTANCE) {
+            abortExecution();
+        }
+    }
 
     // TODO: Have a single point where we check for this timeout instead of twice (here and in the behavior)
     // check if odometry is current. If not, the GPS was bad so we stop moving.
@@ -512,19 +528,18 @@ int main(int argc, char **argv) {
 
 
 
-    // release emergency if it was set
-    setEmergencyMode(false);
+
     ros::Timer safety_timer = n->createTimer(ros::Duration(0.5), checkSafety);
     ros::Timer ui_timer = n->createTimer(ros::Duration(1.0), updateUI);
 
+    // release emergency if it was set
+    setEmergencyMode(false);
 
     // Behavior execution loop
     while (ros::ok()) {
         if (currentBehavior != nullptr) {
 
-            high_level_status.state_name = currentBehavior->state_name();;
-            high_level_status.state = currentBehavior->redirect_joystick() ? mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_MANUAL : mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_AUTONOMOUS;
-            high_level_state_publisher.publish(high_level_status);
+
             currentBehavior->start(last_config);
             Behavior *newBehavior = currentBehavior->execute();
             currentBehavior->exit();

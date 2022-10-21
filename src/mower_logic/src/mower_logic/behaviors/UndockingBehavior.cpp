@@ -167,3 +167,12 @@ void UndockingBehavior::command_s2() {
 bool UndockingBehavior::redirect_joystick() {
     return false;
 }
+
+
+uint8_t UndockingBehavior::get_sub_state() {
+    return 2;
+
+}
+uint8_t UndockingBehavior::get_state() {
+    return mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_AUTONOMOUS;
+}

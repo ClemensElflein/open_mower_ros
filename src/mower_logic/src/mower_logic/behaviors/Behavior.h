@@ -19,7 +19,7 @@
 
 #include "ros/ros.h"
 #include "mower_logic/MowerLogicConfig.h"
-
+#include "mower_msgs/HighLevelStatus.h"
 /**
  * Behavior definition
  */
@@ -36,6 +36,7 @@ protected:
     bool requested_pause_flag;
 
     bool isGPSGood;
+    uint8_t sub_state;
 
     double time_in_state() {
         return (ros::Time::now() - startTime).toSec();
@@ -96,6 +97,7 @@ public:
         this->config = c;
         startTime = ros::Time::now();
         isGPSGood = false;
+        sub_state = 0;
         enter();
     }
 
@@ -120,7 +122,9 @@ public:
      * Execution should resume on the next execute() call.
      */
     void abort() {
-        ROS_INFO_STREAM("- Behaviour.h: abort() called");
+        if(!aborted) {
+            ROS_INFO_STREAM( "- Behaviour.h: abort() called");
+        }
         aborted = true;
     }
 
@@ -139,6 +143,9 @@ public:
     virtual void command_start() = 0;
     virtual void command_s1() = 0;
     virtual void command_s2() = 0;
+
+    virtual uint8_t get_sub_state() = 0;
+    virtual uint8_t get_state() = 0;
 };
 
 #endif //SRC_BEHAVIOR_H

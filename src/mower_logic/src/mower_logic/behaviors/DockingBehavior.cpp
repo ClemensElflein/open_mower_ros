@@ -255,3 +255,11 @@ bool DockingBehavior::redirect_joystick() {
 }
 
 
+uint8_t DockingBehavior::get_sub_state() {
+    return 1;
+
+}
+uint8_t DockingBehavior::get_state() {
+    return mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_AUTONOMOUS;
+}
+
