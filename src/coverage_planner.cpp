@@ -15,15 +15,19 @@
 #include "Surface.hpp"
 #include <tf2/LinearMath/Quaternion.h>
 #include <Fill/FillPlanePath.hpp>
+#include <PerimeterGenerator.hpp>
+
 #include "tf2_geometry_msgs/tf2_geometry_msgs.h"
 #include "ClipperUtils.hpp"
+#include "ExtrusionEntityCollection.hpp"
 
 
 bool visualize_plan;
 ros::Publisher marker_array_publisher;
 
 
-void createLineMarkers(Polylines &lines, visualization_msgs::MarkerArray &markerArray) {
+
+void createLineMarkers(std::vector<Polygons> outline_groups,std::vector<Polygons> obstacle_groups, Polylines &fill_lines, visualization_msgs::MarkerArray &markerArray) {
 
     std::vector<std_msgs::ColorRGBA> colors;
 
@@ -86,7 +90,34 @@ void createLineMarkers(Polylines &lines, visualization_msgs::MarkerArray &marker
 
     uint32_t cidx = 0;
 
-    for (auto &line:lines) {
+    for(auto &group: outline_groups) {
+        for (auto &line: group) {
+            {
+                visualization_msgs::Marker marker;
+
+                marker.header.frame_id = "map";
+                marker.ns = "mower_map_service_lines";
+                marker.id = static_cast<int>(markerArray.markers.size());
+                marker.frame_locked = true;
+                marker.action = visualization_msgs::Marker::ADD;
+                marker.type = visualization_msgs::Marker::LINE_STRIP;
+                marker.color = colors[cidx];
+                marker.pose.orientation.w = 1;
+                marker.scale.x = marker.scale.y = marker.scale.z = 0.02;
+                for (auto &pt: line.points) {
+                    geometry_msgs::Point vpt;
+                    vpt.x = unscale(pt.x);
+                    vpt.y = unscale(pt.y);
+                    marker.points.push_back(vpt);
+                }
+
+                markerArray.markers.push_back(marker);
+            }
+        }
+        cidx = (cidx + 1) % colors.size();
+    }
+
+    for (auto &line: fill_lines) {
         {
             visualization_msgs::Marker marker;
 
@@ -99,7 +130,7 @@ void createLineMarkers(Polylines &lines, visualization_msgs::MarkerArray &marker
             marker.color = colors[cidx];
             marker.pose.orientation.w = 1;
             marker.scale.x = marker.scale.y = marker.scale.z = 0.02;
-            for (auto &pt : line.points) {
+            for (auto &pt: line.points) {
                 geometry_msgs::Point vpt;
                 vpt.x = unscale(pt.x);
                 vpt.y = unscale(pt.y);
@@ -111,107 +142,200 @@ void createLineMarkers(Polylines &lines, visualization_msgs::MarkerArray &marker
             cidx = (cidx + 1) % colors.size();
         }
     }
+        for(auto &group: obstacle_groups) {
+            for (auto &line: group) {
+                {
+                    visualization_msgs::Marker marker;
 
+                    marker.header.frame_id = "map";
+                    marker.ns = "mower_map_service_lines";
+                    marker.id = static_cast<int>(markerArray.markers.size());
+                    marker.frame_locked = true;
+                    marker.action = visualization_msgs::Marker::ADD;
+                    marker.type = visualization_msgs::Marker::LINE_STRIP;
+                    marker.color = colors[cidx];
+                    marker.pose.orientation.w = 1;
+                    marker.scale.x = marker.scale.y = marker.scale.z = 0.02;
+                    for (auto &pt: line.points) {
+                        geometry_msgs::Point vpt;
+                        vpt.x = unscale(pt.x);
+                        vpt.y = unscale(pt.y);
+                        marker.points.push_back(vpt);
+                    }
+
+                    markerArray.markers.push_back(marker);
+
+                }
+            }
+            cidx = (cidx + 1) % colors.size();
+
+        }
 }
 
+void traverse(std::vector<PerimeterGeneratorLoop> &contours, std::vector<Polygons> &line_groups) {
+    for (auto &contour: contours) {
+        if (contour.children.empty()) {
+            line_groups.push_back(Polygons());
+        } else {
+            traverse(contour.children, line_groups);
+        }
+        line_groups.back().push_back(contour.polygon);
+    }
+}
 
 bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_planner::PlanPathResponse &res) {
 
     Slic3r::Polygon outline_poly;
-    for (auto &pt : req.outline.points) {
+    for (auto &pt: req.outline.points) {
         outline_poly.points.push_back(Point(scale_(pt.x), scale_(pt.y)));
     }
 
-    outline_poly.make_clockwise();
+    outline_poly.make_counter_clockwise();
 
     // This ExPolygon contains our input area with holes.
     Slic3r::ExPolygon expoly(outline_poly);
 
-    for (auto &hole : req.holes) {
+    for (auto &hole: req.holes) {
         Slic3r::Polygon hole_poly;
-        for (auto &pt : hole.points) {
+        for (auto &pt: hole.points) {
             hole_poly.points.push_back(Point(scale_(pt.x), scale_(pt.y)));
         }
-        hole_poly.make_counter_clockwise();
+        hole_poly.make_clockwise();
 
         expoly.holes.push_back(hole_poly);
     }
 
 
 
+
+
     // Results are stored here
-    Polylines all_lines;
+    std::vector<Polygons> area_outlines;
+    Polylines fill_lines;
+    std::vector<Polygons> obstacle_outlines;
 
 
 
-    // Store the innermost ouline. This will then be filled.
-    Slic3r::ExPolygons innermost_outlines;
-    if(req.outline_count == 0) {
-        // no outlines, we fill the outline directly
-        innermost_outlines.push_back(expoly);
-    } else if(req.outline_count == 1) {
-        // just add the outline to all_lines and set the innermost_polygon to the outline and we're done
-        all_lines.push_back(expoly.contour);
-        innermost_outlines.push_back(expoly);
-    } else if(req.outline_count == 2) {
-        Polyline outline(expoly.contour);
 
-        // We want to trace a second time with a little offset.
-        innermost_outlines = offset_ex(expoly, -scale_(req.distance / 2));
+    coord_t distance = scale_(req.distance);
+    coord_t outer_distance = scale_(req.outer_offset);
 
-        if(innermost_outlines.size() == 1) {
-            // we have a single second outline, we can chain them together for a nice flow
-            Polygon c = innermost_outlines.front().contour;
-            c.make_clockwise();
+    // detect how many perimeters must be generated for this island
+    int loops = req.outline_count;
 
-            // align start with last end
-            auto last_point = outline.last_point();
-            Polyline new_line = Polyline(c);
+    ROS_INFO_STREAM("generating " << loops << " outlines");
 
-            if(!new_line.points.empty()) {
-                // find closest point
-                double min_dist = FLT_MAX;
-                Point closest_point;
-                for(auto &pt : new_line.points) {
-                    double dist = pt.distance_to(last_point);
-                    if(dist < min_dist) {
-                        closest_point = pt;
-                        min_dist = dist;
+    const int loop_number = loops - 1;  // 0-indexed loops
+
+
+    Polygons gaps;
+
+    Polygons last = expoly;
+    if (loop_number >= 0) {  // no loops = -1
+
+        std::vector<PerimeterGeneratorLoops> contours(loop_number + 1);    // depth => loops
+        std::vector<PerimeterGeneratorLoops> holes(loop_number + 1);       // depth => loops
+
+        for (int i = 0; i <= loop_number; ++i) {  // outer loop is 0
+            Polygons offsets;
+
+            if (i == 0) {
+                offsets = offset(
+                        last,
+                        -outer_distance
+                );
+            } else {
+                offsets = offset(
+                        last,
+                        -distance
+                );
+            }
+
+            if (offsets.empty()) break;
+
+
+            last = offsets;
+
+            for (Polygons::const_iterator polygon = offsets.begin(); polygon != offsets.end(); ++polygon) {
+                PerimeterGeneratorLoop loop(*polygon, i);
+                loop.is_contour = polygon->is_counter_clockwise();
+                if (loop.is_contour) {
+                    contours[i].push_back(loop);
+                } else {
+                    holes[i].push_back(loop);
+                }
+            }
+        }
+
+        // nest loops: holes first
+        for (int d = 0; d <= loop_number; ++d) {
+            PerimeterGeneratorLoops &holes_d = holes[d];
+
+            // loop through all holes having depth == d
+            for (int i = 0; i < (int) holes_d.size(); ++i) {
+                const PerimeterGeneratorLoop &loop = holes_d[i];
+
+                // find the hole loop that contains this one, if any
+                for (int t = d + 1; t <= loop_number; ++t) {
+                    for (int j = 0; j < (int) holes[t].size(); ++j) {
+                        PerimeterGeneratorLoop &candidate_parent = holes[t][j];
+                        if (candidate_parent.polygon.contains(loop.polygon.first_point())) {
+                            candidate_parent.children.push_back(loop);
+                            holes_d.erase(holes_d.begin() + i);
+                            --i;
+                            goto NEXT_LOOP;
+                        }
                     }
                 }
 
-                Polyline before,after;
-                new_line.split_at(closest_point, &before, &after);
-
-                outline.append(after);
-                outline.append(before);
-            }
-            all_lines.push_back(outline);
-        } else {
-            // push the outline as is
-            all_lines.push_back(outline);
-
-            // add other poly outlines as well
-            for (auto &poly : innermost_outlines) {
-                Polygon c = poly.contour;
-                c.make_clockwise();
-                all_lines.push_back(Polyline(c));
+                NEXT_LOOP:;
             }
         }
-    } else {
-        ROS_ERROR_STREAM("Invalid outline count: " << req.outline_count);
+
+        // nest contour loops
+        for (int d = loop_number; d >= 1; --d) {
+            PerimeterGeneratorLoops &contours_d = contours[d];
+
+            // loop through all contours having depth == d
+            for (int i = 0; i < (int) contours_d.size(); ++i) {
+                const PerimeterGeneratorLoop &loop = contours_d[i];
+
+                // find the contour loop that contains it
+                for (int t = d - 1; t >= 0; --t) {
+                    for (size_t j = 0; j < contours[t].size(); ++j) {
+                        PerimeterGeneratorLoop &candidate_parent = contours[t][j];
+                        if (candidate_parent.polygon.contains(loop.polygon.first_point())) {
+                            candidate_parent.children.push_back(loop);
+                            contours_d.erase(contours_d.begin() + i);
+                            --i;
+                            goto NEXT_CONTOUR;
+                        }
+                    }
+                }
+
+                NEXT_CONTOUR:;
+            }
+        }
+
+        traverse(contours[0], area_outlines);
+        for(auto &hole:holes) {
+            traverse(hole, obstacle_outlines);
+        }
+
+        for(auto &obstacle_group : obstacle_outlines) {
+            std::reverse(obstacle_group.begin(), obstacle_group.end());
+        }
+
     }
 
 
 
 
-
-
-
+    ExPolygons expp = union_ex(last);
 
 
     // Go through the innermost poly and create the fill path using a Fill object
-    for (auto &poly : innermost_outlines) {
+    for (auto &poly: expp) {
         Slic3r::Surface surface(Slic3r::SurfaceType::stBottom, poly);
 
 
@@ -235,7 +359,7 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
         ROS_INFO_STREAM("Starting Fill. Poly size:" << surface.expolygon.contour.points.size());
 
         Slic3r::Polylines lines = fill->fill_surface(surface);
-        append_to(all_lines, lines);
+        append_to(fill_lines, lines);
         delete fill;
         fill = nullptr;
 
@@ -245,20 +369,13 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
         }
     }
 
-    if(req.outline_count == 2) {
-        for (auto &poly : innermost_outlines) {
-            for(auto &hole : poly.holes) {
-                all_lines.push_back(Polyline(hole));
-            }
-        }
-    }
 
-
-    
 
     if (visualize_plan) {
+
+
         visualization_msgs::MarkerArray arr;
-        createLineMarkers(all_lines, arr);
+        createLineMarkers(area_outlines, obstacle_outlines, fill_lines, arr);
         marker_array_publisher.publish(arr);
     }
 
@@ -267,10 +384,74 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
     header.frame_id = "map";
     header.seq = 0;
 
-    for (auto &line : all_lines) {
+    for(auto &group:area_outlines) {
+        slic3r_coverage_planner::Path path;
+        path.is_outline = true;
+        path.path.header = header;
+        int split_index = 0;
+        for (int i = 0; i < group.size(); i++) {
+            auto &poly = group[i];
 
-        nav_msgs::Path path;
-        path.header = header;
+            Polyline line;
+            if(split_index < poly.points.size()) {
+                line = poly.split_at_index(split_index);
+            } else {
+                line = poly.split_at_first_point();
+                split_index = 0;
+            }
+            split_index+=2;
+            line.remove_duplicate_points();
+
+
+
+            auto equally_spaced_points = line.equally_spaced_points(scale_(0.1));
+            if (equally_spaced_points.size() < 2) {
+                ROS_INFO("Skipping single dot");
+                continue;
+            }
+            ROS_INFO_STREAM("Got " << equally_spaced_points.size() << " points");
+
+            Point *lastPoint = nullptr;
+            for (auto &pt: equally_spaced_points) {
+                if (lastPoint == nullptr) {
+                    lastPoint = &pt;
+                    continue;
+                }
+
+                // calculate pose for "lastPoint" pointing to current point
+
+                auto dir = pt - *lastPoint;
+                double orientation = atan2(dir.y, dir.x);
+                tf2::Quaternion q(0.0, 0.0, orientation);
+
+                geometry_msgs::PoseStamped pose;
+                pose.header = header;
+                pose.pose.orientation = tf2::toMsg(q);
+                pose.pose.position.x = unscale(lastPoint->x);
+                pose.pose.position.y = unscale(lastPoint->y);
+                pose.pose.position.z = 0;
+                path.path.poses.push_back(pose);
+                lastPoint = &pt;
+            }
+
+            // finally, we add the final pose for "lastPoint" with the same orientation as the last poe
+            geometry_msgs::PoseStamped pose;
+            pose.header = header;
+            pose.pose.orientation = path.path.poses.back().pose.orientation;
+            pose.pose.position.x = unscale(lastPoint->x);
+            pose.pose.position.y = unscale(lastPoint->y);
+            pose.pose.position.z = 0;
+            path.path.poses.push_back(pose);
+
+        }
+        res.paths.push_back(path);
+    }
+
+    for (int i = 0; i < fill_lines.size(); i++) {
+        auto &line = fill_lines[i];
+        slic3r_coverage_planner::Path path;
+        path.is_outline = false;
+        path.path.header = header;
 
         line.remove_duplicate_points();
 
@@ -283,7 +464,7 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
         ROS_INFO_STREAM("Got " << equally_spaced_points.size() << " points");
 
         Point *lastPoint = nullptr;
-        for (auto &pt:equally_spaced_points) {
+        for (auto &pt: equally_spaced_points) {
             if (lastPoint == nullptr) {
                 lastPoint = &pt;
                 continue;
@@ -301,24 +482,89 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
             pose.pose.position.x = unscale(lastPoint->x);
             pose.pose.position.y = unscale(lastPoint->y);
             pose.pose.position.z = 0;
-            path.poses.push_back(pose);
+            path.path.poses.push_back(pose);
             lastPoint = &pt;
         }
 
         // finally, we add the final pose for "lastPoint" with the same orientation as the last poe
         geometry_msgs::PoseStamped pose;
         pose.header = header;
-        pose.pose.orientation = path.poses.back().pose.orientation;
+        pose.pose.orientation = path.path.poses.back().pose.orientation;
         pose.pose.position.x = unscale(lastPoint->x);
         pose.pose.position.y = unscale(lastPoint->y);
         pose.pose.position.z = 0;
-        path.poses.push_back(pose);
+        path.path.poses.push_back(pose);
 
         res.paths.push_back(path);
     }
 
+    for(auto &group:obstacle_outlines) {
+        slic3r_coverage_planner::Path path;
+        path.is_outline = true;
+        path.path.header = header;
+        int split_index = 0;
+        for (int i = 0; i < group.size(); i++) {
+            auto &poly = group[i];
+
+            Polyline line;
+            if(split_index < poly.points.size()) {
+                line = poly.split_at_index(split_index);
+            } else {
+                line = poly.split_at_first_point();
+                split_index = 0;
+            }
+            split_index+=2;
+            line.remove_duplicate_points();
+
+
+
+            auto equally_spaced_points = line.equally_spaced_points(scale_(0.1));
+            if (equally_spaced_points.size() < 2) {
+                ROS_INFO("Skipping single dot");
+                continue;
+            }
+            ROS_INFO_STREAM("Got " << equally_spaced_points.size() << " points");
+
+            Point *lastPoint = nullptr;
+            for (auto &pt: equally_spaced_points) {
+                if (lastPoint == nullptr) {
+                    lastPoint = &pt;
+                    continue;
+                }
+
+                // calculate pose for "lastPoint" pointing to current point
+
+                auto dir = pt - *lastPoint;
+                double orientation = atan2(dir.y, dir.x);
+                tf2::Quaternion q(0.0, 0.0, orientation);
+
+                geometry_msgs::PoseStamped pose;
+                pose.header = header;
+                pose.pose.orientation = tf2::toMsg(q);
+                pose.pose.position.x = unscale(lastPoint->x);
+                pose.pose.position.y = unscale(lastPoint->y);
+                pose.pose.position.z = 0;
+                path.path.poses.push_back(pose);
+                lastPoint = &pt;
+            }
+
+            // finally, we add the final pose for "lastPoint" with the same orientation as the last poe
+            geometry_msgs::PoseStamped pose;
+            pose.header = header;
+            pose.pose.orientation = path.path.poses.back().pose.orientation;
+            pose.pose.position.x = unscale(lastPoint->x);
+            pose.pose.position.y = unscale(lastPoint->y);
+            pose.pose.position.z = 0;
+            path.path.poses.push_back(pose);
+
+        }
+        res.paths.push_back(path);
+    }
+
+
     return true;
 }
+
 
 int main(int argc, char **argv) {
     ros::init(argc, argv, "slic3r_coverage_planner");
