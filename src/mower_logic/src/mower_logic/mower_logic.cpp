@@ -190,7 +190,6 @@ void setEmergencyMode(bool emergency)
     mower_msgs::EmergencyStopSrv emergencyStop;
     emergencyStop.request.emergency = emergency;
     emergencyClient.call(emergencyStop);
-    abortExecution();
 }
 
 void updateUI(const ros::TimerEvent &timer_event) {
