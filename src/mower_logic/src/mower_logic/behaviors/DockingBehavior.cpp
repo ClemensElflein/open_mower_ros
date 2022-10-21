@@ -121,6 +121,14 @@ bool DockingBehavior::dock_straight() {
 
         auto mbfState = mbfClientExePath->getState();
 
+        if(aborted) {
+            ROS_INFO_STREAM("Docking aborted.");
+            mbfClientExePath->cancelGoal();
+            stopMoving();
+            dockingSuccess = false;
+            waitingForResult = false;
+        }
+
         switch (mbfState.state_) {
             case actionlib::SimpleClientGoalState::ACTIVE:
             case actionlib::SimpleClientGoalState::PENDING:
@@ -191,7 +199,7 @@ Behavior *DockingBehavior::execute() {
         ROS_ERROR("Error during docking.");
 
         retryCount++;
-        if(retryCount <= config.docking_retry_count) {
+        if(retryCount <= config.docking_retry_count && !aborted) {
             ROS_ERROR_STREAM("Retrying docking. Try " << retryCount << " / " << config.docking_retry_count);
             return &UndockingBehavior::RETRY_INSTANCE;
         }
