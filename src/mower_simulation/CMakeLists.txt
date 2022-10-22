@@ -15,6 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
         dynamic_reconfigure
         mower_msgs
         rosbridge_server
+        mower_map
         )
 
 ## System dependencies are found with CMake's conventions

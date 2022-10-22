@@ -26,6 +26,7 @@
   <build_export_depend>dynamic_reconfigure</build_export_depend>
   <build_export_depend>mower_msgs</build_export_depend>
   <build_export_depend>rosbridge_server</build_export_depend>
+  <build_export_depend>mower_map</build_export_depend>
 
   <exec_depend>roscpp</exec_depend>
   <exec_depend>tf2</exec_depend>
