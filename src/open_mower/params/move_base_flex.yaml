@@ -7,8 +7,6 @@ controllers:
     type: ftc_local_planner/FTCPlanner
   - name: DockingFTCPlanner
     type: ftc_local_planner/FTCPlanner
-  - name: FreePlanner
-    type: teb_local_planner/TebLocalPlannerROS
 
 
 controller_frequency: 1.0
