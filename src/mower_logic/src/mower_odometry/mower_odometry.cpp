@@ -365,7 +365,9 @@ bool statusReceivedGyro(const mower_msgs::Status::ConstPtr &msg) {
     if(gpsEnabled && gpsOdometryValid)
         return true;
 
-    r += lastImu.angular_velocity.z * dt;
+    // not sure if -= is the right choice here, but it works for the F9R. The thing is when plotting with the MPU9250 the
+    // sign of lastImu.angular_velocity.z matches that of the F9R's IMU, so it should be right.
+    r -= lastImu.angular_velocity.z * dt;
     r = fmod(r, 2.0 * M_PI);
     while (r < 0) {
         r += M_PI * 2.0;
