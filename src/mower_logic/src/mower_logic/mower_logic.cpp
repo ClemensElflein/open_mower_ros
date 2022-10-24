@@ -523,6 +523,19 @@ int main(int argc, char **argv) {
         return 3;
     }
 
+    ros::Time started = ros::Time::now();
+    ros::Rate r(1.0);
+    while((ros::Time::now() - started).toSec() < 10.0) {
+        ROS_INFO_STREAM("Waiting for an emergency status message");
+        r.sleep();
+        if(last_status.emergency) {
+            ROS_INFO_STREAM("Got emergency, resetting it");
+            setEmergencyMode(false);
+            break;
+        }
+    }
+
+
     ROS_INFO("om_mower_logic: Got all servers, we can mow");
 
 
