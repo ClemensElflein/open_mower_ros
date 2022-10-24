@@ -51,7 +51,7 @@ export OM_GPS_SERIAL_PORT=ttyAMA1
 export OM_USE_RELATIVE_POSITION=True
 
 # If you want to use F9R's sensor fusion, set this to true (you will also need to set DATUM_LAT and DATUM_LONG
-export OM_USE_F9P_SENSOR_FUSION=False
+export OM_USE_F9R_SENSOR_FUSION=False
 
 # If needed, uncomment and set to coordinates near you (these default coordinates are somewhere in Germany).
 # This will be your map origin!
