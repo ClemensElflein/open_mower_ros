@@ -193,16 +193,30 @@ void setEmergencyMode(bool emergency)
 }
 
 void updateUI(const ros::TimerEvent &timer_event) {
-    // TODO: add GPS quality indicator
+    high_level_state_publisher.publish(high_level_status);
 
+    if(currentBehavior) {
+        high_level_status.state_name = currentBehavior->state_name();
+        high_level_status.state = (currentBehavior->get_state() & 0b11111) | (currentBehavior->get_sub_state() << mower_msgs::HighLevelStatus::SUBSTATE_SHIFT);
+    } else {
+        high_level_status.state_name = "NULL";
+        high_level_status.state = mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_NULL;
+    }
+    high_level_state_publisher.publish(high_level_status);
 }
 
 /// @brief Called every 0.5s, used to control BLADE motor via mower_enabled variable and stop any movement in case of /odom and /mower/status outages
 /// @param timer_event 
 void checkSafety(const ros::TimerEvent &timer_event) {
-
-     // call the mower
+    // call the mower
     setMowerEnabled(currentBehavior != nullptr && currentBehavior->mower_enabled());
+
+    // send to idle if emergency and we're not recording
+    if(last_status.emergency) {
+        if(currentBehavior != &AreaRecordingBehavior::INSTANCE && currentBehavior != &IdleBehavior::INSTANCE) {
+            abortExecution();
+        }
+    }
 
     // TODO: Have a single point where we check for this timeout instead of twice (here and in the behavior)
     // check if odometry is current. If not, the GPS was bad so we stop moving.
@@ -236,10 +250,12 @@ void checkSafety(const ros::TimerEvent &timer_event) {
     bool gpsGoodNow = last_odom.pose.covariance[0] < 0.10 && last_odom.pose.covariance[0] > 0;
     if (gpsGoodNow || last_config.ignore_gps_errors) {
         last_good_gps = ros::Time::now();
-        high_level_status.gps_quality_percent = 1.0 - fmax(1.0, last_odom.pose.covariance[0] / 0.10);
+        high_level_status.gps_quality_percent = 1.0 - fmin(1.0, last_odom.pose.covariance[0] / 0.10);
+        ROS_INFO_STREAM_THROTTLE(10, "GPS quality: " << high_level_status.gps_quality_percent);
     } else {
         // GPS = bad, set quality to 0
         high_level_status.gps_quality_percent = 0;
+        ROS_WARN_STREAM_THROTTLE(1,"Low quality GPS");
     }
 
     bool gpsTimeout = ros::Time::now() - last_good_gps > ros::Duration(last_config.gps_timeout);
@@ -247,6 +263,7 @@ void checkSafety(const ros::TimerEvent &timer_event) {
     if(gpsTimeout) {
         // GPS = bad, set quality to 0
         high_level_status.gps_quality_percent = 0;
+        ROS_WARN_STREAM_THROTTLE(1,"GPS timeout");
     }
 
     if (currentBehavior != nullptr && currentBehavior->needs_gps()) {
@@ -506,23 +523,35 @@ int main(int argc, char **argv) {
         return 3;
     }
 
+    ros::Time started = ros::Time::now();
+    ros::Rate r(1.0);
+    while((ros::Time::now() - started).toSec() < 10.0) {
+        ROS_INFO_STREAM("Waiting for an emergency status message");
+        r.sleep();
+        if(last_status.emergency) {
+            ROS_INFO_STREAM("Got emergency, resetting it");
+            setEmergencyMode(false);
+            break;
+        }
+    }
+
+
     ROS_INFO("om_mower_logic: Got all servers, we can mow");
 
 
 
-    // release emergency if it was set
-    setEmergencyMode(false);
+
     ros::Timer safety_timer = n->createTimer(ros::Duration(0.5), checkSafety);
     ros::Timer ui_timer = n->createTimer(ros::Duration(1.0), updateUI);
 
+    // release emergency if it was set
+    setEmergencyMode(false);
 
     // Behavior execution loop
     while (ros::ok()) {
         if (currentBehavior != nullptr) {
 
-            high_level_status.state_name = currentBehavior->state_name();;
-            high_level_status.state = currentBehavior->redirect_joystick() ? mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_MANUAL : mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_AUTONOMOUS;
-            high_level_state_publisher.publish(high_level_status);
+
             currentBehavior->start(last_config);
             Behavior *newBehavior = currentBehavior->execute();
             currentBehavior->exit();

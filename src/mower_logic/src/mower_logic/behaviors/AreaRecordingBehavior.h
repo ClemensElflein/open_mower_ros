@@ -39,6 +39,7 @@
 #include "mower_map/SetDockingPointSrv.h"
 #include "mower_msgs/EmergencyStopSrv.h"
 
+
 #include "geometry_msgs/Twist.h"
 
 #include "std_msgs/Bool.h"
@@ -111,6 +112,10 @@ public:
     void command_s2() override;
 
     bool redirect_joystick() override;
+
+    uint8_t get_sub_state() override;
+
+    uint8_t get_state() override;
 };
 
 

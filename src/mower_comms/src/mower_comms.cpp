@@ -35,7 +35,7 @@
 
 #include <xesc_driver/xesc_driver.h>
 #include <xesc_msgs/XescStateStamped.h>
-#include <ublox_msgs/WheelTicks.h>
+#include <xbot_msgs/WheelTick.h>
 #include "mower_msgs/HighLevelStatus.h"
 
 ros::Publisher status_pub;
@@ -214,12 +214,14 @@ void publishStatus() {
 
     status_pub.publish(status_msg);
 
-    ublox_msgs::WheelTicks wheel_tick_msg;
+    xbot_msgs::WheelTick wheel_tick_msg;
+    // TODO: set this correctly!
+    wheel_tick_msg.wheel_tick_factor = 0;
     wheel_tick_msg.stamp = status_msg.stamp;
-    wheel_tick_msg.wheelTicksLeft = left_status.state.tacho_absolute;
-    wheel_tick_msg.directionLeft = left_status.state.direction && abs(left_status.state.duty_cycle) > 0;
-    wheel_tick_msg.wheelTicksRight = right_status.state.tacho_absolute;
-    wheel_tick_msg.directionRight = !right_status.state.direction && abs(right_status.state.duty_cycle) > 0;
+    wheel_tick_msg.wheel_ticks_rl = left_status.state.tacho_absolute;
+    wheel_tick_msg.wheel_direction_rl = left_status.state.direction && abs(left_status.state.duty_cycle) > 0;
+    wheel_tick_msg.wheel_ticks_rr = right_status.state.tacho_absolute;
+    wheel_tick_msg.wheel_direction_rr = !right_status.state.direction && abs(right_status.state.duty_cycle) > 0;
 
     wheel_tick_pub.publish(wheel_tick_msg);
 }
@@ -418,7 +420,7 @@ int main(int argc, char **argv) {
 
 
     status_pub = n.advertise<mower_msgs::Status>("mower/status", 1);
-    wheel_tick_pub = n.advertise<ublox_msgs::WheelTicks>("mower/wheel_ticks", 1);
+    wheel_tick_pub = n.advertise<xbot_msgs::WheelTick>("mower/wheel_ticks", 1);
 
     sensor_imu_pub = n.advertise<sensor_msgs::Imu>("imu/data_raw", 1);
     sensor_mag_pub = n.advertise<sensor_msgs::MagneticField>("imu/mag", 1);

@@ -7,9 +7,12 @@
 [submodule "src/lib/slic3r_coverage_planner"]
 	path = src/lib/slic3r_coverage_planner
 	url = https://github.com/ClemensElflein/slic3r_coverage_planner.git
-[submodule "src/lib/ublox"]
-	path = src/lib/ublox
-	url = https://github.com/ClemensElflein/ublox.git
 [submodule "src/lib/ntrip_client"]
 	path = src/lib/ntrip_client
 	url = https://github.com/LORD-MicroStrain/ntrip_client.git
+[submodule "src/lib/xbot_msgs"]
+	path = src/lib/xbot_msgs
+	url = https://github.com/ClemensElflein/xbot_msgs.git
+[submodule "src/lib/xbot_driver_gps"]
+	path = src/lib/xbot_driver_gps
+	url = https://github.com/ClemensElflein/xbot_driver_gps.git

@@ -6,19 +6,20 @@
 
     <include if="$(env OM_USE_NTRIP)" file="$(find open_mower)/launch/include/_ntrip_client.launch" />
 
-    <node pkg="ublox_gps" type="ublox_gps" name="ublox"
+    <node pkg="xbot_driver_gps" type="driver_gps_node" name="driver_gps_node"
           output="screen"
           clear_params="true"
           respawn="true"
           respawn_delay="5">
-        <rosparam command="load"
-                  file="$(find open_mower)/params/gps.yaml" />
-        <param name="device" value="/dev/$(env OM_GPS_SERIAL_PORT)" />
-        <param name="uart1/baudrate" value="921600" />
-        <param name="raw_data_server/enable" value="$(optenv OM_ENABLE_GPS_TCP_DEBUG_SERVER False)" />
-        <param name="raw_data_stream/publish" value="True" if="$(optenv OM_ENABLE_UBLOX_DUMP False)" />
-        <param name="raw_data_stream/dir" value="$(env HOME)" if="$(optenv OM_ENABLE_UBLOX_DUMP False)" />
+        <param name="serial_port" value="/dev/$(env OM_GPS_SERIAL_PORT)" />
+        <param name="baudrate" value="921600" />
+        <param name="mode" value="absolute" unless="$(env OM_USE_RELATIVE_POSITION)"/>
+        <param name="mode" value="relative" if="$(env OM_USE_RELATIVE_POSITION)"/>
+        <param unless="$(env OM_USE_RELATIVE_POSITION)" name="datum_lat" value="$(env OM_DATUM_LAT)"/>
+        <param unless="$(env OM_USE_RELATIVE_POSITION)" name="datum_long" value="$(env OM_DATUM_LONG)"/>
+        <param unless="$(env OM_USE_RELATIVE_POSITION)" name="datum_height" value="0"/>
         <remap from="/rtcm" to="/ntrip_client/rtcm"/>
         <remap from="~wheel_ticks" to="/mower/wheel_ticks"/>
     </node>
+
 </launch>

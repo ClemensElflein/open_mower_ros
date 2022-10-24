@@ -42,9 +42,8 @@ Behavior *AreaRecordingBehavior::execute() {
         bool has_outline = false;
 
 
-
+        sub_state = 0;
         while (ros::ok() && !finished_all && !error && !aborted) {
-
             if(set_docking_position) {
                 geometry_msgs::Pose pos;
                 if(getDockingPosition(pos)) {
@@ -63,7 +62,14 @@ Behavior *AreaRecordingBehavior::execute() {
 
             if (poly_recording_enabled) {
                 geometry_msgs::Polygon poly;
+                // record poly
+                if(has_outline) {
+                    sub_state = 1;
+                } else {
+                    sub_state = 2;
+                }
                 bool success = recordNewPolygon(poly);
+                sub_state = 0;
                 if (success) {
                     if (!has_outline) {
                         // first polygon is outline
@@ -281,7 +287,6 @@ bool AreaRecordingBehavior::recordNewPolygon(geometry_msgs::Polygon &polygon) {
 
     ROS_INFO_STREAM("recordNewPolygon");
 
-
     bool success = true;
     marker = visualization_msgs::Marker();
     marker.header.frame_id = "map";
@@ -429,4 +434,12 @@ void AreaRecordingBehavior::command_s2() {
 
 bool AreaRecordingBehavior::redirect_joystick() {
     return true;
+}
+
+uint8_t AreaRecordingBehavior::get_sub_state() {
+    return sub_state;
+
+}
+uint8_t AreaRecordingBehavior::get_state() {
+    return mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_RECORDING;
 }

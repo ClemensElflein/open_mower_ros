@@ -72,7 +72,7 @@ Behavior *UndockingBehavior::execute() {
 
     if (!success) {
         ROS_ERROR_STREAM("Error during undock");
-        return nullptr;
+        return &IdleBehavior::INSTANCE;
     }
 
 
@@ -81,7 +81,7 @@ Behavior *UndockingBehavior::execute() {
 
     if (!hasGps) {
         ROS_ERROR_STREAM("Could not get GPS.");
-        return nullptr;
+        return &IdleBehavior::INSTANCE;
     }
 
     // TODO return mow area
@@ -122,8 +122,8 @@ bool UndockingBehavior::waitForGPS() {
     gpsRequired = false;
     setGPS(true);
     ros::Rate odom_rate(1.0);
-    while (ros::ok()) {
-        if (last_odom.pose.covariance[0] < 0.05) {
+    while (ros::ok() && !aborted) {
+        if (last_odom.pose.covariance[0] < 0.10) {
             ROS_INFO("Got good gps, let's go");
             break;
         } else {
@@ -131,7 +131,7 @@ bool UndockingBehavior::waitForGPS() {
             odom_rate.sleep();
         }
     }
-    if (!ros::ok()) {
+    if (!ros::ok() || aborted) {
         return false;
     }
 
@@ -166,4 +166,13 @@ void UndockingBehavior::command_s2() {
 
 bool UndockingBehavior::redirect_joystick() {
     return false;
+}
+
+
+uint8_t UndockingBehavior::get_sub_state() {
+    return 2;
+
+}
+uint8_t UndockingBehavior::get_state() {
+    return mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_AUTONOMOUS;
 }
