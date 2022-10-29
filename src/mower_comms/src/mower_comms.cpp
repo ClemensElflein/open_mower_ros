@@ -221,12 +221,13 @@ void publishActuatorsTimerTask(const ros::TimerEvent &timer_event) {
 }
 
 bool setMowEnabled(mower_msgs::MowerControlSrvRequest &req, mower_msgs::MowerControlSrvResponse &res) {
-    if (req.mow_enabled && !is_emergency()) {
+    /*if (req.mow_enabled && !is_emergency()) {
         speed_mow = 1;
     } else {
         speed_mow = 0;
     }
     ROS_INFO_STREAM("Setting mow enabled to " << speed_mow);
+     */
     return true;
 }
 
@@ -334,7 +335,15 @@ void handleLowLevelIMU(struct ll_imu *imu) {
     sensor_mag_pub.publish(sensor_mag_msg);
 }
 
-
+void joy_received(const sensor_msgs::Joy &joy_msg) {
+    // X was pressed, turn mower on
+    if (joy_msg.buttons[2]) {
+        ROS_INFO_STREAM("X PRESSED");
+        speed_mow = 1.0;
+    } else {
+        speed_mow = 0.0;
+    }
+}
 int main(int argc, char **argv) {
     ros::init(argc, argv, "mower_comms");
 
@@ -380,6 +389,7 @@ int main(int argc, char **argv) {
     ros::ServiceServer mow_service = n.advertiseService("mower_service/mow_enabled", setMowEnabled);
     ros::ServiceServer emergency_service = n.advertiseService("mower_service/emergency", setEmergencyStop);
     ros::Subscriber cmd_vel_sub = n.subscribe("cmd_vel", 0, velReceived, ros::TransportHints().tcpNoDelay(true));
+    ros::Subscriber joy_sub = n.subscribe("/joy", 100, joy_received);
     ros::Timer publish_timer = n.createTimer(ros::Duration(0.02), publishActuatorsTimerTask);
 
 
