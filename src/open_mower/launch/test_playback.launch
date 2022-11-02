@@ -2,6 +2,8 @@
     <arg name="bagfile" />
     <arg name="s" default="0" />
     <arg name="r" default="1" />
+    <arg name="skip_gyro_calibration" default="false" />
+    <arg name="gyro_offset" default="0.0" />
 
     <node pkg="rosbag" type="play" name="player" output="log" args="--clock $(arg bagfile) -s$(arg s) -r$(arg r) /tf:=/tf_null"/>
 
@@ -27,5 +29,7 @@
         <remap from="~/imu" to="/imu/data_raw"/>
         <remap from="~/wheel_ticks" to="/mower/wheel_ticks"/>
         <remap from="~/xb_pose" to="/driver_gps_node/xb_pose"/>
+        <param name="~skip_gyro_calibration" value="$(arg skip_gyro_calibration)"></param>
+        <param name="~gyro_offset" value="$(arg gyro_offset)"></param>
     </node>
 </launch>
