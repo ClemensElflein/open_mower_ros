@@ -9,6 +9,8 @@
 #include "SystemModel.hpp"
 #include "PositionMeasurementModel.hpp"
 #include "OrientationMeasurementModel.hpp"
+#include "OrientationMeasurementModel2.hpp"
+#include "SpeedMeasurementModel.hpp"
 
 #include <kalman/ExtendedKalmanFilter.hpp>
 #include <kalman/UnscentedKalmanFilter.hpp>
@@ -24,27 +26,41 @@ namespace xbot {
 
         typedef xbot::positioning::PositionMeasurement<T> PositionMeasurementT;
         typedef xbot::positioning::OrientationMeasurement<T> OrientationMeasurementT;
+        typedef xbot::positioning::OrientationMeasurement2<T> OrientationMeasurementT2;
+        typedef xbot::positioning::SpeedMeasurement<T> SpeedMeasurementT;
         typedef xbot::positioning::PositionMeasurementModel<T> PositionModelT;
         typedef xbot::positioning::OrientationMeasurementModel<T> OrientationModelT;
+        typedef xbot::positioning::OrientationMeasurementModel2<T> OrientationModelT2;
+        typedef xbot::positioning::SpeedMeasurementModel<T> SpeedModelT;
 
         class xbot_positioning_core {
 
 
 
         public:
+            xbot_positioning_core();
+
             const StateT &predict(double vx, double vr, double dt);
             const StateT &updatePosition(double x, double y);
             const StateT &updateOrientation(double theta, double covariance);
+            const StateT &updateOrientation2(double vx, double vy, double covariance);
+            const StateT &updateSpeed(double vx, double vr, double covariance);
+            const StateT &getState();
+            const Kalman::Covariance<StateT> &getCovariance();
 
-        private:
+        public:
             Kalman::ExtendedKalmanFilter<StateT> ekf;
             SystemModelT sys;
             PositionModelT pm;
             OrientationModelT om;
+            OrientationModelT2 om2;
+            SpeedModelT sm;
 
             ControlT u;
             PositionMeasurementT pos_m;
             OrientationMeasurementT orient_m;
+            OrientationMeasurementT2 orient_m2;
+            SpeedMeasurementT speed_m;
         };
     }
 }

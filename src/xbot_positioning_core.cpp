@@ -13,26 +13,71 @@ const xbot::positioning::StateT &xbot::positioning::xbot_positioning_core::predi
     return ekf.predict(sys, u);
 }
 
-const xbot::positioning::StateT & xbot::positioning::xbot_positioning_core::updatePosition(double x, double y) {
+const xbot::positioning::StateT &xbot::positioning::xbot_positioning_core::updatePosition(double x, double y) {
     pos_m.x_pos() = x;
     pos_m.y_pos() = y;
 
     Kalman::Covariance<PositionMeasurementT> c;
     c.setIdentity();
-    c*= 100.0;
+    c *= 500.0;
 
     pm.setCovariance(c);
 
     return ekf.update(pm, pos_m);
 }
 
-const xbot::positioning::StateT & xbot::positioning::xbot_positioning_core::updateOrientation(double theta, double covariance) {
+const xbot::positioning::StateT &
+xbot::positioning::xbot_positioning_core::updateOrientation(double theta, double covariance) {
     orient_m.theta() = theta;
     Kalman::Covariance<OrientationMeasurementT> c;
     c.setIdentity();
-    c*= covariance;
+    c *= covariance;
 
     om.setCovariance(c);
 
     return ekf.update(om, orient_m);
 }
+
+const xbot::positioning::StateT &
+xbot::positioning::xbot_positioning_core::updateOrientation2(double vx, double vy, double covariance) {
+    orient_m2.vx() = vx;
+    orient_m2.vy() = vy;
+
+    Kalman::Covariance<OrientationMeasurementT2> c;
+    c.setIdentity();
+    c *= covariance;
+
+    om2.setCovariance(c);
+
+    return ekf.update(om2, orient_m2);
+}
+const xbot::positioning::StateT &
+xbot::positioning::xbot_positioning_core::updateSpeed(double vx, double vr, double covariance) {
+    speed_m.vx() = vx;
+    speed_m.vr() = vr;
+//
+//    Kalman::Covariance<SpeedMeasurementT> c;
+//    c.setIdentity();
+//    c *= covariance;
+//
+//    sm.setCovariance(c);
+
+    return ekf.update(sm, speed_m);
+}
+
+const xbot::positioning::StateT &xbot::positioning::xbot_positioning_core::getState() {
+    return ekf.getState();
+}
+
+const Kalman::Covariance<xbot::positioning::StateT> &xbot::positioning::xbot_positioning_core::getCovariance() {
+    return ekf.getCovariance();
+}
+
+xbot::positioning::xbot_positioning_core::xbot_positioning_core() {
+//    Kalman::Covariance<StateT> c;
+//    c.setIdentity();
+//    c *= 0.001;
+//    sys.setCovariance(c);
+}
+
+

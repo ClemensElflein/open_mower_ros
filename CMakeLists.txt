@@ -8,6 +8,7 @@ find_package(catkin REQUIRED COMPONENTS
         roscpp
         tf2_geometry_msgs
         tf2
+        message_generation
         )
 
 
@@ -16,8 +17,19 @@ find_package(
 )
 
 
+
+
+add_message_files(
+        FILES
+        KalmanState.msg
+)
+
+generate_messages(
+        DEPENDENCIES
+        std_msgs
+)
 catkin_package(
-#          INCLUDE_DIRS include
+        #          INCLUDE_DIRS include
         #  LIBRARIES mower_comms
         #  CATKIN_DEPENDS mower_msgs roscpp serial
         #  DEPENDS system_lib
@@ -37,6 +49,7 @@ add_executable(xbot_positioning
         src/xbot_positioning_core.cpp
         src/xbot_positioning.cpp
         src/OrientationMeasurementModel.hpp
+        src/OrientationMeasurementModel2.hpp
         src/PositionMeasurementModel.hpp
         src/SystemModel.hpp)
 

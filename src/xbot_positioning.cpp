@@ -18,13 +18,17 @@
 #include "geometry_msgs/TwistWithCovarianceStamped.h"
 #include "xbot_positioning_core.h"
 #include "xbot_msgs/WheelTick.h"
+#include "xbot_positioning/KalmanState.h"
 
 ros::Publisher odometry_pub_predict_only;
 ros::Publisher odometry_pub;
+ros::Publisher dbg_expected_motion_vector;
+ros::Publisher kalman_state;
 
 xbot::positioning::xbot_positioning_core core;
 xbot::positioning::xbot_positioning_core predict_only_core;
 
+bool skip_gyro_calibration;
 bool has_ticks;
 xbot_msgs::WheelTick last_ticks;
 
@@ -34,34 +38,45 @@ ros::Time gyro_calibration_start;
 double gyro_offset;
 int gyro_offset_samples;
 double vx = 0.0;
+double min_speed = 0.0;
 
 nav_msgs::Odometry odometry, odometry_predict_only;
 
+xbot_positioning::KalmanState state_msg;
+
 void onImu(const sensor_msgs::Imu::ConstPtr &msg) {
     if(!has_gyro) {
-        if(gyro_offset_samples == 0) {
-            ROS_INFO_STREAM("Started gyro calibration");
-            gyro_calibration_start = msg->header.stamp;
-            gyro_offset = 0;
-        }
-        gyro_offset += msg->angular_velocity.z;
-        gyro_offset_samples++;
-        if((msg->header.stamp - gyro_calibration_start).toSec() < 5) {
-            last_imu = *msg;
+        if(!skip_gyro_calibration) {
+            if (gyro_offset_samples == 0) {
+                ROS_INFO_STREAM("Started gyro calibration");
+                gyro_calibration_start = msg->header.stamp;
+                gyro_offset = 0;
+            }
+            gyro_offset += -msg->angular_velocity.z;
+            gyro_offset_samples++;
+            if ((msg->header.stamp - gyro_calibration_start).toSec() < 5) {
+                last_imu = *msg;
+                return;
+            }
+            has_gyro = true;
+            if (gyro_offset_samples > 0) {
+                gyro_offset /= gyro_offset_samples;
+            } else {
+                gyro_offset = 0;
+            }
+            gyro_offset_samples = 0;
+            ROS_INFO_STREAM("Calibrated gyro offset: " << gyro_offset);
+        } else {
+            ROS_WARN("Skipped gyro calibration");
+            has_gyro = true;
             return;
         }
-        has_gyro = true;
-        if(gyro_offset_samples > 0) {
-            gyro_offset /= gyro_offset_samples;
-        } else {
-            gyro_offset = 0;
-        }
-        gyro_offset_samples = 0;
-        ROS_INFO_STREAM("Calibrated gyro offset: " << gyro_offset);
     }
 
-    auto x = core.predict(vx, msg->angular_velocity.z - gyro_offset, (last_imu.header.stamp - msg->header.stamp).toSec());
-    auto x_predict_only = predict_only_core.predict(vx, msg->angular_velocity.z - gyro_offset, (last_imu.header.stamp - msg->header.stamp).toSec());
+    core.predict(vx, -msg->angular_velocity.z - gyro_offset, (msg->header.stamp - last_imu.header.stamp).toSec());
+    auto x = core.updateSpeed(vx, -msg->angular_velocity.z - gyro_offset,0.01);
+    predict_only_core.predict(vx, -msg->angular_velocity.z - gyro_offset, (msg->header.stamp - last_imu.header.stamp).toSec());
+    auto x_predict_only = predict_only_core.updateSpeed(vx, -msg->angular_velocity.z - gyro_offset,0.01);
 
     odometry.header.stamp = ros::Time::now();
     odometry.header.seq++;
@@ -79,6 +94,17 @@ void onImu(const sensor_msgs::Imu::ConstPtr &msg) {
     tf2::Quaternion q_predict_only(0.0, 0.0, x_predict_only.theta());
     odometry_predict_only.pose.pose.orientation = tf2::toMsg(q_predict_only);
 
+    ROS_INFO_STREAM_THROTTLE(1,"c:\n" << core.getCovariance() << "\n\n" << "state\n:" << core.getState());
+
+    auto state = core.getState();
+    state_msg.x = state.x();
+    state_msg.y = state.y();
+    state_msg.theta = state.theta();
+    state_msg.vx = state.vx();
+    state_msg.vr = state.vr();
+
+    kalman_state.publish(state_msg);
+
     odometry_pub.publish(odometry);
     odometry_pub_predict_only.publish(odometry_predict_only);
 
@@ -93,8 +119,8 @@ void onWheelTicks(const xbot_msgs::WheelTick::ConstPtr &msg) {
     }
     double dt = (msg->stamp - last_ticks.stamp).toSec();
 
-    double d_wheel_l = (double) (msg->wheel_ticks_rl - last_ticks.wheel_ticks_rl) / (993.0 / (0.19*M_PI));
-    double d_wheel_r = (double) (msg->wheel_ticks_rr - last_ticks.wheel_ticks_rr) / (993.0 / (0.19*M_PI));
+    double d_wheel_l = (double) (msg->wheel_ticks_rl - last_ticks.wheel_ticks_rl) * (1/1600.0);
+    double d_wheel_r = (double) (msg->wheel_ticks_rr - last_ticks.wheel_ticks_rr) * (1/1600.0);
 
     if(msg->wheel_direction_rl) {
         d_wheel_l *= -1.0;
@@ -104,17 +130,26 @@ void onWheelTicks(const xbot_msgs::WheelTick::ConstPtr &msg) {
     }
 
 
-    double d_ticks = -(d_wheel_l + d_wheel_r) / 2.0;
+    double d_ticks = (d_wheel_l + d_wheel_r) / 2.0;
     vx = d_ticks / dt;
 
     last_ticks = *msg;
 }
 
 void onPose(const xbot_msgs::AbsolutePose::ConstPtr &msg) {
+
     core.updatePosition(msg->pose.pose.position.x, msg->pose.pose.position.y);
-    double c = 100000.0*pow(last_imu.angular_velocity.z - gyro_offset,2) + 10000.0;
-    core.updateOrientation(msg->motion_heading, c);
-    ROS_INFO_STREAM("c:" << c);
+//    double c = 100000.0*pow(last_imu.angular_velocity.z - gyro_offset,2) + 10000.0;
+//    core.updateOrientation(msg->motion_heading, 0.001);
+auto m = core.om2.h(core.ekf.getState());
+geometry_msgs::Vector3 dbg;
+dbg.x = m.vx();
+dbg.y = m.vy();
+    dbg_expected_motion_vector.publish(dbg);
+
+    if(std::sqrt(std::pow(msg->motion_vector.x, 2)+std::pow(msg->motion_vector.y, 2)) > min_speed) {
+        core.updateOrientation2(msg->motion_vector.x, msg->motion_vector.y, 10000.0);
+    }
 }
 
 int main(int argc, char **argv) {
@@ -129,8 +164,18 @@ int main(int argc, char **argv) {
     ros::NodeHandle n;
     ros::NodeHandle paramNh("~");
 
+    paramNh.param("skip_gyro_calibration", skip_gyro_calibration, false);
+    paramNh.param("gyro_offset", gyro_offset, 0.0);
+    paramNh.param("min_speed", min_speed, 0.01);
+
+    if(gyro_offset != 0.0) {
+        ROS_WARN_STREAM("Using gyro offset of: " << gyro_offset);
+    }
+
     odometry_pub = paramNh.advertise<nav_msgs::Odometry>("odom", 50);
     odometry_pub_predict_only = paramNh.advertise<nav_msgs::Odometry>("odom_predict_only", 50);
+    dbg_expected_motion_vector = paramNh.advertise<geometry_msgs::Vector3>("debug_expected_motion_vector", 50);
+    kalman_state = paramNh.advertise<xbot_positioning::KalmanState>("kalman_state", 50);
 
     ros::Subscriber imu_sub = paramNh.subscribe("imu", 10, onImu);
     ros::Subscriber pose_sub = paramNh.subscribe("xb_pose", 10, onPose);

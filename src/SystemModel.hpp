@@ -20,10 +20,10 @@ namespace xbot {
  * @param T Numeric scalar type
  */
         template<typename T>
-        class State : public Kalman::Vector<T, 3> {
+        class State : public Kalman::Vector<T, 5> {
         public:
             KALMAN_VECTOR(State, T,
-            3)
+            5)
 
             //! X-position
             static constexpr size_t X = 0;
@@ -31,18 +31,28 @@ namespace xbot {
             static constexpr size_t Y = 1;
             //! Orientation
             static constexpr size_t THETA = 2;
+            //! Speed in x dir
+            static constexpr size_t VX = 3;
+            //! Speed angular
+            static constexpr size_t VR = 4;
+
 
             T x_pos() const { return (*this)[X]; }
 
             T y_pos() const { return (*this)[Y]; }
 
             T theta() const { return (*this)[THETA]; }
+            T vx() const { return (*this)[VX]; }
+            T vr() const { return (*this)[VR]; }
 
             T &x_pos() { return (*this)[X]; }
 
             T &y_pos() { return (*this)[Y]; }
 
             T &theta() { return (*this)[THETA]; }
+            T &vx() { return (*this)[VX]; }
+            T &vr() { return (*this)[VR]; }
+
         };
 
 /**
@@ -126,6 +136,12 @@ namespace xbot {
                 x_.x() = x.x() + std::cos(newOrientation) * u.v() * dt;
                 x_.y() = x.y() + std::sin(newOrientation) * u.v() * dt;
 
+                x_.vx() = x.vx();
+                x_.vr() = x.vr();
+//                x_.vx() = u.v();
+//                x_.vr() = u.dtheta();
+
+
                 // Return transitioned state vector
                 return x_;
             }
@@ -163,6 +179,12 @@ namespace xbot {
 
                 // partial derivative of x.theta() w.r.t. x.theta()
                 this->F(S::THETA, S::THETA) = 1;
+
+                // partial derivative of x.theta() w.r.t. x.theta()
+                this->F(S::VX, S::VX) = 1;
+                // partial derivative of x.theta() w.r.t. x.theta()
+                this->F(S::VR, S::VR) = 1;
+
 
                 // W = df/dw (Jacobian of state transition w.r.t. the noise)
                 this->W.setIdentity();
