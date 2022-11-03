@@ -33,6 +33,7 @@
 
 
 ros::Publisher odometry_pub;
+ros::Publisher pose_pub;
 
 
 tf2::Vector3 last_gps_pos;
@@ -134,7 +135,24 @@ void publishOdometry() {
     };
 
 
+    xbot_msgs::AbsolutePose pose;
+    pose.header = odom.header;
+    pose.sensor_stamp = 0;
+    pose.received_stamp = 0;
+    pose.source = xbot_msgs::AbsolutePose::SOURCE_SENSOR_FUSION;
+    pose.flags = 0;
+    pose.orientation_valid = true;
+    // TODO: send motion vector
+    pose.motion_vector_valid = false;
+    // TODO: set real value
+    pose.position_accuracy = last_gps_acc_m;
+    // TODO: set real value
+    pose.orientation_accuracy = 0.01;
+    pose.pose = odom.pose;
+    pose.vehicle_heading = r;
+    pose.motion_heading = r;
 
+    pose_pub.publish(pose);
 
     // publish the message
     odometry_pub.publish(odom);
@@ -464,6 +482,7 @@ int main(int argc, char **argv) {
 
 
     odometry_pub = n.advertise<nav_msgs::Odometry>("mower/odom", 50);
+    pose_pub = n.advertise<xbot_msgs::AbsolutePose>("mower/xb_pose_odom", 50);
 
     firstData = true;
     gps_outlier_count = 0;
