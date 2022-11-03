@@ -21,6 +21,7 @@
 #include "xbot_positioning/KalmanState.h"
 
 ros::Publisher odometry_pub;
+ros::Publisher xbot_absolute_pose_pub;
 
 // Debug Publishers
 ros::Publisher kalman_state;
@@ -55,6 +56,7 @@ bool publish_debug;
 
 nav_msgs::Odometry odometry;
 xbot_positioning::KalmanState state_msg;
+xbot_msgs::AbsolutePose xb_absolute_pose_msg;
 
 void onImu(const sensor_msgs::Imu::ConstPtr &msg) {
     if(!has_gyro) {
@@ -122,6 +124,25 @@ void onImu(const sensor_msgs::Imu::ConstPtr &msg) {
 
     odometry_pub.publish(odometry);
 
+    xb_absolute_pose_msg.header = odometry.header;
+    xb_absolute_pose_msg.sensor_stamp = 0;
+    xb_absolute_pose_msg.received_stamp = 0;
+    xb_absolute_pose_msg.source = xbot_msgs::AbsolutePose::SOURCE_SENSOR_FUSION;
+    xb_absolute_pose_msg.flags = 0;
+    xb_absolute_pose_msg.orientation_valid = true;
+    // TODO: send motion vector
+    xb_absolute_pose_msg.motion_vector_valid = false;
+    // TODO: set real value
+    xb_absolute_pose_msg.position_accuracy = 0.1;
+    // TODO: set real value
+    xb_absolute_pose_msg.orientation_accuracy = 0.01;
+    xb_absolute_pose_msg.pose = odometry.pose;
+    xb_absolute_pose_msg.vehicle_heading = x.theta();
+    xb_absolute_pose_msg.motion_heading = x.theta();
+
+    xbot_absolute_pose_pub.publish(xb_absolute_pose_msg);
+
+
     last_imu = *msg;
 }
 
@@ -187,6 +208,7 @@ int main(int argc, char **argv) {
     }
 
     odometry_pub = paramNh.advertise<nav_msgs::Odometry>("odom", 50);
+    xbot_absolute_pose_pub = paramNh.advertise<xbot_msgs::AbsolutePose>("xb_pose", 50);
     if(publish_debug) {
         dbg_expected_motion_vector = paramNh.advertise<geometry_msgs::Vector3>("debug_expected_motion_vector", 50);
         kalman_state = paramNh.advertise<xbot_positioning::KalmanState>("kalman_state", 50);
