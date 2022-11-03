@@ -20,7 +20,6 @@
 #include <actionlib/client/simple_action_client.h>
 #include <mbf_msgs/ExePathAction.h>
 #include <mbf_msgs/MoveBaseAction.h>
-#include <nav_msgs/Odometry.h>
 #include "Behavior.h"
 #include "IdleBehavior.h"
 #include "DockingBehavior.h"
@@ -38,6 +37,7 @@
 #include "mower_map/AddMowingAreaSrv.h"
 #include "mower_map/SetDockingPointSrv.h"
 #include "mower_msgs/EmergencyStopSrv.h"
+#include "xbot_msgs/AbsolutePose.h"
 
 
 #include "geometry_msgs/Twist.h"
@@ -53,12 +53,12 @@ private:
 
 
     sensor_msgs::Joy last_joy;
-    nav_msgs::Odometry last_odom;
+    xbot_msgs::AbsolutePose last_pose;
 
     ros::Publisher marker_pub;
     ros::Publisher marker_array_pub;
 
-    ros::Subscriber joy_sub, odom_sub;
+    ros::Subscriber joy_sub, pose_sub;
 
     ros::Subscriber dock_sub, polygon_sub, mow_area_sub, nav_area_sub;
 
@@ -81,7 +81,7 @@ private:
 private:
     bool recordNewPolygon(geometry_msgs::Polygon &polygon);
     bool getDockingPosition(geometry_msgs::Pose &pos);
-    void odom_received(const nav_msgs::Odometry &odom_msg);
+    void pose_received(const xbot_msgs::AbsolutePose::ConstPtr &msg);
     void joy_received(const sensor_msgs::Joy &joy_msg);
     void record_dock_received(std_msgs::Bool state_msg);
     void record_polygon_received(std_msgs::Bool state_msg);

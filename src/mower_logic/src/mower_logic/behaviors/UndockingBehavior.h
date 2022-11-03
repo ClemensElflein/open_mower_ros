@@ -19,7 +19,6 @@
 
 #include <actionlib/client/simple_action_client.h>
 #include <mbf_msgs/ExePathAction.h>
-#include <nav_msgs/Odometry.h>
 #include "Behavior.h"
 #include "IdleBehavior.h"
 #include "DockingBehavior.h"
@@ -27,6 +26,7 @@
 #include <tf2/LinearMath/Transform.h>
 #include "tf2_geometry_msgs/tf2_geometry_msgs.h"
 #include "MowingBehavior.h"
+#include "xbot_msgs/AbsolutePose.h"
 
 
 class UndockingBehavior : public Behavior {

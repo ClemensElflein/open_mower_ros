@@ -169,8 +169,8 @@ void AreaRecordingBehavior::enter() {
     mow_area_sub = n->subscribe("/record_mowing", 100, &AreaRecordingBehavior::record_mowing_received, this);
     nav_area_sub = n->subscribe("/record_navigation", 100, &AreaRecordingBehavior::record_navigation_received, this);
 
-    odom_sub = n->subscribe("mower/odom", 100,
-                                           &AreaRecordingBehavior::odom_received, this);
+    pose_sub = n->subscribe("/xbot_positioning/xb_pose", 100,
+                                           &AreaRecordingBehavior::pose_received, this);
 
 }
 
@@ -182,7 +182,7 @@ void AreaRecordingBehavior::exit() {
     polygon_sub.shutdown();
     mow_area_sub.shutdown();
     nav_area_sub.shutdown();
-    odom_sub.shutdown();
+    pose_sub.shutdown();
     add_mowing_area_client.shutdown();
     set_docking_point_client.shutdown();
 }
@@ -200,8 +200,8 @@ bool AreaRecordingBehavior::mower_enabled() {
     return false;
 }
 
-void AreaRecordingBehavior::odom_received(const nav_msgs::Odometry &odom_msg) {
-    last_odom = odom_msg;
+void AreaRecordingBehavior::pose_received(const xbot_msgs::AbsolutePose::ConstPtr &msg) {
+    last_pose = *msg;
     has_odom = true;
 }
 void AreaRecordingBehavior::joy_received(const sensor_msgs::Joy &joy_msg) {
@@ -322,7 +322,7 @@ bool AreaRecordingBehavior::recordNewPolygon(geometry_msgs::Polygon &polygon) {
         if(!has_odom)
             continue;
 
-        auto pose_in_map = last_odom.pose.pose;
+        auto pose_in_map = last_pose.pose.pose;
         if (polygon.points.empty()) {
             // add the first point
             geometry_msgs::Point32 pt;

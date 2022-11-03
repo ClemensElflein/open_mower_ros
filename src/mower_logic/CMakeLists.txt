@@ -21,6 +21,7 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_ros
         sensor_msgs
         robot_localization
+        xbot_msgs
 )
 
 

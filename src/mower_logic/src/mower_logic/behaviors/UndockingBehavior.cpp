@@ -18,10 +18,10 @@
 
 extern ros::ServiceClient dockingPointClient;
 extern actionlib::SimpleActionClient<mbf_msgs::ExePathAction> *mbfClientExePath;
-extern nav_msgs::Odometry last_odom;
+extern xbot_msgs::AbsolutePose last_pose;
 
 extern void stopMoving();
-
+extern bool isGpsGood();
 extern bool setGPS(bool enabled);
 
 UndockingBehavior UndockingBehavior::INSTANCE(&MowingBehavior::INSTANCE);
@@ -34,9 +34,9 @@ std::string UndockingBehavior::state_name() {
 Behavior *UndockingBehavior::execute() {
 
     // get robot's current pose from odometry.
-    nav_msgs::Odometry odom = last_odom;
+    xbot_msgs::AbsolutePose pose = last_pose;
     tf2::Quaternion quat;
-    tf2::fromMsg(odom.pose.pose.orientation, quat);
+    tf2::fromMsg(pose.pose.pose.orientation, quat);
     tf2::Matrix3x3 m(quat);
     double roll, pitch, yaw;
     m.getRPY(roll, pitch, yaw);
@@ -50,8 +50,8 @@ Behavior *UndockingBehavior::execute() {
     int undock_point_count = config.undock_distance * 10.0;
     for (int i = 0; i < undock_point_count; i++) {
         geometry_msgs::PoseStamped docking_pose_stamped_front;
-        docking_pose_stamped_front.pose = odom.pose.pose;
-        docking_pose_stamped_front.header = odom.header;
+        docking_pose_stamped_front.pose = pose.pose.pose;
+        docking_pose_stamped_front.header = pose.header;
         docking_pose_stamped_front.pose.position.x -= cos(yaw) * (i / 10.0);
         docking_pose_stamped_front.pose.position.y -= sin(yaw) * (i / 10.0);
         path.poses.push_back(docking_pose_stamped_front);
@@ -123,11 +123,11 @@ bool UndockingBehavior::waitForGPS() {
     setGPS(true);
     ros::Rate odom_rate(1.0);
     while (ros::ok() && !aborted) {
-        if (last_odom.pose.covariance[0] < 0.10) {
+        if (isGpsGood()) {
             ROS_INFO("Got good gps, let's go");
             break;
         } else {
-            ROS_INFO_STREAM("waiting for gps. current covariance: " << last_odom.pose.covariance[0]);
+            ROS_INFO_STREAM("waiting for gps. current accuracy: " << last_pose.position_accuracy);
             odom_rate.sleep();
         }
     }

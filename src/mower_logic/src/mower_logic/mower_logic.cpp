@@ -46,6 +46,7 @@
 #include "std_msgs/String.h"
 #include "mower_msgs/HighLevelStatus.h"
 #include "mower_map/ClearMapSrv.h"
+#include "xbot_msgs/AbsolutePose.h"
 
 ros::ServiceClient pathClient, mapClient, dockingPointClient, gpsClient, mowClient, emergencyClient, pathProgressClient, setNavPointClient, clearNavPointClient, clearMapClient;
 
@@ -61,8 +62,8 @@ mower_logic::MowerLogicConfig last_config;
 
 
 // store some values for safety checks
-ros::Time odom_time(0.0);
-nav_msgs::Odometry last_odom;
+ros::Time pose_time(0.0);
+xbot_msgs::AbsolutePose last_pose;
 ros::Time status_time(0.0);
 mower_msgs::Status last_status;
 
@@ -75,13 +76,14 @@ bool mowerEnabled = false;
 
 Behavior *currentBehavior = &IdleBehavior::INSTANCE;
 
-void odomReceived(const nav_msgs::Odometry::ConstPtr &msg) {
+void poseReceived(const xbot_msgs::AbsolutePose::ConstPtr &msg) {
  
-    last_odom = *msg;
+    last_pose = *msg;
+
  #ifdef VERBOSE_DEBUG
-    ROS_INFO("om_mower_logic: odomReceived with covariance of %f", last_odom.pose.covariance[0]);
+    ROS_INFO("om_mower_logic: pose received with accuracy %f", last_pose.position_accuracy);
 #endif
-    odom_time = ros::Time::now();
+    pose_time = ros::Time::now();
 }
 
 void statusReceived(const mower_msgs::Status::ConstPtr &msg) {
@@ -205,6 +207,10 @@ void updateUI(const ros::TimerEvent &timer_event) {
     high_level_state_publisher.publish(high_level_status);
 }
 
+bool isGpsGood() {
+    return last_pose.orientation_valid && last_pose.position_accuracy < last_config.max_position_accuracy;
+}
+
 /// @brief Called every 0.5s, used to control BLADE motor via mower_enabled variable and stop any movement in case of /odom and /mower/status outages
 /// @param timer_event 
 void checkSafety(const ros::TimerEvent &timer_event) {
@@ -221,11 +227,11 @@ void checkSafety(const ros::TimerEvent &timer_event) {
     // TODO: Have a single point where we check for this timeout instead of twice (here and in the behavior)
     // check if odometry is current. If not, the GPS was bad so we stop moving.
     // Note that the mowing behavior will pause as well by itself.
-    if (ros::Time::now() - odom_time > ros::Duration(1.0)) 
+    if (ros::Time::now() - pose_time > ros::Duration(1.0))
     {
         stopBlade();
         stopMoving();
-        ROS_WARN_STREAM_THROTTLE(5, "om_mower_logic: EMERGENCY /odom values stopped. dt was: " << (ros::Time::now() - odom_time));
+        ROS_WARN_STREAM_THROTTLE(5, "om_mower_logic: EMERGENCY pose values stopped. dt was: " << (ros::Time::now() - pose_time));
         return;
     }
  
@@ -247,14 +253,20 @@ void checkSafety(const ros::TimerEvent &timer_event) {
                                                                                << last_status.right_esc_status);
         return;
     }
-    bool gpsGoodNow = last_odom.pose.covariance[0] < 0.10 && last_odom.pose.covariance[0] > 0;
+
+    // We need orientation and a positional accuracy less than configured
+    bool gpsGoodNow = isGpsGood();
     if (gpsGoodNow || last_config.ignore_gps_errors) {
         last_good_gps = ros::Time::now();
-        high_level_status.gps_quality_percent = 1.0 - fmin(1.0, last_odom.pose.covariance[0] / 0.10);
+        high_level_status.gps_quality_percent = 1.0 - fmin(1.0, last_pose.position_accuracy / last_config.max_position_accuracy);
         ROS_INFO_STREAM_THROTTLE(10, "GPS quality: " << high_level_status.gps_quality_percent);
     } else {
         // GPS = bad, set quality to 0
         high_level_status.gps_quality_percent = 0;
+        if(last_pose.orientation_valid) {
+            // set this if we don't even have an orientation
+            high_level_status.gps_quality_percent = -1;
+        }
         ROS_WARN_STREAM_THROTTLE(1,"Low quality GPS");
     }
 
@@ -400,7 +412,7 @@ int main(int argc, char **argv) {
 
 
     ros::Subscriber status_sub = n->subscribe("/mower/status", 0, statusReceived, ros::TransportHints().tcpNoDelay(true));
-    ros::Subscriber odom_sub = n->subscribe("/mower/odom", 0, odomReceived, ros::TransportHints().tcpNoDelay(true));
+    ros::Subscriber pose_sub = n->subscribe("/xbot_positioning/xb_pose", 0, poseReceived, ros::TransportHints().tcpNoDelay(true));
     ros::Subscriber joy_cmd = n->subscribe("/joy_vel", 0, joyVelReceived, ros::TransportHints().tcpNoDelay(true));
 
     ros::ServiceServer high_level_control_srv = n->advertiseService("mower_service/high_level_control", highLevelCommand);
@@ -418,8 +430,8 @@ int main(int argc, char **argv) {
             return 1;
         }
     }
-    ROS_INFO("Waiting for a odometry message");
-    while (odom_time == ros::Time(0.0)) {
+    ROS_INFO("Waiting for a pose message");
+    while (pose_time == ros::Time(0.0)) {
         if (!ros::ok()) {
             delete (reconfigServer);
             delete (mbfClient);
