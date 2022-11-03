@@ -1,4 +1,7 @@
 # ROS Workspace
+
+[![Build](https://github.com/ClemensElflein/open_mower_ros/actions/workflows/build-image.yaml/badge.svg)](https://github.com/ClemensElflein/open_mower_ros/actions/workflows/build-image.yaml)
+
 This folder is the ROS workspace, which should be used to build the OpenMower ROS software.
 This repository contains the ROS package for controlling the OpenMower.
 
