@@ -5,6 +5,7 @@
 # an enum showing from which type of absolute sensor the data originates
 uint8 SOURCE_GPS=1
 uint8 SOURCE_LIGHTHOUSE=2
+uint8 SOURCE_SENSOR_FUSION=100
 
 # Some flags to describe the GPS fix better
 uint16 FLAG_GPS_RTK=1                   # True, if there are corrections applied
@@ -12,10 +13,9 @@ uint16 FLAG_GPS_RTK_FIXED=2             # True, if we have a fixed solution
 uint16 FLAG_GPS_RTK_FLOAT=4             # True, if we have a float solution
 uint16 FLAG_GPS_DEAD_RECKONING=8        # True, if the GPS module is currently doing dead reckoning using its internal IMU
 
-
 std_msgs/Header header
-uint32 sensor_stamp                     # A timestamp sent by the sensor
-uint32 received_stamp                   # A timestamp taken on receive
+uint32 sensor_stamp                     # A timestamp sent by the sensor, 0 for source = sensor fusion
+uint32 received_stamp                   # A timestamp taken on receive, 0 for source = sensor fusion
 
 uint8 source
 uint16 flags                            # Flags specific to the source
