@@ -6,7 +6,7 @@
 
     <include if="$(env OM_USE_NTRIP)" file="$(find open_mower)/launch/include/_ntrip_client.launch" />
 
-    <node pkg="xbot_driver_gps" type="driver_gps_node" name="driver_gps_node"
+    <node pkg="xbot_driver_gps" type="driver_gps_node" name="xbot_driver_gps"
           output="screen"
           clear_params="true"
           respawn="true"
