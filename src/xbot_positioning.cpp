@@ -94,9 +94,20 @@ void onImu(const sensor_msgs::Imu::ConstPtr &msg) {
     odometry.child_frame_id = "base_link";
     odometry.pose.pose.position.x = x.x_pos();
     odometry.pose.pose.position.y = x.y_pos();
+    odometry.pose.pose.position.z = 0;
     tf2::Quaternion q(0.0, 0.0, x.theta());
     odometry.pose.pose.orientation = tf2::toMsg(q);
 
+    geometry_msgs::TransformStamped odom_trans;
+    odom_trans.header = odometry.header;
+    odom_trans.child_frame_id = odometry.child_frame_id;
+    odom_trans.transform.translation.x = odometry.pose.pose.position.x;
+    odom_trans.transform.translation.y = odometry.pose.pose.position.y;
+    odom_trans.transform.translation.z = odometry.pose.pose.position.z;
+    odom_trans.transform.rotation = odometry.pose.pose.orientation;
+
+    static tf2_ros::TransformBroadcaster transform_broadcaster;
+    transform_broadcaster.sendTransform(odom_trans);
 
     if(publish_debug) {
         auto state = core.getState();
