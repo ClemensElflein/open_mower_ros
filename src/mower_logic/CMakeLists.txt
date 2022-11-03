@@ -188,14 +188,6 @@ add_executable(mower_odometry src/mower_odometry/mower_odometry.cpp)
 add_dependencies(mower_odometry ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
 target_link_libraries(mower_odometry ${catkin_LIBRARIES} ${GeographicLib_LIBRARIES})
 
-add_executable(ekf_odometry src/mower_odometry/ekf_odometry.cpp)
-add_dependencies(ekf_odometry ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
-target_link_libraries(ekf_odometry ${catkin_LIBRARIES} ${GeographicLib_LIBRARIES})
-
-add_executable(ekf_odometry2 src/mower_odometry/ekf_odometry2.cpp)
-add_dependencies(ekf_odometry2 ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
-target_link_libraries(ekf_odometry2 ${catkin_LIBRARIES} ${GeographicLib_LIBRARIES})
-
 add_executable(mag_calibration src/mag_calibration/mag_calibration.cpp)
 add_dependencies(mag_calibration ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
 target_link_libraries(mag_calibration ${catkin_LIBRARIES} ${GeographicLib_LIBRARIES})
