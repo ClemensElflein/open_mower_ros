@@ -208,7 +208,9 @@ void updateUI(const ros::TimerEvent &timer_event) {
 }
 
 bool isGpsGood() {
-    return last_pose.orientation_valid && last_pose.position_accuracy < last_config.max_position_accuracy;
+    // GPS is good if orientation is valid, we have low accuracy and we have a recent GPS update.
+    // TODO: think about the "recent gps flag" since it only looks at the time. E.g. if we were standing still this would still pause even if no GPS updates are needed during standstill.
+    return last_pose.orientation_valid && last_pose.position_accuracy < last_config.max_position_accuracy && (last_pose.flags & xbot_msgs::AbsolutePose::FLAG_SENSOR_FUSION_RECENT_ABSOLUTE_POSE)   ;
 }
 
 /// @brief Called every 0.5s, used to control BLADE motor via mower_enabled variable and stop any movement in case of /odom and /mower/status outages
