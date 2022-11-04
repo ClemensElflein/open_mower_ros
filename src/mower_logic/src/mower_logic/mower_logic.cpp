@@ -26,7 +26,6 @@
 #include "mower_map/SetNavPointSrv.h"
 #include <actionlib/client/simple_action_client.h>
 #include <tf2/LinearMath/Transform.h>
-#include "mower_msgs/GPSControlSrv.h"
 #include "mbf_msgs/ExePathAction.h"
 #include "mbf_msgs/MoveBaseAction.h"
 #include "nav_msgs/Odometry.h"
@@ -47,6 +46,7 @@
 #include "mower_msgs/HighLevelStatus.h"
 #include "mower_map/ClearMapSrv.h"
 #include "xbot_msgs/AbsolutePose.h"
+#include "xbot_positioning/GPSControlSrv.h"
 
 ros::ServiceClient pathClient, mapClient, dockingPointClient, gpsClient, mowClient, emergencyClient, pathProgressClient, setNavPointClient, clearNavPointClient, clearMapClient;
 
@@ -102,7 +102,7 @@ void abortExecution() {
 }
 
 bool setGPS(bool enabled) {
-    mower_msgs::GPSControlSrv gps_srv;
+    xbot_positioning::GPSControlSrv gps_srv;
     gps_srv.request.gps_enabled = enabled;
     // TODO check result
     gpsClient.call(gps_srv);
@@ -387,8 +387,8 @@ int main(int argc, char **argv) {
     clearMapClient = n->serviceClient<mower_map::ClearMapSrv>(
             "mower_map_service/clear_map");
 
-    gpsClient = n->serviceClient<mower_msgs::GPSControlSrv>(
-            "mower_service/set_gps_state");
+    gpsClient = n->serviceClient<xbot_positioning::GPSControlSrv>(
+            "xbot_positioning/set_gps_state");
     mowClient = n->serviceClient<mower_msgs::MowerControlSrv>(
             "mower_service/mow_enabled");
     emergencyClient = n->serviceClient<mower_msgs::EmergencyStopSrv>(
@@ -469,6 +469,16 @@ int main(int argc, char **argv) {
         delete (mbfClient);
         delete (mbfClientExePath);
 
+
+        return 1;
+    }
+
+    ROS_INFO("Waiting for gps service");
+    if (!gpsClient.waitForExistence(ros::Duration(60.0, 0.0))) {
+        ROS_ERROR("GPS service not found.");
+        delete (reconfigServer);
+        delete (mbfClient);
+        delete (mbfClientExePath);
 
         return 1;
     }
