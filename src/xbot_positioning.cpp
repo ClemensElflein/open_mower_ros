@@ -227,16 +227,16 @@ int main(int argc, char **argv) {
         ROS_WARN_STREAM("Using gyro offset of: " << gyro_offset);
     }
 
-    odometry_pub = paramNh.advertise<nav_msgs::Odometry>("odom", 50);
-    xbot_absolute_pose_pub = paramNh.advertise<xbot_msgs::AbsolutePose>("xb_pose", 50);
+    odometry_pub = paramNh.advertise<nav_msgs::Odometry>("odom_out", 50);
+    xbot_absolute_pose_pub = paramNh.advertise<xbot_msgs::AbsolutePose>("xb_pose_out", 50);
     if(publish_debug) {
         dbg_expected_motion_vector = paramNh.advertise<geometry_msgs::Vector3>("debug_expected_motion_vector", 50);
         kalman_state = paramNh.advertise<xbot_positioning::KalmanState>("kalman_state", 50);
     }
 
-    ros::Subscriber imu_sub = paramNh.subscribe("imu", 10, onImu);
-    ros::Subscriber pose_sub = paramNh.subscribe("xb_pose", 10, onPose);
-    ros::Subscriber wheel_tick_sub = paramNh.subscribe("wheel_ticks", 10, onWheelTicks);
+    ros::Subscriber imu_sub = paramNh.subscribe("imu_in", 10, onImu);
+    ros::Subscriber pose_sub = paramNh.subscribe("xb_pose_in", 10, onPose);
+    ros::Subscriber wheel_tick_sub = paramNh.subscribe("wheel_ticks_in", 10, onWheelTicks);
 
     ros::spin();
     return 0;
