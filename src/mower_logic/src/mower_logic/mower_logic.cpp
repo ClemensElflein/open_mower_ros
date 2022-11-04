@@ -423,6 +423,8 @@ int main(int argc, char **argv) {
     ros::AsyncSpinner asyncSpinner(2);
     asyncSpinner.start();
 
+    ros::Rate r(1.0);
+
     ROS_INFO("Waiting for a status message");
     while (status_time == ros::Time(0.0)) {
         if (!ros::ok()) {
@@ -431,6 +433,7 @@ int main(int argc, char **argv) {
             delete (mbfClientExePath);
             return 1;
         }
+        r.sleep();
     }
     ROS_INFO("Waiting for a pose message");
     while (pose_time == ros::Time(0.0)) {
@@ -440,6 +443,7 @@ int main(int argc, char **argv) {
             delete (mbfClientExePath);
             return 1;
         }
+        r.sleep();
     }
 
 
@@ -538,7 +542,6 @@ int main(int argc, char **argv) {
     }
 
     ros::Time started = ros::Time::now();
-    ros::Rate r(1.0);
     while((ros::Time::now() - started).toSec() < 10.0) {
         ROS_INFO_STREAM("Waiting for an emergency status message");
         r.sleep();
