@@ -18,26 +18,6 @@ export OM_MOWER_GAMEPAD="xbox360"
 # Set to true to record your session
 # export OM_ENABLE_RECORDING=False
 
-# Offset between the point in between your wheels and the GPS antenna in m
-export OM_GPS_ANTENNA_OFFSET=0.3
-# Angle which gets added to the compass heading, if your imu is in a rotated coordinate frame
-export OM_IMU_OFFSET=180.0
-
-# IMU Calibration and filter settings
-export OM_MAG_BIAS_X=-0.027
-export OM_MAG_BIAS_Y=0.039
-export OM_MAG_BIAS_Z=0.025
-export OM_IMU_FILTER_GAIN=0.05
-
-# Serial ports of your hardware devices
-export OM_LL_SERIAL_PORT=ttyAMA0
-export OM_LEFT_SERIAL_PORT=ttyAMA4
-export OM_RIGHT_SERIAL_PORT=ttyAMA2
-export OM_MOW_SERIAL_PORT=ttyAMA3
-export OM_GPS_SERIAL_PORT=ttyAMA1
-
-
-
 ################################
 ##        GPS Settings        ##
 ################################
