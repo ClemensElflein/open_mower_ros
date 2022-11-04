@@ -462,16 +462,6 @@ int main(int argc, char **argv) {
 
         return 1;
     }
-    ROS_INFO("Waiting for gps service");
-    if (!gpsClient.waitForExistence(ros::Duration(60.0, 0.0))) {
-        ROS_ERROR("GPS service not found.");
-        delete (reconfigServer);
-        delete (mbfClient);
-        delete (mbfClientExePath);
-
-
-        return 1;
-    }
     ROS_INFO("Waiting for mower service");
     if (!mowClient.waitForExistence(ros::Duration(60.0, 0.0))) {
         ROS_ERROR("Mower service not found.");
