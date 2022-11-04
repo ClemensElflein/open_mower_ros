@@ -19,6 +19,7 @@
 #include "xbot_positioning_core.h"
 #include "xbot_msgs/WheelTick.h"
 #include "xbot_positioning/KalmanState.h"
+#include "xbot_positioning/GPSControlSrv.h"
 
 ros::Publisher odometry_pub;
 ros::Publisher xbot_absolute_pose_pub;
@@ -57,6 +58,8 @@ bool publish_debug;
 nav_msgs::Odometry odometry;
 xbot_positioning::KalmanState state_msg;
 xbot_msgs::AbsolutePose xb_absolute_pose_msg;
+
+bool gps_enabled = true;
 
 void onImu(const sensor_msgs::Imu::ConstPtr &msg) {
     if(!has_gyro) {
@@ -171,8 +174,16 @@ void onWheelTicks(const xbot_msgs::WheelTick::ConstPtr &msg) {
     last_ticks = *msg;
 }
 
-void onPose(const xbot_msgs::AbsolutePose::ConstPtr &msg) {
+bool setGpsState(xbot_positioning::GPSControlSrvRequest &req, xbot_positioning::GPSControlSrvResponse &res) {
+    gps_enabled = req.gps_enabled;
+    return true;
+}
 
+void onPose(const xbot_msgs::AbsolutePose::ConstPtr &msg) {
+    if(!gps_enabled) {
+        ROS_INFO_STREAM_THROTTLE(1, "dropping GPS update, since gps_enabled = false.");
+        return;
+    }
     core.updatePosition(msg->pose.pose.position.x, msg->pose.pose.position.y);
     if(publish_debug) {
         auto m = core.om2.h(core.ekf.getState());
@@ -189,6 +200,7 @@ void onPose(const xbot_msgs::AbsolutePose::ConstPtr &msg) {
 int main(int argc, char **argv) {
     ros::init(argc, argv, "xbot_positioning");
 
+    gps_enabled = true;
     vx = 0.0;
     has_gyro = false;
     has_ticks = false;
@@ -197,6 +209,8 @@ int main(int argc, char **argv) {
 
     ros::NodeHandle n;
     ros::NodeHandle paramNh("~");
+
+    ros::ServiceServer gps_service = n.advertiseService("xbot_positioning/set_gps_state", setGpsState);
 
     paramNh.param("skip_gyro_calibration", skip_gyro_calibration, false);
     paramNh.param("gyro_offset", gyro_offset, 0.0);
