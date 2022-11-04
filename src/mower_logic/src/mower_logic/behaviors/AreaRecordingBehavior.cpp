@@ -397,14 +397,14 @@ bool AreaRecordingBehavior::recordNewPolygon(geometry_msgs::Polygon &polygon) {
 bool AreaRecordingBehavior::getDockingPosition(geometry_msgs::Pose &pos) {
     if(!has_first_docking_pos) {
         ROS_INFO_STREAM("Recording first docking position");
-        auto odom_ptr = ros::topic::waitForMessage<nav_msgs::Odometry>("mower/odom", ros::Duration(1, 0));
+        auto odom_ptr = ros::topic::waitForMessage<xbot_msgs::AbsolutePose>("/xbot_positioning/xb_pose", ros::Duration(1, 0));
 
         first_docking_pos = odom_ptr->pose.pose;
         has_first_docking_pos = true;
         return false;
     } else {
         ROS_INFO_STREAM("Recording second docking position");
-        auto odom_ptr = ros::topic::waitForMessage<nav_msgs::Odometry>("mower/odom", ros::Duration(1, 0));
+        auto odom_ptr = ros::topic::waitForMessage<xbot_msgs::AbsolutePose>("/xbot_positioning/xb_pose", ros::Duration(1, 0));
 
         pos.position = odom_ptr->pose.pose.position;
 
