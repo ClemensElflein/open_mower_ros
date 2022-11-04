@@ -71,7 +71,7 @@ void onImu(const sensor_msgs::Imu::ConstPtr &msg) {
                 gyro_calibration_start = msg->header.stamp;
                 gyro_offset = 0;
             }
-            gyro_offset += -msg->angular_velocity.z;
+            gyro_offset += msg->angular_velocity.z;
             gyro_offset_samples++;
             if ((msg->header.stamp - gyro_calibration_start).toSec() < 5) {
                 last_imu = *msg;
@@ -92,8 +92,8 @@ void onImu(const sensor_msgs::Imu::ConstPtr &msg) {
         }
     }
 
-    core.predict(vx, -msg->angular_velocity.z - gyro_offset, (msg->header.stamp - last_imu.header.stamp).toSec());
-    auto x = core.updateSpeed(vx, -msg->angular_velocity.z - gyro_offset,0.01);
+    core.predict(vx, msg->angular_velocity.z - gyro_offset, (msg->header.stamp - last_imu.header.stamp).toSec());
+    auto x = core.updateSpeed(vx, msg->angular_velocity.z - gyro_offset,0.01);
 
     odometry.header.stamp = ros::Time::now();
     odometry.header.seq++;
