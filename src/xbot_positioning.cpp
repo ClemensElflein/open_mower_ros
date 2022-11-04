@@ -61,6 +61,8 @@ xbot_msgs::AbsolutePose xb_absolute_pose_msg;
 
 bool gps_enabled = true;
 
+ros::Time last_gps_update(0);
+
 void onImu(const sensor_msgs::Imu::ConstPtr &msg) {
     if(!has_gyro) {
         if(!skip_gyro_calibration) {
@@ -131,7 +133,10 @@ void onImu(const sensor_msgs::Imu::ConstPtr &msg) {
     xb_absolute_pose_msg.sensor_stamp = 0;
     xb_absolute_pose_msg.received_stamp = 0;
     xb_absolute_pose_msg.source = xbot_msgs::AbsolutePose::SOURCE_SENSOR_FUSION;
-    xb_absolute_pose_msg.flags = 0;
+    xb_absolute_pose_msg.flags = xbot_msgs::AbsolutePose::FLAG_SENSOR_FUSION_DEAD_RECKONING;
+    if((ros::Time::now() - last_gps_update).toSec() < 10.0) {
+        xb_absolute_pose_msg.flags |= xbot_msgs::AbsolutePose::FLAG_SENSOR_FUSION_RECENT_ABSOLUTE_POSE;
+    }
     xb_absolute_pose_msg.orientation_valid = true;
     // TODO: send motion vector
     xb_absolute_pose_msg.motion_vector_valid = false;
@@ -184,6 +189,7 @@ void onPose(const xbot_msgs::AbsolutePose::ConstPtr &msg) {
         ROS_INFO_STREAM_THROTTLE(1, "dropping GPS update, since gps_enabled = false.");
         return;
     }
+    last_gps_update = ros::Time::now();
     core.updatePosition(msg->pose.pose.position.x, msg->pose.pose.position.y);
     if(publish_debug) {
         auto m = core.om2.h(core.ekf.getState());
