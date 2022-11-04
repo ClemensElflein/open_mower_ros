@@ -13,6 +13,11 @@ uint16 FLAG_GPS_RTK_FIXED=2             # True, if we have a fixed solution
 uint16 FLAG_GPS_RTK_FLOAT=4             # True, if we have a float solution
 uint16 FLAG_GPS_DEAD_RECKONING=8        # True, if the GPS module is currently doing dead reckoning using its internal IMU
 
+uint16 FLAG_SENSOR_FUSION_RECENT_ABSOLUTE_POSE=1    # True, if we have a recent absolute position measurement (e.g. RTK GPS)
+uint16 FLAG_SENSOR_FUSION_DEAD_RECKONING=8          # True, if we have dead reckoning
+
+
+
 std_msgs/Header header
 uint32 sensor_stamp                     # A timestamp sent by the sensor, 0 for source = sensor fusion
 uint32 received_stamp                   # A timestamp taken on receive, 0 for source = sensor fusion
