@@ -66,5 +66,7 @@
 
     <!-- How many seconds is acceptable in between receiving RTCM. If RTCM is not received for this duration, the node will attempt to reconnect -->
     <param name="rtcm_timeout_seconds" value="4" />
-  </node>
+    <remap from="/ntrip_client/nmea" to="/nmea" />
+
+</node>
 </launch>
