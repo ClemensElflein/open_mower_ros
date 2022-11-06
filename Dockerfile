@@ -84,4 +84,4 @@ COPY .github/assets/openmower_entrypoint.sh /openmower_entrypoint.sh
 RUN chmod +x /openmower_entrypoint.sh
 
 ENTRYPOINT ["/openmower_entrypoint.sh"]
-CMD ["roslaunch", "open_mower", "open_mower.launch"]
+CMD ["roslaunch", "open_mower", "open_mower.launch", "--screen"]
