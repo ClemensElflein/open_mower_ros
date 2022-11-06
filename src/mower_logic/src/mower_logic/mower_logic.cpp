@@ -47,8 +47,9 @@
 #include "mower_map/ClearMapSrv.h"
 #include "xbot_msgs/AbsolutePose.h"
 #include "xbot_positioning/GPSControlSrv.h"
+#include "xbot_positioning/SetPoseSrv.h"
 
-ros::ServiceClient pathClient, mapClient, dockingPointClient, gpsClient, mowClient, emergencyClient, pathProgressClient, setNavPointClient, clearNavPointClient, clearMapClient;
+ros::ServiceClient pathClient, mapClient, dockingPointClient, gpsClient, mowClient, emergencyClient, pathProgressClient, setNavPointClient, clearNavPointClient, clearMapClient, positioningClient;
 
 ros::NodeHandle *n;
 ros::NodeHandle *paramNh;
@@ -75,6 +76,12 @@ bool mowerEnabled = false;
 
 
 Behavior *currentBehavior = &IdleBehavior::INSTANCE;
+
+void setRobotPose(geometry_msgs::Pose &pose) {
+    xbot_positioning::SetPoseSrv pose_srv;
+    pose_srv.request.robot_pose = pose;
+    positioningClient.call(pose_srv);
+}
 
 void poseReceived(const xbot_msgs::AbsolutePose::ConstPtr &msg) {
  
@@ -391,6 +398,9 @@ int main(int argc, char **argv) {
 
     gpsClient = n->serviceClient<xbot_positioning::GPSControlSrv>(
             "xbot_positioning/set_gps_state");
+    positioningClient = n->serviceClient<xbot_positioning::SetPoseSrv>(
+            "xbot_positioning/set_robot_pose");
+
     mowClient = n->serviceClient<mower_msgs::MowerControlSrv>(
             "mower_service/mow_enabled");
     emergencyClient = n->serviceClient<mower_msgs::EmergencyStopSrv>(
@@ -482,6 +492,15 @@ int main(int argc, char **argv) {
     ROS_INFO("Waiting for gps service");
     if (!gpsClient.waitForExistence(ros::Duration(60.0, 0.0))) {
         ROS_ERROR("GPS service not found.");
+        delete (reconfigServer);
+        delete (mbfClient);
+        delete (mbfClientExePath);
+
+        return 1;
+    }
+    ROS_INFO("Waiting for positioning service");
+    if (!positioningClient.waitForExistence(ros::Duration(60.0, 0.0))) {
+        ROS_ERROR("positioning service not found.");
         delete (reconfigServer);
         delete (mbfClient);
         delete (mbfClientExePath);
