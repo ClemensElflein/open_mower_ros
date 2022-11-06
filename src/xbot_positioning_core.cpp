@@ -80,4 +80,17 @@ xbot::positioning::xbot_positioning_core::xbot_positioning_core() {
 //    sys.setCovariance(c);
 }
 
+void xbot::positioning::xbot_positioning_core::setState(double px, double py, double theta, double vx, double vr) {
+    StateT x;
+    x.setZero();
+    x.x() = px;
+    x.y() = py;
+    x.theta() = theta;
+    x.vx() = vx;
+    x.vr() = vr;
+    this->ekf.init(x);
+    Kalman::Covariance<StateT> c;
+    c.setIdentity();
+    this->ekf.setCovariance(c);
+}
 

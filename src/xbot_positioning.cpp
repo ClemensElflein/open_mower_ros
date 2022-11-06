@@ -20,6 +20,7 @@
 #include "xbot_msgs/WheelTick.h"
 #include "xbot_positioning/KalmanState.h"
 #include "xbot_positioning/GPSControlSrv.h"
+#include "xbot_positioning/SetPoseSrv.h"
 
 ros::Publisher odometry_pub;
 ros::Publisher xbot_absolute_pose_pub;
@@ -184,6 +185,19 @@ bool setGpsState(xbot_positioning::GPSControlSrvRequest &req, xbot_positioning::
     return true;
 }
 
+bool setPose(xbot_positioning::SetPoseSrvRequest &req, xbot_positioning::SetPoseSrvResponse &res) {
+    tf2::Quaternion q;
+    tf2::fromMsg(req.robot_pose.orientation, q);
+
+
+    tf2::Matrix3x3 m(q);
+    double unused1, unused2, yaw;
+
+    m.getRPY(unused1, unused2, yaw);
+    core.setState(req.robot_pose.position.x, req.robot_pose.position.y, yaw,0,0);
+    return true;
+}
+
 void onPose(const xbot_msgs::AbsolutePose::ConstPtr &msg) {
     if(!gps_enabled) {
         ROS_INFO_STREAM_THROTTLE(1, "dropping GPS update, since gps_enabled = false.");
@@ -217,6 +231,7 @@ int main(int argc, char **argv) {
     ros::NodeHandle paramNh("~");
 
     ros::ServiceServer gps_service = n.advertiseService("xbot_positioning/set_gps_state", setGpsState);
+    ros::ServiceServer pose_service = n.advertiseService("xbot_positioning/set_robot_pose", setPose);
 
     paramNh.param("skip_gyro_calibration", skip_gyro_calibration, false);
     paramNh.param("gyro_offset", gyro_offset, 0.0);

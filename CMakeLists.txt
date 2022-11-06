@@ -10,6 +10,7 @@ find_package(catkin REQUIRED COMPONENTS
         tf2
         tf2_ros
         message_generation
+        geometry_msgs
         )
 
 
@@ -28,11 +29,13 @@ add_message_files(
 add_service_files(
         FILES
         GPSControlSrv.srv
+        SetPoseSrv.srv
 )
 
 generate_messages(
         DEPENDENCIES
         std_msgs
+        geometry_msgs
 )
 catkin_package(
         #          INCLUDE_DIRS include

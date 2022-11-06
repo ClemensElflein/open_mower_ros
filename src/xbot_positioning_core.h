@@ -46,6 +46,7 @@ namespace xbot {
             const StateT &updateOrientation2(double vx, double vy, double covariance);
             const StateT &updateSpeed(double vx, double vr, double covariance);
             const StateT &getState();
+            void setState(double px, double py, double theta, double vx, double vr);
             const Kalman::Covariance<StateT> &getCovariance();
 
         public:
