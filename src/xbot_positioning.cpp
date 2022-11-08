@@ -38,7 +38,8 @@ bool skip_gyro_calibration;
 // True, if we have wheel ticks (i.e. last_ticks is valid)
 bool has_ticks;
 xbot_msgs::WheelTick last_ticks;
-
+bool has_gps;
+xbot_msgs::AbsolutePose last_gps;
 
 // True, if last_imu is valid and gyro_offset is valid
 bool has_gyro;
@@ -135,14 +136,22 @@ void onImu(const sensor_msgs::Imu::ConstPtr &msg) {
     xb_absolute_pose_msg.received_stamp = 0;
     xb_absolute_pose_msg.source = xbot_msgs::AbsolutePose::SOURCE_SENSOR_FUSION;
     xb_absolute_pose_msg.flags = xbot_msgs::AbsolutePose::FLAG_SENSOR_FUSION_DEAD_RECKONING;
-    if((ros::Time::now() - last_gps_update).toSec() < 10.0) {
-        xb_absolute_pose_msg.flags |= xbot_msgs::AbsolutePose::FLAG_SENSOR_FUSION_RECENT_ABSOLUTE_POSE;
-    }
+
     xb_absolute_pose_msg.orientation_valid = true;
     // TODO: send motion vector
     xb_absolute_pose_msg.motion_vector_valid = false;
-    // TODO: set real value
-    xb_absolute_pose_msg.position_accuracy = 0.1;
+    // TODO: set real value from kalman filter, not the one from the GPS.
+    if(has_gps) {
+        xb_absolute_pose_msg.position_accuracy = last_gps.position_accuracy;
+    } else {
+        xb_absolute_pose_msg.position_accuracy = -1;
+    }
+    if((ros::Time::now() - last_gps_update).toSec() < 10.0) {
+        xb_absolute_pose_msg.flags |= xbot_msgs::AbsolutePose::FLAG_SENSOR_FUSION_RECENT_ABSOLUTE_POSE;
+        // on GPS timeout, we set accuracy to 0.
+        // TODO remove this if we have an accurate estimation for the kalman filter
+        xb_absolute_pose_msg.position_accuracy = -1;
+    }
     // TODO: set real value
     xb_absolute_pose_msg.orientation_accuracy = 0.01;
     xb_absolute_pose_msg.pose = odometry.pose;
@@ -203,6 +212,14 @@ void onPose(const xbot_msgs::AbsolutePose::ConstPtr &msg) {
         ROS_INFO_STREAM_THROTTLE(1, "dropping GPS update, since gps_enabled = false.");
         return;
     }
+    // store message for accuracy
+    has_gps = true;
+    last_gps = *msg;
+    // TODO fuse with high covariance?
+    if((msg->flags & (xbot_msgs::AbsolutePose::FLAG_GPS_RTK_FLOAT | xbot_msgs::AbsolutePose::FLAG_GPS_RTK_FIXED)) == 0) {
+        ROS_INFO_STREAM_THROTTLE(1, "Dropped GPS update, since it's not RTK");
+        return;
+    }
     last_gps_update = ros::Time::now();
     core.updatePosition(msg->pose.pose.position.x, msg->pose.pose.position.y);
     if(publish_debug) {
@@ -220,6 +237,7 @@ void onPose(const xbot_msgs::AbsolutePose::ConstPtr &msg) {
 int main(int argc, char **argv) {
     ros::init(argc, argv, "xbot_positioning");
 
+    has_gps = false;
     gps_enabled = true;
     vx = 0.0;
     has_gyro = false;
