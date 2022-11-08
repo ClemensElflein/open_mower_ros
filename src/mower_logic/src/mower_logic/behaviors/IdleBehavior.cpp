@@ -19,7 +19,10 @@
 extern void stopMoving();
 extern void stopBlade();
 extern void setEmergencyMode(bool emergency);
+extern void setGPS(bool enabled);
+extern void setRobotPose(geometry_msgs::Pose &pose);
 
+extern ros::ServiceClient dockingPointClient;
 extern mower_msgs::Status last_status;
 extern mower_logic::MowerLogicConfig last_config;
 extern dynamic_reconfigure::Server<mower_logic::MowerLogicConfig> *reconfigServer;
@@ -48,6 +51,18 @@ Behavior *IdleBehavior::execute() {
     if(!dockingPointClient.call(get_docking_point_srv)) {
         ROS_WARN("We don't have a docking point configured. Starting Area Recorder!");
         return &AreaRecordingBehavior::INSTANCE;
+    }
+
+    setGPS(false);
+    geometry_msgs::PoseStamped docking_pose_stamped;
+    docking_pose_stamped.pose = get_docking_point_srv.response.docking_pose;
+    docking_pose_stamped.header.frame_id = "map";
+    docking_pose_stamped.header.stamp = ros::Time::now();
+
+    // set the robot's position to the dock if we're actually docked
+    if(last_status.v_charge > 5.0) {
+        ROS_INFO_STREAM("Currently inside the docking station, we set the robot's pose to the docks pose.");
+        setRobotPose(docking_pose_stamped.pose);
     }
 
     ros::Rate r(25);

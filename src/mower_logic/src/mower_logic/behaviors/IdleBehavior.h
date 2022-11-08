@@ -22,6 +22,7 @@
 #include <dynamic_reconfigure/server.h>
 #include "mower_map/GetMowingAreaSrv.h"
 #include "AreaRecordingBehavior.h"
+#include <mower_map/GetDockingPointSrv.h>
 
 class IdleBehavior : public Behavior {
 private:
