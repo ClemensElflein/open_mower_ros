@@ -191,7 +191,6 @@ void AreaRecordingBehavior::reset() {
 }
 
 bool AreaRecordingBehavior::needs_gps() {
-    // we only need GPS if we're in approach mode
     return false;
 }
 
