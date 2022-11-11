@@ -8,49 +8,11 @@
 
   <url type="website">https://github.com/ClemensElflein/OpenMower</url>
 
-  <buildtool_depend>catkin</buildtool_depend>
-  <build_depend>dynamic_reconfigure</build_depend>
-  <build_depend>ftc_local_planner</build_depend>
-  <build_depend>mbf_msgs</build_depend>
-  <build_depend>mower_map</build_depend>
-  <build_depend>mower_msgs</build_depend>
-  <build_depend>nav_msgs</build_depend>
-  <build_depend>roscpp</build_depend>
-  <build_depend>slic3r_coverage_planner</build_depend>
-  <build_depend>tf2</build_depend>
-  <build_depend>tf2_geometry_msgs</build_depend>
-  <build_depend>tf2_ros</build_depend>
-  <build_depend>ublox_msgs</build_depend>
-  <build_depend>visualization_msgs</build_depend>
-  <build_depend>visualization_msgs</build_depend>
-  <build_depend>sensor_msgs</build_depend>
-  <depend>robot_localization</depend>
-  <build_export_depend>dynamic_reconfigure</build_export_depend>
-  <build_export_depend>ftc_local_planner</build_export_depend>
-  <build_export_depend>mbf_msgs</build_export_depend>
-  <build_export_depend>mower_map</build_export_depend>
-  <build_export_depend>mower_msgs</build_export_depend>
-  <build_export_depend>nav_msgs</build_export_depend>
-  <build_export_depend>roscpp</build_export_depend>
-  <build_export_depend>slic3r_coverage_planner</build_export_depend>
-  <build_export_depend>tf2</build_export_depend>
-  <build_export_depend>tf2_geometry_msgs</build_export_depend>
-  <build_export_depend>tf2_ros</build_export_depend>
-  <build_export_depend>ublox_msgs</build_export_depend>
-  <exec_depend>dynamic_reconfigure</exec_depend>
-  <exec_depend>ftc_local_planner</exec_depend>
-  <exec_depend>mbf_msgs</exec_depend>
-  <exec_depend>joy</exec_depend>
-  <exec_depend>mower_map</exec_depend>
-  <exec_depend>mower_msgs</exec_depend>
-  <exec_depend>nav_msgs</exec_depend>
-  <exec_depend>roscpp</exec_depend>
-  <exec_depend>slic3r_coverage_planner</exec_depend>
-  <exec_depend>tf2</exec_depend>
-  <exec_depend>tf2_geometry_msgs</exec_depend>
-  <exec_depend>tf2_ros</exec_depend>
-  <exec_depend>ublox_msgs</exec_depend>
-  <exec_depend>imu_tools</exec_depend>
+
+  <depend>mower_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>roscpp</depend>
+  <depend>sensor_msgs</depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->

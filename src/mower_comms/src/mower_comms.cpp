@@ -192,7 +192,7 @@ void publishStatus() {
     }
 
     // True, if high or low level emergency condition is present
-    status_msg.emergency = is_emergency();
+    status_msg.emergency = last_ll_status.emergency_bitmask;
 
     status_msg.v_battery = last_ll_status.v_system;
     status_msg.v_charge = last_ll_status.v_charge;

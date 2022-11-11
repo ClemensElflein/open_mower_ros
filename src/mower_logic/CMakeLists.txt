@@ -8,26 +8,12 @@ project(mower_logic)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-  dynamic_reconfigure
-  ftc_local_planner
-  mbf_msgs
-  mower_map
   mower_msgs
   nav_msgs
   roscpp
-  slic3r_coverage_planner
-  tf2
-  tf2_geometry_msgs
-  tf2_ros
-        sensor_msgs
-        robot_localization
+  sensor_msgs
 )
 
-
-
-# Geographiclib installs FindGeographicLib.cmake to this non-standard location
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "/usr/share/cmake/geographiclib/")
-find_package(GeographicLib REQUIRED)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -103,12 +89,6 @@ find_package(GeographicLib REQUIRED)
 ##   * uncomment the "generate_dynamic_reconfigure_options" section below
 ##     and list every .cfg file to be processed
 
-## Generate dynamic reconfigure parameters in the 'cfg' folder
- generate_dynamic_reconfigure_options(
-         cfg/MowerLogic.cfg
-         cfg/MowerOdometry.cfg
- )
-
 ###################################
 ## catkin specific configuration ##
 ###################################
@@ -118,13 +98,7 @@ find_package(GeographicLib REQUIRED)
 ## LIBRARIES: libraries you create in this project that dependent projects also need
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
-catkin_package(
-#  INCLUDE_DIRS include
-#  LIBRARIES mower_logic
-#  CATKIN_DEPENDS dynamic_reconfigure ftc_local_planner mbf_msgs mower_map mower_msgs nav_msgs roscpp slic3r_coverage_planner tf2 tf2_geometry_msgs tf2_ros
-#  DEPENDS system_lib
-        DEPENDS GeographicLib
-)
+
 
 ###########
 ## Build ##
@@ -167,30 +141,11 @@ include_directories(
 #   ${catkin_LIBRARIES}
 # )
 
-add_executable(mower_logic
-        src/mower_logic/mower_logic.cpp
-        src/mower_logic/behaviors/Behavior.h
-        src/mower_logic/behaviors/DockingBehavior.h
-        src/mower_logic/behaviors/DockingBehavior.cpp
-        src/mower_logic/behaviors/UndockingBehavior.h
-        src/mower_logic/behaviors/UndockingBehavior.cpp
-        src/mower_logic/behaviors/IdleBehavior.h
-        src/mower_logic/behaviors/IdleBehavior.cpp
-        src/mower_logic/behaviors/MowingBehavior.h
-        src/mower_logic/behaviors/MowingBehavior.cpp
-        src/mower_logic/behaviors/AreaRecordingBehavior.h
-        src/mower_logic/behaviors/AreaRecordingBehavior.cpp
+add_executable(hardware_test
+        src/hardware_test/hardware_test.cpp
         )
-add_dependencies(mower_logic ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
-target_link_libraries(mower_logic ${catkin_LIBRARIES})
-
-add_executable(mower_odometry src/mower_odometry/mower_odometry.cpp)
-add_dependencies(mower_odometry ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
-target_link_libraries(mower_odometry ${catkin_LIBRARIES} ${GeographicLib_LIBRARIES})
-
-add_executable(mag_calibration src/mag_calibration/mag_calibration.cpp)
-add_dependencies(mag_calibration ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
-target_link_libraries(mag_calibration ${catkin_LIBRARIES} ${GeographicLib_LIBRARIES})
+add_dependencies(hardware_test ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
+target_link_libraries(hardware_test ${catkin_LIBRARIES})
 
 
 #############

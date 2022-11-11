@@ -18,80 +18,79 @@
 #include "ros/ros.h"
 
 #include <sensor_msgs/MagneticField.h>
+#include "mower_msgs/Status.h"
 
+void testEmergency() {
+    std::cout << "Emergency Switch Test." << std::endl;
+    std::cout << "Enable and disable all emergency switches for the test to complete." << std::endl;
 
-double minX,minY,minZ,maxX,maxY,maxZ;
+    uint8_t emergencies_seen_low = 0;
+    uint8_t emergencies_seen_high = 0;
 
-double filteredX, filteredY, filteredZ;
-uint valueCount = 0;
+    while(emergencies_seen_high != 0b1111 && emergencies_seen_low != 0b1111) {
+        auto status_ptr = ros::topic::waitForMessage<mower_msgs::Status>("mower/status", ros::Duration(1, 0));
+        if(!status_ptr) {
+            std::cout << "WARNING: NO MOWER STATUS RECEIVED" << std::endl;
+            continue;
+        }
 
-double filterFactor = 0.9;
+        emergencies_seen_low |= ~(status_ptr->emergency>>1);
+        emergencies_seen_high |= (status_ptr->emergency>>1);
 
-void magReceived(const sensor_msgs::MagneticField::ConstPtr &msg) {
-    if(valueCount == 0) {
-        filteredX = msg->magnetic_field.x;
-        filteredY = msg->magnetic_field.y;
-        filteredZ = msg->magnetic_field.z;
-        valueCount++;
-        return;
+        std::stringstream state;
+        state << "LOW: [";
+        if(emergencies_seen_low & 0b1) {
+            state << "X,";
+        } else {
+            state << " ,";
+        }
+        if(emergencies_seen_low & 0b10) {
+            state << "X,";
+        } else {
+            state << " ,";
+        }
+        if(emergencies_seen_low & 0b100) {
+            state << "X,";
+        } else {
+            state << " ,";
+        }
+        if(emergencies_seen_low & 0b1000) {
+            state << "X]";
+        } else {
+            state << " ]";
+        }
+        state << " HIGH: [";
+        if(emergencies_seen_high & 0b1) {
+            state << "X,";
+        } else {
+            state << " ,";
+        }
+        if(emergencies_seen_high & 0b10) {
+            state << "X,";
+        } else {
+            state << " ,";
+        }
+        if(emergencies_seen_high & 0b100) {
+            state << "X,";
+        } else {
+            state << " ,";
+        }
+        if(emergencies_seen_high & 0b1000) {
+            state << "X]";
+        } else {
+            state << " ]";
+        }
+        std::cout << state.str();
     }
 
-    valueCount++;
-
-
-    filteredX = filterFactor * filteredX + (1.0-filterFactor) * msg->magnetic_field.x;
-    filteredY = filterFactor * filteredY+ (1.0-filterFactor) * msg->magnetic_field.y;
-    filteredZ = filterFactor * filteredZ + (1.0-filterFactor) * msg->magnetic_field.z;
-
-    if(valueCount < 100) {
-        return;
-    }
-
-    minX = std::min(minX, filteredX);
-    minY = std::min(minY, filteredY);
-    minZ = std::min(minZ, filteredZ);
-    maxX = std::max(maxX, filteredX);
-    maxY = std::max(maxY, filteredY);
-    maxZ = std::max(maxZ, filteredZ);
-
-
-    ROS_INFO_STREAM_THROTTLE(1,
-                             "\n" <<
-                             "min_x = " << minX << "; max_x = " << maxX<< "; x_bias = " << (minX+maxX)/2.0 << "\n" <<
-                             "min_y = " << minY << "; max_y = " << maxY<< "; y_bias = " << (minY+maxY)/2.0 << "\n"<<
-                             "min_z = " << minZ << "; max_z = " << maxZ<< "; z_bias = " << (minZ+maxZ)/2.0 << "\n"
-    );
+    std::cout << "SUCCESS!" << std::endl;
 }
 
 
-
 int main(int argc, char **argv) {
-    ros::init(argc, argv, "mag_calibration");
-
-    minX = minY = minZ=INFINITY;
-    maxX = maxY = maxZ = -INFINITY;
-
-    std::cout << "Rotate the mower around all axes and press enter once you are done.";
-    sleep(2);
-
+    ros::init(argc, argv, "hardware_test");
     ros::NodeHandle n;
-    ros::Subscriber mag_sub = n.subscribe("imu/mag", 100, magReceived);
 
-    ros::AsyncSpinner spinner(1);
-    spinner.start();
-
-    while(ros::ok()) {
-        std::string line;
-        std::getline(std::cin, line);
-        break;
-    }
-
-    std::cout << "Done, use the following lines in your config:\n" <<
-                            "export OM_MAG_BIAS_X=" << (minX+maxX)/2.0 << "\n" <<
-                            "export OM_MAG_BIAS_Y=" << (minY+maxY)/2.0 << "\n" <<
-                            "export OM_MAG_BIAS_Z=" << (minZ+maxZ)/2.0 << "\n";
-
-
-
+    testEmergency();
     return 0;
 }
