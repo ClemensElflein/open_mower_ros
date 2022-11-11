@@ -148,9 +148,9 @@ void onImu(const sensor_msgs::Imu::ConstPtr &msg) {
     }
     if((ros::Time::now() - last_gps_update).toSec() < 10.0) {
         xb_absolute_pose_msg.flags |= xbot_msgs::AbsolutePose::FLAG_SENSOR_FUSION_RECENT_ABSOLUTE_POSE;
+    } else {
         // on GPS timeout, we set accuracy to 0.
-        // TODO remove this if we have an accurate estimation for the kalman filter
-        xb_absolute_pose_msg.position_accuracy = 0.1;
+        xb_absolute_pose_msg.position_accuracy = 999;
     }
     // TODO: set real value
     xb_absolute_pose_msg.orientation_accuracy = 0.01;
