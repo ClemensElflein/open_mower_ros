@@ -111,7 +111,7 @@ void publishActuators() {
     // We need to invert the speed, because the ESC has the same config as the left one, so the motor is running in the "wrong" direction
     left_xesc_interface->setDutyCycle(speed_l);
     right_xesc_interface->setDutyCycle(-speed_r);
-/*
+
     struct ll_heartbeat heartbeat = {
             .type = PACKET_ID_LL_HEARTBEAT,
             // If high level has emergency and LL does not know yet, we set it
@@ -135,7 +135,6 @@ void publishActuators() {
             ROS_ERROR_STREAM("Error writing to serial port");
         }
     }
-*/
 }
 
 
