@@ -23,7 +23,7 @@
   <!-- ****************************************************************** -->
   <!-- NTRIP Client Node -->
   <!-- ****************************************************************** -->
-  <node name="ntrip_client_node" pkg="ntrip_client" type="ntrip_ros.py" output="screen" ns="ntrip_client">
+  <node name="ntrip_client_node" pkg="ntrip_client" type="ntrip_ros.py" output="screen" ns="ntrip_client" respawn="true" respawn_delay="5">
 
     <!-- Required parameters used to connect to the NTRIP server -->
     <param name="host"       value="$(arg host)" />
