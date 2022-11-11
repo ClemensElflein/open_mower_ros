@@ -230,9 +230,8 @@ void checkSafety(const ros::TimerEvent &timer_event) {
     if(last_status.emergency) {
         if(currentBehavior != &AreaRecordingBehavior::INSTANCE && currentBehavior != &IdleBehavior::INSTANCE) {
             abortExecution();
-        }
-        if(last_status.v_charge > 10.0) {
-            // emergency and docked, reset it. It's safe since we won't start moving in this mode.
+        } else if(last_status.v_charge > 10.0) {
+            // emergency and docked and idle or area recording, so it's safe to reset the emergency mode, reset it. It's safe since we won't start moving in this mode.
             setEmergencyMode(false);
         }
     }
