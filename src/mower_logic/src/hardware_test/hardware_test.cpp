@@ -105,7 +105,7 @@ bool testEmergency() {
         } else {
             state << " ]";
         }
-        std::cout << state.str();
+        std::cout << state.str() << std::endl;
     }
 
     std::cout << "SUCCESS!" << std::endl;
