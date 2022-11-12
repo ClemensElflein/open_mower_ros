@@ -12,6 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   nav_msgs
   roscpp
   sensor_msgs
+        serial
 )
 
 
@@ -99,7 +100,12 @@ find_package(catkin REQUIRED COMPONENTS
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 
-
+catkin_package(
+        #  INCLUDE_DIRS include
+        #  LIBRARIES mower_comms
+        #  CATKIN_DEPENDS mower_msgs roscpp serial
+        #  DEPENDS system_lib
+)
 ###########
 ## Build ##
 ###########

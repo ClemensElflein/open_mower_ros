@@ -12,7 +12,8 @@
   <buildtool_depend>catkin</buildtool_depend>
 
   <build_depend>mower_msgs</build_depend>
-  
+  <build_depend>mower_logic</build_depend>
+
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>

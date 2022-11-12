@@ -19,10 +19,35 @@
 
 #include <sensor_msgs/MagneticField.h>
 #include "mower_msgs/Status.h"
+#include "iostream"
+#include "sensor_msgs/Imu.h"
+#include <serial/serial.h>
 
-void testEmergency() {
+mower_msgs::Status status_msg;
+sensor_msgs::Imu imu_msg;
+sensor_msgs::MagneticField mag_msg;
+
+void status_cb(const mower_msgs::Status::ConstPtr &msg) {
+    std::cout << "c" << std::endl;
+    status_msg = *msg;
+}
+
+void imu_cb(const sensor_msgs::Imu::ConstPtr &msg) {
+    imu_msg = *msg;
+    std::cout << "a" << std::endl;
+}
+void mag_cb(const sensor_msgs::MagneticField::ConstPtr &msg) {
+    mag_msg = *msg;
+    std::cout << "b" << std::endl;
+}
+
+
+
+bool testEmergency() {
     std::cout << "Emergency Switch Test." << std::endl;
     std::cout << "Enable and disable all emergency switches for the test to complete." << std::endl;
+    std::cout << "Press ENTER to start." << std::endl;
+    std::cin.get();
 
     uint8_t emergencies_seen_low = 0;
     uint8_t emergencies_seen_high = 0;
@@ -84,13 +109,106 @@ void testEmergency() {
     }
 
     std::cout << "SUCCESS!" << std::endl;
+    return true;
 }
 
+bool testIMU() {
+    std::cout << "IMU Test." << std::endl;
+    std::cout << "Move the board and make sure all values are changing (and do make sense)" << std::endl;
+    std::cout << "Press ENTER to start." << std::endl;
+    std::cin.get();
+
+    ros::Rate refresh(10);
+
+    while(1) {
+
+        std::stringstream state;
+
+        state << "Accel: " << imu_msg.linear_acceleration.x << ", " << imu_msg.linear_acceleration.y << ", " << imu_msg.linear_acceleration.z << ", " << std::endl;
+        state << "Gyro: " << imu_msg.angular_velocity.x << ", " << imu_msg.angular_velocity.y << ", " << imu_msg.angular_velocity.z << ", " << std::endl;
+        state << "Mag: " << mag_msg.magnetic_field.x << ", " << mag_msg.magnetic_field.y << ", " << mag_msg.magnetic_field.z << ", " << std::endl;
+
+        std::cout << state.str();
+
+        refresh.sleep();
+
+        std::cout << "\x1B[2J\x1B[H";
+
+
+    }
+
+    std::cout << "SUCCESS!" << std::endl;
+    return true;
+}
+
+bool testGPSSerial(std::string portName) {
+    serial::Serial serial_port;
+    try {
+        serial_port.setPort(portName);
+        serial_port.setBaudrate(115200);
+        auto to = serial::Timeout::simpleTimeout(100);
+        serial_port.setTimeout(to);
+        serial_port.open();
+    } catch (std::exception &e) {
+        ROS_ERROR_STREAM("Error during serial connect with port: " << serial_port.getPort());
+        return false;
+    }
+
+    try {
+        serial_port.flushOutput();
+        serial_port.flushInput();
+    } catch (std::exception &e) {
+        ROS_ERROR_STREAM("Error reading serial_port. Closing Connection.");
+        return false;
+    }
+
+    while(1) {
+        try {
+            serial_port.write("This is a test string!\n");
+            std::string read_back = serial_port.readline();
+            ROS_INFO_STREAM("Got from serial: " << read_back);
+            if (read_back != "This is a test string!\n") {
+                ROS_ERROR_STREAM("Error: read string is not the same as written string. Bridge TX to RX and try again");
+                sleep(1);
+            } else {
+                break;
+            }
+        } catch (std::exception &e) {
+            ROS_ERROR_STREAM("Error reading serial_port. Closing Connection.");
+            return false;
+        }
+    }
+    std::cout << "SUCCESS: RX was TX on GPS serial port" << std::endl;
+    return true;
+}
 
 int main(int argc, char **argv) {
     ros::init(argc, argv, "hardware_test");
     ros::NodeHandle n;
+//
+//    ros::AsyncSpinner s(10);
+//    s.start();
 
-    testEmergency();
+
+    ros::Subscriber mag_sub = n.subscribe("imu/mag", 1000, mag_cb);
+    ros::Subscriber imu_sub = n.subscribe("imu/data_raw", 1000, imu_cb);
+    ros::Subscriber status_sub = n.subscribe("mower/status", 1000, status_cb);
+
+    ros::spin();
+
+    if(!testIMU()) {
+        std::cout << "ERROR: IMU TEST FAILED!";
+//        delete(n);
+        return 1;
+    }
+
+    if(!testEmergency()) {
+        std::cout << "ERROR: EMERGENCY TEST FAILED!";
+//        delete(n);
+        return 1;
+    }
+
+
+//    delete(n);
     return 0;
 }

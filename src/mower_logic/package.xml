@@ -13,6 +13,9 @@
   <depend>nav_msgs</depend>
   <depend>roscpp</depend>
   <depend>sensor_msgs</depend>
+  <depend>serial</depend>
+  <depend>catkin</depend>
+
 
 
   <!-- The export tag contains other, unspecified, tags -->
