@@ -186,21 +186,21 @@ int main(int argc, char **argv) {
     ros::init(argc, argv, "hardware_test");
     ros::NodeHandle n;
 //
-//    ros::AsyncSpinner s(10);
+//    ros::AsyncSpinner s(1);
 //    s.start();
 
-
-    ros::Subscriber mag_sub = n.subscribe("imu/mag", 1000, mag_cb);
-    ros::Subscriber imu_sub = n.subscribe("imu/data_raw", 1000, imu_cb);
-    ros::Subscriber status_sub = n.subscribe("mower/status", 1000, status_cb);
-
-    ros::spin();
-
-    if(!testIMU()) {
-        std::cout << "ERROR: IMU TEST FAILED!";
+//
+//    ros::Subscriber mag_sub = n.subscribe("imu/mag", 1000, mag_cb);
+//    ros::Subscriber imu_sub = n.subscribe("imu/data_raw", 1000, imu_cb);
+//    ros::Subscriber status_sub = n.subscribe("mower/status", 1000, status_cb);
+//
+//    ros::spin();
+//
+//    if(!testIMU()) {
+//        std::cout << "ERROR: IMU TEST FAILED!";
 //        delete(n);
-        return 1;
-    }
+//        return 1;
+//    }
 
     if(!testEmergency()) {
         std::cout << "ERROR: EMERGENCY TEST FAILED!";
