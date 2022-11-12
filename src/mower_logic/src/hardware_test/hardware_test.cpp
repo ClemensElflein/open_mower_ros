@@ -52,15 +52,15 @@ bool testEmergency() {
     uint8_t emergencies_seen_low = 0;
     uint8_t emergencies_seen_high = 0;
 
-    while(emergencies_seen_high != 0b1111 && emergencies_seen_low != 0b1111) {
+    while(emergencies_seen_high != 0b1111 || emergencies_seen_low != 0b1111) {
         auto status_ptr = ros::topic::waitForMessage<mower_msgs::Status>("mower/status", ros::Duration(1, 0));
         if(!status_ptr) {
             std::cout << "WARNING: NO MOWER STATUS RECEIVED" << std::endl;
             continue;
         }
 
-        emergencies_seen_low |= ~(status_ptr->emergency>>1);
-        emergencies_seen_high |= (status_ptr->emergency>>1);
+        emergencies_seen_low |= (~(status_ptr->emergency>>1)) & 0b1111;
+        emergencies_seen_high |= ((status_ptr->emergency>>1)) & 0b1111;
 
         std::stringstream state;
         state << "LOW: [";
