@@ -62,8 +62,11 @@ xbot_positioning::KalmanState state_msg;
 xbot_msgs::AbsolutePose xb_absolute_pose_msg;
 
 bool gps_enabled = true;
+int gps_outlier_count = 0;
+int valid_gps_samples = 0;
 
-ros::Time last_gps_update(0);
+ros::Time last_gps_time(0.0);
+
 
 void onImu(const sensor_msgs::Imu::ConstPtr &msg) {
     if(!has_gyro) {
@@ -146,7 +149,7 @@ void onImu(const sensor_msgs::Imu::ConstPtr &msg) {
     } else {
         xb_absolute_pose_msg.position_accuracy = 999;
     }
-    if((ros::Time::now() - last_gps_update).toSec() < 10.0) {
+    if((ros::Time::now() - last_gps_time).toSec() < 10.0) {
         xb_absolute_pose_msg.flags |= xbot_msgs::AbsolutePose::FLAG_SENSOR_FUSION_RECENT_ABSOLUTE_POSE;
     } else {
         // on GPS timeout, we set accuracy to 0.
@@ -212,26 +215,84 @@ void onPose(const xbot_msgs::AbsolutePose::ConstPtr &msg) {
         ROS_INFO_STREAM_THROTTLE(1, "dropping GPS update, since gps_enabled = false.");
         return;
     }
-    // store message for accuracy
-    has_gps = true;
-    last_gps = *msg;
     // TODO fuse with high covariance?
     if((msg->flags & (xbot_msgs::AbsolutePose::FLAG_GPS_RTK_FLOAT | xbot_msgs::AbsolutePose::FLAG_GPS_RTK_FIXED)) == 0) {
         ROS_INFO_STREAM_THROTTLE(1, "Dropped GPS update, since it's not RTK");
         return;
     }
-    last_gps_update = ros::Time::now();
-    core.updatePosition(msg->pose.pose.position.x, msg->pose.pose.position.y);
-    if(publish_debug) {
-        auto m = core.om2.h(core.ekf.getState());
-        geometry_msgs::Vector3 dbg;
-        dbg.x = m.vx();
-        dbg.y = m.vy();
-        dbg_expected_motion_vector.publish(dbg);
+
+    double time_since_last_gps = (ros::Time::now() - last_gps_time).toSec();
+    if (time_since_last_gps > 5.0) {
+        ROS_WARN_STREAM("Last GPS was " << time_since_last_gps << " seconds ago.");
+        has_gps = false;
+        valid_gps_samples = 0;
+        gps_outlier_count = 0;
+        last_gps = *msg;
+        // we have GPS for next time
+        last_gps_time = ros::Time::now();
+        return;
     }
-    if(std::sqrt(std::pow(msg->motion_vector.x, 2)+std::pow(msg->motion_vector.y, 2)) >= min_speed) {
-        core.updateOrientation2(msg->motion_vector.x, msg->motion_vector.y, 10000.0);
+
+    tf2::Vector3 gps_pos(msg->pose.pose.position.x,msg->pose.pose.position.y,msg->pose.pose.position.z);
+    tf2::Vector3 last_gps_pos(last_gps.pose.pose.position.x,last_gps.pose.pose.position.y,last_gps.pose.pose.position.z);
+
+    double distance_to_last_gps = (last_gps_pos - gps_pos).length();
+
+    if (distance_to_last_gps < 5.0) {
+        // inlier, we treat it normally
+
+        // store the gps as last
+        last_gps = *msg;
+        last_gps_time = ros::Time::now();
+
+
+        gps_outlier_count = 0;
+        valid_gps_samples++;
+
+
+
+
+
+
+        if (!has_gps && valid_gps_samples > 10) {
+            ROS_INFO_STREAM("GPS data now valid");
+            ROS_INFO_STREAM("First GPS data, moving kalman filter to " << msg->pose.pose.position.x << ", " << msg->pose.pose.position.y);
+            // we don't even have gps yet, set odometry to first estimate
+            core.updatePosition(msg->pose.pose.position.x, msg->pose.pose.position.y, 0.001);
+
+            has_gps = true;
+        } else if (has_gps) {
+            // gps was valid before, we apply the filter
+            core.updatePosition(msg->pose.pose.position.x, msg->pose.pose.position.y, 500.0);
+            if(publish_debug) {
+                auto m = core.om2.h(core.ekf.getState());
+                geometry_msgs::Vector3 dbg;
+                dbg.x = m.vx();
+                dbg.y = m.vy();
+                dbg_expected_motion_vector.publish(dbg);
+            }
+            if(std::sqrt(std::pow(msg->motion_vector.x, 2)+std::pow(msg->motion_vector.y, 2)) >= min_speed) {
+                core.updateOrientation2(msg->motion_vector.x, msg->motion_vector.y, 10000.0);
+            }
+        }
+    } else {
+        ROS_WARN_STREAM("GPS outlier found. Distance was: " << distance_to_last_gps);
+        gps_outlier_count++;
+        // ~10 sec
+        if (gps_outlier_count > 10) {
+            ROS_ERROR_STREAM("too many outliers, assuming that the current gps value is valid.");
+            // store the gps as last
+            last_gps = *msg;
+            last_gps_time = ros::Time::now();
+            has_gps = false;
+
+            valid_gps_samples = 0;
+            gps_outlier_count = 0;
+        }
     }
+
+
+
 }
 
 int main(int argc, char **argv) {
@@ -244,6 +305,9 @@ int main(int argc, char **argv) {
     has_ticks = false;
     gyro_offset = 0;
     gyro_offset_samples = 0;
+
+    valid_gps_samples = 0;
+    gps_outlier_count = 0;
 
     ros::NodeHandle n;
     ros::NodeHandle paramNh("~");

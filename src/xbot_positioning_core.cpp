@@ -13,13 +13,13 @@ const xbot::positioning::StateT &xbot::positioning::xbot_positioning_core::predi
     return ekf.predict(sys, u);
 }
 
-const xbot::positioning::StateT &xbot::positioning::xbot_positioning_core::updatePosition(double x, double y) {
+const xbot::positioning::StateT &xbot::positioning::xbot_positioning_core::updatePosition(double x, double y, double covariance) {
     pos_m.x_pos() = x;
     pos_m.y_pos() = y;
 
     Kalman::Covariance<PositionMeasurementT> c;
     c.setIdentity();
-    c *= 500.0;
+    c *= covariance;
 
     pm.setCovariance(c);
 

@@ -41,7 +41,7 @@ namespace xbot {
             xbot_positioning_core();
 
             const StateT &predict(double vx, double vr, double dt);
-            const StateT &updatePosition(double x, double y);
+            const StateT &updatePosition(double x, double y, double covariance = 500.0);
             const StateT &updateOrientation(double theta, double covariance);
             const StateT &updateOrientation2(double vx, double vy, double covariance);
             const StateT &updateSpeed(double vx, double vr, double covariance);
