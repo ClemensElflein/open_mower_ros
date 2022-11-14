@@ -162,6 +162,8 @@ bool testGPSSerial(std::string portName) {
         return false;
     }
 
+    int fails = 0;
+    bool success = false;
     while(1) {
         try {
             serial_port.write("This is a test string!\n");
@@ -170,7 +172,12 @@ bool testGPSSerial(std::string portName) {
             if (read_back != "This is a test string!\n") {
                 ROS_ERROR_STREAM("Error: read string is not the same as written string. Bridge TX to RX and try again");
                 sleep(1);
+                fails++;
+                if(fails >= 10) {
+                    break;
+                }
             } else {
+                success = true;
                 break;
             }
         } catch (std::exception &e) {
@@ -178,8 +185,10 @@ bool testGPSSerial(std::string portName) {
             return false;
         }
     }
-    std::cout << "SUCCESS: RX was TX on GPS serial port" << std::endl;
-    return true;
+    if(success) {
+        std::cout << "SUCCESS: RX was TX on GPS serial port" << std::endl;
+    }
+    return success;
 }
 
 int main(int argc, char **argv) {
@@ -202,11 +211,18 @@ int main(int argc, char **argv) {
 //        return 1;
 //    }
 
+    if(!testGPSSerial("/dev/ttyAMA1")) {
+        std::cout << "ERROR: GPS SERIAL TEST FAILED!";
+        return 1;
+    }
+
     if(!testEmergency()) {
         std::cout << "ERROR: EMERGENCY TEST FAILED!";
 //        delete(n);
         return 1;
     }
+
+
 
 
 //    delete(n);
