@@ -77,10 +77,28 @@ bool mowerEnabled = false;
 
 Behavior *currentBehavior = &IdleBehavior::INSTANCE;
 
+void setEmergencyMode(bool emergency);
+
 void setRobotPose(geometry_msgs::Pose &pose) {
     xbot_positioning::SetPoseSrv pose_srv;
     pose_srv.request.robot_pose = pose;
-    positioningClient.call(pose_srv);
+
+    ros::Rate retry_delay(1);
+    bool success = false;
+    for(int i = 0; i < 10; i++) {
+        if(positioningClient.call(pose_srv)) {
+            ROS_INFO_STREAM("successfully set pose to " << pose);
+            success = true;
+            break;
+        }
+        ROS_ERROR_STREAM("Error setting robot pose to " << pose << ". Retrying.");
+        retry_delay.sleep();
+    }
+
+    if(!success) {
+        ROS_ERROR_STREAM("Error setting robot pose. Going to emergency. THIS SHOULD NEVER HAPPEN");
+        setEmergencyMode(true);
+    }
 }
 
 void poseReceived(const xbot_msgs::AbsolutePose::ConstPtr &msg) {
@@ -111,9 +129,25 @@ void abortExecution() {
 bool setGPS(bool enabled) {
     xbot_positioning::GPSControlSrv gps_srv;
     gps_srv.request.gps_enabled = enabled;
-    // TODO check result
-    gpsClient.call(gps_srv);
-    return true;
+
+    ros::Rate retry_delay(1);
+    bool success = false;
+    for(int i = 0; i < 10; i++) {
+        if(gpsClient.call(gps_srv)) {
+            ROS_INFO_STREAM("successfully set GPS to " << enabled);
+            success = true;
+            break;
+        }
+        ROS_ERROR_STREAM("Error setting GPS to " << enabled << ". Retrying.");
+        retry_delay.sleep();
+    }
+
+    if(!success) {
+        ROS_ERROR_STREAM("Error setting GPS. Going to emergency. THIS SHOULD NEVER HAPPEN");
+        setEmergencyMode(true);
+    }
+
+    return success;
 }
 
 
@@ -135,7 +169,23 @@ bool setMowerEnabled(bool enabled)
         mow_srv.request.mow_enabled = enabled;
         ros::Time started = ros::Time::now();
         ROS_WARN_STREAM("#### om_mower_logic: setMowerEnabled(" << enabled << ") call");
-        mowClient.call(mow_srv); 
+
+        ros::Rate retry_delay(1);
+        bool success = false;
+        for(int i = 0; i < 10; i++) {
+            if(mowClient.call(mow_srv)) {
+                ROS_INFO_STREAM("successfully set mower enabled to " << enabled);
+                success = true;
+                break;
+            }
+            ROS_ERROR_STREAM("Error setting mower enabled to " << enabled << ". Retrying.");
+            retry_delay.sleep();
+        }
+
+        if(!success) {
+            ROS_ERROR_STREAM("Error setting mower enabled. THIS SHOULD NEVER HAPPEN");
+        }
+
         ROS_WARN_STREAM("#### om_mower_logic: setMowerEnabled(" << enabled << ") call completed within " << (ros::Time::now()-started).toSec() << "s");
         mowerEnabled = enabled;
     }
@@ -198,7 +248,23 @@ void setEmergencyMode(bool emergency)
     stopMoving();
     mower_msgs::EmergencyStopSrv emergencyStop;
     emergencyStop.request.emergency = emergency;
-    emergencyClient.call(emergencyStop);
+
+    ros::Rate retry_delay(1);
+    bool success = false;
+    for(int i = 0; i < 10; i++) {
+        if(emergencyClient.call(emergencyStop)) {
+            ROS_INFO_STREAM("successfully set emergency enabled to " << emergency);
+            success = true;
+            break;
+        }
+        ROS_ERROR_STREAM("Error setting emergency enabled to " << emergency << ". Retrying.");
+        retry_delay.sleep();
+    }
+
+    if(!success) {
+        ROS_ERROR_STREAM("Error setting emergency. THIS SHOULD NEVER HAPPEN");
+    }
+
 }
 
 void updateUI(const ros::TimerEvent &timer_event) {
