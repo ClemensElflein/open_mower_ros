@@ -35,6 +35,7 @@ std::string AreaRecordingBehavior::state_name() {
 }
 
 Behavior *AreaRecordingBehavior::execute() {
+    setGPS(true);
     bool error = false;
     ros::Rate inputDelay(ros::Duration().fromSec(0.1));
     while(ros::ok() && !aborted) {
