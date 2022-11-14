@@ -59,14 +59,15 @@ Behavior *IdleBehavior::execute() {
     docking_pose_stamped.header.frame_id = "map";
     docking_pose_stamped.header.stamp = ros::Time::now();
 
-    // set the robot's position to the dock if we're actually docked
-    if(last_status.v_charge > 5.0) {
-        ROS_INFO_STREAM("Currently inside the docking station, we set the robot's pose to the docks pose.");
-        setRobotPose(docking_pose_stamped.pose);
-    }
+
 
     ros::Rate r(25);
     while (ros::ok()) {
+        // set the robot's position to the dock if we're actually docked
+        if(last_status.v_charge > 5.0) {
+            ROS_INFO_STREAM("Currently inside the docking station, we set the robot's pose to the docks pose.");
+            setRobotPose(docking_pose_stamped.pose);
+        }
         stopMoving();
         stopBlade();
         if (manual_start_mowing ||
