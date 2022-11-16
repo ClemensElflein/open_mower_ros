@@ -2,6 +2,7 @@
     <arg name="bagfile" />
     <arg name="s" default="0" />
     <arg name="r" default="1" />
+    <arg name="rqt_reconfigure" default="False" />
 
     <node pkg="rosbag" type="play" name="player" output="log" args="--clock $(arg bagfile) -s$(arg s) -r$(arg r) /tf:=/tf_null"/>
     <node name="rviz" pkg="rviz" type="rviz" args="-d $(find open_mower)/rviz/playback.rviz" required="true" />
@@ -15,5 +16,15 @@
         <param name="frame" value="map"/>
     </node>
 
+    <node pkg="xbot_positioning" type="xbot_positioning" name="xbot_positioning_playback" output="screen" required="true">
+        <remap from="~imu_in" to="/imu/data_raw" />
+        <remap from="~wheel_ticks_in" to="/mower/wheel_ticks" />
+        <remap from="~xb_pose_in" to="xbot_driver_gps/xb_pose" />
+        <param name="max_gps_accuracy" value="0.2"/>
+        <param name="max_gps_accuracy" value="0.2"/>
+        <param name="skip_gyro_calibration" value="true"/>
+    </node>
+
+    <node pkg="rqt_reconfigure" type="rqt_reconfigure" name="rqt_reconfigure" if="$(arg rqt_reconfigure)"/>
 
 </launch>
