@@ -338,7 +338,7 @@ bool MowingBehavior::execute_mowing_plan() {
             /* TODO: we can not trust the SUCCEEDED state because the planner sometimes says suceeded with
                 the currentIndex far from the size of the poses ! (BUG in planner ?)
                 instead we trust only the currentIndex vs. poses.size() */
-            if (currentIndex >= path.path.poses.size() ) // fully mowed the path ?
+            if (currentIndex >= path.path.poses.size() || (path.path.poses.size() - currentIndex) < 5) // fully mowed the path ?
             {
                  ROS_INFO_STREAM("MowingBehavior: (MOW) Mow path finished, skipping to next mow path.");
                  currentMowingPaths.erase(currentMowingPaths.begin());
