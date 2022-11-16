@@ -54,6 +54,9 @@ double vx = 0.0;
 // Min speed for motion vector to be fed into kalman filter
 double min_speed = 0.0;
 
+// Max position accuracy to allow for GPS updates
+double max_gps_accuracy;
+
 // True, if we should publish debug topics (expected motion vector and kalman state)
 bool publish_debug;
 
@@ -218,6 +221,8 @@ void onPose(const xbot_msgs::AbsolutePose::ConstPtr &msg) {
     // TODO fuse with high covariance?
     if((msg->flags & (xbot_msgs::AbsolutePose::FLAG_GPS_RTK_FLOAT | xbot_msgs::AbsolutePose::FLAG_GPS_RTK_FIXED)) == 0) {
         ROS_INFO_STREAM_THROTTLE(1, "Dropped GPS update, since it's not RTK");
+    if(msg->position_accuracy > max_gps_accuracy) {
+        ROS_INFO_STREAM_THROTTLE(1, "Dropped GPS update, since it's not accurate enough. Accuracy was: " << msg->position_accuracy << ", limit is:" << max_gps_accuracy);
         return;
     }
 
@@ -240,19 +245,12 @@ void onPose(const xbot_msgs::AbsolutePose::ConstPtr &msg) {
 
     if (distance_to_last_gps < 5.0) {
         // inlier, we treat it normally
-
         // store the gps as last
         last_gps = *msg;
         last_gps_time = ros::Time::now();
 
-
         gps_outlier_count = 0;
         valid_gps_samples++;
-
-
-
-
-
 
         if (!has_gps && valid_gps_samples > 10) {
             ROS_INFO_STREAM("GPS data now valid");
@@ -318,6 +316,7 @@ int main(int argc, char **argv) {
     paramNh.param("skip_gyro_calibration", skip_gyro_calibration, false);
     paramNh.param("gyro_offset", gyro_offset, 0.0);
     paramNh.param("min_speed", min_speed, 0.01);
+    paramNh.param("max_gps_accuracy", max_gps_accuracy, 0.1);
     paramNh.param("debug", publish_debug, false);
 
     if(gyro_offset != 0.0 && skip_gyro_calibration) {
