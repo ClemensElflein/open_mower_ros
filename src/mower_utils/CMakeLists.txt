@@ -10,6 +10,8 @@ project(mower_utils)
 find_package(catkin REQUIRED COMPONENTS
   open_mower
   roscpp
+        xbot_msgs
+        geometry_msgs
         mower_map
         slic3r_coverage_planner
 )
@@ -155,6 +157,11 @@ add_executable(planner_test
         )
 add_dependencies(planner_test ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
 target_link_libraries(planner_test ${catkin_LIBRARIES})
+add_executable(xbot_pose_converter
+        src/xbot_pose_converter.cpp
+        )
+add_dependencies(xbot_pose_converter ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
+target_link_libraries(xbot_pose_converter ${catkin_LIBRARIES})
 #############
 ## Install ##
 #############
