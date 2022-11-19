@@ -322,8 +322,7 @@ double VescPacketValues::readBuffer(const uint8_t map_id, const uint8_t size) co
   switch (size)
   {
     case 2:
-      value += static_cast<int32_t>(*(payload_end_.first + map_id) << 8);
-      value += static_cast<int32_t>(*(payload_end_.first + map_id + 1));
+      value = static_cast<int16_t>((*(payload_end_.first + map_id) << 8) | (*(payload_end_.first + map_id + 1)));
       break;
     case 4:
       value += static_cast<int32_t>(*(payload_end_.first + map_id) << 24);
