@@ -11,6 +11,12 @@ add_message_files(
         FILES
         AbsolutePose.msg
         WheelTick.msg
+        SensorInfo.msg
+        SensorDataString.msg
+        SensorDataDouble.msg
+        RobotState.msg
+        Map.msg
+        MapArea.msg
 )
 
 #add_service_files(
