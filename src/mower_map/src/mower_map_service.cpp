@@ -47,6 +47,9 @@
 #include "mower_map/ClearNavPointSrv.h"
 #include "mower_map/ClearMapSrv.h"
 
+// Monitoring
+#include "xbot_msgs/Map.h"
+
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
 
@@ -56,6 +59,8 @@ ros::Publisher map_pub, map_areas_pub;
 // Publishes the map as markers for rviz
 ros::Publisher map_server_viz_array_pub;
 
+// Publishes map for monitoring
+ros::Publisher xbot_monitoring_map_pub;
 
 // We store navigation_areas (i.e. robot is allowed to move here) and
 // mowing_areas (i.e. grass needs to be cut here)
@@ -88,6 +93,47 @@ void fromMessage(geometry_msgs::Polygon &poly, grid_map::Polygon &out) {
         pos.y() = point.y;
         out.addVertex(pos);
     }
+}
+
+/**
+ * Publish map to xbot_monitoring
+ */
+void publishMapMonitoring() {
+    xbot_msgs::Map xb_map;
+    xb_map.mapWidth = map.getSize().x() * map.getResolution();
+    xb_map.mapHeight = map.getSize().y() * map.getResolution();
+    auto mapPos = map.getPosition();
+    xb_map.mapCenterX = mapPos.x();
+    xb_map.mapCenterY = mapPos.y();
+
+    xb_map.dockX = docking_point.position.x;
+    xb_map.dockY = docking_point.position.y;
+    tf2::Quaternion q;
+    tf2::fromMsg(docking_point.orientation, q);
+
+    tf2::Matrix3x3 m(q);
+    double unused1, unused2, yaw;
+
+    m.getRPY(unused1, unused2, yaw);
+    xb_map.dockHeading = yaw;
+
+
+    for(const auto& area:navigation_areas) {
+        xbot_msgs::MapArea xb_area;
+        xb_area.name = area.name;
+        xb_area.area = area.area;
+        xb_area.obstacles = area.obstacles;
+        xb_map.navigationAreas.push_back(xb_area);
+    }
+    for(const auto& area:mowing_areas) {
+        xbot_msgs::MapArea xb_area;
+        xb_area.name = area.name;
+        xb_area.area = area.area;
+        xb_area.obstacles = area.obstacles;
+        xb_map.workingArea.push_back(xb_area);
+    }
+
+    xbot_monitoring_map_pub.publish(xb_map);
 }
 
 /**
@@ -359,6 +405,7 @@ void buildMap() {
     grid_map::GridMapRosConverter::toOccupancyGrid(map, "navigation_area", 0.0, 1.0, msg);
     map_pub.publish(msg);
 
+    publishMapMonitoring();
     visualizeAreas();
 }
 
@@ -580,6 +627,7 @@ int main(int argc, char **argv) {
     map_pub = n.advertise<nav_msgs::OccupancyGrid>("mower_map_service/map", 10, true);
     map_areas_pub = n.advertise<mower_map::MapAreas>("mower_map_service/map_areas", 10, true);
     map_server_viz_array_pub = n.advertise<visualization_msgs::MarkerArray>("mower_map_service/map_viz", 10, true);
+    xbot_monitoring_map_pub = n.advertise<xbot_msgs::Map>("xbot_monitoring/map", 10, true);
 
     // Load the default map file
     readMapFromFile("map.bag");
