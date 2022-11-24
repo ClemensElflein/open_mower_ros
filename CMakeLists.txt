@@ -17,11 +17,13 @@ add_message_files(
         RobotState.msg
         Map.msg
         MapArea.msg
+        ActionInfo.msg
 )
 
-#add_service_files(
-#        FILES
-#)
+add_service_files(
+        FILES
+        RegisterActionsSrv.srv
+)
 
 ## Generate added messages and services with any dependencies listed here
 generate_messages(
