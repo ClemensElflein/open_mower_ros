@@ -268,7 +268,6 @@ void setEmergencyMode(bool emergency)
 }
 
 void updateUI(const ros::TimerEvent &timer_event) {
-    high_level_state_publisher.publish(high_level_status);
 
     if(currentBehavior) {
         high_level_status.state_name = currentBehavior->state_name();
@@ -291,6 +290,9 @@ bool isGpsGood() {
 void checkSafety(const ros::TimerEvent &timer_event) {
     // call the mower
     setMowerEnabled(currentBehavior != nullptr && currentBehavior->mower_enabled());
+
+    high_level_status.emergency = last_status.emergency;
+    high_level_status.is_charging = last_status.v_charge > 10.0;
 
     // send to idle if emergency and we're not recording
     if(last_status.emergency) {

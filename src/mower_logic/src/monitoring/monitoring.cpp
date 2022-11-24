@@ -94,6 +94,8 @@ void high_level_status(const mower_msgs::HighLevelStatus::ConstPtr &msg) {
     state.current_state = msg->state_name;
     state.current_sub_state = msg->sub_state_name;
     state.battery_percentage = msg->battery_percent;
+    state.emergency = msg->emergency;
+    state.is_charging = msg->is_charging;
 
     state_pub.publish(state);
 }
