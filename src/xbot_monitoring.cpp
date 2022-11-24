@@ -14,6 +14,8 @@
 #include "xbot_msgs/RobotState.h"
 #include <mqtt/async_client.h>
 #include <nlohmann/json.hpp>
+#include "geometry_msgs/Twist.h"
+#include "std_msgs/String.h"
 
 using json = nlohmann::json;
 
@@ -32,11 +34,40 @@ std::shared_ptr<mqtt::async_client> client_;
 
 std::mutex mqtt_callback_mutex;
 
+// Publisher for cmd_vel and commands
+ros::Publisher cmd_vel_pub;
+ros::Publisher command_pub;
+
 class MqttCallback : public mqtt::callback {
     void connected(const mqtt::string &string) override {
         ROS_INFO_STREAM("MQTT Connected");
         publish_sensor_metadata();
         publish_map();
+
+
+        client_->subscribe("/teleop", 0);
+        client_->subscribe("/command", 0);
+    }
+
+public:
+    void message_arrived(mqtt::const_message_ptr ptr) override {
+        if(ptr->get_topic() == "/teleop") {
+            ROS_INFO_STREAM("joy!");
+            try {
+                json json = json::from_bson(ptr->get_payload().begin(), ptr->get_payload().end());
+
+                ROS_INFO_STREAM_THROTTLE(0.5,"vx:" << json["vx"] << " vr: " << json["vz"]);
+                geometry_msgs::Twist t;
+                t.linear.x = json["vx"];
+                t.angular.z = json["vz"];
+                cmd_vel_pub.publish(t);
+            } catch (const json::exception &e) {
+                ROS_ERROR_STREAM("Error decoding /teleop bson: " << e.what());
+            }
+        } else if(ptr->get_topic() == "/command") {
+            ROS_INFO_STREAM("Got command: " + ptr->get_payload());
+
+        }
     }
 };
 
@@ -65,10 +96,12 @@ void setupMqttClient() {
         client_->set_callback(mqtt_callback);
 
         client_->connect(connect_options_);
+
     } catch (const mqtt::exception &e) {
         ROS_ERROR("Client could not be initialized: %s", e.what());
         exit(EXIT_FAILURE);
     }
+
 
 }
 
@@ -344,6 +377,10 @@ int main(int argc, char **argv) {
 
     ros::Subscriber robotStateSubscriber = n->subscribe("xbot_monitoring/robot_state", 10, robot_state_callback);
     ros::Subscriber mapSubscriber = n->subscribe("xbot_monitoring/map", 10, map_callback);
+
+    cmd_vel_pub = n->advertise<geometry_msgs::Twist>("xbot_monitoring/remote_cmd_vel", 1);
+    command_pub = n->advertise<std_msgs::String>("xbot_monitoring/remote_command", 1);
+
 
     ros::AsyncSpinner spinner(1);
     spinner.start();

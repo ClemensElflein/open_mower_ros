@@ -10,6 +10,7 @@ find_package(catkin REQUIRED COMPONENTS
         xbot_msgs
         roscpp
         geometry_msgs
+        std_msgs
         )
 
 
