@@ -365,6 +365,13 @@ void checkSafety(const ros::TimerEvent &timer_event) {
         currentBehavior->setGoodGPS(!gpsTimeout);
     }
 
+    double battery_percent = (last_status.v_battery - last_config.battery_empty_voltage) / (last_config.battery_full_voltage - last_config.battery_empty_voltage);
+    if(battery_percent > 1.0) {
+        battery_percent = 1.0;
+    } else if(battery_percent < 0.0) {
+        battery_percent = 0.0;
+    }
+    high_level_status.battery_percent = battery_percent;
 
     // we are in non emergency, check if we should pause. This could be empty battery, rain or hot mower motor etc.
     bool dockingNeeded = false;

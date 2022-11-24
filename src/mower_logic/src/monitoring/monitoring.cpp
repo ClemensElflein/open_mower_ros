@@ -92,7 +92,8 @@ void status(const mower_msgs::Status::ConstPtr &msg) {
 void high_level_status(const mower_msgs::HighLevelStatus::ConstPtr &msg) {
     state.gps_percentage = msg->gps_quality_percent;
     state.current_state = msg->state_name;
-    state.current_sub_state = "n/a";
+    state.current_sub_state = msg->sub_state_name;
+    state.battery_percentage = msg->battery_percent;
 
     state_pub.publish(state);
 }

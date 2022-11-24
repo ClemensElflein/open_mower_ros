@@ -443,3 +443,16 @@ uint8_t AreaRecordingBehavior::get_sub_state() {
 uint8_t AreaRecordingBehavior::get_state() {
     return mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_RECORDING;
 }
+
+std::string AreaRecordingBehavior::sub_state_name() {
+    switch (sub_state) {
+        case 0:
+            return "";
+        case 1:
+            return "RECORD_OUTLINE";
+        case 2:
+            return "RECORD_OBSTACLE";
+        default:
+            return "";
+    }
+}

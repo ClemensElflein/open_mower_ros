@@ -52,6 +52,9 @@ protected:
 public:
 
     virtual std::string state_name() = 0;
+    virtual std::string sub_state_name() {
+        return "";
+    }
 
     bool hasGoodGPS()
     {

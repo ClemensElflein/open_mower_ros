@@ -26,4 +26,7 @@
 
         <rosparam file="$(find open_mower)/params/twist_mux_topics.yaml"  command="load"/>
     </node>
+
+    <node pkg="xbot_monitoring" type="xbot_monitoring" name="xbot_monitoring" output="screen" respawn="true" respawn_delay="10">
+    </node>
 </launch>

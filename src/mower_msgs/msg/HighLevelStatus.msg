@@ -11,4 +11,6 @@ uint8 SUBSTATE_SHIFT=6
 
 uint8 state
 string state_name
+string sub_state_name
 float32 gps_quality_percent
+float32 battery_percent
