@@ -12,12 +12,13 @@
 #include "xbot_msgs/SensorDataString.h"
 #include "xbot_msgs/SensorDataDouble.h"
 #include "xbot_msgs/RobotState.h"
-#include <mqtt_client/MqttClient.h>
+#include <mqtt/async_client.h>
 #include <nlohmann/json.hpp>
 
 using json = nlohmann::json;
 
 void publish_sensor_metadata();
+void publish_map();
 
 // Maps a topic to a subscriber.
 std::map<std::string, ros::Subscriber> active_subscribers;
@@ -35,10 +36,14 @@ class MqttCallback : public mqtt::callback {
     void connected(const mqtt::string &string) override {
         ROS_INFO_STREAM("MQTT Connected");
         publish_sensor_metadata();
+        publish_map();
     }
 };
 
 MqttCallback mqtt_callback;
+
+json map;
+bool has_map = false;
 
 void setupMqttClient() {
     // MQTT connection options
@@ -234,6 +239,16 @@ void robot_state_callback(const xbot_msgs::RobotState::ConstPtr &msg) {
     try_publish_binary("robot_state/bson", bson.data(), bson.size());
 }
 
+void publish_map() {
+    if(!has_map)
+        return;
+    try_publish("map/json", map.dump(), true);
+    json data;
+    data["d"] = map;
+    auto bson = json::to_bson(data);
+    try_publish_binary("map/bson", bson.data(), bson.size(), true);
+}
+
 void map_callback(const xbot_msgs::Map::ConstPtr &msg) {
     // Build a JSON and publish it
     json j;
@@ -309,15 +324,16 @@ void map_callback(const xbot_msgs::Map::ConstPtr &msg) {
     j["working_areas"] = working_areas_j;
     j["navigation_areas"] = navigation_areas_j;
 
-    try_publish("map/json", j.dump(), true);
-    json data;
-    data["d"] = j;
-    auto bson = json::to_bson(data);
-    try_publish_binary("map/bson", bson.data(), bson.size(), true);
+
+    map = j;
+    has_map = true;
+
+    publish_map();
 }
 
 int main(int argc, char **argv) {
     ros::init(argc, argv, "xbot_monitoring");
+    has_map = false;
 
     // First setup MQTT
     setupMqttClient();
