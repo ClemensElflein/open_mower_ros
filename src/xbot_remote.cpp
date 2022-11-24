@@ -26,18 +26,25 @@ using json = nlohmann::json;
 
 ros::NodeHandle *n;
 
-// Publisher for cmd_vel and commands
+// Publisher for cmd_vel
 ros::Publisher cmd_vel_pub;
-ros::Publisher command_pub;
 
 // Create a server endpoint
 server echo_server;
 
 // Define a callback to handle incoming messages
 void on_message(server* s, websocketpp::connection_hdl hdl, message_ptr msg) {
-    std::cout << "on_message called with hdl: " << hdl.lock().get()
-              << " and message: " << msg->get_payload()
-              << std::endl;
+    try {
+        json json = json::from_bson(msg->get_payload());
+
+        ROS_INFO_STREAM_THROTTLE(0.5, "vx:" << json["vx"] << " vr: " << json["vz"]);
+        geometry_msgs::Twist t;
+        t.linear.x = json["vx"];
+        t.angular.z = json["vz"];
+        cmd_vel_pub.publish(t);
+    } catch (std::exception &e) {
+        ROS_ERROR_STREAM("Exception during remote decoding: " << e.what());
+    }
 }
 
 void* server_thread(void* arg) {
@@ -52,6 +59,8 @@ void* server_thread(void* arg) {
         // Register our message handler
         echo_server.set_message_handler(bind(&on_message,&echo_server,::_1,::_2));
 
+        echo_server.set_reuse_addr(true);
+
         // Listen on port 9002
         echo_server.listen(9002);
 
@@ -64,8 +73,10 @@ void* server_thread(void* arg) {
         }
     } catch (websocketpp::exception const & e) {
         std::cout << e.what() << std::endl;
+        exit(1);
     } catch (...) {
         std::cout << "other exception" << std::endl;
+        exit(1);
     }
 }
 
@@ -75,9 +86,7 @@ int main(int argc, char **argv) {
     n = new ros::NodeHandle();
     ros::NodeHandle paramNh("~");
 
-    cmd_vel_pub = n->advertise<geometry_msgs::Twist>("xbot_remote/remote_cmd_vel", 1);
-    command_pub = n->advertise<std_msgs::String>("xbot_remote/remote_command", 1);
-
+    cmd_vel_pub = n->advertise<geometry_msgs::Twist>("xbot_remote/cmd_vel", 1);
 
     pthread_t server_thread_handle;
     pthread_create(&server_thread_handle, nullptr, &server_thread, nullptr);
