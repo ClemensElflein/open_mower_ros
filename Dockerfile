@@ -1,14 +1,21 @@
 # Get an image with git and apt-get update
-FROM docker.io/ros:noetic-ros-base-focal as git
+FROM docker.io/ros:noetic-ros-base-focal as base
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN rosdep update
 RUN apt-get update && \
     apt-get install --yes git
+RUN rosdep update
+
+# Install mosquitto broker
+RUN apt-get install --yes mosquitto
+
+# Install our config
+COPY --link ./assets/mosquitto.conf /etc/mosquitto/mosquitto.conf
+
 
 
 # First stage: Pull the git and all submodules, other stages depend on it
-FROM git as fetch
+FROM base as fetch
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -22,7 +29,7 @@ RUN git submodule update --init --recursive
 
 # Get slic3r_coverage_planner and build that. We will pull the finished install folder from this.
 # This stage should cache most of the time, that's why it's not derived from the fetch stage, but copies stuff instead.
-FROM git as slic3r
+FROM base as slic3r
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -55,7 +62,7 @@ RUN apt-get update && \
 
 
 # We can't derive this from "dependencies" because "dependencies" will be rebuilt every time, but apt install should only be done if needed
-FROM git as assemble
+FROM base as assemble
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -84,4 +91,4 @@ COPY .github/assets/openmower_entrypoint.sh /openmower_entrypoint.sh
 RUN chmod +x /openmower_entrypoint.sh
 
 ENTRYPOINT ["/openmower_entrypoint.sh"]
-CMD ["roslaunch", "open_mower", "open_mower.launch", "--screen"]
+CMD ["bash", "-c", "service mosquitto start; roslaunch open_mower open_mower.launch --screen"]
