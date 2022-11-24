@@ -48,8 +48,9 @@
 #include "xbot_msgs/AbsolutePose.h"
 #include "xbot_positioning/GPSControlSrv.h"
 #include "xbot_positioning/SetPoseSrv.h"
+#include "xbot_msgs/RegisterActionsSrv.h"
 
-ros::ServiceClient pathClient, mapClient, dockingPointClient, gpsClient, mowClient, emergencyClient, pathProgressClient, setNavPointClient, clearNavPointClient, clearMapClient, positioningClient;
+ros::ServiceClient pathClient, mapClient, dockingPointClient, gpsClient, mowClient, emergencyClient, pathProgressClient, setNavPointClient, clearNavPointClient, clearMapClient, positioningClient, actionRegistrationClient;
 
 ros::NodeHandle *n;
 ros::NodeHandle *paramNh;
@@ -78,6 +79,22 @@ bool mowerEnabled = false;
 Behavior *currentBehavior = &IdleBehavior::INSTANCE;
 
 void setEmergencyMode(bool emergency);
+
+void registerActions(std::string prefix, const std::vector<xbot_msgs::ActionInfo> &actions) {
+    xbot_msgs::RegisterActionsSrv srv;
+    srv.request.node_prefix = prefix;
+    srv.request.actions = actions;
+
+    ros::Rate retry_delay(1);
+    for(int i = 0; i < 10; i++) {
+        if(actionRegistrationClient.call(srv)) {
+            ROS_INFO_STREAM("successfully registered actions for " << prefix);
+            break;
+        }
+        ROS_ERROR_STREAM("Error registering actions for " << prefix << ". Retrying.");
+        retry_delay.sleep();
+    }
+}
 
 void setRobotPose(geometry_msgs::Pose &pose) {
     xbot_positioning::SetPoseSrv pose_srv;
@@ -442,6 +459,12 @@ bool highLevelCommand(mower_msgs::HighLevelControlSrvRequest &req, mower_msgs::H
     return true;
 }
 
+void actionReceived(const std_msgs::String::ConstPtr &action) {
+    if(currentBehavior) {
+        currentBehavior->handle_action(action->data);
+    }
+}
+
 void joyVelReceived(const geometry_msgs::Twist::ConstPtr &joy_vel) {
     if(currentBehavior && currentBehavior->redirect_joystick()) {
         cmd_vel_pub.publish(joy_vel);
@@ -478,6 +501,9 @@ int main(int argc, char **argv) {
             "xbot_positioning/set_gps_state");
     positioningClient = n->serviceClient<xbot_positioning::SetPoseSrv>(
             "xbot_positioning/set_robot_pose");
+    actionRegistrationClient = n->serviceClient<xbot_positioning::SetPoseSrv>(
+            "xbot/register_actions");
+
 
     mowClient = n->serviceClient<mower_msgs::MowerControlSrv>(
             "mower_service/mow_enabled");
@@ -504,6 +530,7 @@ int main(int argc, char **argv) {
     ros::Subscriber status_sub = n->subscribe("/mower/status", 0, statusReceived, ros::TransportHints().tcpNoDelay(true));
     ros::Subscriber pose_sub = n->subscribe("/xbot_positioning/xb_pose", 0, poseReceived, ros::TransportHints().tcpNoDelay(true));
     ros::Subscriber joy_cmd = n->subscribe("/joy_vel", 0, joyVelReceived, ros::TransportHints().tcpNoDelay(true));
+    ros::Subscriber action = n->subscribe("xbot/action", 0, actionReceived, ros::TransportHints().tcpNoDelay(true));
 
     ros::ServiceServer high_level_control_srv = n->advertiseService("mower_service/high_level_control", highLevelCommand);
 

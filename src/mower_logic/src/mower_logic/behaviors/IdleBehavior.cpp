@@ -21,6 +21,7 @@ extern void stopBlade();
 extern void setEmergencyMode(bool emergency);
 extern void setGPS(bool enabled);
 extern void setRobotPose(geometry_msgs::Pose &pose);
+extern void registerActions(std::string prefix, const std::vector<xbot_msgs::ActionInfo> &actions);
 
 extern ros::ServiceClient dockingPointClient;
 extern mower_msgs::Status last_status;
@@ -29,6 +30,8 @@ extern dynamic_reconfigure::Server<mower_logic::MowerLogicConfig> *reconfigServe
 
 extern ros::ServiceClient mapClient;
 extern ros::ServiceClient dockingPointClient;
+
+
 
 IdleBehavior IdleBehavior::INSTANCE;
 
@@ -96,9 +99,18 @@ void IdleBehavior::enter() {
 
     // disable it, so that we don't start mowing immediately
     manual_start_mowing = false;
+
+    for(auto& a : actions) {
+        a.enabled = true;
+    }
+    registerActions("mower_logic:idle", actions);
 }
 
 void IdleBehavior::exit() {
+    for(auto& a : actions) {
+        a.enabled = false;
+    }
+    registerActions("mower_logic:idle", actions);
 }
 
 void IdleBehavior::reset() {
@@ -140,4 +152,32 @@ uint8_t IdleBehavior::get_sub_state() {
 }
 uint8_t IdleBehavior::get_state() {
     return mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_IDLE;
+}
+
+
+
+IdleBehavior::IdleBehavior() {
+    xbot_msgs::ActionInfo start_mowing_action;
+    start_mowing_action.action_id = "start_mowing";
+    start_mowing_action.enabled = false;
+    start_mowing_action.action_name = "Start Mowing";
+
+    xbot_msgs::ActionInfo start_area_recording_action;
+    start_area_recording_action.action_id = "start_area_recording";
+    start_area_recording_action.enabled = false;
+    start_area_recording_action.action_name = "Start Area Recording";
+
+    actions.clear();
+    actions.push_back(start_mowing_action);
+    actions.push_back(start_area_recording_action);
+}
+
+void IdleBehavior::handle_action(std::string action) {
+    if(action == "mower_logic:idle/start_mowing") {
+        ROS_INFO_STREAM("Got start_mowing command");
+        manual_start_mowing = true;
+    } else if(action == "mower_logic:idle/start_area_recording") {
+        ROS_INFO_STREAM("Got start_area_recording command");
+        start_area_recorder = true;
+    }
 }

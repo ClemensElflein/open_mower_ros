@@ -32,6 +32,8 @@ extern actionlib::SimpleActionClient<mbf_msgs::ExePathAction> *mbfClientExePath;
 extern mower_logic::MowerLogicConfig last_config;
 extern dynamic_reconfigure::Server<mower_logic::MowerLogicConfig> *reconfigServer;
 
+extern void registerActions(std::string prefix, const std::vector<xbot_msgs::ActionInfo> &actions);
+
 MowingBehavior MowingBehavior::INSTANCE;
 
 std::string MowingBehavior::state_name() {
@@ -71,10 +73,18 @@ Behavior *MowingBehavior::execute() {
 void MowingBehavior::enter() {
     skip_area = false;
     paused = aborted = false;
+
+    for(auto& a : actions) {
+        a.enabled = true;
+    }
+    registerActions("mower_logic:mowing", actions);
 }
 
 void MowingBehavior::exit() {
-
+    for(auto& a : actions) {
+        a.enabled = false;
+    }
+    registerActions("mower_logic:mowing", actions);
 }
 
 void MowingBehavior::reset() {
@@ -406,4 +416,53 @@ uint8_t MowingBehavior::get_sub_state() {
 }
 uint8_t MowingBehavior::get_state() {
     return mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_AUTONOMOUS;
+}
+
+MowingBehavior::MowingBehavior() {
+    xbot_msgs::ActionInfo pause_action;
+    pause_action.action_id = "pause";
+    pause_action.enabled = false;
+    pause_action.action_name = "Pause Mowing";
+
+    xbot_msgs::ActionInfo continue_action;
+    continue_action.action_id = "continue";
+    continue_action.enabled = false;
+    continue_action.action_name = "Continue Mowing";
+
+    xbot_msgs::ActionInfo abort_mowing_action;
+    abort_mowing_action.action_id = "abort_mowing";
+    abort_mowing_action.enabled = false;
+    abort_mowing_action.action_name = "Stop Mowing";
+
+    xbot_msgs::ActionInfo skip_area_action;
+    skip_area_action.action_id = "skip_area";
+    skip_area_action.enabled = false;
+    skip_area_action.action_name = "Skip Area";
+
+    actions.clear();
+    actions.push_back(pause_action);
+    actions.push_back(abort_mowing_action);
+    actions.push_back(skip_area_action);
+}
+
+void MowingBehavior::handle_action(std::string action) {
+    if(action == "mower_logic:mowing/pause") {
+        ROS_INFO_STREAM("got pause command");
+        this->requestPause();
+    }else if(action == "mower_logic:mowing/continue") {
+        ROS_INFO_STREAM("got continue command");
+        this->requestContinue();
+    } else if(action == "mower_logic:mowing/abort_mowing") {
+        ROS_INFO_STREAM("got abort mowing command");
+        if (paused)
+        {
+            // Request continue to wait for odom
+            this->requestContinue();
+            // Then instantly abort i.e. go to dock.
+        }
+        this->abort();
+    } else if(action == "mower_logic:mowing/skip_area") {
+        ROS_INFO_STREAM("got skip_area command");
+        skip_area = true;
+    }
 }
