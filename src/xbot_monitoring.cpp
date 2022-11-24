@@ -16,11 +16,17 @@
 #include <nlohmann/json.hpp>
 #include "geometry_msgs/Twist.h"
 #include "std_msgs/String.h"
+#include "xbot_msgs/RegisterActionsSrv.h"
+#include "xbot_msgs/ActionInfo.h"
 
 using json = nlohmann::json;
 
 void publish_sensor_metadata();
 void publish_map();
+void publish_actions();
+
+// Stores registered actions (prefix to vector<action>)
+std::map<std::string, std::vector<xbot_msgs::ActionInfo>> registered_actions;
 
 // Maps a topic to a subscriber.
 std::map<std::string, ros::Subscriber> active_subscribers;
@@ -36,13 +42,14 @@ std::mutex mqtt_callback_mutex;
 
 // Publisher for cmd_vel and commands
 ros::Publisher cmd_vel_pub;
-ros::Publisher command_pub;
+ros::Publisher action_pub;
 
 class MqttCallback : public mqtt::callback {
     void connected(const mqtt::string &string) override {
         ROS_INFO_STREAM("MQTT Connected");
         publish_sensor_metadata();
         publish_map();
+        publish_actions();
 
 
         client_->subscribe("/teleop", 0);
@@ -64,9 +71,11 @@ public:
             } catch (const json::exception &e) {
                 ROS_ERROR_STREAM("Error decoding /teleop bson: " << e.what());
             }
-        } else if(ptr->get_topic() == "/command") {
-            ROS_INFO_STREAM("Got command: " + ptr->get_payload());
-
+        } else if(ptr->get_topic() == "/action") {
+            ROS_INFO_STREAM("Got action: " + ptr->get_payload());
+            std_msgs::String action_msg;
+            action_msg.data = ptr->get_payload_str();
+            action_pub.publish(action_msg);
         }
     }
 };
@@ -274,6 +283,26 @@ void robot_state_callback(const xbot_msgs::RobotState::ConstPtr &msg) {
     try_publish_binary("robot_state/bson", bson.data(), bson.size());
 }
 
+void publish_actions() {
+    json actions;
+    for(const auto &kv : registered_actions) {
+        for(const auto &action : kv.second) {
+            json action_info;
+            action_info["action_id"] = kv.first + "/" + action.action_id;
+            action_info["action_name"] = action.action_name;
+            action_info["enabled"] = action.enabled;
+            actions.push_back(action_info);
+        }
+    }
+
+    try_publish("actions/json", actions, true);
+    json data;
+    data["d"] = actions;
+
+    auto bson = json::to_bson(data);
+    try_publish_binary("actions/bson", bson.data(), bson.size(), true);
+}
+
 void publish_map() {
     if(!has_map)
         return;
@@ -366,6 +395,16 @@ void map_callback(const xbot_msgs::Map::ConstPtr &msg) {
     publish_map();
 }
 
+bool registerActions(xbot_msgs::RegisterActionsSrvRequest &req, xbot_msgs::RegisterActionsSrvResponse &res) {
+
+    ROS_INFO_STREAM("new actions registered: " << req.node_prefix << " registered " << req.actions.size() << " actions.");
+
+    registered_actions[req.node_prefix] = req.actions;
+
+    publish_actions();
+    return true;
+}
+
 int main(int argc, char **argv) {
     ros::init(argc, argv, "xbot_monitoring");
     has_map = false;
@@ -377,11 +416,14 @@ int main(int argc, char **argv) {
     n = new ros::NodeHandle();
     ros::NodeHandle paramNh("~");
 
+
+    ros::ServiceServer register_action_service = n->advertiseService("xbot/register_actions", registerActions);
+
     ros::Subscriber robotStateSubscriber = n->subscribe("xbot_monitoring/robot_state", 10, robot_state_callback);
     ros::Subscriber mapSubscriber = n->subscribe("xbot_monitoring/map", 10, map_callback);
 
     cmd_vel_pub = n->advertise<geometry_msgs::Twist>("xbot_monitoring/remote_cmd_vel", 1);
-    command_pub = n->advertise<std_msgs::String>("xbot_monitoring/remote_command", 1);
+    action_pub = n->advertise<std_msgs::String>("xbot/action", 1);
 
 
     ros::AsyncSpinner spinner(1);
