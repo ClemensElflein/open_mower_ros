@@ -30,4 +30,5 @@
     <node pkg="xbot_monitoring" type="xbot_monitoring" name="xbot_monitoring" output="screen" respawn="true" respawn_delay="10">
         <remap from="/xbot_monitoring/remote_cmd_vel" to="/joy_vel"/>
     </node>
+    <node pkg="mower_logic" type="monitoring" name="monitoring" output="screen" respawn="true" respawn_delay="10"/>
 </launch>
