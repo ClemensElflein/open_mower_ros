@@ -101,6 +101,18 @@ bool MowingBehavior::mower_enabled() {
     return mowerEnabled;
 }
 
+void MowingBehavior::update_actions() {
+    for(auto& a : actions) {
+        a.enabled = true;
+    }
+
+    // pause / resume switch. other actions are always available
+    actions[0].enabled = !paused;
+    actions[1].enabled = paused;
+
+    registerActions("mower_logic:mowing", actions);
+}
+
 bool MowingBehavior::create_mowing_plan(int area_index) {
     ROS_INFO_STREAM("MowingBehavior: Creating mowing plan for area: " << area_index);
     // Delete old plan and progress.
@@ -441,6 +453,7 @@ MowingBehavior::MowingBehavior() {
 
     actions.clear();
     actions.push_back(pause_action);
+    actions.push_back(continue_action);
     actions.push_back(abort_mowing_action);
     actions.push_back(skip_area_action);
 }
@@ -465,4 +478,5 @@ void MowingBehavior::handle_action(std::string action) {
         ROS_INFO_STREAM("got skip_area command");
         skip_area = true;
     }
+    update_actions();
 }

@@ -74,6 +74,8 @@ public:
     uint8_t get_state() override;
 
     void handle_action(std::string action) override;
+
+    void update_actions();
 };
 
 

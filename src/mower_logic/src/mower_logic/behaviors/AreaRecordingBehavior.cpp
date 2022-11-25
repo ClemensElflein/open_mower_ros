@@ -75,7 +75,6 @@ Behavior *AreaRecordingBehavior::execute() {
                     sub_state = 2;
                 }
                 bool success = recordNewPolygon(poly);
-                update_actions();
                 sub_state = 0;
                 if (success) {
                     if (!has_outline) {
@@ -115,6 +114,7 @@ Behavior *AreaRecordingBehavior::execute() {
                     ROS_ERROR_STREAM("Error during poly record");
                 }
                 marker_array_pub.publish(markers);
+                update_actions();
             }
 
             inputDelay.sleep();
@@ -136,7 +136,7 @@ Behavior *AreaRecordingBehavior::execute() {
                 ROS_ERROR_STREAM("error adding area");
             }
         }
-        has_outline = false;
+
         // reset recording error for next area
         error = false;
         // reset finished all in case we want to record a second area
