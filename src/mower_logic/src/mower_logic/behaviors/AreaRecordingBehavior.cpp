@@ -599,12 +599,14 @@ void AreaRecordingBehavior::update_actions() {
                 actions[3].enabled = true;
                 actions[4].enabled = true;
                 actions[5].enabled = true;
+            } else {
+                // enable start recording, discard area and record dock
+                actions[0].enabled = true;
+                actions[4].enabled = true;
+                actions[6].enabled = true;
             }
         }
-        // enable start recording, discard area and record dock
-        actions[0].enabled = true;
-        actions[4].enabled = true;
-        actions[6].enabled = true;
+
         registerActions("mower_logic:area_recording", actions);
     }
 }
