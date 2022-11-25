@@ -38,7 +38,7 @@
 #include "mower_map/SetDockingPointSrv.h"
 #include "mower_msgs/EmergencyStopSrv.h"
 #include "xbot_msgs/AbsolutePose.h"
-
+#include "xbot_msgs/ActionInfo.h"
 
 #include "geometry_msgs/Twist.h"
 
@@ -47,10 +47,14 @@
 class AreaRecordingBehavior : public Behavior {
 public:
     static AreaRecordingBehavior INSTANCE;
+
+    AreaRecordingBehavior();
+
 private:
 
     bool has_odom = false;
 
+    std::vector<xbot_msgs::ActionInfo> actions;
 
     sensor_msgs::Joy last_joy;
     xbot_msgs::AbsolutePose last_pose;
@@ -72,8 +76,10 @@ private:
 
     // true, if all polys were recorded and the complete area is finished
     bool is_mowing_area = false;
+    bool is_navigation_area = false;
     bool finished_all = false;
     bool set_docking_position = false;
+    bool has_outline = false;
 
     visualization_msgs::MarkerArray markers;
     visualization_msgs::Marker marker;
@@ -88,8 +94,12 @@ private:
     void record_mowing_received(std_msgs::Bool state_msg);
     void record_navigation_received(std_msgs::Bool state_msg);
 
+    void update_actions();
+
 public:
     std::string state_name() override;
+
+    std::string sub_state_name() override;
 
     Behavior *execute() override;
 
@@ -116,6 +126,8 @@ public:
     uint8_t get_sub_state() override;
 
     uint8_t get_state() override;
+
+    void handle_action(std::string action) override;
 };
 
 

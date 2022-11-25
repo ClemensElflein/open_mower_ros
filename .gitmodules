@@ -19,3 +19,9 @@
 [submodule "src/lib/xbot_positioning"]
 	path = src/lib/xbot_positioning
 	url = https://github.com/ClemensElflein/xbot_positioning.git
+[submodule "src/lib/xbot_monitoring"]
+	path = src/lib/xbot_monitoring
+	url = https://github.com/ClemensElflein/xbot_monitoring
+[submodule "src/lib/xbot_remote"]
+	path = src/lib/xbot_remote
+	url = https://github.com/ClemensElflein/xbot_remote

@@ -5,7 +5,7 @@
     <arg name="rqt_reconfigure" default="False" />
 
     <node pkg="rosbag" type="play" name="player" output="log" args="--clock $(arg bagfile) -s$(arg s) -r$(arg r) /tf:=/tf_null"/>
-    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find open_mower)/rviz/playback.rviz" required="true" />
+    <!-- <node name="rviz" pkg="rviz" type="rviz" args="-d $(find open_mower)/rviz/playback.rviz" required="true" /> -->
 
     <node name="converter1" pkg="mower_utils" type="xbot_pose_converter" required="true">
         <param name="topic" value="/xbot_driver_gps/xb_pose"/>
@@ -16,14 +16,21 @@
         <param name="frame" value="map"/>
     </node>
 
-    <node pkg="xbot_positioning" type="xbot_positioning" name="xbot_positioning_playback" output="screen" required="true">
-        <remap from="~imu_in" to="/imu/data_raw" />
-        <remap from="~wheel_ticks_in" to="/mower/wheel_ticks" />
-        <remap from="~xb_pose_in" to="xbot_driver_gps/xb_pose" />
-        <param name="max_gps_accuracy" value="0.2"/>
-        <param name="max_gps_accuracy" value="0.2"/>
-        <param name="skip_gyro_calibration" value="true"/>
+    <node pkg="xbot_monitoring" type="xbot_monitoring" name="xbot_monitoring" output="screen" required="true">
     </node>
+    <node pkg="mower_map" type="mower_map_service" name="map_service" output="screen"/>
+    <node pkg="mower_logic" type="monitoring" name="monitoring" output="screen"/>
+
+
+
+    <!--    <node pkg="xbot_positioning" type="xbot_positioning" name="xbot_positioning_playback" output="screen" required="true">
+            <remap from="~imu_in" to="/imu/data_raw" />
+            <remap from="~wheel_ticks_in" to="/mower/wheel_ticks" />
+            <remap from="~xb_pose_in" to="xbot_driver_gps/xb_pose" />
+            <param name="max_gps_accuracy" value="0.2"/>
+            <param name="max_gps_accuracy" value="0.2"/>
+            <param name="skip_gyro_calibration" value="true"/>
+        </node>-->
 
     <node pkg="rqt_reconfigure" type="rqt_reconfigure" name="rqt_reconfigure" if="$(arg rqt_reconfigure)"/>
 
