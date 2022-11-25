@@ -501,7 +501,7 @@ int main(int argc, char **argv) {
             "xbot_positioning/set_gps_state");
     positioningClient = n->serviceClient<xbot_positioning::SetPoseSrv>(
             "xbot_positioning/set_robot_pose");
-    actionRegistrationClient = n->serviceClient<xbot_positioning::SetPoseSrv>(
+    actionRegistrationClient = n->serviceClient<xbot_msgs::RegisterActionsSrv>(
             "xbot/register_actions");
 
 

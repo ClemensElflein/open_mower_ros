@@ -554,10 +554,17 @@ AreaRecordingBehavior::AreaRecordingBehavior() {
     exit_recording_mode_action.enabled = false;
     exit_recording_mode_action.action_name = "Exit";
 
+    xbot_msgs::ActionInfo finish_discard_action;
+    finish_discard_action.action_id = "finish_discard";
+    finish_discard_action.enabled = false;
+    finish_discard_action.action_name = "Discard Area";
+
     xbot_msgs::ActionInfo record_dock_action;
     record_dock_action.action_id = "record_dock";
     record_dock_action.enabled = false;
     record_dock_action.action_name = "Record Docking point";
+
+
 
     actions.clear();
     actions.push_back(start_recording_action);
@@ -565,6 +572,7 @@ AreaRecordingBehavior::AreaRecordingBehavior() {
     actions.push_back(finish_navigation_area_action);
     actions.push_back(finish_mowing_area_action);
     actions.push_back(exit_recording_mode_action);
+    actions.push_back(finish_discard_action);
     actions.push_back(record_dock_action);
 }
 
@@ -575,13 +583,14 @@ void AreaRecordingBehavior::update_actions() {
         }
         if(has_first_docking_pos) {
             // we have recorded the first docking pose, only option is to finish by recording second one
-            actions[5].enabled = true;
+            actions[6].enabled = true;
         } else if(poly_recording_enabled) {
             // currently recording a polygon, allow stop and save actions
             actions[1].enabled = true;
             actions[2].enabled = true;
             actions[3].enabled = true;
             actions[4].enabled = true;
+            actions[5].enabled = true;
         } else {
             // neither recording a polygon nor docking point. we can save if we have an outline and always discard
             if(has_outline) {
@@ -589,12 +598,13 @@ void AreaRecordingBehavior::update_actions() {
                 actions[2].enabled = true;
                 actions[3].enabled = true;
                 actions[4].enabled = true;
+                actions[5].enabled = true;
             }
         }
         // enable start recording, discard area and record dock
         actions[0].enabled = true;
         actions[4].enabled = true;
-        actions[5].enabled = true;
+        actions[6].enabled = true;
         registerActions("mower_logic:area_recording", actions);
     }
 }
