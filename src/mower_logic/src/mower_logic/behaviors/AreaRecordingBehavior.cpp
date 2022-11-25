@@ -136,7 +136,7 @@ Behavior *AreaRecordingBehavior::execute() {
                 ROS_ERROR_STREAM("error adding area");
             }
         }
-
+        has_outline = false;
         // reset recording error for next area
         error = false;
         // reset finished all in case we want to record a second area
