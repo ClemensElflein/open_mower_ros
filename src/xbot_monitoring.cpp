@@ -54,6 +54,7 @@ class MqttCallback : public mqtt::callback {
 
         client_->subscribe("/teleop", 0);
         client_->subscribe("/command", 0);
+        client_->subscribe("/action", 0);
     }
 
 public:
@@ -284,7 +285,7 @@ void robot_state_callback(const xbot_msgs::RobotState::ConstPtr &msg) {
 }
 
 void publish_actions() {
-    json actions;
+    json actions = json::array();
     for(const auto &kv : registered_actions) {
         for(const auto &action : kv.second) {
             json action_info;
@@ -295,7 +296,7 @@ void publish_actions() {
         }
     }
 
-    try_publish("actions/json", actions, true);
+    try_publish("actions/json", actions.dump(), true);
     json data;
     data["d"] = actions;
 
