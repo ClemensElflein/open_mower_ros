@@ -289,8 +289,10 @@ void updateUI(const ros::TimerEvent &timer_event) {
     if(currentBehavior) {
         high_level_status.state_name = currentBehavior->state_name();
         high_level_status.state = (currentBehavior->get_state() & 0b11111) | (currentBehavior->get_sub_state() << mower_msgs::HighLevelStatus::SUBSTATE_SHIFT);
+        high_level_status.sub_state_name = currentBehavior->sub_state_name();
     } else {
         high_level_status.state_name = "NULL";
+        high_level_status.sub_state_name = "";
         high_level_status.state = mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_NULL;
     }
     high_level_state_publisher.publish(high_level_status);

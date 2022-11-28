@@ -101,6 +101,18 @@ bool MowingBehavior::mower_enabled() {
     return mowerEnabled;
 }
 
+void MowingBehavior::update_actions() {
+    for(auto& a : actions) {
+        a.enabled = true;
+    }
+
+    // pause / resume switch. other actions are always available
+    actions[0].enabled = !paused &&  !requested_pause_flag;
+    actions[1].enabled = paused && !requested_continue_flag;
+
+    registerActions("mower_logic:mowing", actions);
+}
+
 bool MowingBehavior::create_mowing_plan(int area_index) {
     ROS_INFO_STREAM("MowingBehavior: Creating mowing plan for area: " << area_index);
     // Delete old plan and progress.
@@ -193,6 +205,7 @@ bool MowingBehavior::execute_mowing_plan() {
         if (requested_pause_flag)
         {  // pause was requested
             this->setPause();  // set paused=true
+            update_actions();
             mowerEnabled = false;
             while (!requested_continue_flag) // while not asked to continue, we wait
             {
@@ -214,6 +227,7 @@ bool MowingBehavior::execute_mowing_plan() {
             }
             ROS_INFO_STREAM("MowingBehavior: CONTINUING");
             this->setContinue();
+            update_actions();
             mowerEnabled = true;
         }
 
@@ -249,7 +263,8 @@ bool MowingBehavior::execute_mowing_plan() {
                 if (first_point_attempt_counter < config.max_first_point_attempts)
                 {
                     ROS_WARN_STREAM("MowingBehavior: (FIRST POINT) - Attempt " << first_point_attempt_counter << " / " << config.max_first_point_attempts << " Making a little pause ...");
-                    this->setPause();  
+                    this->setPause();
+                    update_actions();
                 }
                 else
                 {
@@ -265,6 +280,7 @@ bool MowingBehavior::execute_mowing_plan() {
                         first_point_trim_counter++;
                         first_point_attempt_counter = 0; // give it another <config.max_first_point_attempts> attempts
                         this->setPause();
+                        update_actions();
                     }
                     else
                     {
@@ -371,6 +387,7 @@ bool MowingBehavior::execute_mowing_plan() {
                 ROS_INFO_STREAM("MowingBehavior (ErrorCatch): Poses after trim:" << poses.size());
                 ROS_INFO_STREAM("MowingBehavior: (MOW) PAUSED due to MBF Error");
                 this->setPause();
+                update_actions();
             }
         }
     }
@@ -441,6 +458,7 @@ MowingBehavior::MowingBehavior() {
 
     actions.clear();
     actions.push_back(pause_action);
+    actions.push_back(continue_action);
     actions.push_back(abort_mowing_action);
     actions.push_back(skip_area_action);
 }
@@ -465,4 +483,5 @@ void MowingBehavior::handle_action(std::string action) {
         ROS_INFO_STREAM("got skip_area command");
         skip_area = true;
     }
+    update_actions();
 }

@@ -43,6 +43,7 @@
 #include "geometry_msgs/Twist.h"
 
 #include "std_msgs/Bool.h"
+#include "xbot_msgs/MapOverlay.h"
 
 class AreaRecordingBehavior : public Behavior {
 public:
@@ -59,6 +60,7 @@ private:
     sensor_msgs::Joy last_joy;
     xbot_msgs::AbsolutePose last_pose;
 
+    ros::Publisher map_overlay_pub;
     ros::Publisher marker_pub;
     ros::Publisher marker_array_pub;
 
@@ -85,7 +87,7 @@ private:
     visualization_msgs::Marker marker;
 
 private:
-    bool recordNewPolygon(geometry_msgs::Polygon &polygon);
+    bool recordNewPolygon(geometry_msgs::Polygon &polygon, xbot_msgs::MapOverlay &resultOverlay);
     bool getDockingPosition(geometry_msgs::Pose &pos);
     void pose_received(const xbot_msgs::AbsolutePose::ConstPtr &msg);
     void joy_received(const sensor_msgs::Joy &joy_msg);

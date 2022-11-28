@@ -12,7 +12,11 @@ RUN apt-get install --yes mosquitto
 # Install our config
 COPY --link ./assets/mosquitto.conf /etc/mosquitto/mosquitto.conf
 
+# Install nginx for hosting the app
+RUN apt-get install --yes nginx
 
+# Install nginx config
+COPY --link ./assets/nginx.conf /etc/nginx/conf.d/default.conf
 
 # First stage: Pull the git and all submodules, other stages depend on it
 FROM base as fetch
@@ -91,4 +95,4 @@ COPY .github/assets/openmower_entrypoint.sh /openmower_entrypoint.sh
 RUN chmod +x /openmower_entrypoint.sh
 
 ENTRYPOINT ["/openmower_entrypoint.sh"]
-CMD ["bash", "-c", "service mosquitto start; roslaunch open_mower open_mower.launch --screen"]
+CMD ["bash", "-c", "service nginx start; service mosquitto start; roslaunch open_mower open_mower.launch --screen"]
