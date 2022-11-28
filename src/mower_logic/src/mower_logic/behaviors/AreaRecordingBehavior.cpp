@@ -42,8 +42,15 @@ Behavior *AreaRecordingBehavior::execute() {
     setGPS(true);
     bool error = false;
     ros::Rate inputDelay(ros::Duration().fromSec(0.1));
+
+
     while(ros::ok() && !aborted) {
         mower_map::MapArea result;
+        xbot_msgs::MapOverlay result_overlay;
+
+        // clear overlay
+        map_overlay_pub.publish(result_overlay);
+
         has_outline = false;
 
 
@@ -60,6 +67,7 @@ Behavior *AreaRecordingBehavior::execute() {
                     auto result = set_docking_point_client.call(set_docking_point_srv);
 
                     has_first_docking_pos = false;
+                    update_actions();
                 }
 
                 set_docking_position = false;
@@ -74,7 +82,7 @@ Behavior *AreaRecordingBehavior::execute() {
                 } else {
                     sub_state = 2;
                 }
-                bool success = recordNewPolygon(poly);
+                bool success = recordNewPolygon(poly, result_overlay);
                 sub_state = 0;
                 if (success) {
                     if (!has_outline) {
@@ -141,6 +149,9 @@ Behavior *AreaRecordingBehavior::execute() {
         error = false;
         // reset finished all in case we want to record a second area
         finished_all = false;
+
+        has_outline = false;
+        update_actions();
     }
 
     return &IdleBehavior::INSTANCE;
@@ -168,6 +179,7 @@ void AreaRecordingBehavior::enter() {
     set_docking_point_client = n->serviceClient<mower_map::SetDockingPointSrv>("mower_map_service/set_docking_point");
 
     marker_pub = n->advertise<visualization_msgs::Marker>("area_recorder/progress_visualization", 10);
+    map_overlay_pub = n->advertise<xbot_msgs::MapOverlay>("xbot_monitoring/map_overlay", 10);
     marker_array_pub = n->advertise<visualization_msgs::MarkerArray>("area_recorder/progress_visualization_array", 10);
 
 
@@ -193,6 +205,7 @@ void AreaRecordingBehavior::exit() {
     }
     registerActions("mower_logic:area_recording", actions);
 
+    map_overlay_pub.shutdown();
     marker_pub.shutdown();
     marker_array_pub.shutdown();
     joy_sub.shutdown();
@@ -304,7 +317,7 @@ void AreaRecordingBehavior::record_mowing_received(std_msgs::Bool state_msg) {
 }
 
 
-bool AreaRecordingBehavior::recordNewPolygon(geometry_msgs::Polygon &polygon) {
+bool AreaRecordingBehavior::recordNewPolygon(geometry_msgs::Polygon &polygon, xbot_msgs::MapOverlay &resultOverlay) {
 
     ROS_INFO_STREAM("recordNewPolygon");
 
@@ -330,6 +343,18 @@ bool AreaRecordingBehavior::recordNewPolygon(geometry_msgs::Polygon &polygon) {
     ros::Rate updateRate(10);
 
     has_odom = false;
+
+    // push a new poly to the visualization overlay
+    {
+        xbot_msgs::MapOverlayPolygon poly_viz;
+        poly_viz.closed = false;
+        poly_viz.line_width = 0.1;
+        poly_viz.color = "blue";
+        resultOverlay.polygons.push_back(poly_viz);
+    }
+    auto &poly_viz = resultOverlay.polygons.back();
+
+
 
     while (true) {
         if (!ros::ok() || aborted) {
@@ -367,6 +392,8 @@ bool AreaRecordingBehavior::recordNewPolygon(geometry_msgs::Polygon &polygon) {
             marker_pub.publish(marker);
 
             polygon.points.push_back(pt);
+            poly_viz.polygon.points.push_back(pt);
+            map_overlay_pub.publish(resultOverlay);
         } else {
 
             auto last = polygon.points.back();
@@ -392,6 +419,9 @@ bool AreaRecordingBehavior::recordNewPolygon(geometry_msgs::Polygon &polygon) {
                 marker.header.frame_id = "map";
 
                 marker_pub.publish(marker);
+
+                poly_viz.polygon.points.push_back(pt);
+                map_overlay_pub.publish(resultOverlay);
             }
         }
 
@@ -410,6 +440,15 @@ bool AreaRecordingBehavior::recordNewPolygon(geometry_msgs::Polygon &polygon) {
     marker.action = visualization_msgs::Marker::DELETE;
     marker_pub.publish(marker);
 
+    //close poly
+    poly_viz.closed = true;
+    poly_viz.line_width = 0.05;
+    if(resultOverlay.polygons.size() == 1) {
+        poly_viz.color = "green";
+    } else {
+        poly_viz.color = "red";
+    }
+    map_overlay_pub.publish(resultOverlay);
 
 
     return success;
@@ -418,17 +457,16 @@ bool AreaRecordingBehavior::recordNewPolygon(geometry_msgs::Polygon &polygon) {
 bool AreaRecordingBehavior::getDockingPosition(geometry_msgs::Pose &pos) {
     if(!has_first_docking_pos) {
         ROS_INFO_STREAM("Recording first docking position");
-        update_actions();
 
         auto odom_ptr = ros::topic::waitForMessage<xbot_msgs::AbsolutePose>("/xbot_positioning/xb_pose", ros::Duration(1, 0));
 
         first_docking_pos = odom_ptr->pose.pose;
         has_first_docking_pos = true;
+        update_actions();
         return false;
     } else {
         ROS_INFO_STREAM("Recording second docking position");
 
-        update_actions();
 
         auto odom_ptr = ros::topic::waitForMessage<xbot_msgs::AbsolutePose>("/xbot_positioning/xb_pose", ros::Duration(1, 0));
 
@@ -438,6 +476,8 @@ bool AreaRecordingBehavior::getDockingPosition(geometry_msgs::Pose &pos) {
         tf2::Quaternion docking_orientation(0.0, 0.0, yaw);
         pos.orientation = tf2::toMsg(docking_orientation);
 
+
+        update_actions();
         return true;
     }
 }
@@ -510,6 +550,15 @@ void AreaRecordingBehavior::handle_action(std::string action) {
 
         // set finished
         is_mowing_area = true;
+        is_navigation_area = false;
+        finished_all = true;
+    } else if(action == "mower_logic:area_recording/finish_discard") {
+        ROS_INFO_STREAM("Got discard recorded area");
+        // stop current poly recording
+        poly_recording_enabled = false;
+
+        // set finished
+        is_mowing_area = false;
         is_navigation_area = false;
         finished_all = true;
     } else if(action == "mower_logic:area_recording/exit_recording_mode") {
