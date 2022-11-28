@@ -18,11 +18,13 @@
 #include "std_msgs/String.h"
 #include "xbot_msgs/RegisterActionsSrv.h"
 #include "xbot_msgs/ActionInfo.h"
+#include "xbot_msgs/MapOverlay.h"
 
 using json = nlohmann::json;
 
 void publish_sensor_metadata();
 void publish_map();
+void publish_map_overlay();
 void publish_actions();
 
 // Stores registered actions (prefix to vector<action>)
@@ -49,6 +51,7 @@ class MqttCallback : public mqtt::callback {
         ROS_INFO_STREAM("MQTT Connected");
         publish_sensor_metadata();
         publish_map();
+        publish_map_overlay();
         publish_actions();
 
 
@@ -84,7 +87,9 @@ public:
 MqttCallback mqtt_callback;
 
 json map;
+json map_overlay;
 bool has_map = false;
+bool has_map_overlay = false;
 
 void setupMqttClient() {
     // MQTT connection options
@@ -210,8 +215,6 @@ void publish_sensor_metadata() {
         info["upper_critical_value"] = kv.second.upper_critical_value;
         sensor_info.push_back(info);
     }
-
-    ROS_INFO_STREAM("updated sensor metadata:" << sensor_info.dump(5));
     try_publish("sensor_infos/json", sensor_info.dump(), true);
     json data;
     data["d"] = sensor_info;
@@ -314,6 +317,16 @@ void publish_map() {
     try_publish_binary("map/bson", bson.data(), bson.size(), true);
 }
 
+void publish_map_overlay() {
+    if(!has_map_overlay)
+        return;
+    try_publish("map_overlay/json", map_overlay.dump(), true);
+    json data;
+    data["d"] = map_overlay;
+    auto bson = json::to_bson(data);
+    try_publish_binary("map_overlay/bson", bson.data(), bson.size(), true);
+}
+
 void map_callback(const xbot_msgs::Map::ConstPtr &msg) {
     // Build a JSON and publish it
     json j;
@@ -396,6 +409,40 @@ void map_callback(const xbot_msgs::Map::ConstPtr &msg) {
     publish_map();
 }
 
+
+void map_overlay_callback(const xbot_msgs::MapOverlay::ConstPtr &msg) {
+    // Build a JSON and publish it
+
+    json polys;
+    for(const auto &poly : msg->polygons) {
+        if(poly.polygon.points.size() < 2)
+            continue;
+        json poly_j;
+        {
+            json outline_poly_j;
+            for (const auto &pt: poly.polygon.points) {
+                json p_j;
+                p_j["x"] = pt.x;
+                p_j["y"] = pt.y;
+                outline_poly_j.push_back(p_j);
+            }
+            poly_j["poly"] = outline_poly_j;
+            poly_j["is_closed"] = poly.closed;
+            poly_j["line_width"] = poly.line_width;
+            poly_j["color"] = poly.color;
+        }
+        polys.push_back(poly_j);
+    }
+
+    json j;
+    j["polygons"] = polys;
+    map_overlay = j;
+    has_map_overlay = true;
+
+    publish_map_overlay();
+}
+
+
 bool registerActions(xbot_msgs::RegisterActionsSrvRequest &req, xbot_msgs::RegisterActionsSrvResponse &res) {
 
     ROS_INFO_STREAM("new actions registered: " << req.node_prefix << " registered " << req.actions.size() << " actions.");
@@ -409,6 +456,7 @@ bool registerActions(xbot_msgs::RegisterActionsSrvRequest &req, xbot_msgs::Regis
 int main(int argc, char **argv) {
     ros::init(argc, argv, "xbot_monitoring");
     has_map = false;
+    has_map_overlay = false;
 
     // First setup MQTT
     setupMqttClient();
@@ -422,6 +470,7 @@ int main(int argc, char **argv) {
 
     ros::Subscriber robotStateSubscriber = n->subscribe("xbot_monitoring/robot_state", 10, robot_state_callback);
     ros::Subscriber mapSubscriber = n->subscribe("xbot_monitoring/map", 10, map_callback);
+    ros::Subscriber mapOverlaySubscriber = n->subscribe("xbot_monitoring/map_overlay", 10, map_overlay_callback);
 
     cmd_vel_pub = n->advertise<geometry_msgs::Twist>("xbot_monitoring/remote_cmd_vel", 1);
     action_pub = n->advertise<std_msgs::String>("xbot/action", 1);
