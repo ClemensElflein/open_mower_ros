@@ -18,6 +18,8 @@ add_message_files(
         Map.msg
         MapArea.msg
         ActionInfo.msg
+        MapOverlay.msg
+        MapOverlayPolygon.msg
 )
 
 add_service_files(
