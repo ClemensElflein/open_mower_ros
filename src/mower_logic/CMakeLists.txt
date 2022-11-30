@@ -188,6 +188,10 @@ add_executable(mag_calibration src/mag_calibration/mag_calibration.cpp)
 add_dependencies(mag_calibration ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
 target_link_libraries(mag_calibration ${catkin_LIBRARIES})
 
+add_executable(monitoring src/monitoring/monitoring.cpp)
+add_dependencies(monitoring ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
+target_link_libraries(monitoring ${catkin_LIBRARIES})
+
 
 #############
 ## Install ##

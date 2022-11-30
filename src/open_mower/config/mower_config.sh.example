@@ -8,11 +8,12 @@
 # CUSTOM (put your configs in ~/mower_params/)
 export OM_MOWER="YardForce500"
 
-# Your Hardware Version (more a firmware version, really). Check the https://github.com/ClemensElflein/OpenMower repo for the firmware versions.
+# Your Hardware Version (more a firmware version, really). Check the OpenMower docs (https://www.openmower.de/docs) for the firmware versions.
 # Supported values as of today:
-# WT901_INSTEAD_OF_SOUND: Use this if you have soldered the WT901 in the sound module's slot.
-# MPU9250: Use this if you have an MPU9250 (be aware that there are many fake chips on the market. So probably not your hardware version)
-# ELFLEIN_PROTOTYPE: Don't use this. It's for our very first build.
+# 0_10_X_WT901: Use this if you have an WT901 and have a 0.10.x mainboard.
+# 0_10_X_MPU9250: Use this if you have an MPU9250 and have a 0.10.x mainboard (be aware that there are many fake chips on the market. So probably not your hardware version).
+# 0_9_X_WT901_INSTEAD_OF_SOUND: Use this if you have soldered the WT901 in the sound module's slot and have a 0.9.x mainboard.
+# 0_9_X_MPU9250: Use this if you have an MPU9250 and have a 0.9.x mainboard (be aware that there are many fake chips on the market. So probably not your hardware version).
 export OM_HARDWARE_VERSION=""
 
 # Select your ESC type
@@ -27,23 +28,18 @@ export OM_MOWER_GAMEPAD="xbox360"
 
 # Set to true to record your session.
 # Output will be stored in your $HOME
-# export OM_ENABLE_RECORDING=False
+# export OM_ENABLE_RECORDING_ALL=False
 
 ################################
 ##        GPS Settings        ##
 ################################
-
 # Relative Positioning vs LatLng coordinates
-# If OM_USE_RELATIVE_POSITION=True, we're using the ublox NAVRELPOSNED messages as position.
-# This makes your base station the map origin
 # If OM_USE_RELATIVE_POSITION=False, we're using an arbitrary point as map origin. This point is called the DATUM point and
 # needs to be set using OM_DATUM_LAT and OM_DATUM_LONG below.
-# If you DON'T have your own base station (e.g. you're using an NTRIP service provider) you should use LAT_LONG positioning, else relative positioning
+# If OM_USE_RELATIVE_POSITION=True, we're using the ublox NAVRELPOSNED messages as position.
+# This makes your base station the map origin
+# For it recommended to set OM_USE_RELATIVE_POSITION to False. This way you can move your base station without re-recording your maps and it's also more compatible overall.
 export OM_USE_RELATIVE_POSITION=False
-
-# If you want to use F9R's sensor fusion, set this to true (you will also need to set DATUM_LAT and DATUM_LONG.
-# Consider this option unstable, since I don't have the F9R anymore, so I'm not able to test this.
-export OM_USE_F9R_SENSOR_FUSION=False
 
 # If needed, uncomment and set to coordinates near you (these default coordinates are somewhere in Germany).
 # This will be your map origin!
@@ -51,7 +47,7 @@ export OM_USE_F9R_SENSOR_FUSION=False
 # export OM_DATUM_LONG=11.575605219552623
 
 # NTRIP Settings
-# Set to False if using external radio.
+# Set to False if using external radio plugged into the Ardusimple board.
 export OM_USE_NTRIP=True
 export OM_NTRIP_HOSTNAME=192.168.178.55
 export OM_NTRIP_PORT=2101
@@ -59,9 +55,28 @@ export OM_NTRIP_USER=gps
 export OM_NTRIP_PASSWORD=gps
 export OM_NTRIP_ENDPOINT=BASE1
 
+# If you want to use F9R's sensor fusion, set this to true (you will also need to set DATUM_LAT and DATUM_LONG.
+# Consider this option unstable, since I don't have the F9R anymore, so I'm not able to test this.
+# IF YOU DONT KNOW WHAT THIS IS, SET IT TO FALSE
+export OM_USE_F9R_SENSOR_FUSION=False
+
+
 ################################
 ##    Mower Logic Settings    ##
 ################################
+# The distance to drive forward AFTER reaching the second docking point
+export OM_DOCKING_DISTANCE=1.0
+
+# The distance to drive for undocking. This needs to be large enough for the robot to have GPS reception
+export OM_UNDOCK_DISTANCE=2.0
+
+# How many outlines should the mover drive. It's not recommended to set this below 4.
+export OM_OUTLINE_COUNT=4
+
+# The width of mowing paths.
+# Choose it smaller than your actual mowing tool in order to have some overlap.
+# 0.13 works well for the Classic 500.
+export OM_TOOL_WIDTH=0.13
 
 # Voltages for battery to be considered full or empty
 export OM_BATTERY_EMPTY_VOLTAGE=23.0
@@ -82,11 +97,3 @@ export OM_ENABLE_MOWER=true
 export OM_AUTOMATIC_START=false
 
 export OM_OUTLINE_OFFSET=0.05
-export OM_OUTLINE_COUNT=4
-export OM_TOOL_WIDTH=0.13
-
-# The distance to drive forward AFTER reaching the second docking point
-export OM_DOCKING_DISTANCE=1.0
-
-# The distance to drive for undocking. This needs to be large enough for the robot to have GPS reception
-export OM_UNDOCK_DISTANCE=2.0

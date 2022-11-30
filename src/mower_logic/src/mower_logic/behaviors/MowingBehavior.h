@@ -23,10 +23,13 @@
 #include "slic3r_coverage_planner/PlanPath.h"
 #include "slic3r_coverage_planner/Path.h"
 #include "ftc_local_planner/PlannerGetProgress.h"
+#include "xbot_msgs/ActionInfo.h"
 
 class MowingBehavior : public Behavior {
 
 private:
+    std::vector<xbot_msgs::ActionInfo> actions;
+
     bool skip_area;
     bool create_mowing_plan(int area_index);
 
@@ -38,6 +41,8 @@ private:
 
 
 public:
+    MowingBehavior();
+
     static MowingBehavior INSTANCE;
 
     std::string state_name() override;
@@ -67,6 +72,10 @@ public:
     uint8_t get_sub_state() override;
 
     uint8_t get_state() override;
+
+    void handle_action(std::string action) override;
+
+    void update_actions();
 };
 
 

@@ -9,7 +9,7 @@
 
     <node pkg="mower_simulation" type="mower_simulation" name="mower_simulation" required="true" ></node>
 
-    <node pkg="rqt_reconfigure" type="rqt_reconfigure" name="rqt_reconfigure">
-    </node>
+<!--    <node pkg="rqt_reconfigure" type="rqt_reconfigure" name="rqt_reconfigure">-->
+<!--    </node>-->
 
 </launch>
