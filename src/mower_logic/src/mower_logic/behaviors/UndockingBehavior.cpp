@@ -184,3 +184,6 @@ uint8_t UndockingBehavior::get_sub_state() {
 uint8_t UndockingBehavior::get_state() {
     return mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_AUTONOMOUS;
 }
+
+void UndockingBehavior::handle_action(std::string action) {
+}

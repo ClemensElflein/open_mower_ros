@@ -19,7 +19,7 @@
 // Include messages for mower control
 #include "mower_msgs/Status.h"
 #include "mower_msgs/MowerControlSrv.h"
-#include "mower_msgs/GPSControlSrv.h"
+#include "xbot_positioning/GPSControlSrv.h"
 #include "mower_msgs/EmergencyStopSrv.h"
 #include "geometry_msgs/Twist.h"
 #include "geometry_msgs/PoseWithCovarianceStamped.h"
@@ -27,10 +27,15 @@
 
 #include "dynamic_reconfigure/server.h"
 #include "mower_simulation/MowerSimulationConfig.h"
-
+#include "xbot_msgs/AbsolutePose.h"
+#include "nav_msgs/Odometry.h"
+#include <tf2/LinearMath/Quaternion.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include "xbot_positioning/SetPoseSrv.h"
 
 ros::Publisher status_pub;
 ros::Publisher cmd_vel_pub;
+ros::Publisher pose_pub;
 ros::Publisher initial_pose_publisher;
 ros::ServiceClient docking_point_client;
 
@@ -40,8 +45,13 @@ dynamic_reconfigure::Server<mower_simulation::MowerSimulationConfig> *reconfig_s
 
 geometry_msgs::Twist last_cmd_vel;
 
+geometry_msgs::PoseWithCovarianceStamped poseMsg;
 
-bool setGpsState(mower_msgs::GPSControlSrvRequest &req, mower_msgs::GPSControlSrvResponse &res) {
+bool has_dock = false;
+double dockX = 0, dockY = 0;
+
+
+bool setGpsState(xbot_positioning::GPSControlSrvRequest &req, xbot_positioning::GPSControlSrvResponse &res) {
     return true;
 }
 
@@ -55,6 +65,19 @@ bool setEmergencyStop(mower_msgs::EmergencyStopSrvRequest &req, mower_msgs::Emer
     config.emergency_stop = req.emergency;
     reconfig_server->updateConfig(config);
     return true;
+}
+void fetchDock(const ros::TimerEvent &timer_event) {
+    mower_map::GetDockingPointSrv get_docking_point_srv;
+    geometry_msgs::PoseWithCovarianceStamped docking_pose_stamped;
+
+    if(docking_point_client.call(get_docking_point_srv)) {
+        has_dock = true;
+        dockX = get_docking_point_srv.response.docking_pose.position.x;
+        dockY = get_docking_point_srv.response.docking_pose.position.y;
+    } else {
+        has_dock = false;
+    }
+
 }
 
 void publishStatus(const ros::TimerEvent &timer_event) {
@@ -83,7 +106,13 @@ void publishStatus(const ros::TimerEvent &timer_event) {
     }
 
     fake_mow_status.v_battery = config.battery_voltage;
-    fake_mow_status.v_charge = config.is_charging ? config.battery_voltage + 0.2 : 0.0;
+
+    if(has_dock && sqrt(pow(poseMsg.pose.pose.position.x - dockX, 2)+pow(poseMsg.pose.pose.position.y - dockY, 2)) < 0.5) {
+        // "docked"
+        fake_mow_status.v_charge = config.battery_voltage + 0.2;
+    } else {
+        fake_mow_status.v_charge = config.is_charging ? config.battery_voltage + 0.2 : 0.0;
+    }
     if (config.wheels_stalled) {
         fake_mow_status.left_esc_status.status = mower_msgs::ESCStatus ::ESC_STATUS_STALLED;
         fake_mow_status.right_esc_status.status = mower_msgs::ESCStatus ::ESC_STATUS_STALLED;
@@ -91,7 +120,7 @@ void publishStatus(const ros::TimerEvent &timer_event) {
         fake_mow_status.left_esc_status.status = mower_msgs::ESCStatus::ESC_STATUS_OK;
         fake_mow_status.right_esc_status.status = mower_msgs::ESCStatus::ESC_STATUS_OK;
     }
-
+    fake_mow_status.emergency = config.emergency_stop;
 
     status_pub.publish(fake_mow_status);
 }
@@ -103,6 +132,63 @@ void reconfigureCB(mower_simulation::MowerSimulationConfig &c, uint32_t level) {
 void velReceived(const geometry_msgs::Twist::ConstPtr &msg) {
     last_cmd_vel = *msg;
 }
+void odomReceived(const nav_msgs::Odometry::ConstPtr &msg) {
+    xbot_msgs::AbsolutePose pose;
+    pose.header = msg->header;
+    pose.pose = msg->pose;
+    pose.orientation_valid = true;
+    pose.orientation_accuracy = 0.1;
+    pose.position_accuracy = 0.02;
+    pose.source = xbot_msgs::AbsolutePose::SOURCE_SENSOR_FUSION;
+    pose.flags = xbot_msgs::AbsolutePose::FLAG_SENSOR_FUSION_RECENT_ABSOLUTE_POSE;
+
+    tf2::Quaternion q;
+    tf2::fromMsg(msg->pose.pose.orientation, q);
+
+
+    tf2::Matrix3x3 m(q);
+    double unused1, unused2, yaw;
+
+    m.getRPY(unused1, unused2, yaw);
+
+    pose.vehicle_heading = yaw;
+    pose.motion_heading = yaw;
+    pose.motion_vector_valid = false;
+
+    pose_pub.publish(pose);
+
+}
+
+bool setPose(xbot_positioning::SetPoseSrvRequest &req, xbot_positioning::SetPoseSrvResponse &res) {
+    double yaw;
+    {
+        tf2::Quaternion q;
+        tf2::fromMsg(req.robot_pose.orientation, q);
+
+
+        tf2::Matrix3x3 m(q);
+        double unused1, unused2;
+
+        m.getRPY(unused1, unused2, yaw);
+    }
+
+    tf2::Quaternion q(0.0, 0.0, yaw);
+
+
+    poseMsg.header.stamp = ros::Time::now();
+    poseMsg.header.frame_id = "base_link";
+    poseMsg.header.seq++;
+    poseMsg.pose.pose.position.x = req.robot_pose.position.x;
+    poseMsg.pose.pose.position.y = req.robot_pose.position.y;
+    poseMsg.pose.pose.position.z = 0;
+    poseMsg.pose.pose.orientation = tf2::toMsg(q);
+
+    initial_pose_publisher.publish(poseMsg);
+
+
+    return true;
+}
+
 
 int main(int argc, char **argv) {
     ros::init(argc, argv, "mower_simulation");
@@ -111,16 +197,19 @@ int main(int argc, char **argv) {
     ros::NodeHandle n;
     ros::NodeHandle paramNh("~");
 
+
+
+
     reconfig_server = new dynamic_reconfigure::Server<mower_simulation::MowerSimulationConfig>(paramNh);
     reconfig_server->setCallback(reconfigureCB);
 
     docking_point_client = n.serviceClient<mower_map::GetDockingPointSrv>(
             "mower_map_service/get_docking_point");
 
+    initial_pose_publisher = n.advertise<geometry_msgs::PoseWithCovarianceStamped>("initialpose", 1);
 
     /*
     This introduces more issues than it solves..
-    initial_pose_publisher = n.advertise<geometry_msgs::PoseWithCovarianceStamped>("initialpose", 1);
 
     ROS_INFO("Waiting for map service");
     if (!docking_point_client.waitForExistence(ros::Duration(60.0, 0.0))) {
@@ -143,16 +232,22 @@ int main(int argc, char **argv) {
     fake_mow_status.stamp = ros::Time::now();
     fake_mow_status.left_esc_status.status = fake_mow_status.right_esc_status.status = fake_mow_status.mow_esc_status.status = mower_msgs::ESCStatus::ESC_STATUS_OK;
     fake_mow_status.mow_esc_status.temperature_motor = 50;
+    fake_mow_status.emergency = true;
+    config.emergency_stop = true;
 
     status_pub = n.advertise<mower_msgs::Status>("mower/status", 1);
     cmd_vel_pub = n.advertise<geometry_msgs::Twist>("/cmd_vel_out", 1);
+    pose_pub = n.advertise<xbot_msgs::AbsolutePose>("/xbot_positioning/xb_pose", 1);
 
     ros::Subscriber cmd_vel_sub = n.subscribe("/cmd_vel", 0, velReceived, ros::TransportHints().tcpNoDelay(true));
+    ros::Subscriber odom_sub = n.subscribe("/mower/odom", 0, odomReceived, ros::TransportHints().tcpNoDelay(true));
     ros::ServiceServer mow_service = n.advertiseService("mower_service/mow_enabled", setMowEnabled);
-    ros::ServiceServer gps_service = n.advertiseService("mower_service/set_gps_state", setGpsState);
+    ros::ServiceServer gps_service = n.advertiseService("xbot_positioning/set_gps_state", setGpsState);
     ros::ServiceServer emergency_service = n.advertiseService("mower_service/emergency", setEmergencyStop);
+    ros::ServiceServer pose_service = n.advertiseService("xbot_positioning/set_robot_pose", setPose);
 
     ros::Timer publish_timer = n.createTimer(ros::Duration(0.02), publishStatus);
+    ros::Timer update_dock_timer = n.createTimer(ros::Duration(1.0), fetchDock);
 
     ros::spin();
     delete (reconfig_server);

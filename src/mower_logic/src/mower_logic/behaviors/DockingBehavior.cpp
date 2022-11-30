@@ -271,3 +271,7 @@ uint8_t DockingBehavior::get_state() {
     return mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_AUTONOMOUS;
 }
 
+void DockingBehavior::handle_action(std::string action) {
+
+}
+

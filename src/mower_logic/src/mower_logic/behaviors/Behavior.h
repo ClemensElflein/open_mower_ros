@@ -52,6 +52,9 @@ protected:
 public:
 
     virtual std::string state_name() = 0;
+    virtual std::string sub_state_name() {
+        return "";
+    }
 
     bool hasGoodGPS()
     {
@@ -146,6 +149,8 @@ public:
 
     virtual uint8_t get_sub_state() = 0;
     virtual uint8_t get_state() = 0;
+
+    virtual void handle_action(std::string action) = 0;
 };
 
 #endif //SRC_BEHAVIOR_H
