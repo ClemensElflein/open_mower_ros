@@ -15,6 +15,9 @@ COPY --link ./assets/mosquitto.conf /etc/mosquitto/mosquitto.conf
 # Install nginx for hosting the app
 RUN apt-get install --yes nginx
 
+# Remove default nginx config (else it will run on port 80)
+RUN rm /etc/nginx/sites-enabled/*
+
 # Install nginx config
 COPY --link ./assets/nginx.conf /etc/nginx/conf.d/default.conf
 
