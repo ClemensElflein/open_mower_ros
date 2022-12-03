@@ -15,6 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
         std_msgs
         message_generation
         tf2
+        tf2_geometry_msgs
         )
 
 set(EP_SLIC3R "Slic3r")
