@@ -46,6 +46,9 @@ export OM_USE_RELATIVE_POSITION=False
 # export OM_DATUM_LAT=48.13724720055111
 # export OM_DATUM_LONG=11.575605219552623
 
+# GPS protocol. Use UBX for u-blox chipsets and NMEA for everything else
+export OM_GPS_PROTOCOL=UBX
+
 # NTRIP Settings
 # Set to False if using external radio plugged into the Ardusimple board.
 export OM_USE_NTRIP=True
