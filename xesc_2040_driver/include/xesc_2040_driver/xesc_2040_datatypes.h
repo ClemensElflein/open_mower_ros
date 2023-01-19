@@ -22,12 +22,14 @@ struct Xesc2040StatusPacket {
     uint32_t seq;
     uint8_t fw_version_major;
     uint8_t fw_version_minor;
-    double voltage_input;        // input voltage (volt)
-    double temperature_pcb;      // temperature of printed circuit board (degrees Celsius)
-    double temperature_motor;      // temperature of printed circuit board (degrees Celsius)
-    double current_input;        // input current (ampere)
-    double duty_cycle;           // duty cycle (0 to 1)
+    double voltage_input;       // input voltage (volt)
+    double temperature_pcb;     // temperature of printed circuit board (degrees Celsius)
+    double temperature_motor;   // temperature of printed circuit board (degrees Celsius)
+    double current_input;       // input current (ampere)
+    double duty_cycle;          // duty cycle (0 to 1)
     uint32_t tacho;
+    uint32_t tacho_absolute;    // wheel ticks absolute
+    bool direction;             // direction CW/CCW
     int32_t fault_code;
     uint16_t crc;
 } __attribute__((packed));

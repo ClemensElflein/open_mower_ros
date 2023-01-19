@@ -145,6 +145,8 @@ namespace xesc_2040_driver {
             status_.current_input = packet->current_input;
             status_.duty_cycle = packet->duty_cycle;
             status_.tacho = packet->tacho;
+            status_.tacho_absolute = packet->tacho_absolute;
+            status_.direction = packet->direction;
             status_.fault_code = packet->fault_code;
 
             // If unconfigured, send settings
