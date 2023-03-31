@@ -8,6 +8,9 @@
 # CUSTOM (put your configs in ~/mower_params/)
 export OM_MOWER="YardForce500"
 
+# If you don't need comms module (eg, control OpenMower via pub/sub only) set OM_NO_COMMS to true
+# export OM_NO_COMMS=True
+
 # Your Hardware Version (more a firmware version, really). Check the OpenMower docs (https://www.openmower.de/docs) for the firmware versions.
 # Supported values as of today:
 # 0_10_X_WT901: Use this if you have an WT901 and have a 0.10.x mainboard.
