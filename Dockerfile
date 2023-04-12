@@ -48,7 +48,7 @@ RUN rosdep install --from-paths src --ignore-src --simulate | \
     sed --expression '1d' --expression 's/apt-get install/apt-get install --no-install-recommends --yes/g' | \
     bash \
     && rm -rf /var/lib/apt/lists/*
-RUN bash -c "source /opt/ros/$ROS_DISTRO/setup.bash && catkin_make -j`nproc`"
+RUN bash -c "source /opt/ros/$ROS_DISTRO/setup.bash && catkin_make"
 RUN bash -c "source /opt/ros/$ROS_DISTRO/setup.bash && source /opt/slic3r_coverage_planner_workspace/devel/setup.bash && catkin_make -DCMAKE_INSTALL_PREFIX=/opt/prebuilt/slic3r_coverage_planner install"
 
 
@@ -65,7 +65,7 @@ WORKDIR /opt/open_mower_ros
 # This creates the sorted list of apt-get install commands.
 RUN apt-get update && \
     rosdep install --from-paths src --ignore-src --simulate | \
-    sed --expression '1d' --expression 's/apt-get install/apt-get install --no-install-recommends --yes/g' | sort > /apt-install.sh
+    sed --expression '1d' | sort | tr -d '\n' | sed -e 's/  apt-get install//g' > /apt-install_list
 
 
 # We can't derive this from "dependencies" because "dependencies" will be rebuilt every time, but apt install should only be done if needed
@@ -77,9 +77,9 @@ ENV DEBIAN_FRONTEND=noninteractive
 COPY --link --from=slic3r /opt/prebuilt/slic3r_coverage_planner /opt/prebuilt/slic3r_coverage_planner
 
 #Fetch the list of packages, this only changes if new dependencies have been added (only sometimes)
-COPY --link --from=dependencies /apt-install.sh /apt-install.sh
+COPY --link --from=dependencies /apt-install_list /apt-install_list
 RUN apt-get update && \
-    bash /apt-install.sh && \
+    apt-get install --no-install-recommends --yes $(cat apt-install_list) && \
     rm -rf /var/lib/apt/lists/*
 
 # This will already have the submodules initialized, no need to clone again

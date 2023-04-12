@@ -2,6 +2,7 @@ name: Build
 
 # Controls when the workflow will run
 on:
+  workflow_dispatch:
   push:
     branches:
       - 'main'
@@ -12,6 +13,11 @@ on:
     branches:
       - 'main'
 
+# Allow to stop obsolete workflows
+concurrency:
+  group: ci-buildtrain-${{ github.ref }}-1
+  cancel-in-progress: true
+
 # permissions are needed if pushing to ghcr.io
 permissions:
   packages: write
@@ -19,6 +25,9 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        docker_build_arch: [ linux/arm64 , linux/amd64 ]
     steps:
       # Get the repository's code
       - name: Checkout
@@ -39,9 +48,19 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
             type=sha
+
       # https://github.com/docker/setup-qemu-action
-      - name: Set up QEMU
+      - name: Set up QEMU (arm64)
+        if: runner.arch != 'arm64'
         uses: docker/setup-qemu-action@v2
+        with:
+          platforms: arm64
+      - name: Set up QEMU (x64)
+        if: runner.arch != 'x64'
+        uses: docker/setup-qemu-action@v2
+        with:
+          platforms: amd64
+
       # https://github.com/docker/setup-buildx-action
       - name: Set up Docker Buildx
         id: buildx
@@ -53,11 +72,12 @@ jobs:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build and push
         uses: docker/build-push-action@v3
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
+          platforms: ${{ matrix.docker_build_arch }}
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
