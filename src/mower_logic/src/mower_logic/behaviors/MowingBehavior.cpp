@@ -145,8 +145,8 @@ bool MowingBehavior::create_mowing_plan(int area_index) {
 
     // use Area orientation from config if not default value
     if (config.angle != 0) {
-        angle = (config.angle * (M_PI / 180.0)
-            ROS_INFO_STREAM("MowingBehavior: Config mow angle: " << angle);
+        angle = (config.angle * (M_PI / 180.0);
+        ROS_INFO_STREAM("MowingBehavior: Config mow angle: " << angle);
     }
 
     // calculate coverage
