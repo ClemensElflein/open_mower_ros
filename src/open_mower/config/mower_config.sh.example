@@ -23,7 +23,7 @@ export OM_HARDWARE_VERSION=""
 export OM_MOWER_ESC_TYPE="xesc_mini"
 
 # Select your gamepad
-# Currently supported: ps3, xbox360
+# Currently supported: ps3, steam_stick, steam_touch, xbox360
 export OM_MOWER_GAMEPAD="xbox360"
 
 # Set to true to record your session.

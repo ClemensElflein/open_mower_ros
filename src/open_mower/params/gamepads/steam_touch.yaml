@@ -1,16 +1,25 @@
+# Steam Controller mapping
+# https://steamcommunity.com/sharedfiles/filedetails/?id=563774882
+#
+# achses:  0) stick x, 1) stick y, 2) RTP x, 3) RTP y, 4) LTP x, 5) LTP y, 6) - RT, 7) - LT
+#
+# buttons:  0) touch LTP, 1) touch RTP, 2) A, 3) B, 4) X, 5) Y, 6) LB, 7) RB, 8) LT, 9) RT,
+#          10) back, 11) start, 12) steam button, 13) stick, 14) press RTP, 15) LG, 16) RG,
+#          17) DPAD up, 18) DPAD down, 19) DPAD left, 20) DPAD right
+#
 teleop:
   move:
     type: topic
     message_type: geometry_msgs/Twist
     topic_name: joy_vel
-    deadman_buttons: [0]
+    deadman_buttons: [14]
     axis_mappings:
       -
-        axis: 1
+        axis: 3
         target: linear.x
         scale: 1
       -
-        axis: 0
+        axis: 2
         target: angular.z
         scale: 1
 
@@ -18,7 +27,7 @@ teleop:
     type: topic
     message_type: std_msgs/Bool
     topic_name: record_polygon
-    deadman_buttons: [1]
+    deadman_buttons: [3]
     message_value:
       -
         target: data
@@ -28,17 +37,7 @@ teleop:
     type: topic
     message_type: std_msgs/Bool
     topic_name: record_dock
-    deadman_buttons: [2]
-    message_value:
-      -
-        target: data
-        value: 1
-
-  record_mowing:
-    type: topic
-    message_type: std_msgs/Bool
-    topic_name: record_mowing
-    deadman_buttons: [3, 14]
+    deadman_buttons: [4]
     message_value:
       -
         target: data
@@ -48,7 +47,17 @@ teleop:
     type: topic
     message_type: std_msgs/Bool
     topic_name: record_navigation
-    deadman_buttons: [3, 13]
+    deadman_buttons: [6, 17]
+    message_value:
+      -
+        target: data
+        value: 1
+
+  record_mowing:
+    type: topic
+    message_type: std_msgs/Bool
+    topic_name: record_mowing
+    deadman_buttons: [6, 18]
     message_value:
       -
         target: data
