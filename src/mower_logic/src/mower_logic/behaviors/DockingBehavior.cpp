@@ -173,6 +173,10 @@ std::string DockingBehavior::state_name() {
 }
 
 Behavior *DockingBehavior::execute() {
+    while(!isGPSGood){
+        ROS_WARN_STREAM("Waiting for good GPS");
+        ros::Duration(10.0).sleep();
+    }
 
     bool approachSuccess = approach_docking_point();
 
@@ -181,13 +185,16 @@ Behavior *DockingBehavior::execute() {
 
         retryCount++;
         if(retryCount <= config.docking_retry_count) {
-            ROS_ERROR("Retrying docking");
-            return &UndockingBehavior::RETRY_INSTANCE;
+            ROS_ERROR("Retrying docking approach");
+            return &DockingBehavior::INSTANCE;
         }
 
         ROS_ERROR("Giving up on docking");
         return &IdleBehavior::INSTANCE;
     }
+
+    // Reset retryCount
+    reset();
 
     // Disable GPS
     inApproachMode = false;

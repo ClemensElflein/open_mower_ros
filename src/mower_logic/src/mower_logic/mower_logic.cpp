@@ -401,7 +401,11 @@ void checkSafety(const ros::TimerEvent &timer_event) {
         dockingNeeded = true;
     }
 
-    if (dockingNeeded) {
+    if (
+            dockingNeeded &&
+            currentBehavior != &DockingBehavior::INSTANCE &&
+            currentBehavior != &UndockingBehavior::RETRY_INSTANCE
+        ) {
         abortExecution();
     }
 }
