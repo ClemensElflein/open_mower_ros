@@ -4,6 +4,7 @@
 
 #include <ros/ros.h>
 #include "ftc_local_planner/PlannerGetProgress.h"
+#include "ftc_local_planner/recovery_behaviors.h"
 
 #include <nav_msgs/Odometry.h>
 #include <nav_msgs/Path.h>
@@ -21,29 +22,28 @@
 #include "tf2_eigen/tf2_eigen.h"
 #include <mbf_costmap_core/costmap_controller.h>
 
+namespace ftc_local_planner
+{
 
-namespace ftc_local_planner {
+    class FTCPlanner : public mbf_costmap_core::CostmapController
+    {
 
-class FTCPlanner : public mbf_costmap_core::CostmapController {
-
-    enum PlannerState {
-        PRE_ROTATE,
-        FOLLOWING,
-        WAITING_FOR_GOAL_APPROACH,
-        POST_ROTATE,
-        FINISHED
-    };
+        enum PlannerState
+        {
+            PRE_ROTATE,
+            FOLLOWING,
+            WAITING_FOR_GOAL_APPROACH,
+            POST_ROTATE,
+            FINISHED
+        };
 
     private:
-    ros::ServiceServer progress_server;
+        ros::ServiceServer progress_server;
         // State tracking
         PlannerState current_state;
         ros::Time state_entered_time;
 
-
         bool is_crashed;
-
-
 
         dynamic_reconfigure::Server<FTCPlannerConfig> *reconfig_server;
 
@@ -55,11 +55,9 @@ class FTCPlanner : public mbf_costmap_core::CostmapController {
         ros::Publisher global_plan_pub;
         ros::Publisher progress_pub;
 
-        ftc_local_planner::FTCPlannerConfig config;
-
+        FTCPlannerConfig config;
 
         Eigen::Affine3d current_control_point;
-
 
         /**
          * PID State
@@ -85,20 +83,24 @@ class FTCPlanner : public mbf_costmap_core::CostmapController {
         double current_progress;
         Eigen::Affine3d local_control_point;
 
-
-
         /**
          * Private members
          */
         ros::Publisher pubPid;
-        
-        double distanceLookahead();
+        FailureDetector failure_detector_; //!< Detect if the robot got stucked
+        ros::Time time_last_oscillation_;  //!< Store at which time stamp the last oscillation was detected
+        bool oscillation_detected_ = false;
+        bool oscillation_warning_ = false;
 
+        double distanceLookahead();
         PlannerState update_planner_state();
         void update_control_point(double dt);
         void calculate_velocity_commands(double dt, geometry_msgs::TwistStamped &cmd_vel);
+        bool checkCollision(int max_points);
+        bool checkOscillation(geometry_msgs::TwistStamped &cmd_vel);
 
-        double time_in_current_state() {
+        double time_in_current_state()
+        {
             return (ros::Time::now() - state_entered_time).toSec();
         }
 
@@ -115,15 +117,13 @@ class FTCPlanner : public mbf_costmap_core::CostmapController {
 
         ~FTCPlanner() override;
 
-    uint32_t
-    computeVelocityCommands(const geometry_msgs::PoseStamped &pose, const geometry_msgs::TwistStamped &velocity,
-                            geometry_msgs::TwistStamped &cmd_vel, std::string &message) override;
+        uint32_t
+        computeVelocityCommands(const geometry_msgs::PoseStamped &pose, const geometry_msgs::TwistStamped &velocity,
+                                geometry_msgs::TwistStamped &cmd_vel, std::string &message) override;
 
-    bool isGoalReached(double dist_tolerance, double angle_tolerance) override;
+        bool isGoalReached(double dist_tolerance, double angle_tolerance) override;
 
-    bool cancel() override;
-
-
-};
+        bool cancel() override;
+    };
 };
 #endif
