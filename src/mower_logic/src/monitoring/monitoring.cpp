@@ -172,8 +172,8 @@ void registerSensors() {
     mow_motor_temp_data_pub = n->advertise<xbot_msgs::SensorDataDouble>("xbot_monitoring/sensors/" + si_mow_motor_temp.sensor_id + "/data",10);
     si_mow_motor_temp_pub.publish(si_mow_motor_temp);
     
-    si_mow_motor_amps.sensor_id = "om_mow_motor_amps";
-    si_mow_motor_amps.sensor_name = "Mow Motor Amps";
+    si_mow_motor_amps.sensor_id = "om_mow_motor_current";
+    si_mow_motor_amps.sensor_name = "Mow Motor Current";
     si_mow_motor_amps.value_type = xbot_msgs::SensorInfo::TYPE_DOUBLE;
     si_mow_motor_amps.value_description = xbot_msgs::SensorInfo::VALUE_DESCRIPTION_CURRENT;
     si_mow_motor_amps.unit = "A";
