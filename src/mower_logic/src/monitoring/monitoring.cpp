@@ -14,7 +14,7 @@
 // SOFTWARE.
 //
 //
-//
+
 #include "ros/ros.h"
 #include "xbot_msgs/RobotState.h"
 #include "xbot_msgs/AbsolutePose.h"
