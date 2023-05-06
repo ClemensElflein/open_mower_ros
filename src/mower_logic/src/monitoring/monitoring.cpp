@@ -54,9 +54,9 @@ xbot_msgs::SensorInfo si_mow_motor_temp;
 ros::Publisher si_mow_motor_temp_pub;
 ros::Publisher mow_motor_temp_data_pub;
 
-xbot_msgs::SensorInfo si_mow_motor_amps;
-ros::Publisher si_mow_motor_amps_pub;
-ros::Publisher mow_motor_amps_data_pub;
+xbot_msgs::SensorInfo si_mow_motor_current;
+ros::Publisher si_mow_motor_current_pub;
+ros::Publisher mow_motor_current_data_pub;
 
 ros::NodeHandle *n;
 
@@ -93,7 +93,7 @@ void status(const mower_msgs::Status::ConstPtr &msg) {
     mow_motor_temp_data_pub.publish(sensor_data);
  
     sensor_data.data = msg->mow_esc_status.current;
-    mow_motor_amps_data_pub.publish(sensor_data);
+    mow_motor_current_data_pub.publish(sensor_data);
     
 }
 
@@ -176,14 +176,14 @@ void registerSensors() {
     mow_motor_temp_data_pub = n->advertise<xbot_msgs::SensorDataDouble>("xbot_monitoring/sensors/" + si_mow_motor_temp.sensor_id + "/data",10);
     si_mow_motor_temp_pub.publish(si_mow_motor_temp);
     
-    si_mow_motor_amps.sensor_id = "om_mow_motor_current";
-    si_mow_motor_amps.sensor_name = "Mow Motor Current";
-    si_mow_motor_amps.value_type = xbot_msgs::SensorInfo::TYPE_DOUBLE;
-    si_mow_motor_amps.value_description = xbot_msgs::SensorInfo::VALUE_DESCRIPTION_CURRENT;
-    si_mow_motor_amps.unit = "A";
-    si_mow_motor_amps_pub = n->advertise<xbot_msgs::SensorInfo>("xbot_monitoring/sensors/" + si_mow_motor_amps.sensor_id + "/info", 1, true);
-    mow_motor_amps_data_pub = n->advertise<xbot_msgs::SensorDataDouble>("xbot_monitoring/sensors/" + si_mow_motor_amps.sensor_id + "/data",10);
-    si_mow_motor_amps_pub.publish(si_mow_motor_amps);
+    si_mow_motor_current.sensor_id = "om_mow_motor_current";
+    si_mow_motor_current.sensor_name = "Mow Motor Current";
+    si_mow_motor_current.value_type = xbot_msgs::SensorInfo::TYPE_DOUBLE;
+    si_mow_motor_current.value_description = xbot_msgs::SensorInfo::VALUE_DESCRIPTION_CURRENT;
+    si_mow_motor_current.unit = "A";
+    si_mow_motor_current_pub = n->advertise<xbot_msgs::SensorInfo>("xbot_monitoring/sensors/" + si_mow_motor_current.sensor_id + "/info", 1, true);
+    mow_motor_current_data_pub = n->advertise<xbot_msgs::SensorDataDouble>("xbot_monitoring/sensors/" + si_mow_motor_current.sensor_id + "/data",10);
+    si_mow_motor_current_pub.publish(si_mow_motor_current);
 
 
 }
