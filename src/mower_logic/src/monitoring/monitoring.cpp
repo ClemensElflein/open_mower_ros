@@ -91,6 +91,10 @@ void status(const mower_msgs::Status::ConstPtr &msg) {
 
     sensor_data.data = msg->mow_esc_status.temperature_motor;
     mow_motor_temp_data_pub.publish(sensor_data);
+ 
+    sensor_data.data = msg->mow_esc_status.current;
+    mow_motor_amps_data_pub.publish(sensor_data);
+    
 }
 
 void high_level_status(const mower_msgs::HighLevelStatus::ConstPtr &msg) {
