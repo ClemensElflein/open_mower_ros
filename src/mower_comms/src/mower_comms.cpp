@@ -107,7 +107,7 @@ void publishActuators() {
     }
 
     if(mow_xesc_interface) {
-        mow_xesc_interface->setDutyCycle(speed_mow);
+        mow_xesc_interface->setDutyCycle(speed_mow*((rand() % 2) * 2 - 1));
     }
     // We need to invert the speed, because the ESC has the same config as the left one, so the motor is running in the "wrong" direction
     left_xesc_interface->setDutyCycle(speed_l);
