@@ -87,16 +87,25 @@ public:
         M measurement;
 
         // Calculate the GPS antenna position given the current system state.
-        measurement.x_pos() = x.x_pos() + std::cos(x.theta()) * antenna_distance;
-        measurement.y_pos() = x.y_pos() + std::sin(x.theta()) * antenna_distance;
+        measurement.x_pos() = x.x_pos() + std::cos(x.theta()) * antenna_distance_x - std::sin(x.theta()) * antenna_distance_y;
+        measurement.y_pos() = x.y_pos() + std::sin(x.theta()) * antenna_distance_x + std::cos(x.theta()) * antenna_distance_y;
 
         return measurement;
     }
 
 
 protected:
-    double antenna_distance = 0.3;
-    
+
+    // TODO: play with offset here.
+    // It's a right handed coordinate system, x = forward, y = left, z = up
+    // X = distance to the front of the robot
+    // Y = distance to the left of the robot
+    // for YF classic these should be 0.3 and 0.0
+
+    // DONT FORGET TO EDIT OTHER FILE AS WELL
+    double antenna_distance_x = 0.01;
+    double antenna_distance_y = 0.03;
+
     /**
      * @brief Update jacobian matrices for the system state transition function using current state
      *
