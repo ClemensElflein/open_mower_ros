@@ -100,7 +100,7 @@ private:
     // for YF classic these should be 0.3 and 0.0
 
     // DONT FORGET TO EDIT OTHER FILE AS WELL
-    double antenna_offset_x = 0.01;
+    double antenna_offset_x = -0.01;
     double antenna_offset_y = 0.03;
 };
 
