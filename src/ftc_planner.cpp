@@ -26,8 +26,10 @@ namespace ftc_local_planner
 
         global_point_pub = private_nh.advertise<geometry_msgs::PoseStamped>("global_point", 1);
         global_plan_pub = private_nh.advertise<nav_msgs::Path>("global_plan", 1, true);
+        obstacle_marker_pub = private_nh.advertise<visualization_msgs::Marker>("costmap_marker", 10);
 
         costmap = costmap_ros;
+        costmap_map_ = costmap_ros->getCostmap();
         tf_buffer = tf;
 
         // Parameter for dynamic reconfigure
@@ -48,8 +50,6 @@ namespace ftc_local_planner
         failure_detector_.setBufferLength(std::round(config.oscillation_recovery_min_duration * 10));
 
         ROS_INFO("FTCLocalPlannerROS: Version 2 Init.");
-        ROS_INFO_STREAM("FTCLocalPlannerROS: costmap frame ID: " << costmap->getGlobalFrameID());
-        ROS_INFO_STREAM("FTCLocalPlannerROS: costmap base frame ID: " << costmap->getBaseFrameID());
     }
 
     void FTCPlanner::reconfigureCB(FTCPlannerConfig &c, uint32_t level)
@@ -579,6 +579,8 @@ namespace ftc_local_planner
 
     bool FTCPlanner::checkCollision(int max_points)
     {
+        visualization_msgs::Marker obstacle_marker;
+
         if (!config.check_obstacles)
         {
             return false;
@@ -593,23 +595,30 @@ namespace ftc_local_planner
         for (int i = 0; i < max_points; i++)
         {
             geometry_msgs::PoseStamped x_pose;
-            x_pose = global_plan[i];
+            
+            x_pose = global_plan[current_index + i];
 
             unsigned int x;
             unsigned int y;
-            costmap->getCostmap()->worldToMap(x_pose.pose.position.x, x_pose.pose.position.y, x, y);
-            unsigned char costs = costmap->getCostmap()->getCost(x, y);
-            // Near at obstacel
-            if (costs > 0)
+            if (costmap_map_->worldToMap(x_pose.pose.position.x, x_pose.pose.position.y, x, y))
             {
-                // Possible collision
-                if (costs > 127 && costs > previous_cost)
+                unsigned char costs = costmap_map_->getCost(x, y);
+                if (config.debug_obstacle)
                 {
-                    ROS_WARN("FTCLocalPlannerROS: Possible collision. Stop local planner.");
-                    return true;
+                    debugObstacle(obstacle_marker, x, y, costs, max_points);
                 }
+                // Near at obstacel
+                if (costs > 0)
+                {
+                    // Possible collision
+                    if (costs > 127 && costs > previous_cost)
+                    {
+                        ROS_WARN("FTCLocalPlannerROS: Possible collision. Stop local planner.");
+                        return true;
+                    }
+                }
+                previous_cost = costs;
             }
-            previous_cost = costs;
         }
         return false;
     }
@@ -659,6 +668,41 @@ namespace ftc_local_planner
             }
         }
         return false; // no check for oscillation
+    }
+
+    void FTCPlanner::debugObstacle(visualization_msgs::Marker &obstacle_points, double x, double y, unsigned char cost, int maxIDs)
+    {
+        if (obstacle_points.points.empty())
+        {
+            obstacle_points.header.frame_id = costmap->getGlobalFrameID();
+            obstacle_points.header.stamp = ros::Time::now();
+            obstacle_points.action = visualization_msgs::Marker::ADD;
+            obstacle_points.pose.orientation.w = 1.0;
+            obstacle_points.type = visualization_msgs::Marker::POINTS;
+            obstacle_points.scale.x = 0.2;
+            obstacle_points.scale.y = 0.2;
+        }
+        obstacle_points.id = obstacle_points.points.size() + 1;
+
+        if (cost < 127)
+        {
+            obstacle_points.color.g = 1.0f;
+        }
+        else
+        {
+            obstacle_points.color.r = 1.0f;
+        }
+        obstacle_points.color.a = 1.0;
+        geometry_msgs::Point p;
+        costmap_map_->mapToWorld(x, y, p.x, p.y);
+        p.z = 0;
+
+        obstacle_points.points.push_back(p);
+        if (obstacle_points.points.size() >= maxIDs)
+        {
+            obstacle_marker_pub.publish(obstacle_points);
+            obstacle_points.points.clear();
+        }
     }
 
 }

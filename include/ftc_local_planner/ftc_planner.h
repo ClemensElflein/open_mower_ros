@@ -21,6 +21,7 @@
 #include <Eigen/Geometry>
 #include "tf2_eigen/tf2_eigen.h"
 #include <mbf_costmap_core/costmap_controller.h>
+#include <visualization_msgs/Marker.h>
 
 namespace ftc_local_planner
 {
@@ -49,11 +50,13 @@ namespace ftc_local_planner
 
         tf2_ros::Buffer *tf_buffer;
         costmap_2d::Costmap2DROS *costmap;
+        costmap_2d::Costmap2D *costmap_map_;
         std::vector<geometry_msgs::PoseStamped> global_plan;
 
         ros::Publisher global_point_pub;
         ros::Publisher global_plan_pub;
         ros::Publisher progress_pub;
+        ros::Publisher obstacle_marker_pub;
 
         FTCPlannerConfig config;
 
@@ -96,8 +99,33 @@ namespace ftc_local_planner
         PlannerState update_planner_state();
         void update_control_point(double dt);
         void calculate_velocity_commands(double dt, geometry_msgs::TwistStamped &cmd_vel);
+
+        /**
+         * @brief check for obstacles in path
+         * @param max_points number of path segments (of global path) to check
+         * @return true if collision will happen.
+         */
         bool checkCollision(int max_points);
+
+        /**
+         * @brief check if robot oscillates (only angular). Can be used to do some recovery
+         * @param cmd_vel last velocity message send to robot
+         * @return true if robot oscillates
+         */
         bool checkOscillation(geometry_msgs::TwistStamped &cmd_vel);
+
+        /**
+         * @brief publish obstacles on path as marker array.
+         * @brief If obstacle_points contains more elements than maxID, marker gets published and
+         * @brief cleared afterwards.
+         * @param obstacle_points already collected points to visualize
+         * @param x X position in costmap
+         * @param y Y position in costmap
+         * @param cost cost value of cell
+         * @param maxIDs num of markers before publishing
+         * @return sum of `values`, or 0.0 if `values` is empty.
+         */
+        void debugObstacle(visualization_msgs::Marker &obstacle_points, double x, double y, unsigned char cost, int maxIDs);
 
         double time_in_current_state()
         {
