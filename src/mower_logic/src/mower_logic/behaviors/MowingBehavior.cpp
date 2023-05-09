@@ -143,10 +143,14 @@ bool MowingBehavior::create_mowing_plan(int area_index) {
         }
     }
 
-    // use Area orientation from config if not default value
-    if (config.angle != 0) {
-        angle = (config.angle * (M_PI / 180.0));
-        ROS_INFO_STREAM("MowingBehavior: Config mow angle: " << angle);
+    // handeling mowing angle offset
+    ROS_INFO_STREAM("MowingBehavior: mowing angle offset: " << angle = config.mow_angle_offset * (M_PI / 180.0));
+    if (config.mow_angle_offset_is_absolute) {
+        angle = config.mow_angle_offset * (M_PI / 180.0);
+        ROS_INFO_STREAM("MowingBehavior: Custom mowing angle: " << angle);
+    } else {
+        angle = angle + config.mow_angle_offset * (M_PI / 180.0);
+        ROS_INFO_STREAM("MowingBehavior: Auto-detected mowing angle + mowing angle offset: " << angle);
     }
 
     // calculate coverage
