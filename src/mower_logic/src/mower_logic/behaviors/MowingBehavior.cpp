@@ -144,7 +144,7 @@ bool MowingBehavior::create_mowing_plan(int area_index) {
     }
 
     // handeling mowing angle offset
-    ROS_INFO_STREAM("MowingBehavior: mowing angle offset: " << angle = config.mow_angle_offset * (M_PI / 180.0));
+    ROS_INFO_STREAM("MowingBehavior: mowing angle offset: " << (config.mow_angle_offset * (M_PI / 180.0)));
     if (config.mow_angle_offset_is_absolute) {
         angle = config.mow_angle_offset * (M_PI / 180.0);
         ROS_INFO_STREAM("MowingBehavior: Custom mowing angle: " << angle);
