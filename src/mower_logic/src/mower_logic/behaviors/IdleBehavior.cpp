@@ -73,8 +73,11 @@ Behavior *IdleBehavior::execute() {
             if(last_status.v_charge > 5.0) {
                 ROS_INFO_STREAM("Currently inside the docking station, we set the robot's pose to the docks pose.");
                 setRobotPose(docking_pose_stamped.pose);
+                return &UndockingBehavior::INSTANCE;
             }
-            return &UndockingBehavior::INSTANCE;
+            // Not docked, so just mow
+            setGPS(true);
+            return &MowingBehavior::INSTANCE;
         }
 
         if(start_area_recorder) {
