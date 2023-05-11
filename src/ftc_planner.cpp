@@ -32,6 +32,12 @@ namespace ftc_local_planner
         costmap_map_ = costmap_ros->getCostmap();
         tf_buffer = tf;
 
+        // Get footprint of the robot and minimum and maximum distance from the center of the robot to its footprint vertices.
+        footprint_spec_ = costmap->getRobotFootprint();
+        costmap_2d::calculateMinAndMaxDistances(footprint_spec_, robot_inscribed_radius_, robot_circumscribed_radius_);
+
+        costmap_model_ = new base_local_planner::CostmapModel(*costmap_map_);
+
         // Parameter for dynamic reconfigure
         reconfig_server = new dynamic_reconfigure::Server<FTCPlannerConfig>(private_nh);
         dynamic_reconfigure::Server<FTCPlannerConfig>::CallbackType cb = boost::bind(&FTCPlanner::reconfigureCB, this,
@@ -179,13 +185,23 @@ namespace ftc_local_planner
             current_state = new_planner_state;
         }
 
-        if (checkCollision(5))
+        // if (checkCollision(5))
+        // {
+        //     cmd_vel.twist.linear.x = 0;
+        //     cmd_vel.twist.angular.z = 0;
+        //     is_crashed = true;
+        //     return RET_BLOCKED;
+        // }
+footprint_spec_ = costmap->getRobotFootprint();
+costmap_2d::calculateMinAndMaxDistances(footprint_spec_, robot_inscribed_radius_, robot_circumscribed_radius_);
+        if (!isTrajectoryFeasible(costmap_model_, footprint_spec_, robot_inscribed_radius_, robot_circumscribed_radius_, 5))
         {
             cmd_vel.twist.linear.x = 0;
             cmd_vel.twist.angular.z = 0;
             is_crashed = true;
             return RET_BLOCKED;
         }
+
         // Finally, we calculate the velocity commands.
         calculate_velocity_commands(dt, cmd_vel);
 
@@ -595,7 +611,7 @@ namespace ftc_local_planner
         for (int i = 0; i < max_points; i++)
         {
             geometry_msgs::PoseStamped x_pose;
-            
+
             x_pose = global_plan[current_index + i];
 
             unsigned int x;
@@ -688,6 +704,12 @@ namespace ftc_local_planner
         {
             obstacle_points.color.g = 1.0f;
         }
+
+        if (cost >= 127 && cost < 255)
+        {
+            obstacle_points.color.g = 0.5f;
+            obstacle_points.color.r = 0.5f;
+        }
         else
         {
             obstacle_points.color.r = 1.0f;
@@ -697,12 +719,96 @@ namespace ftc_local_planner
         costmap_map_->mapToWorld(x, y, p.x, p.y);
         p.z = 0;
 
+        // debug footprint
+
+
         obstacle_points.points.push_back(p);
-        if (obstacle_points.points.size() >= maxIDs)
+        if (obstacle_points.points.size() >= maxIDs || cost > 0)
         {
             obstacle_marker_pub.publish(obstacle_points);
             obstacle_points.points.clear();
         }
+    }
+
+    bool FTCPlanner::isTrajectoryFeasible(base_local_planner::CostmapModel *costmap_model, const std::vector<geometry_msgs::Point> &footprint_spec,
+                                          double inscribed_radius, double circumscribed_radius, int look_ahead_idx) //, double feasibility_check_lookahead_distance)
+    {
+        visualization_msgs::Marker obstacle_marker;
+        // ensure look ahead not out of plan
+        if (global_plan.size() < look_ahead_idx)
+        {
+            look_ahead_idx = global_plan.size();
+        }
+        for (int i = 0; i <= look_ahead_idx; ++i)
+        {
+            geometry_msgs::PoseStamped x_pose;
+            int index = current_index + i;
+            if (index > global_plan.size())
+            {
+                index = global_plan.size();
+            }
+            x_pose = global_plan[index];
+            unsigned int x;
+            unsigned int y;
+            if (costmap_map_->worldToMap(x_pose.pose.position.x, x_pose.pose.position.y, x, y))
+            {
+             
+                double costs = costmap_model->footprintCost(x_pose.pose.position, footprint_spec, inscribed_radius, circumscribed_radius);
+                if (config.debug_obstacle)
+                {
+
+                    if (costs > 0)
+                    {
+                        debugObstacle(obstacle_marker, x, y, 0, look_ahead_idx);
+                    }
+                    if (costs == -3) // off map
+                    {
+                        debugObstacle(obstacle_marker, x, y, 127, look_ahead_idx);
+                    }
+                    if (costs == -1) // collission
+                    {
+                        debugObstacle(obstacle_marker, x, y, 255, look_ahead_idx);
+                    }                    
+                }
+                if (costs == -1)
+                {
+                    ROS_WARN("FTCLocalPlannerROS: Possible collision. Stop local planner.");
+                    return false;
+                }
+                // Checks if the distance between two poses is higher than the robot radius or the orientation diff is bigger than the specified threshold
+                // and interpolates in that case.
+                // (if obstacles are pushing two consecutive poses away, the center between two consecutive poses might coincide with the obstacle ;-)!
+                // if (i < look_ahead_idx)
+                // {
+                //     double delta_rot = g2o::normalize_theta(g2o::normalize_theta(teb().Pose(i + 1).theta()) -
+                //                                             g2o::normalize_theta(teb().Pose(i).theta()));
+                //     Eigen::Vector2d delta_dist = teb().Pose(i + 1).position() - teb().Pose(i).position();
+                //     if (fabs(delta_rot) > cfg_->trajectory.min_resolution_collision_check_angular || delta_dist.norm() > inscribed_radius)
+                //     {
+                //         int n_additional_samples = std::max(std::ceil(fabs(delta_rot) / cfg_->trajectory.min_resolution_collision_check_angular),
+                //                                             std::ceil(delta_dist.norm() / inscribed_radius)) -
+                //                                    1;
+                //         PoseSE2 intermediate_pose = teb().Pose(i);
+                //         for (int step = 0; step < n_additional_samples; ++step)
+                //         {
+                //             intermediate_pose.position() = intermediate_pose.position() + delta_dist / (n_additional_samples + 1.0);
+                //             intermediate_pose.theta() = g2o::normalize_theta(intermediate_pose.theta() +
+                //                                                              delta_rot / (n_additional_samples + 1.0));
+                //             if (costmap_model->footprintCost(intermediate_pose.x(), intermediate_pose.y(), intermediate_pose.theta(),
+                //                                              footprint_spec, inscribed_radius, circumscribed_radius) == -1)
+                //             {
+                //                 if (visualization_)
+                //                 {
+                //                     visualization_->publishInfeasibleRobotPose(intermediate_pose, *robot_model_, footprint_spec);
+                //                 }
+                //                 return false;
+                //             }
+                //         }
+                //     }
+                // }
+            }
+        }
+        return true;
     }
 
 }
