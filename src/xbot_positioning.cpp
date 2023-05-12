@@ -74,16 +74,7 @@ int valid_gps_samples = 0;
 ros::Time last_gps_time(0.0);
 
 
-void onImu(const sensor_msgs::Imu::ConstPtr &msg2) {
-
-    // /begin: hack (copy imu message and fix the value)
-    sensor_msgs::Imu m = *msg2;
-    sensor_msgs::Imu *msg = &m;
-
-    // this value fixes the MPU driver. please fix it directly instead (for testing you can use the hack here)
-    msg->angular_velocity.z *= -0.250252f;
-    // /end hack
-
+void onImu(const sensor_msgs::Imu::ConstPtr &msg) {
     if(!has_gyro) {
         if(!skip_gyro_calibration) {
             if (gyro_offset_samples == 0) {
@@ -190,12 +181,9 @@ void onWheelTicks(const xbot_msgs::WheelTick::ConstPtr &msg) {
     }
     double dt = (msg->stamp - last_ticks.stamp).toSec();
 
-    // /begin: edit wheel ticks (should not be hardcoded, I know)
-    double d_wheel_l = (double) (msg->wheel_ticks_rl - last_ticks.wheel_ticks_rl) * (1/400.0);
-    double d_wheel_r = (double) (msg->wheel_ticks_rr - last_ticks.wheel_ticks_rr) * (1/400.0);
-    // /end edit wheel ticks
+    double d_wheel_l = (double) (msg->wheel_ticks_rl - last_ticks.wheel_ticks_rl) * (1/1600.0);
+    double d_wheel_r = (double) (msg->wheel_ticks_rr - last_ticks.wheel_ticks_rr) * (1/1600.0);
 
-    d_wheel_l *= -1.0;
     if(msg->wheel_direction_rl) {
         d_wheel_l *= -1.0;
     }
