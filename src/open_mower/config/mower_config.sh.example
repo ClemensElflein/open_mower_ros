@@ -5,6 +5,7 @@
 # The type of mower you're using, used to get some hardware parameters automatically
 # Currently supported:
 # YardForce500
+# YardForceSA650
 # CUSTOM (put your configs in ~/mower_params/)
 export OM_MOWER="YardForce500"
 
