@@ -60,6 +60,9 @@ double max_gps_accuracy;
 // True, if we should publish debug topics (expected motion vector and kalman state)
 bool publish_debug;
 
+// Antenna offset (offset between point of rotation and antenna)
+double antenna_offset_x, antenna_offset_y;
+
 nav_msgs::Odometry odometry;
 xbot_positioning::KalmanState state_msg;
 xbot_msgs::AbsolutePose xb_absolute_pose_msg;
@@ -192,6 +195,7 @@ void onWheelTicks(const xbot_msgs::WheelTick::ConstPtr &msg) {
     double d_wheel_r = (double) (msg->wheel_ticks_rr - last_ticks.wheel_ticks_rr) * (1/400.0);
     // /end edit wheel ticks
 
+    d_wheel_l *= -1.0;
     if(msg->wheel_direction_rl) {
         d_wheel_l *= -1.0;
     }
@@ -201,9 +205,6 @@ void onWheelTicks(const xbot_msgs::WheelTick::ConstPtr &msg) {
 
 
     double d_ticks = (d_wheel_l + d_wheel_r) / 2.0;
-    // begin: multiply ticks by -1. It seems to me that the bits are working as intended already but just inverted
-    d_ticks *= -1;
-    // end: ticks
     vx = d_ticks / dt;
 
     last_ticks = *msg;
@@ -324,6 +325,8 @@ int main(int argc, char **argv) {
     valid_gps_samples = 0;
     gps_outlier_count = 0;
 
+    antenna_offset_x = antenna_offset_y = 0;
+
     ros::NodeHandle n;
     ros::NodeHandle paramNh("~");
 
@@ -335,6 +338,12 @@ int main(int argc, char **argv) {
     paramNh.param("min_speed", min_speed, 0.01);
     paramNh.param("max_gps_accuracy", max_gps_accuracy, 0.1);
     paramNh.param("debug", publish_debug, false);
+    paramNh.param("antenna_offset_x", antenna_offset_x, 0.0);
+    paramNh.param("antenna_offset_y", antenna_offset_y, 0.0);
+
+    core.setAntennaOffset(antenna_offset_x, antenna_offset_y);
+
+    ROS_INFO_STREAM("Antenna offset: " << antenna_offset_x << ", " << antenna_offset_y);
 
     if(gyro_offset != 0.0 && skip_gyro_calibration) {
         ROS_WARN_STREAM("Using gyro offset of: " << gyro_offset);

@@ -48,6 +48,7 @@ namespace xbot {
             const StateT &getState();
             void setState(double px, double py, double theta, double vx, double vr);
             const Kalman::Covariance<StateT> &getCovariance();
+            void setAntennaOffset(double offset_x, double offset_y);
 
         public:
             Kalman::ExtendedKalmanFilter<StateT> ekf;
