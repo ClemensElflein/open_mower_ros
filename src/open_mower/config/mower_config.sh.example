@@ -100,3 +100,7 @@ export OM_ENABLE_MOWER=true
 export OM_AUTOMATIC_START=false
 
 export OM_OUTLINE_OFFSET=0.05
+
+# source the default values for the hardware platform.
+# you only need this line on non-docker installs. in the docker, it will be done automatically.
+# source $(rospack find open_mower)/params/hardware_specific/$OM_MOWER/default_environment.sh
