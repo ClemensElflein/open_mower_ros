@@ -300,7 +300,7 @@ void velReceived(const geometry_msgs::Twist::ConstPtr &msg) {
 }
 
 void handleLowLevelUIEvent(struct ll_ui_event *ui_event) {
-    ROS_INFO_STREAM("Got UI button with code:" << ui_event->button_id << " and duration: " << ui_event->press_duration);
+    ROS_INFO_STREAM("Got UI button with code:" << +ui_event->button_id << " and duration: " << +ui_event->press_duration);
 
     mower_msgs::HighLevelControlSrv srv;
 
@@ -331,6 +331,7 @@ void handleLowLevelUIEvent(struct ll_ui_event *ui_event) {
                 // very long press on lock
                 srv.request.command = mower_msgs::HighLevelControlSrvRequest::COMMAND_RESET_EMERGENCY;
             }
+            break;
         default:
             // Return, don't call the service.
             return;
