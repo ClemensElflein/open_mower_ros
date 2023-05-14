@@ -4,8 +4,8 @@
     <arg name="r" default="1" />
     <arg name="rqt_reconfigure" default="False" />
 
-    <node pkg="rosbag" type="play" name="player" output="log" args="--clock $(arg bagfile) -s$(arg s) -r$(arg r) /tf:=/tf_null"/>
-    <!-- <node name="rviz" pkg="rviz" type="rviz" args="-d $(find open_mower)/rviz/playback.rviz" required="true" /> -->
+    <node pkg="rosbag" type="play" name="player" output="log" args="--clock $(arg bagfile) -s$(arg s) -r$(arg r) /tf:=/tf_null /xbot_positioning/odom_out:=/null/xbot_positioning/odom_out"/>
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find open_mower)/rviz/playback.rviz" required="true" />
 
     <node name="converter1" pkg="mower_utils" type="xbot_pose_converter" required="true">
         <param name="topic" value="/xbot_driver_gps/xb_pose"/>
@@ -23,14 +23,18 @@
 
 
 
-    <!--    <node pkg="xbot_positioning" type="xbot_positioning" name="xbot_positioning_playback" output="screen" required="true">
+        <node pkg="xbot_positioning" type="xbot_positioning" name="xbot_positioning_playback" output="screen" required="true">
             <remap from="~imu_in" to="/imu/data_raw" />
             <remap from="~wheel_ticks_in" to="/mower/wheel_ticks" />
             <remap from="~xb_pose_in" to="xbot_driver_gps/xb_pose" />
+            <remap from="~xb_pose_out" to="playback_pose" />
             <param name="max_gps_accuracy" value="0.2"/>
             <param name="max_gps_accuracy" value="0.2"/>
             <param name="skip_gyro_calibration" value="true"/>
-        </node>-->
+            <param name="gyro_offset" value="0.01" />
+                        <param name="antenna_offset_x" value="$(env OM_ANTENNA_OFFSET_X)"/>
+                        <param name="antenna_offset_y" value="$(env OM_ANTENNA_OFFSET_Y)"/>
+        </node>
 
     <node pkg="rqt_reconfigure" type="rqt_reconfigure" name="rqt_reconfigure" if="$(arg rqt_reconfigure)"/>
 
