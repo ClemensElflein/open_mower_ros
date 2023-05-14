@@ -174,9 +174,17 @@ std::string DockingBehavior::state_name() {
 }
 
 Behavior *DockingBehavior::execute() {
+
+    // Check if already docked (e.g. carried to base during emergency) and skip
+    if(getStatus().v_charge > 5.0) {
+        ROS_INFO_STREAM("Already inside docking station, going directly to idle.");
+        stopMoving();
+        return &IdleBehavior::INSTANCE;
+    }
+
     while(!isGPSGood){
         ROS_WARN_STREAM("Waiting for good GPS");
-        ros::Duration(10.0).sleep();
+        ros::Duration(1.0).sleep();
     }
 
     bool approachSuccess = approach_docking_point();
