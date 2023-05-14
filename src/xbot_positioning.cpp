@@ -30,7 +30,7 @@ ros::Publisher kalman_state;
 ros::Publisher dbg_expected_motion_vector;
 
 // The kalman filters
-xbot::positioning::xbot_positioning_core core;
+xbot::positioning::xbot_positioning_core core{};
 
 // True, if we don't want to do gyro calibration on launch
 bool skip_gyro_calibration;

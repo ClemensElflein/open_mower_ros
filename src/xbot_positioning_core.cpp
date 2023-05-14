@@ -78,6 +78,7 @@ xbot::positioning::xbot_positioning_core::xbot_positioning_core() {
 //    c.setIdentity();
 //    c *= 0.001;
 //    sys.setCovariance(c);
+    setState(0,0,0,0,0);
 }
 
 void xbot::positioning::xbot_positioning_core::setState(double px, double py, double theta, double vx, double vr) {
