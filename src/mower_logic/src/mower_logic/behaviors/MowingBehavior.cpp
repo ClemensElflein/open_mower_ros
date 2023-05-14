@@ -17,7 +17,6 @@
 #include "mower_map/GetMowingAreaSrv.h"
 #include "mower_map/SetNavPointSrv.h"
 #include "mower_map/ClearNavPointSrv.h"
-#include <dynamic_reconfigure/server.h>
 #include "MowingBehavior.h"
 
 
@@ -29,8 +28,8 @@ extern ros::ServiceClient clearNavPointClient;
 
 extern actionlib::SimpleActionClient<mbf_msgs::MoveBaseAction> *mbfClient;
 extern actionlib::SimpleActionClient<mbf_msgs::ExePathAction> *mbfClientExePath;
-extern mower_logic::MowerLogicConfig last_config;
-extern dynamic_reconfigure::Server<mower_logic::MowerLogicConfig> *reconfigServer;
+extern mower_logic::MowerLogicConfig getConfig();
+extern void setConfig(mower_logic::MowerLogicConfig);
 
 extern void registerActions(std::string prefix, const std::vector<xbot_msgs::ActionInfo> &actions);
 
@@ -43,7 +42,7 @@ std::string MowingBehavior::state_name() {
 Behavior *MowingBehavior::execute() {
 
     while (ros::ok() && !aborted) {
-        if (currentMowingPaths.empty() && !create_mowing_plan(last_config.current_area)) {
+        if (currentMowingPaths.empty() && !create_mowing_plan(getConfig().current_area)) {
             ROS_INFO_STREAM("MowingBehavior: Could not create mowing plan, docking");
             // Start again from first area next time.
             reset();
@@ -57,8 +56,9 @@ Behavior *MowingBehavior::execute() {
         if (finished) {
             // skip to next area if current
             ROS_INFO_STREAM("MowingBehavior: Executing mowing plan - finished");
-            last_config.current_area++;
-            reconfigServer->updateConfig(last_config);
+            auto config = getConfig();
+            config.current_area++;
+            setConfig(config);
         }
     }
 
@@ -89,8 +89,9 @@ void MowingBehavior::exit() {
 
 void MowingBehavior::reset() {
     currentMowingPaths.clear();
-    last_config.current_area = 0;
-    reconfigServer->updateConfig(last_config);
+    auto config = getConfig();
+    config.current_area = 0;
+    setConfig(config);
 }
 
 bool MowingBehavior::needs_gps() {
@@ -244,7 +245,7 @@ bool MowingBehavior::execute_mowing_plan() {
         /////////////////////////////////////////////////////////////////////////////////////////////////////////
         {
             ROS_INFO_STREAM("MowingBehavior: (FIRST POINT)  Moving to path segment starting point");
-            if(path.is_outline && last_config.add_fake_obstacle) {
+            if(path.is_outline && getConfig().add_fake_obstacle) {
                 mower_map::SetNavPointSrv set_nav_point_srv;
                 set_nav_point_srv.request.nav_pose = path.path.poses.front().pose;
                 setNavPointClient.call(set_nav_point_srv);

@@ -19,7 +19,7 @@
 extern ros::ServiceClient dockingPointClient;
 extern actionlib::SimpleActionClient<mbf_msgs::MoveBaseAction> *mbfClient;
 extern actionlib::SimpleActionClient<mbf_msgs::ExePathAction> *mbfClientExePath;
-extern mower_msgs::Status last_status;
+extern mower_msgs::Status getStatus();
 
 extern void stopMoving();
 extern bool setGPS(bool enabled);
@@ -119,6 +119,7 @@ bool DockingBehavior::dock_straight() {
 
         r.sleep();
 
+        const auto last_status = getStatus();
         auto mbfState = mbfClientExePath->getState();
 
         if(aborted) {

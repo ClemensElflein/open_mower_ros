@@ -49,6 +49,8 @@
 #include "xbot_positioning/GPSControlSrv.h"
 #include "xbot_positioning/SetPoseSrv.h"
 #include "xbot_msgs/RegisterActionsSrv.h"
+#include <mutex>
+#include <atomic>
 
 ros::ServiceClient pathClient, mapClient, dockingPointClient, gpsClient, mowClient, emergencyClient, pathProgressClient, setNavPointClient, clearNavPointClient, clearMapClient, positioningClient, actionRegistrationClient;
 
@@ -71,12 +73,57 @@ mower_msgs::Status last_status;
 
 ros::Time last_good_gps(0.0);
 
+std::recursive_mutex mower_logic_mutex;
+
 mower_msgs::HighLevelStatus high_level_status;
 
-bool mowerEnabled = false;
+std::atomic<bool> mowerEnabled;
 
 
 Behavior *currentBehavior = &IdleBehavior::INSTANCE;
+
+
+/**
+ * Some thread safe methods to get a copy of the logic state
+ */
+ros::Time getPoseTime() {
+    std::lock_guard<std::recursive_mutex> lk{mower_logic_mutex};
+    return pose_time;
+}
+ros::Time getStatusTime() {
+    std::lock_guard<std::recursive_mutex> lk{mower_logic_mutex};
+    return status_time;
+}
+ros::Time getLastGoodGPS() {
+    std::lock_guard<std::recursive_mutex> lk{mower_logic_mutex};
+    return last_good_gps;
+}
+void setLastGoodGPS(ros::Time time) {
+    std::lock_guard<std::recursive_mutex> lk{mower_logic_mutex};
+    last_good_gps = time;
+}
+mower_msgs::Status getStatus() {
+    std::lock_guard<std::recursive_mutex> lk{mower_logic_mutex};
+    return last_status;
+}
+
+mower_logic::MowerLogicConfig getConfig() {
+    std::lock_guard<std::recursive_mutex> lk{mower_logic_mutex};
+    return last_config;
+}
+void setConfig(mower_logic::MowerLogicConfig c) {
+    std::lock_guard<std::recursive_mutex> lk{mower_logic_mutex};
+    last_config = c;
+    reconfigServer->updateConfig(c);
+}
+
+
+xbot_msgs::AbsolutePose getPose() {
+    std::lock_guard<std::recursive_mutex> lk{mower_logic_mutex};
+    return last_pose;
+}
+
+
 
 void setEmergencyMode(bool emergency);
 
@@ -97,6 +144,13 @@ void registerActions(std::string prefix, const std::vector<xbot_msgs::ActionInfo
 }
 
 void setRobotPose(geometry_msgs::Pose &pose) {
+
+    // set the robot pose internally as well. othwerise we need to wait for xbot_positioning to send a new one once it has updated the internal pose.
+    {
+        std::lock_guard<std::recursive_mutex> lk{mower_logic_mutex};
+        last_pose.pose.pose = pose;
+    }
+
     xbot_positioning::SetPoseSrv pose_srv;
     pose_srv.request.robot_pose = pose;
 
@@ -104,7 +158,7 @@ void setRobotPose(geometry_msgs::Pose &pose) {
     bool success = false;
     for(int i = 0; i < 10; i++) {
         if(positioningClient.call(pose_srv)) {
-            ROS_INFO_STREAM("successfully set pose to " << pose);
+//            ROS_INFO_STREAM("successfully set pose to " << pose);
             success = true;
             break;
         }
@@ -119,7 +173,8 @@ void setRobotPose(geometry_msgs::Pose &pose) {
 }
 
 void poseReceived(const xbot_msgs::AbsolutePose::ConstPtr &msg) {
- 
+    std::lock_guard<std::recursive_mutex> lk{mower_logic_mutex};
+
     last_pose = *msg;
 
  #ifdef VERBOSE_DEBUG
@@ -129,6 +184,8 @@ void poseReceived(const xbot_msgs::AbsolutePose::ConstPtr &msg) {
 }
 
 void statusReceived(const mower_msgs::Status::ConstPtr &msg) {
+    std::lock_guard<std::recursive_mutex> lk{mower_logic_mutex};
+
 #ifdef VERBOSE_DEBUG
     ROS_INFO("om_mower_logic: statusReceived");
 #endif
@@ -174,6 +231,8 @@ bool setGPS(bool enabled) {
 /// @return 
 bool setMowerEnabled(bool enabled) 
 {
+    const auto last_config = getConfig();
+
     if (!last_config.enable_mower && enabled) {
         // ROS_INFO_STREAM("om_mower_logic: setMowerEnabled() - Mower should be enabled but is hard-disabled in the config.");
         enabled = false;
@@ -299,6 +358,7 @@ void updateUI(const ros::TimerEvent &timer_event) {
 }
 
 bool isGpsGood() {
+    std::lock_guard<std::recursive_mutex> lk{mower_logic_mutex};
     // GPS is good if orientation is valid, we have low accuracy and we have a recent GPS update.
     // TODO: think about the "recent gps flag" since it only looks at the time. E.g. if we were standing still this would still pause even if no GPS updates are needed during standstill.
     return last_pose.orientation_valid && last_pose.position_accuracy < last_config.max_position_accuracy && (last_pose.flags & xbot_msgs::AbsolutePose::FLAG_SENSOR_FUSION_RECENT_ABSOLUTE_POSE);
@@ -307,6 +367,14 @@ bool isGpsGood() {
 /// @brief Called every 0.5s, used to control BLADE motor via mower_enabled variable and stop any movement in case of /odom and /mower/status outages
 /// @param timer_event 
 void checkSafety(const ros::TimerEvent &timer_event) {
+    const auto last_status = getStatus();
+    const auto last_config = getConfig();
+    const auto last_pose = getPose();
+    const auto pose_time = getPoseTime();
+    const auto status_time = getStatusTime();
+    const auto last_good_gps = getLastGoodGPS();
+
+
     // call the mower
     setMowerEnabled(currentBehavior != nullptr && currentBehavior->mower_enabled());
 
@@ -356,7 +424,7 @@ void checkSafety(const ros::TimerEvent &timer_event) {
     // We need orientation and a positional accuracy less than configured
     bool gpsGoodNow = isGpsGood();
     if (gpsGoodNow || last_config.ignore_gps_errors) {
-        last_good_gps = ros::Time::now();
+        setLastGoodGPS(ros::Time::now());
         high_level_status.gps_quality_percent = 1.0 - fmin(1.0, last_pose.position_accuracy / last_config.max_position_accuracy);
         ROS_INFO_STREAM_THROTTLE(10, "GPS quality: " << high_level_status.gps_quality_percent);
     } else {
@@ -482,6 +550,7 @@ int main(int argc, char **argv) {
 
     n = new ros::NodeHandle();
     paramNh = new ros::NodeHandle("~");
+    mowerEnabled = false;
 
     boost::recursive_mutex mutex;
 
@@ -541,7 +610,7 @@ int main(int argc, char **argv) {
     ros::ServiceServer high_level_control_srv = n->advertiseService("mower_service/high_level_control", highLevelCommand);
 
 
-    ros::AsyncSpinner asyncSpinner(2);
+    ros::AsyncSpinner asyncSpinner(1);
     asyncSpinner.start();
 
     ros::Rate r(1.0);

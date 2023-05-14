@@ -18,8 +18,8 @@
 
 extern ros::ServiceClient dockingPointClient;
 extern actionlib::SimpleActionClient<mbf_msgs::ExePathAction> *mbfClientExePath;
-extern xbot_msgs::AbsolutePose last_pose;
-extern mower_msgs::Status last_status;
+extern xbot_msgs::AbsolutePose getPose();
+extern mower_msgs::Status getStatus();
 
 extern void setRobotPose(geometry_msgs::Pose &pose);
 extern void stopMoving();
@@ -36,7 +36,7 @@ std::string UndockingBehavior::state_name() {
 Behavior *UndockingBehavior::execute() {
 
     // get robot's current pose from odometry.
-    xbot_msgs::AbsolutePose pose = last_pose;
+    xbot_msgs::AbsolutePose pose = getPose();
     tf2::Quaternion quat;
     tf2::fromMsg(pose.pose.pose.orientation, quat);
     tf2::Matrix3x3 m(quat);
@@ -103,7 +103,7 @@ void UndockingBehavior::enter() {
     docking_pose_stamped.header.stamp = ros::Time::now();
 
     // set the robot's position to the dock if we're actually docked
-    if(last_status.v_charge > 5.0) {
+    if(getStatus().v_charge > 5.0) {
         ROS_INFO_STREAM("Currently inside the docking station, we set the robot's pose to the docks pose.");
         setRobotPose(docking_pose_stamped.pose);
     }
@@ -135,7 +135,7 @@ bool UndockingBehavior::waitForGPS() {
             ROS_INFO("Got good gps, let's go");
             break;
         } else {
-            ROS_INFO_STREAM("waiting for gps. current accuracy: " << last_pose.position_accuracy);
+            ROS_INFO_STREAM("waiting for gps. current accuracy: " << getPose().position_accuracy);
             odom_rate.sleep();
         }
     }

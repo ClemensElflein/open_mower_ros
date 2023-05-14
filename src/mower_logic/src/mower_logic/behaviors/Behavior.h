@@ -20,6 +20,7 @@
 #include "ros/ros.h"
 #include "mower_logic/MowerLogicConfig.h"
 #include "mower_msgs/HighLevelStatus.h"
+#include <atomic>
 /**
  * Behavior definition
  */
@@ -29,14 +30,14 @@ private:
     ros::Time startTime;
 
 protected:
-    bool aborted;
-    bool paused;
+    std::atomic<bool> aborted;
+    std::atomic<bool> paused;
 
-    bool requested_continue_flag;
-    bool requested_pause_flag;
+    std::atomic<bool> requested_continue_flag;
+    std::atomic<bool> requested_pause_flag;
 
-    bool isGPSGood;
-    uint8_t sub_state;
+    std::atomic<bool> isGPSGood;
+    std::atomic<uint8_t> sub_state;
 
     double time_in_state() {
         return (ros::Time::now() - startTime).toSec();

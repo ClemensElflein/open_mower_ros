@@ -24,8 +24,8 @@ extern void setRobotPose(geometry_msgs::Pose &pose);
 extern void registerActions(std::string prefix, const std::vector<xbot_msgs::ActionInfo> &actions);
 
 extern ros::ServiceClient dockingPointClient;
-extern mower_msgs::Status last_status;
-extern mower_logic::MowerLogicConfig last_config;
+extern mower_msgs::Status getStatus();
+extern mower_logic::MowerLogicConfig getConfig();
 extern dynamic_reconfigure::Server<mower_logic::MowerLogicConfig> *reconfigServer;
 
 extern ros::ServiceClient mapClient;
@@ -40,6 +40,7 @@ std::string IdleBehavior::state_name() {
 }
 
 Behavior *IdleBehavior::execute() {
+
 
     // Check, if we have a configured map. If not, print info and go to area recorder
     mower_map::GetMowingAreaSrv mapSrv;
@@ -66,6 +67,8 @@ Behavior *IdleBehavior::execute() {
     while (ros::ok()) {
         stopMoving();
         stopBlade();
+        const auto last_config = getConfig();
+        const auto last_status = getStatus();
         if (manual_start_mowing ||
             (last_config.automatic_start && (last_status.v_battery > last_config.battery_full_voltage && last_status.mow_esc_status.temperature_motor < last_config.motor_cold_temperature &&
              !last_config.manual_pause_mowing))) {
