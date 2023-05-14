@@ -39,7 +39,7 @@
   <exec_depend>mower_map</exec_depend>
   <exec_depend>rosbridge_server</exec_depend>
   <depend>xbot_msgs</depend>
-
+  <depend>xbot_positioning</depend>
 
   <export>
   </export>
