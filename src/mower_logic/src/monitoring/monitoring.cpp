@@ -58,13 +58,18 @@ xbot_msgs::SensorInfo si_mow_motor_current;
 ros::Publisher si_mow_motor_current_pub;
 ros::Publisher mow_motor_current_data_pub;
 
+xbot_msgs::SensorInfo si_gps_accuracy;
+ros::Publisher si_gps_accuracy_pub;
+ros::Publisher gps_accuracy_data_pub;
+
 ros::NodeHandle *n;
 
 ros::Time last_status_update(0);
+ros::Time last_pose_update(0);
 
 void status(const mower_msgs::Status::ConstPtr &msg) {
-    // Rate limit to 1Hz
-    if((msg->stamp - last_status_update).toSec() < 1)
+    // Rate limit to 2Hz
+    if((msg->stamp - last_status_update).toSec() < 0.5)
         return;
     last_status_update = msg->stamp;
 
@@ -94,7 +99,6 @@ void status(const mower_msgs::Status::ConstPtr &msg) {
  
     sensor_data.data = msg->mow_esc_status.current;
     mow_motor_current_data_pub.publish(sensor_data);
-    
 }
 
 void high_level_status(const mower_msgs::HighLevelStatus::ConstPtr &msg) {
@@ -110,6 +114,16 @@ void high_level_status(const mower_msgs::HighLevelStatus::ConstPtr &msg) {
 
 void pose_received(const xbot_msgs::AbsolutePose::ConstPtr &msg) {
     state.robot_pose = *msg;
+
+    // Rate limit to 2Hz
+    if((msg->header.stamp - last_pose_update).toSec() < 0.5)
+        return;
+    last_pose_update = msg->header.stamp;
+
+    xbot_msgs::SensorDataDouble sensor_data;
+    sensor_data.stamp = msg->header.stamp;
+    sensor_data.data = msg->position_accuracy;
+    gps_accuracy_data_pub.publish(sensor_data);
 }
 
 void registerSensors() {
@@ -184,6 +198,15 @@ void registerSensors() {
     si_mow_motor_current_pub = n->advertise<xbot_msgs::SensorInfo>("xbot_monitoring/sensors/" + si_mow_motor_current.sensor_id + "/info", 1, true);
     mow_motor_current_data_pub = n->advertise<xbot_msgs::SensorDataDouble>("xbot_monitoring/sensors/" + si_mow_motor_current.sensor_id + "/data",10);
     si_mow_motor_current_pub.publish(si_mow_motor_current);
+
+    si_gps_accuracy.sensor_id = "om_gps_accuracy";
+    si_gps_accuracy.sensor_name = "GPS Accuracy";
+    si_gps_accuracy.value_type = xbot_msgs::SensorInfo::TYPE_DOUBLE;
+    si_gps_accuracy.value_description = xbot_msgs::SensorInfo::VALUE_DESCRIPTION_PERCENT;
+    si_gps_accuracy.unit = "%";
+    si_gps_accuracy_pub = n->advertise<xbot_msgs::SensorInfo>("xbot_monitoring/sensors/" + si_gps_accuracy.sensor_id + "/info", 1, true);
+    gps_accuracy_data_pub = n->advertise<xbot_msgs::SensorDataDouble>("xbot_monitoring/sensors/" + si_gps_accuracy.sensor_id + "/data",10);
+    si_gps_accuracy_pub.publish(si_gps_accuracy);
 
 
 }
