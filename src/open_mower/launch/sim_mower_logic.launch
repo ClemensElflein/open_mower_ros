@@ -30,4 +30,8 @@
     </node>
 
     <node pkg="mower_logic" type="monitoring" name="monitoring" output="screen" respawn="true" respawn_delay="10"/>
+
+    <node pkg="xbot_monitoring" type="heatmap_generator" name="heatmap_generator" output="screen" respawn="true" respawn_delay="10" if="$(eval optenv('OM_HEATMAP_SENSOR_IDS' 'UNSET') != 'UNSET')">
+        <param name="sensor_ids" value="$(env OM_HEATMAP_SENSOR_IDS)" />
+    </node>
 </launch>
