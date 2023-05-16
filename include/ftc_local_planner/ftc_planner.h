@@ -22,7 +22,6 @@
 #include "tf2_eigen/tf2_eigen.h"
 #include <mbf_costmap_core/costmap_controller.h>
 #include <visualization_msgs/Marker.h>
-#include <base_local_planner/costmap_model.h>
 
 namespace ftc_local_planner
 {
@@ -53,9 +52,7 @@ namespace ftc_local_planner
         costmap_2d::Costmap2DROS *costmap;
         costmap_2d::Costmap2D* costmap_map_;
         std::vector<geometry_msgs::Point> footprint_spec_; //!< Store the footprint of the robot
-        double robot_inscribed_radius_;                    //!< The radius of the inscribed circle of the robot (collision possible)
-        double robot_circumscribed_radius_;                //!< The radius of the circumscribed circle of the robot
-        base_local_planner::CostmapModel *costmap_model_; 
+     
 
         std::vector<geometry_msgs::PoseStamped> global_plan;
         ros::Publisher global_point_pub;
@@ -106,7 +103,7 @@ namespace ftc_local_planner
         void calculate_velocity_commands(double dt, geometry_msgs::TwistStamped &cmd_vel);
 
         /**
-         * @brief check for obstacles in path
+         * @brief check for obstacles in path as well as collision at actual pose
          * @param max_points number of path segments (of global path) to check
          * @return true if collision will happen.
          */
@@ -131,9 +128,6 @@ namespace ftc_local_planner
          * @return sum of `values`, or 0.0 if `values` is empty.
          */
         void debugObstacle(visualization_msgs::Marker &obstacle_points, double x, double y, unsigned char cost, int maxIDs);
-
-        bool isTrajectoryFeasible(base_local_planner::CostmapModel *costmap_model, const std::vector<geometry_msgs::Point> &footprint_spec,
-                                  double inscribed_radius, double circumscribed_radius, int look_ahead_idx); //, double feasibility_check_lookahead_distance)
 
         double time_in_current_state()
         {

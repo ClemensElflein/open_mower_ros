@@ -16,7 +16,6 @@ find_package(catkin REQUIRED
 		geometry_msgs
 		std_msgs
 		message_generation
-        base_local_planner
         )
 
 
