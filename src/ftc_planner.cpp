@@ -179,7 +179,7 @@ namespace ftc_local_planner
             current_state = new_planner_state;
         }
 
-        if (checkCollision(5))
+        if (checkCollision(config.obstacle_lookahead))
         {
             cmd_vel.twist.linear.x = 0;
             cmd_vel.twist.angular.z = 0;
@@ -599,6 +599,8 @@ namespace ftc_local_planner
         }
 
         // calculate cost of footprint at robots actual pose
+        if (config.obstacle_footprint)
+        {
         costmap->getOrientedFootprint(footprint);
         for (int i = 0; i < footprint.size(); i++)
         {
@@ -612,6 +614,7 @@ namespace ftc_local_planner
                     return true;
                 }
             }
+        }
         }
 
         for (int i = 0; i < max_points; i++)

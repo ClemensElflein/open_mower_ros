@@ -50,9 +50,7 @@ namespace ftc_local_planner
 
         tf2_ros::Buffer *tf_buffer;
         costmap_2d::Costmap2DROS *costmap;
-        costmap_2d::Costmap2D* costmap_map_;
-        std::vector<geometry_msgs::Point> footprint_spec_; //!< Store the footprint of the robot
-     
+        costmap_2d::Costmap2D* costmap_map_;   
 
         std::vector<geometry_msgs::PoseStamped> global_plan;
         ros::Publisher global_point_pub;
