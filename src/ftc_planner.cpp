@@ -200,9 +200,10 @@ namespace ftc_local_planner
         return RET_SUCCESS;
     }
 
+
     bool FTCPlanner::isGoalReached(double dist_tolerance, double angle_tolerance)
     {
-        return current_state == FINISHED;
+        return current_state == FINISHED && !is_crashed;
     }
 
     bool FTCPlanner::cancel()
