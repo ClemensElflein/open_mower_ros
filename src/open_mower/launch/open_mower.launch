@@ -31,8 +31,8 @@
         <remap from="/xbot_monitoring/remote_cmd_vel" to="/joy_vel"/>
     </node>
 
-    <node pkg="xbot_monitoring" type="heatmap_generator" name="heatmap_generator" output="screen" respawn="true" respawn_delay="10" if="$(eval optenv('OM_HEATMAP_SENSOR_IDS' 'UNSET') != 'UNSET')">
-        <param name="sensor_ids" value="$(optenv 'OM_HEATMAP_SENSOR_IDS' 'UNSET')" />
+    <node pkg="xbot_monitoring" type="heatmap_generator" name="heatmap_generator" output="screen" respawn="true" respawn_delay="10" unless="$(eval optenv('OM_HEATMAP_SENSOR_IDS', 'UNSET') == 'UNSET')">
+        <param name="sensor_ids" value="$(optenv OM_HEATMAP_SENSOR_IDS)" />
     </node>
 
     <node pkg="xbot_remote" type="xbot_remote" name="xbot_remote" output="screen" respawn="true" respawn_delay="10">
