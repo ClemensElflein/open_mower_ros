@@ -41,6 +41,7 @@ jobs:
             ghcr.io/${{github.repository}}
           # generate Docker tags based on the following events/attributes
           tags: |
+            type=edge,branch=main,prefix=releases-
             type=schedule
             type=ref,event=branch
             type=ref,event=pr
