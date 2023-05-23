@@ -236,6 +236,13 @@ bool MowingBehavior::execute_mowing_plan() {
         auto &path = currentMowingPaths.front();
         ROS_INFO_STREAM("MowingBehavior: Path segment length: " << path.path.poses.size() << " poses.");
 
+        // Check if path is empty. If so, directly skip it
+        if(path.path.poses.size() == 0) {
+            ROS_INFO_STREAM("MowingBehavior: Skipping empty path.");
+            currentMowingPaths.erase(currentMowingPaths.begin());
+            continue;
+        }
+
         /////////////////////////////////////////////////////////////////////////////////////////////////////////
         // DRIVE TO THE FIRST POINT OF THE MOW PATH
         //

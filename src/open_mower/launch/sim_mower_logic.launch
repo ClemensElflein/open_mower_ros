@@ -9,7 +9,7 @@
     <node name="rviz" pkg="rviz" type="rviz" args="-d $(find open_mower)/rviz/sim_mower_logic.rviz" required="true" />
     <node pkg="mower_map" type="mower_map_service" name="mower_map" required="true" />
     <node pkg="slic3r_coverage_planner" type="slic3r_coverage_planner" name="slic3r_coverage_planner" output="screen" required="true" />
-    <node pkg="mower_logic" type="mower_logic" name="mower_logic" output="screen" required="true">
+    <node pkg="mower_logic" type="mower_logic" name="mower_logic" output="log" required="true">
         <param name="ignore_gps_errors" value="true"/>
         <param name="outline_count" value="5"/>
         <param name="gps_wait_time" value="0"/>
@@ -29,9 +29,10 @@
         <remap from="/xbot_remote/cmd_vel" to="/joy_vel"/>
     </node>
 
-    <node pkg="mower_logic" type="monitoring" name="monitoring" output="screen" respawn="true" respawn_delay="10"/>
+    <node pkg="mower_logic" type="monitoring" name="monitoring" output="log" respawn="true" respawn_delay="10"/>
 
-    <node pkg="xbot_monitoring" type="heatmap_generator" name="heatmap_generator" output="screen" respawn="true" respawn_delay="10" if="$(eval optenv('OM_HEATMAP_SENSOR_IDS' 'UNSET') != 'UNSET')">
-        <param name="sensor_ids" value="$(env OM_HEATMAP_SENSOR_IDS)" />
+    <node pkg="xbot_monitoring" type="heatmap_generator" name="heatmap_generator" output="screen" respawn="true" respawn_delay="10" unless="$(eval optenv('OM_HEATMAP_SENSOR_IDS', 'UNSET') == 'UNSET')">
+        <param name="sensor_ids" value="$(optenv OM_HEATMAP_SENSOR_IDS)" />
     </node>
+
 </launch>
