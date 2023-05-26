@@ -58,6 +58,7 @@ Behavior *MowingBehavior::execute() {
             ROS_INFO_STREAM("MowingBehavior: Executing mowing plan - finished");
             auto config = getConfig();
             config.current_area++;
+            config.active_semiautomatic_task = true;
             setConfig(config);
         }
     }
@@ -91,6 +92,10 @@ void MowingBehavior::reset() {
     currentMowingPaths.clear();
     auto config = getConfig();
     config.current_area = 0;
+    if (config.automatic_mode == eAutoMode::SEMIAUTO) {
+        ROS_INFO_STREAM("MowingBehavior: Finished semiautomatic task");
+        config.active_semiautomatic_task = true;
+    }
     setConfig(config);
 }
 

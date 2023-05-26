@@ -21,6 +21,13 @@
 #include "mower_logic/MowerLogicConfig.h"
 #include "mower_msgs/HighLevelStatus.h"
 #include <atomic>
+
+enum eAutoMode
+{   MANUAL = 0,
+    SEMIAUTO = 1,
+    AUTO = 2
+};
+
 /**
  * Behavior definition
  */
