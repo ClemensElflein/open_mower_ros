@@ -14,6 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
         tf2_ros
         dynamic_reconfigure
         mower_msgs
+        mower_map
         rosbridge_server
         mower_map
         xbot_msgs
