@@ -127,6 +127,7 @@ private:
     
     boost::circular_buffer<VelMeasurement> buffer_; //!< Circular buffer to store the last measurements @see setBufferLength
     bool oscillating_ = false; //!< Current state: true if robot is oscillating
+    static inline int sign(double x);
                 
 };
 

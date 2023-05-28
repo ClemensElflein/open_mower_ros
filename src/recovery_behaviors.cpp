@@ -37,11 +37,7 @@
  *********************************************************************/
 
 #include <ftc_local_planner/recovery_behaviors.h>
-#include <ros/ros.h>
-#include <limits>
 #include <functional>
-#include <numeric>
-#include <g2o/stuff/misc.h>
 
 namespace ftc_local_planner
 {
@@ -100,7 +96,7 @@ bool FailureDetector::detect(double v_eps, double omega_eps)
     {
         v_mean += buffer_[i].v;
         omega_mean += buffer_[i].omega;
-        if ( i>0 && g2o::sign(buffer_[i].omega) != g2o::sign(buffer_[i-1].omega) )
+        if ( i>0 && sign(buffer_[i].omega) != sign(buffer_[i-1].omega) )
             ++omega_zero_crossings;
     }
     v_mean /= n;
@@ -113,7 +109,15 @@ bool FailureDetector::detect(double v_eps, double omega_eps)
     // ROS_INFO_STREAM("v: " << std::abs(v_mean) << ", omega: " << std::abs(omega_mean) << ", zero crossings: " << omega_zero_crossings);
     return oscillating_;
 }
-    
+
+int FailureDetector::sign(double x) {
+    if (x > 0)
+        return 1;
+    else if (x < 0)
+        return -1;
+    else
+        return 0;
+}
     
 
 } // namespace ftc_local_planner
