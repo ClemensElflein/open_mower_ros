@@ -17,6 +17,8 @@
         <param name="battery_empty_voltage" value="$(env OM_BATTERY_EMPTY_VOLTAGE)"/>
         <param name="outline_count" value="$(env OM_OUTLINE_COUNT)"/>
         <param name="outline_offset" value="$(env OM_OUTLINE_OFFSET)"/>
+        <param name="mow_angle_offset" value="$(env OM_MOWING_ANGLE_OFFSET)"/>
+        <param name="mow_angle_offset_is_absolute" value="$(env OM_MOWING_ANGLE_OFFSET_IS_ABSOLUTE)"/>
         <param name="battery_full_voltage" value="$(env OM_BATTERY_FULL_VOLTAGE)"/>
     </node>
     <node pkg="slic3r_coverage_planner" type="slic3r_coverage_planner" name="slic3r_coverage_planner" output="screen"/>
