@@ -56,7 +56,7 @@ roslaunch open_mower open_mower.launch
 Before you launch `open_mower` package, env vars with configuration have to be set.
 
 ```bash
-cp src/open_mower/open_mower/config/mower_config.sh.example mower_config.sh
+cp src/open_mower/config/mower_config.sh.example mower_config.sh
 source mower_config.sh # it's expected to adjust the file
 ```
 
