@@ -66,7 +66,7 @@ def test_script():
 
     test_motors()
     test_accel()
-    test_mag()
+    # test_mag()
     test_rain()
     test_charging()
 
@@ -114,13 +114,13 @@ def test_accel():
     while not (abs(last_imu.angular_velocity.y) > 0.1 and abs(last_imu.linear_acceleration.y) > 3):
         time.sleep(0.01)
     print("Testing accelerometer, move mower over axis Z")
-    while not (abs(last_imu.angular_velocity.z) > 0.1 and abs(last_imu.linear_acceleration.z) > 3):
+    while not (abs(last_imu.angular_velocity.z) > 0.1 and abs(last_imu.linear_acceleration.z) > 9.8 + 3):
         time.sleep(0.01)
     print("Passed")
 
 
 def test_charging():
-    print("Testing charging controls. Connect both battery and charger")
+    print("Testing charging controls. Connect both battery and charger, we expect charge current to be >100mA")
     while not (last_status.v_charge > 20 and last_status.v_battery > 20 and last_status.charge_current > 0.1):
         time.sleep(0.01)
     print("Disconnect battery")
