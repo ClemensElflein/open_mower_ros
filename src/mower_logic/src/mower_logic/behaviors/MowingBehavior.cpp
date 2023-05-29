@@ -58,8 +58,8 @@ Behavior *MowingBehavior::execute() {
             ROS_INFO_STREAM("MowingBehavior: Executing mowing plan - finished");
             auto config = getConfig();
             config.current_area++;
-            config.active_semiautomatic_task = true;
             setConfig(config);
+            shared_state->active_semiautomatic_task = true;
         }
     }
 
@@ -94,7 +94,7 @@ void MowingBehavior::reset() {
     config.current_area = 0;
     if (config.automatic_mode == eAutoMode::SEMIAUTO) {
         ROS_INFO_STREAM("MowingBehavior: Finished semiautomatic task");
-        config.active_semiautomatic_task = true;
+        shared_state->active_semiautomatic_task = false;
     }
     setConfig(config);
 }

@@ -79,7 +79,6 @@ mower_msgs::HighLevelStatus high_level_status;
 
 std::atomic<bool> mowerEnabled;
 
-
 Behavior *currentBehavior = &IdleBehavior::INSTANCE;
 
 
@@ -763,12 +762,14 @@ int main(int argc, char **argv) {
     // release emergency if it was set
     setEmergencyMode(false);
 
+    // initialise the shared state object to be passed into the behaviors
+    sSharedState shared_state;
+    shared_state.active_semiautomatic_task = false;
+
     // Behavior execution loop
     while (ros::ok()) {
         if (currentBehavior != nullptr) {
-
-
-            currentBehavior->start(last_config);
+            currentBehavior->start(last_config, &shared_state);
             Behavior *newBehavior = currentBehavior->execute();
             currentBehavior->exit();
             currentBehavior = newBehavior;

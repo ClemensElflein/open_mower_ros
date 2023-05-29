@@ -32,7 +32,6 @@ extern ros::ServiceClient mapClient;
 extern ros::ServiceClient dockingPointClient;
 
 
-
 IdleBehavior IdleBehavior::INSTANCE;
 
 std::string IdleBehavior::state_name() {
@@ -70,7 +69,7 @@ Behavior *IdleBehavior::execute() {
         const auto last_config = getConfig();
         const auto last_status = getStatus();
         if (manual_start_mowing ||
-            (last_config.automatic_mode == eAutoMode::AUTO || (last_config.automatic_mode == eAutoMode::SEMIAUTO && last_config.active_semiautomatic_task == true))
+            (last_config.automatic_mode == eAutoMode::AUTO || (last_config.automatic_mode == eAutoMode::SEMIAUTO && shared_state->active_semiautomatic_task == true))
             && (last_status.v_battery > last_config.battery_full_voltage && last_status.mow_esc_status.temperature_motor < last_config.motor_cold_temperature &&
                 !last_config.manual_pause_mowing)) {
             // set the robot's position to the dock if we're actually docked

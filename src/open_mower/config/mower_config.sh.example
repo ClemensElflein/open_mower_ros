@@ -100,8 +100,8 @@ export OM_ENABLE_MOWER=true
 # Set the automatic start value based on required behaviour
 #  2 - AUTO - mow whenever possible
 #  1 - SEMIAUTO - mow the entire map once then wait for manual start atgain
-#  0 - MANUAL - mowing requires manual start
-export OM_AUTOMATIC_MODE=1
+#  0 - MANUAL - mowing requires manual start (default if unset)
+export OM_AUTOMATIC_MODE=0
 
 export OM_OUTLINE_OFFSET=0.05
 

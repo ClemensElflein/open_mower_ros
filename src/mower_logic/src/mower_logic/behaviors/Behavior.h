@@ -22,10 +22,14 @@
 #include "mower_msgs/HighLevelStatus.h"
 #include <atomic>
 
-enum eAutoMode
-{   MANUAL = 0,
+enum eAutoMode {
+    MANUAL = 0,
     SEMIAUTO = 1,
     AUTO = 2
+};
+
+struct sSharedState {
+    bool active_semiautomatic_task;
 };
 
 /**
@@ -51,6 +55,7 @@ protected:
     }
 
     mower_logic::MowerLogicConfig config;
+    sSharedState *shared_state;
 
     /**
      * Called ONCE on state enter.
@@ -95,7 +100,7 @@ public:
         requested_pause_flag = false;
     }
 
-    void start(mower_logic::MowerLogicConfig &c) {
+    void start(mower_logic::MowerLogicConfig &c, sSharedState *s) {
         ROS_INFO_STREAM("");
         ROS_INFO_STREAM("");
         ROS_INFO_STREAM("--------------------------------------");
@@ -106,6 +111,7 @@ public:
         requested_continue_flag = false;
         requested_pause_flag = false;
         this->config = c;
+        this->shared_state = s;
         startTime = ros::Time::now();
         isGPSGood = false;
         sub_state = 0;
