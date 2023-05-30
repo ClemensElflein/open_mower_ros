@@ -21,6 +21,7 @@
 #include "mower_logic/MowerLogicConfig.h"
 #include "mower_msgs/HighLevelStatus.h"
 #include <atomic>
+#include <memory>
 
 enum eAutoMode {
     MANUAL = 0,
@@ -55,7 +56,7 @@ protected:
     }
 
     mower_logic::MowerLogicConfig config;
-    sSharedState *shared_state;
+    std::shared_ptr<sSharedState> shared_state;
 
     /**
      * Called ONCE on state enter.
@@ -100,7 +101,7 @@ public:
         requested_pause_flag = false;
     }
 
-    void start(mower_logic::MowerLogicConfig &c, sSharedState *s) {
+    void start(mower_logic::MowerLogicConfig &c, std::shared_ptr<sSharedState> s) {
         ROS_INFO_STREAM("");
         ROS_INFO_STREAM("");
         ROS_INFO_STREAM("--------------------------------------");

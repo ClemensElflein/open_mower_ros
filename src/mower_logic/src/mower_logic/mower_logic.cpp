@@ -763,13 +763,13 @@ int main(int argc, char **argv) {
     setEmergencyMode(false);
 
     // initialise the shared state object to be passed into the behaviors
-    sSharedState shared_state;
-    shared_state.active_semiautomatic_task = false;
+    auto shared_state = std::make_shared<sSharedState>();
+    shared_state->active_semiautomatic_task = false;
 
     // Behavior execution loop
     while (ros::ok()) {
         if (currentBehavior != nullptr) {
-            currentBehavior->start(last_config, &shared_state);
+            currentBehavior->start(last_config, shared_state);
             Behavior *newBehavior = currentBehavior->execute();
             currentBehavior->exit();
             currentBehavior = newBehavior;
