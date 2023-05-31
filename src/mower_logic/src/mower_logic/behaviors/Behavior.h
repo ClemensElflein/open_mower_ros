@@ -112,7 +112,7 @@ public:
         requested_continue_flag = false;
         requested_pause_flag = false;
         this->config = c;
-        this->shared_state = s;
+        this->shared_state = std::move(s);
         startTime = ros::Time::now();
         isGPSGood = false;
         sub_state = 0;
