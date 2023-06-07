@@ -343,15 +343,25 @@ bool MowingBehavior::execute_mowing_plan() {
                     current_status.state_ == actionlib::SimpleClientGoalState::PENDING) {
                     // path is being executed, everything seems fine.
                     // check if we should pause or abort mowing
-                    if (aborted || skip_area) {
+                    if(skip_area) {
+                        ROS_INFO_STREAM("MowingBehavior: (MOW) SKIP AREA was requested.");
+                        // remove all paths in current area and return true
+                        mowerEnabled = false;
+                        currentMowingPaths.clear();
+                        skip_area = false;
+                        return true;
+                    }
+                    if (aborted) {
                         ROS_INFO_STREAM("MowingBehavior: (MOW) ABORT was requested - stopping path execution.");
                         mbfClientExePath->cancelAllGoals();
-                        break;
+                        mowerEnabled = false;
+                        break; // Trim path
                     }
                     if (requested_pause_flag) {
                         ROS_INFO_STREAM("MowingBehavior: (MOW) PAUSE was requested - stopping path execution.");
                         mbfClientExePath->cancelAllGoals();
-                        break;
+                        mowerEnabled = false;
+                        break; // Trim path
                     }
                     // show progress
                     ROS_INFO_STREAM_THROTTLE(5, "MowingBehavior: (MOW) Progress: " << getCurrentMowPathIndex() << "/" << path.path.poses.size());                    
@@ -363,48 +373,42 @@ bool MowingBehavior::execute_mowing_plan() {
                 r.sleep();
             } 
 
-            if(skip_area) {
-                ROS_INFO_STREAM("MowingBehavior: skip_area = true");
-                // remove all paths in current area and return true
-                mowerEnabled = false;
-                currentMowingPaths.clear();
-                skip_area = false;
-                return true;
-            }
-
-          
-
-            int currentIndex = getCurrentMowPathIndex();
-            ROS_INFO_STREAM(">> MowingBehavior: (MOW) PlannerGetProgress currentIndex = " << currentIndex << " of " << path.path.poses.size());
-            printNavState(current_status.state_);
-            // if we have fully processed the segment or we have encountered an error, drop the path segment
-            /* TODO: we can not trust the SUCCEEDED state because the planner sometimes says suceeded with
-                the currentIndex far from the size of the poses ! (BUG in planner ?)
-                instead we trust only the currentIndex vs. poses.size() */
-            if (currentIndex >= path.path.poses.size() || (path.path.poses.size() - currentIndex) < 5) // fully mowed the path ?
+            // Only skip/trim if goal execution began
+            if (current_status.state_ != actionlib::SimpleClientGoalState::PENDING &&
+                current_status.state_ != actionlib::SimpleClientGoalState::RECALLED)
             {
-                 ROS_INFO_STREAM("MowingBehavior: (MOW) Mow path finished, skipping to next mow path.");
-                 currentMowingPaths.erase(currentMowingPaths.begin());
-                 // continue with next segment
-            }
-            else
-            {
-                // we didnt drive all points in the mow path, so we go into pause mode
-                // TODO: we should figure out the likely reason for our failure to complete the path
-                // if GPS -> PAUSE
-                // if something else -> Recovery Behaviour ?
-                auto &poses = path.path.poses;
-                ROS_INFO_STREAM("MowingBehavior (ErrorCatch): Poses before trim:" << poses.size());
-                if (currentIndex == 0) // currentIndex might be 0 if we never consumed one of the points, we trim at least 1 point
+                int currentIndex = getCurrentMowPathIndex();
+                ROS_INFO_STREAM(">> MowingBehavior: (MOW) PlannerGetProgress currentIndex = " << currentIndex << " of " << path.path.poses.size());
+                printNavState(current_status.state_);
+                // if we have fully processed the segment or we have encountered an error, drop the path segment
+                /* TODO: we can not trust the SUCCEEDED state because the planner sometimes says suceeded with
+                    the currentIndex far from the size of the poses ! (BUG in planner ?)
+                    instead we trust only the currentIndex vs. poses.size() */
+                if (currentIndex >= path.path.poses.size() || (path.path.poses.size() - currentIndex) < 5) // fully mowed the path ?
                 {
-                    currentIndex = 1;
+                    ROS_INFO_STREAM("MowingBehavior: (MOW) Mow path finished, skipping to next mow path.");
+                    currentMowingPaths.erase(currentMowingPaths.begin());
+                    // continue with next segment
                 }
-                ROS_INFO_STREAM("MowingBehavior (ErrorCatch): Trimming " << currentIndex << " points.");
-                poses.erase(poses.begin(), poses.begin() + currentIndex);
-                ROS_INFO_STREAM("MowingBehavior (ErrorCatch): Poses after trim:" << poses.size());
-                ROS_INFO_STREAM("MowingBehavior: (MOW) PAUSED due to MBF Error");
-                this->setPause();
-                update_actions();
+                else
+                {
+                    // we didnt drive all points in the mow path, so we go into pause mode
+                    // TODO: we should figure out the likely reason for our failure to complete the path
+                    // if GPS -> PAUSE
+                    // if something else -> Recovery Behaviour ?
+                    auto &poses = path.path.poses;
+                    ROS_INFO_STREAM("MowingBehavior (ErrorCatch): Poses before trim:" << poses.size());
+                    if (currentIndex == 0) // currentIndex might be 0 if we never consumed one of the points, we trim at least 1 point
+                    {
+                        currentIndex = 1;
+                    }
+                    ROS_INFO_STREAM("MowingBehavior (ErrorCatch): Trimming " << currentIndex << " points.");
+                    poses.erase(poses.begin(), poses.begin() + currentIndex);
+                    ROS_INFO_STREAM("MowingBehavior (ErrorCatch): Poses after trim:" << poses.size());
+                    ROS_INFO_STREAM("MowingBehavior: (MOW) PAUSED due to MBF Error");
+                    this->setPause();
+                    update_actions();
+                }
             }
         }
     }
