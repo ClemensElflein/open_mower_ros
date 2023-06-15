@@ -97,8 +97,8 @@ export OM_MOWING_ANGLE_OFFSET_IS_ABSOLUTE=False
 export OM_TOOL_WIDTH=0.13
 
 # Voltages for battery to be considered full or empty
-export OM_BATTERY_EMPTY_VOLTAGE=23.0
-export OM_BATTERY_FULL_VOLTAGE=28.0
+export OM_BATTERY_EMPTY_VOLTAGE=25.0
+export OM_BATTERY_FULL_VOLTAGE=28.5
 
 # Mower motor temperatures to stop and start mowing
 export OM_MOWING_MOTOR_TEMP_HIGH=80.0
