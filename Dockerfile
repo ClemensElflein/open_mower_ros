@@ -45,9 +45,9 @@ COPY --link --from=fetch /opt/open_mower_ros/src/lib/slic3r_coverage_planner /op
 
 WORKDIR /opt/slic3r_coverage_planner_workspace
 RUN rosdep install --from-paths src --ignore-src --simulate | \
-    sed --expression '1d' --expression 's/apt-get install/apt-get install --no-install-recommends --yes/g' | \
-    bash \
-    && rm -rf /var/lib/apt/lists/*
+    sed --expression '1d' | sort | tr -d '\n' | sed --expression 's/  apt-get install//g' > apt-install_list && \
+    apt-get install --no-install-recommends --yes $(cat apt-install_list) && \
+    rm -rf /var/lib/apt/lists/* apt-install_list
 RUN bash -c "source /opt/ros/$ROS_DISTRO/setup.bash && catkin_make"
 RUN bash -c "source /opt/ros/$ROS_DISTRO/setup.bash && source /opt/slic3r_coverage_planner_workspace/devel/setup.bash && catkin_make -DCMAKE_INSTALL_PREFIX=/opt/prebuilt/slic3r_coverage_planner install"
 
@@ -65,7 +65,7 @@ WORKDIR /opt/open_mower_ros
 # This creates the sorted list of apt-get install commands.
 RUN apt-get update && \
     rosdep install --from-paths src --ignore-src --simulate | \
-    sed --expression '1d' | sort | tr -d '\n' | sed -e 's/  apt-get install//g' > /apt-install_list
+    sed --expression '1d' | sort | tr -d '\n' | sed --expression 's/  apt-get install//g' > /apt-install_list
 
 
 # We can't derive this from "dependencies" because "dependencies" will be rebuilt every time, but apt install should only be done if needed
@@ -79,8 +79,8 @@ COPY --link --from=slic3r /opt/prebuilt/slic3r_coverage_planner /opt/prebuilt/sl
 #Fetch the list of packages, this only changes if new dependencies have been added (only sometimes)
 COPY --link --from=dependencies /apt-install_list /apt-install_list
 RUN apt-get update && \
-    apt-get install --no-install-recommends --yes $(cat apt-install_list) && \
-    rm -rf /var/lib/apt/lists/*
+    apt-get install --no-install-recommends --yes $(cat /apt-install_list) && \
+    rm -rf /var/lib/apt/lists/* /apt-install_list
 
 # This will already have the submodules initialized, no need to clone again
 COPY --link --from=fetch /opt/open_mower_ros /opt/open_mower_ros
