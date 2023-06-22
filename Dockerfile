@@ -80,13 +80,13 @@ COPY --link --from=slic3r /opt/prebuilt/slic3r_coverage_planner /opt/prebuilt/sl
 COPY --link --from=dependencies /apt-install_list /apt-install_list
 RUN apt-get update && \
     apt-get install --no-install-recommends --yes $(cat /apt-install_list) && \
-    rm -rf /var/lib/apt/lists/* /apt-install_list
+    rm -rf /var/lib/apt/lists/*
 
 # This will already have the submodules initialized, no need to clone again
 COPY --link --from=fetch /opt/open_mower_ros /opt/open_mower_ros
 
 #delete prebuilt libs (so that they won't shadow the preinstalled ones)
-RUN rm -rf /opt/open_mower_ros/src/lib/slic3r_coverage_planner
+RUN rm -rf /opt/open_mower_ros/src/lib/slic3r_coverage_planner /apt-install_list
 
 #RUN git clone https://github.com/ClemensElflein/open_mower_ros /opt/open_mower_ros
 
