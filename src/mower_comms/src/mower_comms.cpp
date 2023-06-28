@@ -235,7 +235,7 @@ void publishActuatorsTimerTask(const ros::TimerEvent &timer_event) {
 
 bool setMowEnabled(mower_msgs::MowerControlSrvRequest &req, mower_msgs::MowerControlSrvResponse &res) {
     if (req.mow_enabled && !is_emergency()) {
-        speed_mow = (random() & 2) - 1; // Randomize direction (+1|-1)
+        speed_mow = req.mow_direction ? 1 : -1;
     } else {
         speed_mow = 0;
     }
