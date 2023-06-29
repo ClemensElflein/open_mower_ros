@@ -244,13 +244,13 @@ bool setMowerEnabled(bool enabled)
         mower_msgs::MowerControlSrv mow_srv;
         mow_srv.request.mow_enabled = enabled;
         mow_srv.request.mow_direction = started.sec & 0x1; // Randomize mower direction on second
-        ROS_WARN_STREAM("#### om_mower_logic: setMowerEnabled(" << enabled << ", " << mow_srv.request.mow_direction << ") call");
+        ROS_WARN_STREAM("#### om_mower_logic: setMowerEnabled(" << enabled << ", " << static_cast<unsigned>(mow_srv.request.mow_direction) << ") call");
 
         ros::Rate retry_delay(1);
         bool success = false;
         for(int i = 0; i < 10; i++) {
             if(mowClient.call(mow_srv)) {
-                ROS_INFO_STREAM("successfully set mower enabled to " << enabled << " (direction " << mow_srv.request.mow_direction << ")");
+                ROS_INFO_STREAM("successfully set mower enabled to " << enabled << " (direction " << static_cast<unsigned>(mow_srv.request.mow_direction) << ")");
                     success = true;
                 break;
             }
@@ -262,7 +262,7 @@ bool setMowerEnabled(bool enabled)
             ROS_ERROR_STREAM("Error setting mower enabled. THIS SHOULD NEVER HAPPEN");
         }
 
-        ROS_WARN_STREAM("#### om_mower_logic: setMowerEnabled(" << enabled << ", " << mow_srv.request.mow_direction << ") call completed within " << (ros::Time::now() - started).toSec() << "s");
+        ROS_WARN_STREAM("#### om_mower_logic: setMowerEnabled(" << enabled << ", " << static_cast<unsigned>(mow_srv.request.mow_direction) << ") call completed within " << (ros::Time::now() - started).toSec() << "s");
         mowerEnabled = enabled;
     }
 
