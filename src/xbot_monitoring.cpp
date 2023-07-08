@@ -39,6 +39,7 @@ ros::NodeHandle *n;
 
 // The MQTT Client
 std::shared_ptr<mqtt::async_client> client_;
+std::shared_ptr<mqtt::async_client> client_external_;
 
 std::mutex mqtt_callback_mutex;
 
@@ -46,7 +47,16 @@ std::mutex mqtt_callback_mutex;
 ros::Publisher cmd_vel_pub;
 ros::Publisher action_pub;
 
+// properties for external mqtt
+bool external_mqtt_enable = false;
+std::string external_mqtt_username = "";
+std::string external_mqtt_password = "";
+std::string external_mqtt_hostname = "";
+std::string external_mqtt_port = "";
+
 class MqttCallback : public mqtt::callback {
+
+
     void connected(const mqtt::string &string) override {
         ROS_INFO_STREAM("MQTT Connected");
         publish_sensor_metadata();
@@ -61,13 +71,13 @@ class MqttCallback : public mqtt::callback {
     }
 
 public:
+    void setMqttClient(std::shared_ptr<mqtt::async_client> c) {
+        this->client_ = std::move(c);
+    }
     void message_arrived(mqtt::const_message_ptr ptr) override {
         if(ptr->get_topic() == "/teleop") {
-            ROS_INFO_STREAM("joy!");
             try {
                 json json = json::from_bson(ptr->get_payload().begin(), ptr->get_payload().end());
-
-                ROS_INFO_STREAM_THROTTLE(0.5,"vx:" << json["vx"] << " vr: " << json["vz"]);
                 geometry_msgs::Twist t;
                 t.linear.x = json["vx"];
                 t.angular.z = json["vz"];
@@ -82,9 +92,12 @@ public:
             action_pub.publish(action_msg);
         }
     }
+private:
+    std::shared_ptr<mqtt::async_client> client_;
 };
 
 MqttCallback mqtt_callback;
+MqttCallback mqtt_callback_external;
 
 json map;
 json map_overlay;
@@ -92,32 +105,67 @@ bool has_map = false;
 bool has_map_overlay = false;
 
 void setupMqttClient() {
-    // MQTT connection options
-    mqtt::connect_options connect_options_;
+    // setup mqtt client for app use
+    {
+        // MQTT connection options
+        mqtt::connect_options connect_options_;
 
-    // basic client connection options
-    connect_options_.set_automatic_reconnect(true);
-    connect_options_.set_clean_session(true);
-    connect_options_.set_keep_alive_interval(1000);
-    connect_options_.set_max_inflight(10);
+        // basic client connection options
+        connect_options_.set_automatic_reconnect(true);
+        connect_options_.set_clean_session(true);
+        connect_options_.set_keep_alive_interval(1000);
+        connect_options_.set_max_inflight(10);
 
-    // create MQTT client
-    std::string uri = "tcp" + std::string("://") + "127.0.0.1" +
-                      std::string(":") + std::to_string(1883);
+        // create MQTT client
+        std::string uri = "tcp" + std::string("://") + "127.0.0.1" +
+                          std::string(":") + std::to_string(1883);
 
-    try {
-        client_ = std::make_shared<mqtt::async_client>(
-                uri, "xbot_monitoring");
-        client_->set_callback(mqtt_callback);
+        try {
+            client_ = std::make_shared<mqtt::async_client>(
+                    uri, "xbot_monitoring");
+            mqtt_callback.setMqttClient(client_);
+            client_->set_callback(mqtt_callback);
 
-        client_->connect(connect_options_);
+            client_->connect(connect_options_);
 
-    } catch (const mqtt::exception &e) {
-        ROS_ERROR("Client could not be initialized: %s", e.what());
-        exit(EXIT_FAILURE);
+        } catch (const mqtt::exception &e) {
+            ROS_ERROR("Client could not be initialized: %s", e.what());
+            exit(EXIT_FAILURE);
+        }
     }
+    // setup external mqtt client
+    if(external_mqtt_enable) {
+        // MQTT connection options
+        mqtt::connect_options connect_options_;
 
+        // basic client connection options
+        connect_options_.set_automatic_reconnect(true);
+        connect_options_.set_clean_session(true);
+        connect_options_.set_keep_alive_interval(1000);
+        connect_options_.set_max_inflight(10);
 
+        if(!external_mqtt_username.empty()) {
+            connect_options_.set_user_name(external_mqtt_username);
+            connect_options_.set_password(external_mqtt_password);
+        }
+
+        // create MQTT client
+        std::string uri = "tcp" + std::string("://") + external_mqtt_hostname +
+                          std::string(":") + external_mqtt_port;
+
+        try {
+            client_external_ = std::make_shared<mqtt::async_client>(
+                    uri, "xbot_monitoring");
+            mqtt_callback_external.setMqttClient(client_external_);
+            client_external_->set_callback(mqtt_callback_external);
+
+            client_external_->connect(connect_options_);
+
+        } catch (const mqtt::exception &e) {
+            ROS_ERROR("External Client could not be initialized: %s", e.what());
+            exit(EXIT_FAILURE);
+        }
+    }
 }
 
 void try_publish(std::string topic, std::string data, bool retain = false) {
@@ -130,6 +178,19 @@ void try_publish(std::string topic, std::string data, bool retain = false) {
         }
     } catch (const mqtt::exception &e) {
         // client disconnected or something, we drop it.
+    }
+    // publish external
+    if(external_mqtt_enable) {
+        try {
+            if (retain) {
+                // QOS 1 so that the data actually arrives at the client at least once.
+                client_external_->publish(topic, data, 1, true);
+            } else {
+                client_external_->publish(topic, data);
+            }
+        } catch (const mqtt::exception &e) {
+            // client disconnected or something, we drop it.
+        }
     }
 }
 void try_publish_binary(std::string topic, const void *data, size_t size, bool retain = false) {
@@ -458,13 +519,22 @@ int main(int argc, char **argv) {
     has_map = false;
     has_map_overlay = false;
 
-    // First setup MQTT
-    setupMqttClient();
-
 
     n = new ros::NodeHandle();
     ros::NodeHandle paramNh("~");
 
+    external_mqtt_enable = paramNh.param("external_mqtt_enable", false);
+    external_mqtt_hostname = paramNh.param("external_mqtt_hostname", std::string(""));
+    external_mqtt_port = paramNh.param("external_mqtt_port", std::to_string(1883));
+    external_mqtt_username = paramNh.param("external_mqtt_username", std::string(""));
+    external_mqtt_password = paramNh.param("external_mqtt_password", std::string(""));
+
+    if(external_mqtt_enable) {
+        ROS_INFO_STREAM("Using extnernal MQTT broker: " << external_mqtt_hostname << ":" << external_mqtt_port);
+    }
+
+    // First setup MQTT
+    setupMqttClient();
 
     ros::ServiceServer register_action_service = n->advertiseService("xbot/register_actions", registerActions);
 
