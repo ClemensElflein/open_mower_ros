@@ -40,6 +40,7 @@ std::string MowingBehavior::state_name() {
 }
 
 Behavior *MowingBehavior::execute() {
+    shared_state->active_semiautomatic_task = true;
 
     while (ros::ok() && !aborted) {
         if (currentMowingPaths.empty() && !create_mowing_plan(getConfig().current_area)) {
@@ -59,7 +60,6 @@ Behavior *MowingBehavior::execute() {
             auto config = getConfig();
             config.current_area++;
             setConfig(config);
-            shared_state->active_semiautomatic_task = true;
         }
     }
 
