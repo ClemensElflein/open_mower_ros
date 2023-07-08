@@ -119,6 +119,19 @@ export OM_AUTOMATIC_MODE=0
 
 export OM_OUTLINE_OFFSET=0.05
 
+################################
+##    External MQTT Broker    ##
+################################
+# Set thes in order to publish status data to your external MQTT broker.
+# This is for use with smart home.
+
+# export OM_MQTT_ENABLE=False
+# export OM_MQTT_HOSTNAME="your_mqtt_broker"
+# export OM_MQTT_PORT="1883"
+# export OM_MQTT_USER=""
+# export OM_MQTT_PASSWORD=""
+
+
 # source the default values for the hardware platform.
 # you only need this line on non-docker installs. in the docker, it will be done automatically.
 # source $(rospack find open_mower)/params/hardware_specific/$OM_MOWER/default_environment.sh
