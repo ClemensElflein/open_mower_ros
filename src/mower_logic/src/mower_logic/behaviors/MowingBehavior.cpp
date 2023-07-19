@@ -92,10 +92,17 @@ void MowingBehavior::reset() {
     currentMowingPaths.clear();
     auto config = getConfig();
     config.current_area = 0;
+
     if (config.automatic_mode == eAutoMode::SEMIAUTO) {
         ROS_INFO_STREAM("MowingBehavior: Finished semiautomatic task");
         shared_state->active_semiautomatic_task = false;
     }
+
+    // increment mowing angle offset and return into the <-180, 180> range
+    config.mow_angle_offset = std::fmod(config.mow_angle_offset + config.mow_angle_increment + 180, 360);
+    if (config.mow_angle_offset < 0) config.mow_angle_offset += 360;
+    config.mow_angle_offset -= 180;
+
     setConfig(config);
 }
 
