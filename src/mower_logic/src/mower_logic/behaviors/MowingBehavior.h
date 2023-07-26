@@ -31,6 +31,7 @@ private:
     std::vector<xbot_msgs::ActionInfo> actions;
 
     bool skip_area;
+    bool skip_path;
     bool create_mowing_plan(int area_index);
 
     bool execute_mowing_plan();
