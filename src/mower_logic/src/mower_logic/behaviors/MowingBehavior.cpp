@@ -73,6 +73,7 @@ Behavior *MowingBehavior::execute() {
 
 void MowingBehavior::enter() {
     skip_area = false;
+    skip_path = false;
     paused = aborted = false;
 
     for(auto& a : actions) {
@@ -363,6 +364,9 @@ bool MowingBehavior::execute_mowing_plan() {
                         skip_area = false;
                         return true;
                     }
+                    if(skip_path) {
+                        currentMowingPaths.erase(currentMowingPaths.begin());
+                    }
                     if (aborted) {
                         ROS_INFO_STREAM("MowingBehavior: (MOW) ABORT was requested - stopping path execution.");
                         mbfClientExePath->cancelAllGoals();
@@ -515,6 +519,9 @@ void MowingBehavior::handle_action(std::string action) {
     } else if(action == "mower_logic:mowing/skip_area") {
         ROS_INFO_STREAM("got skip_area command");
         skip_area = true;
+    } else if(action == "mower_logic:mowing/skip_path") {
+        ROS_INFO_STREAM("got skip_path command");
+        skip_path = true;
     }
     update_actions();
 }
