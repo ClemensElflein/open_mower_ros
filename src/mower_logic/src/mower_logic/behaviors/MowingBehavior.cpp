@@ -493,11 +493,17 @@ MowingBehavior::MowingBehavior() {
     skip_area_action.enabled = false;
     skip_area_action.action_name = "Skip Area";
 
+    xbot_msgs::ActionInfo skip_path_action;
+    skip_path_action.action_id = "skip_path";
+    skip_path_action.enabled = false;
+    skip_path_action.action_name = "Skip Path";
+
     actions.clear();
     actions.push_back(pause_action);
     actions.push_back(continue_action);
     actions.push_back(abort_mowing_action);
     actions.push_back(skip_area_action);
+    actions.push_back(skip_path_action);
 }
 
 void MowingBehavior::handle_action(std::string action) {
