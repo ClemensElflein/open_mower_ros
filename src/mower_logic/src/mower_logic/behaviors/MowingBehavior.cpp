@@ -253,7 +253,10 @@ bool MowingBehavior::execute_mowing_plan() {
             update_actions();
             mowerEnabled = true;
         }
-
+        if(skip_path) 
+        {
+            currentMowingPaths.erase(currentMowingPaths.begin());
+        }
 
         auto &path = currentMowingPaths.front();
         ROS_INFO_STREAM("MowingBehavior: Path segment length: " << path.path.poses.size() << " poses.");
@@ -364,9 +367,7 @@ bool MowingBehavior::execute_mowing_plan() {
                         skip_area = false;
                         return true;
                     }
-                    if(skip_path) {
-                        currentMowingPaths.erase(currentMowingPaths.begin());
-                    }
+
                     if (aborted) {
                         ROS_INFO_STREAM("MowingBehavior: (MOW) ABORT was requested - stopping path execution.");
                         mbfClientExePath->cancelAllGoals();
@@ -495,7 +496,7 @@ MowingBehavior::MowingBehavior() {
 
     xbot_msgs::ActionInfo skip_path_action;
     skip_path_action.action_id = "skip_path";
-    skip_path_action.enabled = false;
+    skip_path_action.enabled = true;
     skip_path_action.action_name = "Skip Path";
 
     actions.clear();
