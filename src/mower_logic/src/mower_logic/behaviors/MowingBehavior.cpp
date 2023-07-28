@@ -368,6 +368,7 @@ bool MowingBehavior::execute_mowing_plan() {
                     {
                         currentMowingPaths.erase(currentMowingPaths.begin());
                         skip_path=false;
+                        return true;
                     }
 
                     if (aborted) {
