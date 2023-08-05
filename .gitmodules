@@ -18,7 +18,7 @@
 	url = https://github.com/ClemensElflein/xbot_driver_gps.git
 [submodule "src/lib/xbot_positioning"]
 	path = src/lib/xbot_positioning
-	url = https://github.com/ClemensElflein/xbot_positioning.git
+	url = https://github.com/alexvaut/xbot_positioning.git
 [submodule "src/lib/xbot_monitoring"]
 	path = src/lib/xbot_monitoring
 	url = https://github.com/ClemensElflein/xbot_monitoring
