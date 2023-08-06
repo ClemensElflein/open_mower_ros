@@ -9,6 +9,7 @@
             <param name="max_gps_accuracy" value="0.2"/>
             <param name="antenna_offset_x" value="$(env OM_ANTENNA_OFFSET_X)"/>
             <param name="antenna_offset_y" value="$(env OM_ANTENNA_OFFSET_Y)"/>
+            <param name="gps_message_throttle" value="$(optenv OM_GPS_MESSAGE_THROTTLE 1)"/>
         </node>
     </group>
     <group if="$(arg use_legacy_localization)">
