@@ -218,8 +218,7 @@ bool setPose(xbot_positioning::SetPoseSrvRequest &req, xbot_positioning::SetPose
 }
 
 void onPose(const xbot_msgs::AbsolutePose::ConstPtr &msg) {
-    if(!gps_enabled) {
-        ROS_INFO_STREAM("gps_message_throttle test: " << gps_message_throttle);
+    if(!gps_enabled) {        
         ROS_INFO_STREAM_THROTTLE(gps_message_throttle, "dropping GPS update, since gps_enabled = false.");
         return;
     }
@@ -330,9 +329,7 @@ int main(int argc, char **argv) {
     paramNh.param("debug", publish_debug, false);
     paramNh.param("antenna_offset_x", antenna_offset_x, 0.0);
     paramNh.param("antenna_offset_y", antenna_offset_y, 0.0);
-    paramNh.param("gps_message_throttle", gps_message_throttle, 1);
-
-    ROS_INFO_STREAM("gps_message_throttle init: " << gps_message_throttle);
+    paramNh.param("gps_message_throttle", gps_message_throttle, 1);    
 
     core.setAntennaOffset(antenna_offset_x, antenna_offset_y);
 
