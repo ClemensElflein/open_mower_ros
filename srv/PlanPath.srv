@@ -5,6 +5,7 @@ float64 angle
 float64 distance
 float64 outer_offset
 uint8 outline_count
+uint8 outline_overlap_count
 geometry_msgs/Polygon outline
 geometry_msgs/Polygon[] holes
 ---

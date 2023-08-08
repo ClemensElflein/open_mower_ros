@@ -226,11 +226,13 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
     ROS_INFO_STREAM("generating " << loops << " outlines");
 
     const int loop_number = loops - 1;  // 0-indexed loops
+    const int inner_loop_number = loop_number - req.outline_overlap_count;
 
 
     Polygons gaps;
 
     Polygons last = expoly;
+    Polygons inner = last;
     if (loop_number >= 0) {  // no loops = -1
 
         std::vector<PerimeterGeneratorLoops> contours(loop_number + 1);    // depth => loops
@@ -255,6 +257,9 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
 
 
             last = offsets;
+            if(i <= inner_loop_number) {
+                inner = last;
+            }
 
             for (Polygons::const_iterator polygon = offsets.begin(); polygon != offsets.end(); ++polygon) {
                 PerimeterGeneratorLoop loop(*polygon, i);
@@ -331,7 +336,7 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
 
 
 
-    ExPolygons expp = union_ex(last);
+    ExPolygons expp = union_ex(inner);
 
 
     // Go through the innermost poly and create the fill path using a Fill object
