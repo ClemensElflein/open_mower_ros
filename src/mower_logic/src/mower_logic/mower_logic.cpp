@@ -47,6 +47,7 @@
 #include "mower_map/ClearMapSrv.h"
 #include "xbot_msgs/AbsolutePose.h"
 #include "xbot_positioning/GPSControlSrv.h"
+#include "xbot_positioning/GPSEnableFloatRtkSrv.h"
 #include "xbot_positioning/SetPoseSrv.h"
 #include "xbot_msgs/RegisterActionsSrv.h"
 #include <mutex>
@@ -212,6 +213,31 @@ bool setGPS(bool enabled) {
             break;
         }
         ROS_ERROR_STREAM("Error setting GPS to " << enabled << ". Retrying.");
+        retry_delay.sleep();
+    }
+
+    if(!success) {
+        ROS_ERROR_STREAM("Error setting GPS. Going to emergency. THIS SHOULD NEVER HAPPEN");
+        setEmergencyMode(true);
+    }
+
+    return success;
+}
+
+
+bool setGPSRtkFloat(bool enabled) {
+    xbot_positioning::GPSEnableFloatRtkSrv gps_srv;
+    gps_srv.request.gps_float_rtk_enabled = enabled;
+
+    ros::Rate retry_delay(1);
+    bool success = false;
+    for(int i = 0; i < 10; i++) {
+        if(gpsClient.call(gps_srv)) {
+            ROS_INFO_STREAM("successfully set GPS Floak Rtk to " << enabled);
+            success = true;
+            break;
+        }
+        ROS_ERROR_STREAM("Error setting GPS Float Rtk to " << enabled << ". Retrying.");
         retry_delay.sleep();
     }
 

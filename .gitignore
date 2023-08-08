@@ -1,6 +1,7 @@
 # ignore build and devel folders
 build/
 devel/
+install/
 .catkin_workspace
 src/CMakeLists.txt
 

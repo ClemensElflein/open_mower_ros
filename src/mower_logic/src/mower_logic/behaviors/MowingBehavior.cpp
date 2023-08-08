@@ -33,6 +33,8 @@ extern void setConfig(mower_logic::MowerLogicConfig);
 
 extern void registerActions(std::string prefix, const std::vector<xbot_msgs::ActionInfo> &actions);
 
+extern bool setGPSRtkFloat(bool enabled);
+
 MowingBehavior MowingBehavior::INSTANCE;
 
 std::string MowingBehavior::state_name() {
@@ -75,6 +77,9 @@ void MowingBehavior::enter() {
     skip_area = false;
     paused = aborted = false;
 
+    // accept less precision when mowing
+    setGPSRtkFloat(true);
+
     for(auto& a : actions) {
         a.enabled = true;
     }
@@ -82,6 +87,9 @@ void MowingBehavior::enter() {
 }
 
 void MowingBehavior::exit() {
+    // restore full precision when not mowing
+    setGPSRtkFloat(false);
+
     for(auto& a : actions) {
         a.enabled = false;
     }
