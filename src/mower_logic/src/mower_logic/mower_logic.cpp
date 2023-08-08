@@ -53,7 +53,7 @@
 #include <mutex>
 #include <atomic>
 
-ros::ServiceClient pathClient, mapClient, dockingPointClient, gpsClient, mowClient, emergencyClient, pathProgressClient, setNavPointClient, clearNavPointClient, clearMapClient, positioningClient, actionRegistrationClient;
+ros::ServiceClient pathClient, mapClient, dockingPointClient, gpsClient, gpsFloatRtkClient, mowClient, emergencyClient, pathProgressClient, setNavPointClient, clearNavPointClient, clearMapClient, positioningClient, actionRegistrationClient;
 
 ros::NodeHandle *n;
 ros::NodeHandle *paramNh;
@@ -232,7 +232,7 @@ bool setGPSRtkFloat(bool enabled) {
     ros::Rate retry_delay(1);
     bool success = false;
     for(int i = 0; i < 10; i++) {
-        if(gpsClient.call(gps_srv)) {
+        if(gpsFloatRtkClient.call(gps_srv)) {
             ROS_INFO_STREAM("successfully set GPS Floak Rtk to " << enabled);
             success = true;
             break;
@@ -600,6 +600,8 @@ int main(int argc, char **argv) {
 
     gpsClient = n->serviceClient<xbot_positioning::GPSControlSrv>(
             "xbot_positioning/set_gps_state");
+    gpsFloatRtkClient = n->serviceClient<xbot_positioning::GPSControlSrv>(
+            "xbot_positioning/set_gps_state");
     positioningClient = n->serviceClient<xbot_positioning::SetPoseSrv>(
             "xbot_positioning/set_robot_pose");
     actionRegistrationClient = n->serviceClient<xbot_msgs::RegisterActionsSrv>(
@@ -698,6 +700,15 @@ int main(int argc, char **argv) {
     ROS_INFO("Waiting for gps service");
     if (!gpsClient.waitForExistence(ros::Duration(60.0, 0.0))) {
         ROS_ERROR("GPS service not found.");
+        delete (reconfigServer);
+        delete (mbfClient);
+        delete (mbfClientExePath);
+
+        return 1;
+    }
+    ROS_INFO("Waiting for gps float rtk service");
+    if (!gpsFloatRtkClient.waitForExistence(ros::Duration(60.0, 0.0))) {
+        ROS_ERROR("GPS float rtk service not found.");
         delete (reconfigServer);
         delete (mbfClient);
         delete (mbfClientExePath);
