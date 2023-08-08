@@ -600,8 +600,8 @@ int main(int argc, char **argv) {
 
     gpsClient = n->serviceClient<xbot_positioning::GPSControlSrv>(
             "xbot_positioning/set_gps_state");
-    gpsFloatRtkClient = n->serviceClient<xbot_positioning::GPSControlSrv>(
-            "xbot_positioning/set_gps_state");
+    gpsFloatRtkClient = n->serviceClient<xbot_positioning::GPSEnableFloatRtkSrv>(
+            "xbot_positioning/set_float_rtk_enabled");
     positioningClient = n->serviceClient<xbot_positioning::SetPoseSrv>(
             "xbot_positioning/set_robot_pose");
     actionRegistrationClient = n->serviceClient<xbot_msgs::RegisterActionsSrv>(
