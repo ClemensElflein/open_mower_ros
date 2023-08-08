@@ -14,6 +14,7 @@
         <param name="undock_distance" value="$(env OM_UNDOCK_DISTANCE)"/>
         <param name="tool_width" value="$(env OM_TOOL_WIDTH)"/>
         <param name="enable_mower" value="$(env OM_ENABLE_MOWER)"/>
+        <param name="enable_mowing_motor_random_direction" value="$(optenv OM_ENABLE_MOWING_MOTOR_RANDOM_DIRECTION False)"/>
         <param name="battery_empty_voltage" value="$(env OM_BATTERY_EMPTY_VOLTAGE)"/>
         <param name="outline_count" value="$(env OM_OUTLINE_COUNT)"/>
         <param name="outline_offset" value="$(env OM_OUTLINE_OFFSET)"/>
