@@ -44,6 +44,8 @@
 #include "xbot_msgs/ActionInfo.h"
 #include "xbot_msgs/MapOverlay.h"
 
+#define NEW_POINT_MIN_DISTANCE 0.1
+
 class AreaRecordingBehavior : public Behavior {
  public:
   static AreaRecordingBehavior INSTANCE;
@@ -64,7 +66,7 @@ class AreaRecordingBehavior : public Behavior {
 
   ros::Subscriber joy_sub, pose_sub;
 
-  ros::Subscriber dock_sub, polygon_sub, mow_area_sub, nav_area_sub;
+  ros::Subscriber dock_sub, polygon_sub, mow_area_sub, nav_area_sub, auto_point_collecting_sub, collect_point_sub;
 
   ros::ServiceClient add_mowing_area_client, set_docking_point_client;
 
@@ -81,6 +83,12 @@ class AreaRecordingBehavior : public Behavior {
   bool set_docking_position = false;
   bool has_outline = false;
 
+  // auto point collecting enabled to true points are collected automatically
+  // if distance is greater than NEW_POINT_MIN_DISTANCE during recording
+  // otherwise collect_point has to be set to true manually for each point to be recorded
+  bool auto_point_collecting = true;
+  bool collect_point = false;
+
   visualization_msgs::MarkerArray markers;
   visualization_msgs::Marker marker;
 
@@ -93,6 +101,8 @@ class AreaRecordingBehavior : public Behavior {
   void record_polygon_received(std_msgs::Bool state_msg);
   void record_mowing_received(std_msgs::Bool state_msg);
   void record_navigation_received(std_msgs::Bool state_msg);
+  void record_auto_point_collecting(std_msgs::Bool state_msg);
+  void record_collect_point(std_msgs::Bool state_msg);
 
   void update_actions();
 
