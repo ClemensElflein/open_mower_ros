@@ -408,14 +408,14 @@ void checkSafety(const ros::TimerEvent &timer_event) {
     high_level_status.is_charging = last_status.v_charge > 10.0;
 
     // send to idle if emergency and we're not recording
-    if(last_status.emergency) {
-        if(currentBehavior != &AreaRecordingBehavior::INSTANCE && currentBehavior != &IdleBehavior::INSTANCE) {
-            abortExecution();
-        } else if(last_status.v_charge > 10.0) {
-            // emergency and docked and idle or area recording, so it's safe to reset the emergency mode, reset it. It's safe since we won't start moving in this mode.
-            setEmergencyMode(false);
-        }
-    }
+    // if(last_status.emergency) {
+    //     if(currentBehavior != &AreaRecordingBehavior::INSTANCE && currentBehavior != &IdleBehavior::INSTANCE) {
+    //         abortExecution();
+    //     } else if(last_status.v_charge > 10.0) {
+    //         // emergency and docked and idle or area recording, so it's safe to reset the emergency mode, reset it. It's safe since we won't start moving in this mode.
+    //         setEmergencyMode(false);
+    //     }
+    // }
 
     // TODO: Have a single point where we check for this timeout instead of twice (here and in the behavior)
     // check if odometry is current. If not, the GPS was bad so we stop moving.
@@ -445,6 +445,18 @@ void checkSafety(const ros::TimerEvent &timer_event) {
                                                                                << ", status right: "
                                                                                << last_status.right_esc_status);
         return;
+    }
+
+    // Give it a chance to leave mower emergency mode 
+    if(last_status.emergency) {
+        if(currentBehavior == &MowingBehavior::INSTANCE) {
+            setEmergencyMode(true);
+        } else if(currentBehavior != &AreaRecordingBehavior::INSTANCE && currentBehavior != &IdleBehavior::INSTANCE) {
+            abortExecution();
+        } else if(last_status.v_charge > 10.0) {
+            // emergency and docked and idle or area recording, so it's safe to reset the emergency mode, reset it. It's safe since we won't start moving in this mode.
+            setEmergencyMode(false);
+        }
     }
 
     // We need orientation and a positional accuracy less than configured
