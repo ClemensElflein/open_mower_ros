@@ -32,13 +32,18 @@ jobs:
       # Get the repository's code
       - name: Checkout
         uses: actions/checkout@v3
+      - name: set lower case repository name
+        run: |
+          echo "REPOSITORY_LC=${REPOSITORY,,}" >>${GITHUB_ENV}
+        env:
+          REPOSITORY: '${{ github.repository }}'
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@v4
         with:
           # list of Docker images to use as base name for tags
           images: |
-            ghcr.io/${{github.repository}}
+            ghcr.io/${{env.REPOSITORY_LC}}
 
       # https://github.com/docker/setup-qemu-action
       - name: Set up QEMU (arm64)
@@ -71,7 +76,7 @@ jobs:
           context: .
           platforms: ${{ matrix.docker_build_arch }}
           labels: ${{ steps.meta.outputs.labels }}
-          outputs: type=image,name=ghcr.io/${{github.repository}},push-by-digest=true,name-canonical=true,push=${{ github.event_name != 'pull_request' }}
+          outputs: type=image,name=ghcr.io/${{env.REPOSITORY_LC}},push-by-digest=true,name-canonical=true,push=${{ github.event_name != 'pull_request' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -95,6 +100,11 @@ jobs:
     needs:
       - build
     steps:
+      - name: set lower case repository name
+        run: |
+          echo "REPOSITORY_LC=${REPOSITORY,,}" >>${GITHUB_ENV}
+        env:
+          REPOSITORY: '${{ github.repository }}'
       - name: Download digests
         if: github.event_name != 'pull_request'
         uses: actions/download-artifact@v3
@@ -119,7 +129,7 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
             type=sha
-          images: ghcr.io/${{github.repository}}
+          images: ghcr.io/${{env.REPOSITORY_LC}}
       - name: Login to Docker Hub
         uses: docker/login-action@v2
         if: github.event_name != 'pull_request'
@@ -132,8 +142,8 @@ jobs:
         if: github.event_name != 'pull_request'
         run: |
           docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-            $(printf 'ghcr.io/${{github.repository}}@sha256:%s ' *)
+            $(printf 'ghcr.io/${{env.REPOSITORY_LC}}@sha256:%s ' *)
       - name: Inspect image
         if: github.event_name != 'pull_request'
         run: |
-          docker buildx imagetools inspect ghcr.io/${{github.repository}}:${{ steps.meta.outputs.version }}
+          docker buildx imagetools inspect ghcr.io/${{env.REPOSITORY_LC}}:${{ steps.meta.outputs.version }}
