@@ -132,6 +132,7 @@ export OM_OUTLINE_OFFSET=0.05
 # export OM_MQTT_PORT="1883"
 # export OM_MQTT_USER=""
 # export OM_MQTT_PASSWORD=""
+# export OM_MQTT_TOPIC_PREFIX="openmower"
 
 
 # source the default values for the hardware platform.
