@@ -414,7 +414,7 @@ bool AreaRecordingBehavior::recordNewPolygon(geometry_msgs::Polygon &polygon, xb
             tf2::Vector3 last_point(last.x, last.y, 0.0);
             tf2::Vector3 current_point(pose_in_map.position.x, pose_in_map.position.y, 0.0);
 
-            bool is_new_point_far_enough = (current_point - last_point).length() > NEW_POINT_MIN_DISTANCE;
+            bool is_new_point_far_enough = (current_point - last_point).length() > AREA_POINTS_DENSITY;
             bool is_point_auto_collected = auto_point_collecting && is_new_point_far_enough;
             bool is_point_manual_collected = !auto_point_collecting && collect_point && is_new_point_far_enough;
 

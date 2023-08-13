@@ -45,7 +45,7 @@
 #include "std_msgs/Bool.h"
 #include "xbot_msgs/MapOverlay.h"
 
-#define NEW_POINT_MIN_DISTANCE 0.1
+#define AREA_POINTS_DENSITY 0.1
 
 class AreaRecordingBehavior : public Behavior {
 public:
@@ -86,7 +86,7 @@ private:
     bool has_outline = false;
 
     // auto point collecting enabled to true points are collected automatically
-    // if distance is greater than NEW_POINT_MIN_DISTANCE during recording
+    // if distance is greater than AREA_POINTS_DENSITY during recording
     // otherwise collect_point has to be set to true manually for each point to be recorded
     bool auto_point_collecting = true;
     bool collect_point = false;

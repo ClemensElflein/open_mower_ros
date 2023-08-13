@@ -76,6 +76,8 @@ public:
     void handle_action(std::string action) override;
 
     void update_actions();
+
+    static geometry_msgs::Polygon densePolygonPointsForSlicer(const geometry_msgs::Polygon &polygon, float pointsDensity);
 };
 
 

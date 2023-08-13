@@ -170,7 +170,7 @@ bool MowingBehavior::create_mowing_plan(int area_index) {
     slic3r_coverage_planner::PlanPath pathSrv;
     pathSrv.request.angle = angle;
     pathSrv.request.outline_count = config.outline_count;
-    pathSrv.request.outline = mapSrv.response.area.area;
+    pathSrv.request.outline = densePolygonPointsForSlicer(mapSrv.response.area.area, AREA_POINTS_DENSITY);
     pathSrv.request.holes = mapSrv.response.area.obstacles;
     pathSrv.request.fill_type = slic3r_coverage_planner::PlanPathRequest::FILL_LINEAR;
     pathSrv.request.outer_offset = config.outline_offset;
@@ -183,6 +183,36 @@ bool MowingBehavior::create_mowing_plan(int area_index) {
     currentMowingPaths = pathSrv.response.paths;
 
     return true;
+}
+
+// densePolygonPointsForSlicer function calculates distance between two points and adds points between them to the polygon
+// so that the distance between two points is less or equal than pointsDensity
+// it mitigates the problem of sparse lines in the map. This causes slicer algorithm to unexpectedly skip some areas.
+geometry_msgs::Polygon MowingBehavior::densePolygonPointsForSlicer(const geometry_msgs::Polygon &polygon, float pointsDensity) {
+    geometry_msgs::Polygon densePolygon;
+    densePolygon.points.clear();
+    for (int i = 0; i < polygon.points.size(); i++) {
+        densePolygon.points.push_back(polygon.points[i]);
+        if (i < polygon.points.size() - 1) {
+            tf2::Vector3 current(polygon.points[i].x, polygon.points[i].y, 0);
+            tf2::Vector3 next(polygon.points[i + 1].x, polygon.points[i + 1].y, 0);
+
+            auto diff = next - current;
+            float distance = diff.length();
+            int pointsToAdd = distance / pointsDensity;
+
+            for (int j = 0; j < pointsToAdd; j++) {
+                geometry_msgs::Point32 point;
+                point.x = current.x() + diff.x() * (j + 1) / (pointsToAdd + 1);
+                point.y = current.y() + diff.y() * (j + 1) / (pointsToAdd + 1);
+                densePolygon.points.push_back(point);
+            }
+        }
+    }
+
+    ROS_INFO_STREAM("MowingBehavior: Slicer: Dense polygon points count: " << densePolygon.points.size() << " (was: " << polygon.points.size() << ")");
+
+    return polygon;
 }
 
 int getCurrentMowPathIndex()
