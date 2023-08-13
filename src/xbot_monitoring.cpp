@@ -52,6 +52,7 @@ bool external_mqtt_enable = false;
 std::string external_mqtt_username = "";
 std::string external_mqtt_password = "";
 std::string external_mqtt_hostname = "";
+std::string external_mqtt_topic_prefix = "";
 std::string external_mqtt_port = "";
 
 class MqttCallback : public mqtt::callback {
@@ -184,9 +185,9 @@ void try_publish(std::string topic, std::string data, bool retain = false) {
         try {
             if (retain) {
                 // QOS 1 so that the data actually arrives at the client at least once.
-                client_external_->publish(topic, data, 1, true);
+                client_external_->publish(external_mqtt_topic_prefix + topic, data, 1, true);
             } else {
-                client_external_->publish(topic, data);
+                client_external_->publish(external_mqtt_topic_prefix + topic, data);
             }
         } catch (const mqtt::exception &e) {
             // client disconnected or something, we drop it.
@@ -524,13 +525,19 @@ int main(int argc, char **argv) {
     ros::NodeHandle paramNh("~");
 
     external_mqtt_enable = paramNh.param("external_mqtt_enable", false);
+    external_mqtt_topic_prefix = paramNh.param("external_mqtt_topic_prefix", std::string(""));
+    if(!external_mqtt_topic_prefix.empty() && external_mqtt_topic_prefix.back() != '/') {
+        // append the /
+        external_mqtt_topic_prefix = external_mqtt_topic_prefix+"/";
+    }
+
     external_mqtt_hostname = paramNh.param("external_mqtt_hostname", std::string(""));
     external_mqtt_port = paramNh.param("external_mqtt_port", std::to_string(1883));
     external_mqtt_username = paramNh.param("external_mqtt_username", std::string(""));
     external_mqtt_password = paramNh.param("external_mqtt_password", std::string(""));
 
     if(external_mqtt_enable) {
-        ROS_INFO_STREAM("Using extnernal MQTT broker: " << external_mqtt_hostname << ":" << external_mqtt_port);
+        ROS_INFO_STREAM("Using extnernal MQTT broker: " << external_mqtt_hostname << ":" << external_mqtt_port << " with topic prefix: " + external_mqtt_topic_prefix);
     }
 
     // First setup MQTT
