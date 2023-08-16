@@ -72,7 +72,7 @@ Behavior *MowingBehavior::execute() {
 }
 
 void MowingBehavior::enter() {
-    skip_area = false;
+    skip_area = 0;
     paused = aborted = false;
 
     for(auto& a : actions) {
@@ -286,6 +286,16 @@ bool MowingBehavior::execute_mowing_plan() {
             auto result = mbfClient->sendGoalAndWait(moveBaseGoal);
             first_point_attempt_counter++;
             if (result.state_ != result.SUCCEEDED) {
+                                
+                if(skip_area > 0) {
+                    ROS_INFO_STREAM("MowingBehavior: (MOW) SKIP AREA was requested.");
+                    // remove all paths in current area and return true
+                    mowerEnabled = false;
+                    currentMowingPaths.clear();
+                    skip_area--;
+                    return true;
+                }
+                
                 // we cannot reach the start point
                 ROS_ERROR_STREAM("MowingBehavior: (FIRST POINT) - Could not reach goal (first point). Planner Status was: " << result.state_);
                 // we have 3 attempts to get to the start pose of the mowing area
@@ -355,12 +365,12 @@ bool MowingBehavior::execute_mowing_plan() {
                     current_status.state_ == actionlib::SimpleClientGoalState::PENDING) {
                     // path is being executed, everything seems fine.
                     // check if we should pause or abort mowing
-                    if(skip_area) {
+                    if(skip_area>0) {
                         ROS_INFO_STREAM("MowingBehavior: (MOW) SKIP AREA was requested.");
                         // remove all paths in current area and return true
                         mowerEnabled = false;
                         currentMowingPaths.clear();
-                        skip_area = false;
+                        skip_area--;
                         return true;
                     }
                     if (aborted) {
@@ -452,7 +462,8 @@ void MowingBehavior::command_s1() {
 }
 
 void MowingBehavior::command_s2() {
-    skip_area = true;
+    skip_area++;
+    mbfClient->cancelGoal(); //if we are approaching the start point, we cancel it.
 }
 
 bool MowingBehavior::redirect_joystick() {
@@ -514,7 +525,7 @@ void MowingBehavior::handle_action(std::string action) {
         this->abort();
     } else if(action == "mower_logic:mowing/skip_area") {
         ROS_INFO_STREAM("got skip_area command");
-        skip_area = true;
+        skip_area++;
     }
     update_actions();
 }
