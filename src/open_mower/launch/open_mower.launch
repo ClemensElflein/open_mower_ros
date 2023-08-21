@@ -11,6 +11,7 @@
     <node pkg="mower_logic" type="mower_logic" name="mower_logic" output="screen">
         <param name="automatic_mode" value="$(optenv OM_AUTOMATIC_MODE 0)"/>
         <param name="docking_distance" value="$(env OM_DOCKING_DISTANCE)"/>
+        <param name="docking_approach_distance" value="$(env OM_DOCKING_APPROACH_DISTANCE)" />
         <param name="undock_distance" value="$(env OM_UNDOCK_DISTANCE)"/>
         <param name="tool_width" value="$(env OM_TOOL_WIDTH)"/>
         <param name="enable_mower" value="$(env OM_ENABLE_MOWER)"/>
@@ -23,6 +24,7 @@
         <param name="battery_full_voltage" value="$(env OM_BATTERY_FULL_VOLTAGE)"/>
         <param name="motor_hot_temperature" value="$(env OM_MOWING_MOTOR_TEMP_HIGH)"/>
         <param name="motor_cold_temperature" value="$(env OM_MOWING_MOTOR_TEMP_LOW)"/>
+        <param name="mow_direction_reverse" value="$(env OM_MOWING_MOW_DIRECTION_REVERSE)"/>
     </node>
     <node pkg="slic3r_coverage_planner" type="slic3r_coverage_planner" name="slic3r_coverage_planner" output="screen"/>
 
