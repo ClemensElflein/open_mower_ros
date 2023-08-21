@@ -188,6 +188,36 @@ bool MowingBehavior::create_mowing_plan(int area_index) {
         return false;
     }
 
+    if (config.mow_direction_reverse) {
+        for (int i = 0; i < pathSrv.response.paths.size(); i++) {
+            auto &path = pathSrv.response.paths[i];
+            auto &poses = path.path.poses;
+            int n = poses.size();
+
+            if (n > 2) {
+                // reverse poses array
+                for (int j = 0; j < n/2; j ++) {
+                    auto temp = poses[j];
+                    poses[j] = poses[n - j - 1];
+                    poses[n - j - 1] = temp;
+                }
+
+                // compute orientation
+                for (int j = 1; j < n; j++) {
+                    auto &lastPose = poses[j - 1].pose;
+                    auto &pose = poses[j].pose;
+
+                    double dx  = pose.position.x - lastPose.position.x;
+                    double dy  = pose.position.y - lastPose.position.y;
+                    double orientation = atan2(dy, dx);
+                    tf2::Quaternion q(0.0, 0.0, orientation);
+                    lastPose.orientation = tf2::toMsg(q);
+                }
+                poses[n - 1].pose.orientation = poses[n - 2].pose.orientation;
+            }
+        }
+    }
+
     currentMowingPaths = pathSrv.response.paths;
 
     return true;
