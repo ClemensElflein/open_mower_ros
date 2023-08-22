@@ -20,11 +20,13 @@ extern ros::ServiceClient dockingPointClient;
 extern actionlib::SimpleActionClient<mbf_msgs::ExePathAction> *mbfClientExePath;
 extern xbot_msgs::AbsolutePose getPose();
 extern mower_msgs::Status getStatus();
+extern actionlib::SimpleActionClient<mbf_msgs::MoveBaseAction> *mbfClient;
 
 extern void setRobotPose(geometry_msgs::Pose &pose);
 extern void stopMoving();
 extern bool isGpsGood();
 extern bool setGPS(bool enabled);
+extern bool setGPSRtkFloat(bool enabled);
 
 UndockingBehavior UndockingBehavior::INSTANCE(&MowingBehavior::INSTANCE);
 UndockingBehavior UndockingBehavior::RETRY_INSTANCE(&DockingBehavior::INSTANCE);
@@ -69,6 +71,32 @@ Behavior *UndockingBehavior::execute() {
 
     bool success = result.state_ == actionlib::SimpleClientGoalState::SUCCEEDED;
 
+    // Goto the fix point
+    if (config.gps_use_fix_point) {
+        ROS_INFO_STREAM("Reaching fix point");
+        // allow it no navigate with float rtk
+        setGPSRtkFloat(true);
+        bool hasGps = waitForGPS();
+        if (!hasGps) {
+            ROS_ERROR_STREAM("Could not get GPS.");
+            return &IdleBehavior::INSTANCE;
+        }
+
+        geometry_msgs::PoseStamped fix_point = path.poses.back();
+        fix_point.pose.position.x = config.gps_fix_point_x;
+        fix_point.pose.position.y = config.gps_fix_point_y;
+        mbf_msgs::MoveBaseGoal moveBaseGoal;
+        moveBaseGoal.target_pose = fix_point;
+        moveBaseGoal.controller = "FTCPlanner";
+        auto result = mbfClient->sendGoalAndWait(moveBaseGoal);
+        if (result.state_ != result.SUCCEEDED) {
+            ROS_ERROR_STREAM("Error reaching fix point");
+            return &IdleBehavior::INSTANCE;
+        }
+        // now we want clean rtk fix
+        setGPSRtkFloat(false);
+    }
+
     // stop the bot for now
     stopMoving();
 
@@ -105,6 +133,17 @@ void UndockingBehavior::enter() {
     // set the robot's position to the dock if we're actually docked
     if(getStatus().v_charge > 5.0) {
         ROS_INFO_STREAM("Currently inside the docking station, we set the robot's pose to the docks pose.");
+        // // adjust the pose to docker pose which is in front of the first docking point
+        // geometry_msgs::PoseStamped docking_pose_adjusted = docking_pose_stamped;
+        // tf2::Quaternion quat;
+        // tf2::fromMsg(docking_pose_stamped.pose.orientation, quat);
+        // tf2::Matrix3x3 m(quat);
+        // double roll, pitch, yaw;
+        // m.getRPY(roll, pitch, yaw);
+        // docking_pose_adjusted.pose.position.x += cos(yaw) * 0.6;
+        // docking_pose_adjusted.pose.position.y += sin(yaw) * 0.6;
+
+        // setRobotPose(docking_pose_adjusted.pose);
         setRobotPose(docking_pose_stamped.pose);
     }
 }

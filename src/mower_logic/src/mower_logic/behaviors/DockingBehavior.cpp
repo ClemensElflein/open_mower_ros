@@ -23,11 +23,33 @@ extern mower_msgs::Status getStatus();
 
 extern void stopMoving();
 extern bool setGPS(bool enabled);
+extern bool setGPSRtkFloat(bool enabled);
 
 DockingBehavior DockingBehavior::INSTANCE;
 
 bool DockingBehavior::approach_docking_point() {
     ROS_INFO_STREAM("Calculating approach path");
+
+    // Goto the fix point
+    if (config.gps_use_fix_point) {
+        ROS_INFO_STREAM("Reaching fix point");
+        // allow it no navigate with float rtk
+        setGPSRtkFloat(true);
+
+        geometry_msgs::PoseStamped fix_point = docking_pose_stamped;
+        fix_point.pose.position.x = config.gps_fix_point_x;
+        fix_point.pose.position.y = config.gps_fix_point_y;
+        mbf_msgs::MoveBaseGoal moveBaseGoal;
+        moveBaseGoal.target_pose = fix_point;
+        moveBaseGoal.controller = "FTCPlanner";
+        auto result = mbfClient->sendGoalAndWait(moveBaseGoal);
+        if (result.state_ != result.SUCCEEDED) {
+            ROS_ERROR_STREAM("Error reaching fix point");
+            return false;
+        }
+        // now we want clean rtk fix
+        setGPSRtkFloat(false);
+    }
 
     // Calculate a docking approaching point behind the actual docking point
     tf2::Quaternion quat;
@@ -35,7 +57,6 @@ bool DockingBehavior::approach_docking_point() {
     tf2::Matrix3x3 m(quat);
     double roll, pitch, yaw;
     m.getRPY(roll, pitch, yaw);
-
 
     // Get the approach start point
     {
