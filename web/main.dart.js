@@ -70052,7 +70052,7 @@ $1(a){this.a.ab4()},
 $S:47}
 A.Ji.prototype={
 L(a){var s=null
-return new A.wk("/","Flutter Demo",A.asx(B.ag,B.cq,!1),A.a([A.aqA(s,s,s,B.DY,B.E0,B.ah,s,!1,s,!0,s,"/",!0,new A.a50(),s,s,s,!0,!0,s,s,s,s,t.z)],t.RT),s)}}
+return new A.wk("/","open_mower_app",A.asx(B.ag,B.cq,!1),A.a([A.aqA(s,s,s,B.DY,B.E0,B.ah,s,!1,s,!0,s,"/",!0,new A.a50(),s,s,s,!0,!0,s,s,s,s,t.z)],t.RT),s)}}
 A.a50.prototype={
 $0(){$.bh()
 var s=$.aK
