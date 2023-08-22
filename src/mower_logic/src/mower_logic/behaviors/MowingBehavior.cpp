@@ -188,7 +188,18 @@ bool MowingBehavior::create_mowing_plan(int area_index) {
         return false;
     }
 
-    if (config.mow_direction_reverse) {
+    // reverse areas ?
+    bool shouldReverse = false;
+    std::stringstream ss (config.mow_direction_reverse_areas);
+    std::string item;
+    while (getline(ss, item, ',')) {
+        if (area_index == stoi(item)) {
+            shouldReverse = true;
+            break;
+        }
+    }
+    if (shouldReverse) {
+        ROS_INFO_STREAM("MowingBehavior: Reversing path for area number: " << area_index);
         for (int i = 0; i < pathSrv.response.paths.size(); i++) {
             auto &path = pathSrv.response.paths[i];
             auto &poses = path.path.poses;

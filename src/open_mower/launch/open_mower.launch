@@ -24,7 +24,7 @@
         <param name="battery_full_voltage" value="$(env OM_BATTERY_FULL_VOLTAGE)"/>
         <param name="motor_hot_temperature" value="$(env OM_MOWING_MOTOR_TEMP_HIGH)"/>
         <param name="motor_cold_temperature" value="$(env OM_MOWING_MOTOR_TEMP_LOW)"/>
-        <param name="mow_direction_reverse" value="$(env OM_MOWING_MOW_DIRECTION_REVERSE)"/>
+        <param name="mow_direction_reverse_areas" value="$(env OM_MOWING_MOW_DIRECTION_REVERSE_AREAS)"/>
     </node>
     <node pkg="slic3r_coverage_planner" type="slic3r_coverage_planner" name="slic3r_coverage_planner" output="screen"/>
 
