@@ -137,6 +137,7 @@ bool DockingBehavior::dock_straight() {
                 // currently moving. Cancel as soon as we're in the station
                 if (last_status.v_charge > 5.0) {
                     ROS_INFO_STREAM("Got a voltage of " << last_status.v_charge << " V. Cancelling docking.");
+                    ros::Duration(config.docking_extra_time).sleep();
                     mbfClientExePath->cancelGoal();
                     stopMoving();
                     dockingSuccess = true;

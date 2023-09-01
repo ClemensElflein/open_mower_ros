@@ -11,6 +11,7 @@
     <node pkg="mower_logic" type="mower_logic" name="mower_logic" output="screen">
         <param name="automatic_mode" value="$(optenv OM_AUTOMATIC_MODE 0)"/>
         <param name="docking_distance" value="$(env OM_DOCKING_DISTANCE)"/>
+        <param name="docking_extra_time" value="$(optenv OM_DOCKING_EXTRA_TIME 0)"/>
         <param name="undock_distance" value="$(env OM_UNDOCK_DISTANCE)"/>
         <param name="perimeter_signal" value="$(optenv OM_PERIMETER_SIGNAL)"/>
         <param name="tool_width" value="$(env OM_TOOL_WIDTH)"/>
