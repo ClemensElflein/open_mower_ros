@@ -49,6 +49,15 @@ bool DockingBehavior::approach_docking_point() {
         }
         // now we want clean rtk fix
         setGPSRtkFloat(false);
+        // make sure gps is rtk fixed
+        ros::Duration(5.0).sleep();
+        while(!isGPSGood){
+            ROS_WARN_STREAM("Waiting for good GPS");
+            ros::Duration(1.0).sleep();
+        }
+        // wait additional time for rtk gps to be stable
+        ros::Rate r(ros::Duration(config.gps_wait_time, 0));
+        r.sleep();
     }
 
     // Calculate a docking approaching point behind the actual docking point
