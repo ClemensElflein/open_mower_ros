@@ -44,6 +44,7 @@
 #include "mower_msgs/HighLevelControlSrv.h"
 #include "std_msgs/String.h"
 #include "mower_msgs/HighLevelStatus.h"
+#include "mower_msgs/StartInAreaSrv.h"
 #include "mower_map/ClearMapSrv.h"
 #include "xbot_msgs/AbsolutePose.h"
 #include "xbot_positioning/GPSControlSrv.h"
@@ -483,6 +484,14 @@ void reconfigureCB(mower_logic::MowerLogicConfig &c, uint32_t level) {
     last_config = c;
 }
 
+bool startInAreaCommand(mower_msgs::StartInAreaSrvRequest &req, mower_msgs::StartInAreaSrvResponse &res) {
+    last_config.current_area = req.area;
+    last_config.clear_path_on_start = true;
+    if (currentBehavior) {
+        currentBehavior->command_start();
+    }
+}
+
 bool highLevelCommand(mower_msgs::HighLevelControlSrvRequest &req, mower_msgs::HighLevelControlSrvResponse &res) {
     switch(req.command) {
         case mower_msgs::HighLevelControlSrvRequest::COMMAND_HOME:
@@ -608,6 +617,7 @@ int main(int argc, char **argv) {
     ros::Subscriber action = n->subscribe("xbot/action", 0, actionReceived, ros::TransportHints().tcpNoDelay(true));
 
     ros::ServiceServer high_level_control_srv = n->advertiseService("mower_service/high_level_control", highLevelCommand);
+    ros::ServiceServer start_in_area_srv = n->advertiseService("mower_service/start_in_area", startInAreaCommand);
 
 
     ros::AsyncSpinner asyncSpinner(1);

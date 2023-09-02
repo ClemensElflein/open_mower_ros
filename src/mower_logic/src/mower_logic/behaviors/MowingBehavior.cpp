@@ -40,6 +40,13 @@ std::string MowingBehavior::state_name() {
 }
 
 Behavior *MowingBehavior::execute() {
+    auto config = getConfig();
+    if (config.clear_path_on_start) {
+        currentMowingPaths.clear();
+        config.clear_path_on_start = false;
+        setConfig(config);
+    }
+
     shared_state->active_semiautomatic_task = true;
 
     while (ros::ok() && !aborted) {
