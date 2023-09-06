@@ -6,7 +6,7 @@
 	url = https://github.com/ClemensElflein/ftc_local_planner.git
 [submodule "src/lib/slic3r_coverage_planner"]
 	path = src/lib/slic3r_coverage_planner
-	url = https://github.com/ClemensElflein/slic3r_coverage_planner.git
+	url = https://github.com/alexvaut/slic3r_coverage_planner.git
 [submodule "src/lib/ntrip_client"]
 	path = src/lib/ntrip_client
 	url = https://github.com/LORD-MicroStrain/ntrip_client.git
