@@ -2,24 +2,33 @@
 FROM docker.io/ros:noetic-ros-base-focal as base
 ENV DEBIAN_FRONTEND=noninteractive
 
+# Set timezone
+ENV TZ=Europe/Paris
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
 RUN apt-get update && \
-    apt-get install --yes git
+    apt-get install --yes git nano
 RUN rosdep update
 
-# Install mosquitto broker
-RUN apt-get install --yes mosquitto
+# Install rosserial
+RUN mkdir -p /home/ubuntu/rosserial/src && cd /home/ubuntu/rosserial/src && git clone https://github.com/tongtybj/rosserial && cd rosserial && git checkout rosservice_server
+USER root
+RUN bash -c 'source /opt/ros/noetic/setup.bash && cd /home/ubuntu/rosserial && catkin_make -DCMAKE_INSTALL_PREFIX=/opt/ros/noetic install --only-pkg-with-deps rosserial_server'
 
-# Install our config
-COPY --link ./assets/mosquitto.conf /etc/mosquitto/mosquitto.conf
+# # Install mosquitto broker
+# RUN apt-get install --yes mosquitto
 
-# Install nginx for hosting the app
-RUN apt-get install --yes nginx
+# # Install our config
+# COPY --link ./assets/mosquitto.conf /etc/mosquitto/mosquitto.conf
 
-# Remove default nginx config (else it will run on port 80)
-RUN rm /etc/nginx/sites-enabled/*
+# # Install nginx for hosting the app
+# RUN apt-get install --yes nginx
 
-# Install nginx config
-COPY --link ./assets/nginx.conf /etc/nginx/conf.d/default.conf
+# # Remove default nginx config (else it will run on port 80)
+# RUN rm /etc/nginx/sites-enabled/*
+
+# # Install nginx config
+# COPY --link ./assets/nginx.conf /etc/nginx/conf.d/default.conf
 
 # First stage: Pull the git and all submodules, other stages depend on it
 FROM base as fetch
@@ -95,7 +104,9 @@ WORKDIR /opt/open_mower_ros
 RUN bash -c "source /opt/ros/$ROS_DISTRO/setup.bash && cd /opt/open_mower_ros/src && catkin_init_workspace && cd .. && source /opt/prebuilt/slic3r_coverage_planner/setup.bash && catkin_make -DCATKIN_BLACKLIST_PACKAGES=slic3r_coverage_planner"
 
 COPY .github/assets/openmower_entrypoint.sh /openmower_entrypoint.sh
-RUN chmod +x /openmower_entrypoint.sh
+COPY .github/assets/start.sh /start.sh
+RUN chmod +x /openmower_entrypoint.sh && chmod +x /start.sh
 
 ENTRYPOINT ["/openmower_entrypoint.sh"]
-CMD ["bash", "-c", "service nginx start; service mosquitto start; roslaunch open_mower open_mower.launch --screen"]
+#CMD ["bash", "-c", "service nginx start; service mosquitto start; roslaunch open_mower open_mower.launch --screen"]
+CMD ["bash", "-c", "start.sh"]
