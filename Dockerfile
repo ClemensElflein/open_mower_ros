@@ -109,4 +109,4 @@ RUN chmod +x /openmower_entrypoint.sh && chmod +x /start.sh
 
 ENTRYPOINT ["/openmower_entrypoint.sh"]
 #CMD ["bash", "-c", "service nginx start; service mosquitto start; roslaunch open_mower open_mower.launch --screen"]
-CMD ["bash", "-c", "start.sh"]
+CMD ["bash", "-c", "/start.sh"]
