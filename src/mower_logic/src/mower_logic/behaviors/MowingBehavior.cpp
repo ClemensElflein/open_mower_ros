@@ -99,9 +99,21 @@ void MowingBehavior::reset() {
     }
 
     // increment mowing angle offset and return into the <-180, 180> range
-    config.mow_angle_offset = std::fmod(config.mow_angle_offset + config.mow_angle_increment + 180, 360);
+    
+    
+    int period = 1;
+    if(config.mow_angle_increment_period_days != 0)
+    {
+        // Get the current epoch time (in seconds)
+        std::time_t currentTime = std::time(nullptr);
+        // Convert epoch time to days
+        long days = currentTime / (60 * 60 * 24);
+        period = days / config.mow_angle_increment_period_days;                        
+    }       
+    config.mow_angle_offset = std::fmod(config.mow_angle_increment + config.mow_angle_increment * period + 180, 360);
     if (config.mow_angle_offset < 0) config.mow_angle_offset += 360;
     config.mow_angle_offset -= 180;
+    ROS_INFO_STREAM("Setup Angle Offset to "<< config.mow_angle_offset);
 
     setConfig(config);
 }
