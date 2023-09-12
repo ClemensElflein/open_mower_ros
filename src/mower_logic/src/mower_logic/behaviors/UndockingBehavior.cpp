@@ -22,7 +22,7 @@ extern xbot_msgs::AbsolutePose getPose();
 extern mower_msgs::Status getStatus();
 extern actionlib::SimpleActionClient<mbf_msgs::MoveBaseAction> *mbfClient;
 
-extern void setRobotPose(geometry_msgs::Pose &pose);
+extern void setRobotPoseDocked();
 extern void stopMoving();
 extern bool isGpsGood();
 extern bool setGPS(bool enabled);
@@ -123,28 +123,11 @@ void UndockingBehavior::enter() {
     reset();
     paused = aborted = false;
 
-    // Get the docking pose in map
-    mower_map::GetDockingPointSrv get_docking_point_srv;
-    dockingPointClient.call(get_docking_point_srv);
-    docking_pose_stamped.pose = get_docking_point_srv.response.docking_pose;
-    docking_pose_stamped.header.frame_id = "map";
-    docking_pose_stamped.header.stamp = ros::Time::now();
-
     // set the robot's position to the dock if we're actually docked
     if(getStatus().v_charge > 5.0) {
         ROS_INFO_STREAM("Currently inside the docking station, we set the robot's pose to the docks pose.");
-        // // adjust the pose to docker pose which is in front of the first docking point
-        // geometry_msgs::PoseStamped docking_pose_adjusted = docking_pose_stamped;
-        // tf2::Quaternion quat;
-        // tf2::fromMsg(docking_pose_stamped.pose.orientation, quat);
-        // tf2::Matrix3x3 m(quat);
-        // double roll, pitch, yaw;
-        // m.getRPY(roll, pitch, yaw);
-        // docking_pose_adjusted.pose.position.x += cos(yaw) * 0.6;
-        // docking_pose_adjusted.pose.position.y += sin(yaw) * 0.6;
 
-        // setRobotPose(docking_pose_adjusted.pose);
-        setRobotPose(docking_pose_stamped.pose);
+        setRobotPoseDocked();
     }
 }
 

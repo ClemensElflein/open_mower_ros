@@ -173,6 +173,34 @@ void setRobotPose(geometry_msgs::Pose &pose) {
     }
 }
 
+void setRobotPoseDocked() {
+    auto config = getConfig();
+
+    mower_map::GetDockingPointSrv get_docking_point_srv;
+    if(!dockingPointClient.call(get_docking_point_srv)) {
+        ROS_WARN("We don't have a docking point configured.");
+        return;
+    }
+
+    geometry_msgs::PoseStamped docking_pose_stamped;
+    docking_pose_stamped.pose = get_docking_point_srv.response.docking_pose;
+    docking_pose_stamped.header.frame_id = "map";
+    docking_pose_stamped.header.stamp = ros::Time::now();
+
+    tf2::Quaternion quat;
+    tf2::fromMsg(docking_pose_stamped.pose.orientation, quat);
+    tf2::Matrix3x3 m(quat);
+    double roll, pitch, yaw;
+    m.getRPY(roll, pitch, yaw);
+    docking_pose_stamped.pose.position.x += cos(yaw) * config.docking_distance;
+    docking_pose_stamped.pose.position.y += sin(yaw) * config.docking_distance;
+
+    setRobotPose(docking_pose_stamped.pose);
+    // wait for the position to settle otherwise the position difference might be too important and the planner will refuse to execute
+    ros::Rate r(ros::Duration(1, 0));
+    r.sleep();
+}
+
 void poseReceived(const xbot_msgs::AbsolutePose::ConstPtr &msg) {
     std::lock_guard<std::recursive_mutex> lk{mower_logic_mutex};
 
