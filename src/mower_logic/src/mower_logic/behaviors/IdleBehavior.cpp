@@ -20,7 +20,7 @@ extern void stopMoving();
 extern void stopBlade();
 extern void setEmergencyMode(bool emergency);
 extern void setGPS(bool enabled);
-extern void setRobotPose(geometry_msgs::Pose &pose);
+extern void setRobotPoseDocked();
 extern void registerActions(std::string prefix, const std::vector<xbot_msgs::ActionInfo> &actions);
 
 extern ros::ServiceClient dockingPointClient;
@@ -57,10 +57,6 @@ Behavior *IdleBehavior::execute() {
     }
 
     setGPS(false);
-    geometry_msgs::PoseStamped docking_pose_stamped;
-    docking_pose_stamped.pose = get_docking_point_srv.response.docking_pose;
-    docking_pose_stamped.header.frame_id = "map";
-    docking_pose_stamped.header.stamp = ros::Time::now();
 
     ros::Rate r(25);
     while (ros::ok()) {
@@ -78,7 +74,7 @@ Behavior *IdleBehavior::execute() {
             // set the robot's position to the dock if we're actually docked
             if(last_status.v_charge > 5.0) {
                 ROS_INFO_STREAM("Currently inside the docking station, we set the robot's pose to the docks pose.");
-                setRobotPose(docking_pose_stamped.pose);
+                setRobotPoseDocked();
                 return &UndockingBehavior::INSTANCE;
             }
             // Not docked, so just mow
