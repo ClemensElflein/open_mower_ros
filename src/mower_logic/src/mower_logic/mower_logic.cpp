@@ -174,6 +174,14 @@ void setRobotPose(geometry_msgs::Pose &pose) {
 }
 
 void setRobotPoseDocked() {
+    auto config = getConfig();
+
+    mower_map::GetDockingPointSrv get_docking_point_srv;
+    if(!dockingPointClient.call(get_docking_point_srv)) {
+        ROS_WARN("We don't have a docking point configured.");
+        return;
+    }
+
     geometry_msgs::PoseStamped docking_pose_stamped;
     docking_pose_stamped.pose = get_docking_point_srv.response.docking_pose;
     docking_pose_stamped.header.frame_id = "map";
