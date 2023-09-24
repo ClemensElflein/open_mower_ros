@@ -620,7 +620,7 @@ bool clearMap(mower_map::ClearMapSrvRequest &req, mower_map::ClearMapSrvResponse
 }
 
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
     ros::init(argc, argv, "mower_map_service");
     has_docking_point = false;
     ros::NodeHandle n;
@@ -632,27 +632,30 @@ int main(int argc, char **argv) {
     // Load the default map file
     readMapFromFile("map.bag");
 
-    buildMap();
+    // Check if the docking point is set before proceeding
+    if (!has_docking_point) {
+        ROS_ERROR_STREAM("No docking point set. Exiting...");
+        return 1;  // Return an error code to indicate the issue
+    }
 
+    buildMap();
 
     ros::ServiceServer add_area_srv = n.advertiseService("mower_map_service/add_mowing_area", addMowingArea);
     ros::ServiceServer get_area_srv = n.advertiseService("mower_map_service/get_mowing_area", getMowingArea);
     ros::ServiceServer delete_area_srv = n.advertiseService("mower_map_service/delete_mowing_area", deleteMowingArea);
     ros::ServiceServer append_maps_srv = n.advertiseService("mower_map_service/append_maps", appendMapFromFile);
     ros::ServiceServer convert_maps_srv = n.advertiseService("mower_map_service/convert_to_navigation_area",
-                                                             convertToNavigationArea);
+        convertToNavigationArea);
     ros::ServiceServer set_docking_point_srv = n.advertiseService("mower_map_service/set_docking_point",
-                                                                  setDockingPoint);
+        setDockingPoint);
     ros::ServiceServer get_docking_point_srv = n.advertiseService("mower_map_service/get_docking_point",
-                                                                  getDockingPoint);
+        getDockingPoint);
     ros::ServiceServer set_nav_point_srv = n.advertiseService("mower_map_service/set_nav_point",
-                                                                  setNavPoint);
+        setNavPoint);
     ros::ServiceServer clear_nav_point_srv = n.advertiseService("mower_map_service/clear_nav_point",
-                                                                  clearNavPoint);
+        clearNavPoint);
     ros::ServiceServer clear_map_srv = n.advertiseService("mower_map_service/clear_map",
-                                                                  clearMap);
-
-
+        clearMap);
 
     ros::spin();
     return 0;
