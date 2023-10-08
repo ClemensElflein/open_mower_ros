@@ -6,7 +6,7 @@
             <remap from="~wheel_ticks_in" to="/mower/wheel_ticks"/>
             <remap from="~xb_pose_in" to="xbot_driver_gps/xb_pose"/>
             <remap from="~xb_pose_out" to="xbot_positioning/xb_pose"/>
-            <param name="max_gps_accuracy" value="0.2"/>
+            <param name="max_gps_accuracy" value="$(env OM_GPS_MAX_ACCURACY)"/>
             <param name="antenna_offset_x" value="$(env OM_ANTENNA_OFFSET_X)"/>
             <param name="antenna_offset_y" value="$(env OM_ANTENNA_OFFSET_Y)"/>
         </node>
