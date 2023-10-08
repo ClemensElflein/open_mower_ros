@@ -80,6 +80,7 @@ std::recursive_mutex mower_logic_mutex;
 mower_msgs::HighLevelStatus high_level_status;
 
 std::atomic<bool> mowerEnabled;
+std::atomic<bool> gpsEnabled;
 
 Behavior *currentBehavior = &IdleBehavior::INSTANCE;
 
@@ -249,6 +250,8 @@ bool setGPS(bool enabled) {
         ROS_ERROR_STREAM("Error setting GPS. Going to emergency. THIS SHOULD NEVER HAPPEN");
         setEmergencyMode(true);
     }
+
+    gpsEnabled = enabled;
 
     return success;
 }
@@ -501,7 +504,7 @@ void checkSafety(const ros::TimerEvent &timer_event) {
             // set this if we don't even have an orientation
             high_level_status.gps_quality_percent = -1;
         }
-        ROS_WARN_STREAM_THROTTLE(1,"Low quality GPS");
+        if (gpsEnabled) ROS_WARN_STREAM_THROTTLE(1,"Low quality GPS");
     }
 
     bool gpsTimeout = ros::Time::now() - last_good_gps > ros::Duration(last_config.gps_timeout);
@@ -509,7 +512,7 @@ void checkSafety(const ros::TimerEvent &timer_event) {
     if(gpsTimeout) {
         // GPS = bad, set quality to 0
         high_level_status.gps_quality_percent = 0;
-        ROS_WARN_STREAM_THROTTLE(1,"GPS timeout");
+        if (gpsEnabled) ROS_WARN_STREAM_THROTTLE(1,"GPS timeout");
     }
 
     if (currentBehavior != nullptr && currentBehavior->needs_gps()) {
@@ -626,6 +629,7 @@ int main(int argc, char **argv) {
     n = new ros::NodeHandle();
     paramNh = new ros::NodeHandle("~");
     mowerEnabled = false;
+    gpsEnabled = false;
 
     boost::recursive_mutex mutex;
 
