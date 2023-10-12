@@ -23,6 +23,8 @@
         <param name="battery_full_voltage" value="$(env OM_BATTERY_FULL_VOLTAGE)"/>
         <param name="motor_hot_temperature" value="$(env OM_MOWING_MOTOR_TEMP_HIGH)"/>
         <param name="motor_cold_temperature" value="$(env OM_MOWING_MOTOR_TEMP_LOW)"/>
+        <param name="gps_wait_time" value="$(optenv OM_GPS_WAIT_TIME_SEC 10.0)"/>
+        <param name="gps_timeout" value="$(optenv OM_GPS_TIMEOUT_SEC 10.0)"/>
     </node>
     <node pkg="slic3r_coverage_planner" type="slic3r_coverage_planner" name="slic3r_coverage_planner" output="screen"/>
 
