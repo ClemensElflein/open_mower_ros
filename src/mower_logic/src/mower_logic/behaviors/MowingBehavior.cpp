@@ -504,13 +504,14 @@ bool MowingBehavior::execute_mowing_plan() {
                     // if GPS -> PAUSE
                     // if something else -> Recovery Behaviour ?
                     auto &poses = path.path.poses;
+                    auto pointsToSkip = getConfig().obstacle_skip_points;
                     ROS_INFO_STREAM("MowingBehavior (ErrorCatch): Poses before trim:" << poses.size());
                     if (currentIndex == 0) // currentIndex might be 0 if we never consumed one of the points, we trim at least 1 point
                     {
                         currentIndex = 1;
                     }
-                    ROS_INFO_STREAM("MowingBehavior (ErrorCatch): Trimming " << currentIndex << " points.");
-                    poses.erase(poses.begin(), poses.begin() + currentIndex);
+                    ROS_INFO_STREAM("MowingBehavior (ErrorCatch): Trimming " << currentIndex + pointsToSkip << " points.");
+                    poses.erase(poses.begin(), poses.begin() + currentIndex + pointsToSkip);
                     ROS_INFO_STREAM("MowingBehavior (ErrorCatch): Poses after trim:" << poses.size());
                     ROS_INFO_STREAM("MowingBehavior: (MOW) PAUSED due to MBF Error");
                     this->setPause();

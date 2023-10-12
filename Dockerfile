@@ -15,6 +15,17 @@ RUN mkdir -p /home/ubuntu/rosserial/src && cd /home/ubuntu/rosserial/src && git 
 USER root
 RUN bash -c 'source /opt/ros/noetic/setup.bash && cd /home/ubuntu/rosserial && catkin_make -DCMAKE_INSTALL_PREFIX=/opt/ros/noetic install --only-pkg-with-deps rosserial_server'
 
+# install range_sensor_layer from sources as it isn't available in noetic
+RUN mkdir -p /opt/range_sensor_layer_workspace/src && cd /opt/range_sensor_layer_workspace/src \
+ && git clone https://github.com/DLu/navigation_layers.git && cd navigation_layers && git checkout noetic \
+ && cd /opt/range_sensor_layer_workspace \
+ && apt-get update && rosdep install --from-paths src --ignore-src --simulate | \
+    sed --expression '1d' | sort | tr -d '\n' | sed --expression 's/  apt-get install//g' > apt-install_list && \
+    apt-get install --no-install-recommends --yes $(cat apt-install_list) && \
+    rm -rf /var/lib/apt/lists/* apt-install_list \
+ && bash -c "source /opt/ros/$ROS_DISTRO/setup.bash && cd /opt/range_sensor_layer_workspace && catkin_make -DCMAKE_INSTALL_PREFIX=/opt/ros/$ROS_DISTRO install"
+
+
 # # Install mosquitto broker
 # RUN apt-get install --yes mosquitto
 
