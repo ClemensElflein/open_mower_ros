@@ -152,22 +152,18 @@ bool UndockingBehavior::waitForGPS() {
     gpsRequired = false;
     setGPS(true);
     ros::Rate odom_rate(1.0);
-    while (ros::ok() && !aborted) {
-        if (isGpsGood()) {
-            ROS_INFO("Got good gps, let's go");
-            break;
-        } else {
-            ROS_INFO_STREAM("waiting for gps. current accuracy: " << getPose().position_accuracy);
-            odom_rate.sleep();
-        }
-    }
-    if (!ros::ok() || aborted) {
-        return false;
-    }
 
-    // wait additional time for odometry filters to converge
-    ros::Rate r(ros::Duration(config.gps_wait_time, 0));
-    r.sleep();
+    // wait at least config.gps_wait_time for gps rtk fix. it must be fixed during all the period
+    auto start = ros::Time::now();
+    while (start + ros::Duration(config.gps_wait_time, 0) > ros::Time::now()) {
+        if (!ros::ok() || aborted) {
+            return false;
+        }
+        if (!isGpsGood()) {
+            start = ros::Time::now();
+        }
+        odom_rate.sleep();
+    }
 
     gpsRequired = true;
 
