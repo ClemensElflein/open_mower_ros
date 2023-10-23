@@ -7,11 +7,13 @@ on:
     branches:
       - 'main'
       - 'releases/**'
+      - 'startinzone'
     tags:
       - 'v*.*.*'
   pull_request:
     branches:
       - 'main'
+      - 'startinzone'
 
 # Allow to stop obsolete workflows
 concurrency:
