@@ -51,6 +51,7 @@
 #include "xbot_positioning/GPSEnableFloatRtkSrv.h"
 #include "xbot_positioning/SetPoseSrv.h"
 #include "xbot_msgs/RegisterActionsSrv.h"
+#include "sensor_msgs/Range.h"
 #include <mutex>
 #include <atomic>
 
@@ -74,6 +75,7 @@ ros::Time status_time(0.0);
 mower_msgs::Status last_status;
 
 ros::Time last_good_gps(0.0);
+ros::Time lastMowerStatusChanged(0.0);
 
 std::recursive_mutex mower_logic_mutex;
 
@@ -176,6 +178,9 @@ void setRobotPose(geometry_msgs::Pose &pose) {
 
 void setRobotPoseDocked() {
     auto config = getConfig();
+    if (!config.gps_set_docked_pose) {
+        return;
+    }
 
     mower_map::GetDockingPointSrv get_docking_point_srv;
     if(!dockingPointClient.call(get_docking_point_srv)) {
@@ -193,8 +198,8 @@ void setRobotPoseDocked() {
     tf2::Matrix3x3 m(quat);
     double roll, pitch, yaw;
     m.getRPY(roll, pitch, yaw);
-    docking_pose_stamped.pose.position.x += cos(yaw) * config.docking_distance;
-    docking_pose_stamped.pose.position.y += sin(yaw) * config.docking_distance;
+    docking_pose_stamped.pose.position.x = config.docked_pose_x;
+    docking_pose_stamped.pose.position.y = config.docked_pose_y;
 
     setRobotPose(docking_pose_stamped.pose);
     // wait for the position to settle otherwise the position difference might be too important and the planner will refuse to execute
@@ -295,9 +300,10 @@ bool setMowerEnabled(bool enabled)
         enabled = false;
     }
     
-    // status change ?
-    if (mowerEnabled != enabled)
+    // status changed and debounce
+    if ((mowerEnabled != enabled) && (ros::Time::now() - lastMowerStatusChanged > ros::Duration(2.0)))
     {
+        lastMowerStatusChanged = ros::Time::now();
         ros::Time started = ros::Time::now();
         mower_msgs::MowerControlSrv mow_srv;
         mow_srv.request.mow_enabled = enabled;
@@ -559,6 +565,7 @@ bool startInAreaCommand(mower_msgs::StartInAreaSrvRequest &req, mower_msgs::Star
     if (currentBehavior) {
         currentBehavior->command_start();
     }
+    return true;
 }
 
 bool highLevelCommand(mower_msgs::HighLevelControlSrvRequest &req, mower_msgs::HighLevelControlSrvResponse &res) {
@@ -617,6 +624,12 @@ void actionReceived(const std_msgs::String::ConstPtr &action) {
     }
 }
 
+void bumperReceived(const sensor_msgs::Range::ConstPtr &bumper) {
+    if(currentBehavior && bumper->range > bumper->min_range && bumper->range < bumper->max_range) {
+        currentBehavior->requestCrashRecovery();
+    }
+}
+
 void joyVelReceived(const geometry_msgs::Twist::ConstPtr &joy_vel) {
     if(currentBehavior && currentBehavior->redirect_joystick()) {
         cmd_vel_pub.publish(joy_vel);
@@ -629,6 +642,7 @@ int main(int argc, char **argv) {
     n = new ros::NodeHandle();
     paramNh = new ros::NodeHandle("~");
     mowerEnabled = false;
+    lastMowerStatusChanged = ros::Time(0.0);
     gpsEnabled = false;
 
     boost::recursive_mutex mutex;
@@ -687,6 +701,8 @@ int main(int argc, char **argv) {
     ros::Subscriber pose_sub = n->subscribe("/xbot_positioning/xb_pose", 0, poseReceived, ros::TransportHints().tcpNoDelay(true));
     ros::Subscriber joy_cmd = n->subscribe("/joy_vel", 0, joyVelReceived, ros::TransportHints().tcpNoDelay(true));
     ros::Subscriber action = n->subscribe("xbot/action", 0, actionReceived, ros::TransportHints().tcpNoDelay(true));
+    ros::Subscriber bumper_left = n->subscribe("/bumper/left", 0, bumperReceived, ros::TransportHints().tcpNoDelay(true));
+    ros::Subscriber bumper_right = n->subscribe("/bumper/right", 0, bumperReceived, ros::TransportHints().tcpNoDelay(true));
 
     ros::ServiceServer high_level_control_srv = n->advertiseService("mower_service/high_level_control", highLevelCommand);
     ros::ServiceServer start_in_area_srv = n->advertiseService("mower_service/start_in_area", startInAreaCommand);
