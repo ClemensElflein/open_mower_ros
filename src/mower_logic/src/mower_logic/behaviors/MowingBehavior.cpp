@@ -354,22 +354,30 @@ bool MowingBehavior::execute_mowing_plan() {
                         ROS_INFO_STREAM("MowingBehavior: (FIRST POINT) SKIP AREA was requested.");
                         // remove all paths in current area and return true
                         mowerEnabled = false;
-                        mbfClientExePath->cancelAllGoals();
+                        mbfClient->cancelAllGoals();
                         currentMowingPaths.clear();
                         skip_area = false;
                         return true;
                     }
                     if (aborted) {
                         ROS_INFO_STREAM("MowingBehavior: (FIRST POINT) ABORT was requested - stopping path execution.");
-                        mbfClientExePath->cancelAllGoals();
+                        mbfClient->cancelAllGoals();
                         mowerEnabled = false;
                         return false;
                     }
                     if (requested_pause_flag) {
                         ROS_INFO_STREAM("MowingBehavior: (FIRST POINT) PAUSE was requested - stopping path execution.");
-                        mbfClientExePath->cancelAllGoals();
+                        mbfClient->cancelAllGoals();
                         mowerEnabled = false;
                         return false;
+                    }
+                    if (requested_crash_recovery_flag) {
+                        ROS_WARN_STREAM("MowingBehavior: (FIRST POINT) CRASH RECOVERY was requested - stopping path execution and waiting 2sec to calm down.");
+                        mbfClient->cancelAllGoals();
+                        // debounce
+                        ros::Duration(2.0).sleep();
+                        requested_crash_recovery_flag = false;
+                        break;
                     }
                 } else {
                     ROS_INFO_STREAM("MowingBehavior: (FIRST POINT)  Got status " << current_status.state_ << " from MBF/FTCPlanner -> Stopping path execution.");
@@ -398,9 +406,10 @@ bool MowingBehavior::execute_mowing_plan() {
                     {
                         // We try now to remove the first point so the 2nd, 3rd etc point becomes our target
                         // mow path points are offset by 10cm
+                        auto pointsToSkip = getConfig().obstacle_skip_points;
                         auto &poses = path.path.poses;
                         ROS_WARN_STREAM("MowingBehavior: (FIRST POINT) - Attempt " << first_point_trim_counter << " / " << config.max_first_point_trim_attempts << " Trimming first point off the beginning of the mow path.");
-                        poses.erase(poses.begin(), poses.begin() + 1);
+                        poses.erase(poses.begin(), poses.begin() + pointsToSkip);
                         first_point_trim_counter++;
                         first_point_attempt_counter = 0; // give it another <config.max_first_point_attempts> attempts
                         this->setPause();
@@ -468,6 +477,14 @@ bool MowingBehavior::execute_mowing_plan() {
                         ROS_INFO_STREAM("MowingBehavior: (MOW) PAUSE was requested - stopping path execution.");
                         mbfClientExePath->cancelAllGoals();
                         mowerEnabled = false;
+                        break; // Trim path
+                    }
+                    if (requested_crash_recovery_flag) {
+                        ROS_INFO_STREAM("MowingBehavior: (MOW) CRASH RECOVERY was requested - stopping path execution and waiting 2sec.");
+                        mbfClientExePath->cancelAllGoals();
+                        // debounce
+                        ros::Duration(2.0).sleep();
+                        requested_crash_recovery_flag = false;
                         break; // Trim path
                     }
                     // show progress

@@ -1,5 +1,5 @@
 global_costmap:
-  inflation_radius: 1.0
+#  inflation_radius: 1.0
   global_frame: map
   robot_base_frame: base_link
   update_frequency: 1.0
@@ -8,3 +8,19 @@ global_costmap:
   rolling_window: false
   resolution: 0.10
   map_topic: mower_map_service/map
+ 
+  plugins:
+  - {name: static_layer, type: "costmap_2d::StaticLayer"}
+  - {name: range_sensor_layer, type: "range_sensor_layer::RangeSensorLayer"}
+  - {name: inflater_layer, type: "costmap_2d::InflationLayer"}
+
+  static_layer:
+    map_topic: mower_map_service/map
+
+  range_sensor_layer:
+    topics: ["/bumper/left", "/bumper/right"]
+#    mark_threshold: 0.5 # default is 0.8
+
+  inflater_layer:
+    inflation_radius: 1.0 # was 0.1
+    cost_scaling_factor: 0.5 # was 0.5 then 1.0

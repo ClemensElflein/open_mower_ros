@@ -10,3 +10,17 @@ local_costmap:
   resolution: 0.15
   static_map: true
   map_topic: mower_map_service/map
+
+  plugins:
+  - {name: static_layer, type: "costmap_2d::StaticLayer"}
+  - {name: inflater_layer, type: "costmap_2d::InflationLayer"}
+
+  static_layer:
+    map_topic: mower_map_service/map
+
+  range_sensor_layer:
+    topics: ["/bumper/left", "/bumper/right"]
+
+  inflater_layer:
+   inflation_radius: 0.1 # was 0.1
+   cost_scaling_factor: 1.0 # was 0.5

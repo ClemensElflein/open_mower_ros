@@ -30,6 +30,11 @@
         <param name="gps_use_fix_point" value="$(env OM_GPS_USE_FIX_POINT)"/>
         <param name="gps_fix_point_x" value="$(env OM_GPS_FIX_POINT_X)"/>
         <param name="gps_fix_point_y" value="$(env OM_GPS_FIX_POINT_Y)"/>
+        <param name="gps_set_docked_pose" value="$(env OM_GPS_SET_DOCKED_POSE)"/>
+        <param name="docked_pose_x" value="$(env OM_GPS_DOCKED_POSE_X)"/>
+        <param name="docked_pose_y" value="$(env OM_GPS_DOCKED_POSE_Y)"/>
+        <param name="max_first_point_attempts" value="$(env OM_MAX_FIRST_POINT_ATTEMPTS)"/>
+        <param name="max_first_point_trim_attempts" value="$(env OM_MAX_FIRST_POINT_TRIM_ATTEMPTS)"/>
     </node>
     <node pkg="slic3r_coverage_planner" type="slic3r_coverage_planner" name="slic3r_coverage_planner" output="screen"/>
 

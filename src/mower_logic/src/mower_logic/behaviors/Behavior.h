@@ -47,6 +47,7 @@ protected:
 
     std::atomic<bool> requested_continue_flag;
     std::atomic<bool> requested_pause_flag;
+    std::atomic<bool> requested_crash_recovery_flag;
 
     std::atomic<bool> isGPSGood;
     std::atomic<uint8_t> sub_state;
@@ -89,6 +90,11 @@ public:
         requested_pause_flag = true;
     }
 
+    void requestCrashRecovery()
+    {
+        requested_crash_recovery_flag = true;
+    }
+
     void setPause()
     {
         paused = true;
@@ -111,6 +117,7 @@ public:
         paused = false;
         requested_continue_flag = false;
         requested_pause_flag = false;
+        requested_crash_recovery_flag = false;
         this->config = c;
         this->shared_state = std::move(s);
         startTime = ros::Time::now();
