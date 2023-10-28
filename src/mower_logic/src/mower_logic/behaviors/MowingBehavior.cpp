@@ -403,8 +403,7 @@ bool MowingBehavior::execute_mowing_plan() {
                         // Unable to reach the start of the mow path (we tried multiple attempts for the same point, and we skipped points which also didnt work, time to give up) 
                         ROS_ERROR_STREAM("MowingBehavior: (FIRST POINT) Max retries reached, we are unable to reach any of the first points - aborting at index: "
                             << currentMowingPathIndex << " path: " << currentMowingPath << " area: " << currentMowingArea );
-                        currentMowingPath++;
-                        currentMowingPathIndex = 0;
+                        this->abort();
                     }
                 }
                 continue;
