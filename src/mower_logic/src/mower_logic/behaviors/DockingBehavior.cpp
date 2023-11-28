@@ -15,6 +15,7 @@
 //
 //
 #include "DockingBehavior.h"
+#include "PerimeterDocking.h"
 
 extern ros::ServiceClient dockingPointClient;
 extern actionlib::SimpleActionClient<mbf_msgs::MoveBaseAction> *mbfClient;
@@ -209,6 +210,9 @@ Behavior *DockingBehavior::execute() {
     inApproachMode = false;
     setGPS(false);
 
+    if (PerimeterSearchBehavior::configured(config))
+      return &PerimeterSearchBehavior::INSTANCE;
+    
     bool docked = dock_straight();
 
     if (!docked) {
