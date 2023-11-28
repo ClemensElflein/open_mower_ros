@@ -12,6 +12,7 @@ add_message_files(
         ImuRaw.msg
         ESCStatus.msg
         HighLevelStatus.msg
+        Perimeter.msg
 )
 
 add_service_files(
@@ -21,6 +22,7 @@ add_service_files(
         MowerControlSrv.srv
         HighLevelControlSrv.srv
         StartInAreaSrv.srv
+	PerimeterControlSrv.srv
 )
 
 ## Generate added messages and services with any dependencies listed here

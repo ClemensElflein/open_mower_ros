@@ -84,6 +84,21 @@ export OM_DOCKING_DISTANCE=1.0
 # The distance to drive for undocking. This needs to be large enough for the robot to have GPS reception
 export OM_UNDOCK_DISTANCE=2.0
 
+# Uncomment, if you want to use the perimeter sensor of your Mowgli-type mower
+# for docking. Set it to 1 or 2 dependig on the signal selected on the docking
+# station (S1 or S2).
+# Normally docking is done counterclockwise. If you want to dock clockwise set
+# it to -1 or -2.
+# Set OM_DOCKING_DISTANCE to the number of meters, that must be travelled along
+# the wire to reach to docking station. Add some meters to account for slipping.
+# On the other hand do not add too much, as this value is a security measure used
+# to stop the motor, if the mower does not hit the station exactly and tries to
+# shove it away.
+# Also set OM_UNDOCK_DISTANCE to the distance, that should be travelled along
+# the wire during undocking. If this value is less than one meter, normal
+# undocking will be used.
+#OM_PERIMETER_SIGNAL=1
+
 # How many outlines should the mover drive. It's not recommended to set this below 4.
 export OM_OUTLINE_COUNT=4
 
