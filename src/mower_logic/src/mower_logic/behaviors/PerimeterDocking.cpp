@@ -8,7 +8,7 @@
 #define ANGULAR_SPEED 0.5
 
 /* Distance from center to outer coil */
-#define COIL_Y_OFFSET 0.12
+#define COIL_Y_OFFSET 0.11
 /* Distance from rear axis to coils */
 #define COIL_X_OFFSET 0.40
 
@@ -246,8 +246,11 @@ Behavior* PerimeterFollowBehavior::execute() {
   int tries=0;
   perimeterUpdated=1; // Use first measurement
   Behavior* toReturn;
-  while (!(toReturn=arrived())) {
+  double drift=0; // The angular velocity of the mower, if we want to go strait on.
+  double averageInterval=5; // Average five seconds.
+  while (ros::ok() && !(toReturn=arrived())) {
     if (!isPerimeterUpdated()) {
+      cmd_vel_pub.publish(vel);
       rate.sleep();
       if (tries && --tries==0) {
         ROS_ERROR("Timeout of action %d",state);
@@ -257,7 +260,6 @@ Behavior* PerimeterFollowBehavior::execute() {
       double d=rate.expectedCycleTime().toSec();
       travelled+=d*vel.linear.x;
       travelTimeSinceUpdate+=d;
-      cmd_vel_pub.publish(vel);
       continue;
     }
     /* Turn into direction of perimeter */
@@ -279,27 +281,25 @@ Behavior* PerimeterFollowBehavior::execute() {
       }
     } else {
       vel.linear.x=SEARCH_SPEED;
-      float l=lastPerimeter.left*calibrationLeft;
-      float r=lastPerimeter.right*calibrationRight;
-      /* Try to determine the position of the zero signal */
-      if (l*r>=0) continue; // Same sign, should not happen
       if (fabs(lastPerimeter.center)>maxCenter) {
         maxCenter=fabs(lastPerimeter.center);
       }
       double c=lastPerimeter.center*signCenter;
       /* Signal of the center coil is proportional to distance from the wire */
+      /* y0: Position of the wire in mower coordinates */
       double y0=-direction*COIL_Y_OFFSET*c/maxCenter;
       double alpha0=y0/COIL_X_OFFSET; // deflection
-      vel.angular.z=alpha0/2; //Correct deflection within 2 seconds
       if (state!=FOLLOW_STATE_FOLLOW) {
         state=FOLLOW_STATE_FOLLOW;
         tries=0;
       } else {
         if (travelTimeSinceUpdate>0) {
-          double drift=(alpha0-lastAlpha0)/travelTimeSinceUpdate; /* rad/s */
-          vel.angular.z+=drift; // Compensate angle to wire
+          double d0=-vel.angular.z+(alpha0-lastAlpha0)/travelTimeSinceUpdate; /* rad/s */
+          double f=exp(-travelTimeSinceUpdate/averageInterval);
+          drift=drift*f+d0*(1-f);
         }
       }
+      vel.angular.z=drift+alpha0/2; //Correct deflection within 2 seconds
       if (vel.angular.z>ANGULAR_SPEED) vel.angular.z=ANGULAR_SPEED;
       else if (vel.angular.z<-ANGULAR_SPEED) vel.angular.z=-ANGULAR_SPEED;
       travelTimeSinceUpdate=0;
