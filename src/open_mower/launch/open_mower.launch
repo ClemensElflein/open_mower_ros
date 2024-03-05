@@ -14,6 +14,7 @@
         <param name="docking_distance" value="$(env OM_DOCKING_DISTANCE)"/>
         <param name="docking_approach_distance" value="$(env OM_DOCKING_APPROACH_DISTANCE)" />
         <param name="undock_distance" value="$(env OM_UNDOCK_DISTANCE)"/>
+        <param name="perimeter_signal" value="$(optenv OM_PERIMETER_SIGNAL)"/>
         <param name="tool_width" value="$(env OM_TOOL_WIDTH)"/>
         <param name="enable_mower" value="$(env OM_ENABLE_MOWER)"/>
         <param name="battery_empty_voltage" value="$(env OM_BATTERY_EMPTY_VOLTAGE)"/>
