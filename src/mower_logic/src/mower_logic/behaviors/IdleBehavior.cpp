@@ -15,6 +15,7 @@
 //
 //
 #include "IdleBehavior.h"
+#include "PerimeterDocking.h"
 
 extern void stopMoving();
 extern void stopBlade();
@@ -77,9 +78,11 @@ Behavior *IdleBehavior::execute() {
         if (manual_start_mowing || ((automatic_mode || active_semiautomatic_task) && mower_ready)) {
             // set the robot's position to the dock if we're actually docked
             if(last_status.v_charge > 5.0) {
-                ROS_INFO_STREAM("Currently inside the docking station, we set the robot's pose to the docks pose.");
-                setRobotPose(docking_pose_stamped.pose);
-                return &UndockingBehavior::INSTANCE;
+              if (PerimeterUndockingBehavior::configured(config))
+                return &PerimeterUndockingBehavior::INSTANCE;
+              ROS_INFO_STREAM("Currently inside the docking station, we set the robot's pose to the docks pose.");
+              setRobotPose(docking_pose_stamped.pose);
+              return &UndockingBehavior::INSTANCE;
             }
             // Not docked, so just mow
             setGPS(true);

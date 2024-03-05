@@ -1,0 +1,2 @@
+uint8 listenOn    # Listen for signal 1 or 2. Any other number disables perimeter sensing.
+---
