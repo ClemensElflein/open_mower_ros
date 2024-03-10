@@ -90,6 +90,9 @@ export OM_UNDOCK_DISTANCE=2.0
 # How many outlines should the mover drive. It's not recommended to set this below 4.
 export OM_OUTLINE_COUNT=4
 
+# How many outlines should the fill (lanes) overlap
+export OM_OUTLINE_OVERLAP_COUNT=0
+
 # Mowing angle offset -180 deg - +180 deg, 0 = east, -90 = north. If mowing angle offset is not absolute it gets added to the auto detected angle which is set by the first 2 m of recorded outline.
 export OM_MOWING_ANGLE_OFFSET=0
 export OM_MOWING_ANGLE_OFFSET_IS_ABSOLUTE=False
