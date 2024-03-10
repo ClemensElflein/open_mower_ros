@@ -263,6 +263,12 @@ bool setGPS(bool enabled) {
 
 
 bool setGPSRtkFloat(bool enabled) {
+    const auto last_config = getConfig();
+    if(!last_config.gps_allow_float_rtk && enabled) {
+        ROS_WARN_STREAM("GPS Float RTK is not allowed in the config. Ignoring request to set it to " << enabled);
+        return true;
+    }
+
     xbot_positioning::GPSEnableFloatRtkSrv gps_srv;
     gps_srv.request.gps_float_rtk_enabled = enabled;
 
