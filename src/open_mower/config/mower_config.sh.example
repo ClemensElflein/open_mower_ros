@@ -127,6 +127,9 @@ export OM_AUTOMATIC_MODE=0
 
 export OM_OUTLINE_OFFSET=0.05
 
+# Return to dock when rain detected and pause automatic start until rain sensor is dry
+export OM_DOCK_WHEN_RAINING=False
+
 ################################
 ##    External MQTT Broker    ##
 ################################

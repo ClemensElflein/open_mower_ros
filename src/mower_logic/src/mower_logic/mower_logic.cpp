@@ -51,6 +51,8 @@
 #include "xbot_msgs/RegisterActionsSrv.h"
 #include <mutex>
 #include <atomic>
+#include <sstream>
+#include <ios>
 
 ros::ServiceClient pathClient, mapClient, dockingPointClient, gpsClient, mowClient, emergencyClient, pathProgressClient, setNavPointClient, clearNavPointClient, clearMapClient, positioningClient, actionRegistrationClient;
 
@@ -78,6 +80,10 @@ std::recursive_mutex mower_logic_mutex;
 mower_msgs::HighLevelStatus high_level_status;
 
 std::atomic<bool> mowerEnabled;
+
+ros::Time last_rain_check;
+bool rain = false;
+bool rain_detected_status = true;
 
 Behavior *currentBehavior = &IdleBehavior::INSTANCE;
 
@@ -464,8 +470,34 @@ void checkSafety(const ros::TimerEvent &timer_event) {
 
     // we are in non emergency, check if we should pause. This could be empty battery, rain or hot mower motor etc.
     bool dockingNeeded = false;
-    if (last_status.v_battery < last_config.battery_empty_voltage || last_status.mow_esc_status.temperature_motor >= last_config.motor_hot_temperature ||
-        last_config.manual_pause_mowing) {
+    std::stringstream dockingReason("Docking: ", std::ios_base::ate | std::ios_base::in | std::ios_base::out);
+
+    if (last_config.manual_pause_mowing) {
+        dockingReason << "Manual pause";
+        dockingNeeded = true;
+    }
+
+    // rain_detected_status is initialized to true and flips to false if rain is not detected
+    // continuously for 20s. This is to avoid false positives due to noise
+    rain_detected_status = rain_detected_status && last_status.rain_detected;
+    if (ros::Time::now() - last_rain_check > ros::Duration(20.0)) {
+        rain = rain_detected_status;
+        last_rain_check = ros::Time::now();
+        rain_detected_status = true;
+    }
+
+    if(!dockingNeeded && rain && last_config.dock_when_raining) {
+        dockingReason << "Rain detected";
+        dockingNeeded = true;
+    }
+
+    if(!dockingNeeded && last_status.v_battery < last_config.battery_empty_voltage) {
+        dockingReason << "Battery low: " << last_status.v_battery;
+        dockingNeeded = true;
+    }
+
+    if (!dockingNeeded && last_status.mow_esc_status.temperature_motor >= last_config.motor_hot_temperature) {
+        dockingReason << "Over temp: " << last_status.mow_esc_status.temperature_motor;
         dockingNeeded = true;
     }
 
@@ -474,6 +506,7 @@ void checkSafety(const ros::TimerEvent &timer_event) {
             currentBehavior != &DockingBehavior::INSTANCE &&
             currentBehavior != &UndockingBehavior::RETRY_INSTANCE
         ) {
+        ROS_INFO_STREAM(dockingReason.rdbuf());
         abortExecution();
     }
 }
@@ -757,6 +790,7 @@ int main(int argc, char **argv) {
 
 
 
+    last_rain_check = ros::Time::now();
     ros::Timer safety_timer = n->createTimer(ros::Duration(0.5), checkSafety);
     ros::Timer ui_timer = n->createTimer(ros::Duration(1.0), updateUI);
 
