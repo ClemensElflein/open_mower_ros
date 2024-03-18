@@ -69,7 +69,7 @@ COPY --link --from=fetch /opt/open_mower_ros /opt/open_mower_ros
 
 WORKDIR /opt/open_mower_ros
 
-RUN --mount=type=cache,target=/root/.ccache \
+RUN --mount=type=cache,target=/root/.ccache,id=open_mower_ros_cache,sharing=locked \
     bash -c "PATH=\"/usr/lib/ccache:$PATH\" && source /opt/ros/$ROS_DISTRO/setup.bash && cd /opt/open_mower_ros && catkin_make -j`nproc`"
 
 COPY .github/assets/openmower_entrypoint.sh /openmower_entrypoint.sh
