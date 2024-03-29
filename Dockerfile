@@ -1,25 +1,23 @@
-# Get an image with git and apt-get update
+# Get a base image
 FROM docker.io/ros:noetic-ros-base-focal as base
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update && \
-    apt-get install --yes git
-RUN rosdep update
+# Install required packages
+#   - git
+#   - mosquitto broker
+#   - nginx (remove default site to free up port 80)
+RUN apt-get update && apt-get install --yes \
+    git \
+    mosquitto \
+    nginx && rm -rf /var/www /etc/nginx/sites-enabled/* \
+    rm -rf /var/lib/apt/lists/*
 
-# Install mosquitto broker
-RUN apt-get install --yes mosquitto
-
-# Install our config
+# Install our configs
 COPY --link ./assets/mosquitto.conf /etc/mosquitto/mosquitto.conf
-
-# Install nginx for hosting the app
-RUN apt-get install --yes nginx
-
-# Remove default nginx config (else it will run on port 80)
-RUN rm /etc/nginx/sites-enabled/*
-
-# Install nginx config
 COPY --link ./assets/nginx.conf /etc/nginx/conf.d/default.conf
+
+# Update rosdep
+RUN rosdep update --rosdistro $ROS_DISTRO
 
 # First stage: Pull the git and all submodules, other stages depend on it
 FROM base as fetch
@@ -46,7 +44,7 @@ COPY --link --from=fetch /opt/open_mower_ros/src/lib/slic3r_coverage_planner /op
 WORKDIR /opt/slic3r_coverage_planner_workspace
 RUN rosdep install --from-paths src --ignore-src --simulate | \
     sed --expression '1d' | sort | tr -d '\n' | sed --expression 's/  apt-get install//g' > apt-install_list && \
-    apt-get install --no-install-recommends --yes $(cat apt-install_list) && \
+    apt-get update && apt-get install --no-install-recommends --yes $(cat apt-install_list) && \
     rm -rf /var/lib/apt/lists/* apt-install_list
 RUN bash -c "source /opt/ros/$ROS_DISTRO/setup.bash && catkin_make"
 RUN bash -c "source /opt/ros/$ROS_DISTRO/setup.bash && source /opt/slic3r_coverage_planner_workspace/devel/setup.bash && catkin_make -DCMAKE_INSTALL_PREFIX=/opt/prebuilt/slic3r_coverage_planner install"
@@ -65,7 +63,8 @@ WORKDIR /opt/open_mower_ros
 # This creates the sorted list of apt-get install commands.
 RUN apt-get update && \
     rosdep install --from-paths src --ignore-src --simulate | \
-    sed --expression '1d' | sort | tr -d '\n' | sed --expression 's/  apt-get install//g' > /apt-install_list
+    sed --expression '1d' | sort | tr -d '\n' | sed --expression 's/  apt-get install//g' > /apt-install_list \
+    && rm -rf /var/lib/apt/lists/*
 
 
 # We can't derive this from "dependencies" because "dependencies" will be rebuilt every time, but apt install should only be done if needed
