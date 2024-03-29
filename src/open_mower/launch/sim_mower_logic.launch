@@ -11,9 +11,22 @@
     <node pkg="slic3r_coverage_planner" type="slic3r_coverage_planner" name="slic3r_coverage_planner" output="screen" required="true" />
     <node pkg="mower_logic" type="mower_logic" name="mower_logic" output="log" required="true">
         <param name="ignore_gps_errors" value="true"/>
-        <param name="outline_count" value="5"/>
         <param name="gps_wait_time" value="0"/>
-        <param name="undock_distance" value="0.1"/>
+        <param name="automatic_mode" value="$(optenv OM_AUTOMATIC_MODE 0)"/>
+        <param name="docking_distance" value="$(env OM_DOCKING_DISTANCE)"/>
+        <param name="undock_distance" value="$(env OM_UNDOCK_DISTANCE)"/>
+        <param name="tool_width" value="$(env OM_TOOL_WIDTH)"/>
+        <param name="enable_mower" value="$(env OM_ENABLE_MOWER)"/>
+        <param name="battery_empty_voltage" value="$(env OM_BATTERY_EMPTY_VOLTAGE)"/>
+        <param name="outline_count" value="$(env OM_OUTLINE_COUNT)"/>
+        <param name="outline_overlap_count" value="$(optenv OM_OUTLINE_OVERLAP_COUNT 0)"/>
+        <param name="outline_offset" value="$(env OM_OUTLINE_OFFSET)"/>
+        <param name="mow_angle_offset" value="$(optenv OM_MOWING_ANGLE_OFFSET 0)"/>
+        <param name="mow_angle_offset_is_absolute" value="$(optenv OM_MOWING_ANGLE_OFFSET_IS_ABSOLUTE False)"/>
+        <param name="mow_angle_increment" value="$(optenv OM_MOWING_ANGLE_INCREMENT 0)"/>
+        <param name="battery_full_voltage" value="$(env OM_BATTERY_FULL_VOLTAGE)"/>
+        <param name="motor_hot_temperature" value="$(env OM_MOWING_MOTOR_TEMP_HIGH)"/>
+        <param name="motor_cold_temperature" value="$(env OM_MOWING_MOTOR_TEMP_LOW)"/>
     </node>
     
     <node pkg="twist_mux" type="twist_mux" name="twist_mux" output="screen">
