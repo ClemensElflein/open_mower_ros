@@ -65,6 +65,9 @@ float speed_l = 0, speed_r = 0, speed_mow = 0;
 double wheel_ticks_per_m = 0.0;
 double wheel_distance_m = 0.0;
 
+bool ll_handled_config = false; // LL received (and processed) config packet
+bool dfp_is_5v = false;
+
 // Serial port and buffer for the low level connection
 serial::Serial serial_port;
 uint8_t out_buf[1000];
@@ -228,9 +231,52 @@ void publishStatus() {
     wheel_tick_pub.publish(wheel_tick_msg);
 }
 
+void publishLowLevelConfig() {
+    if (ll_handled_config)
+        return;
+
+    // LowLevel (only) release emergency once it received and handled the config package
+    if (!emergency_low_level)
+    {
+        ll_handled_config = true;
+        return;
+    }
+
+    if (!serial_port.isOpen() || !allow_send)
+        return;
+
+    struct ll_high_level_config config_pkt = {
+        .type = PACKET_ID_LL_HIGH_LEVEL_CONFIG,
+        .config_bitmask = 0};
+
+    if (dfp_is_5v)
+        config_pkt.config_bitmask |= LL_HIGH_LEVEL_CONFIG_BIT_DFPIS5V;
+    else
+        config_pkt.config_bitmask &= ~LL_HIGH_LEVEL_CONFIG_BIT_DFPIS5V;
+
+    crc.reset();
+    crc.process_bytes(&config_pkt, sizeof(struct ll_high_level_config) - 2);
+    config_pkt.crc = crc.checksum();
+
+    size_t encoded_size = cobs.encode((uint8_t *)&config_pkt, sizeof(struct ll_high_level_config), out_buf);
+    out_buf[encoded_size] = 0;
+    encoded_size++;
+
+    try
+    {
+        ROS_INFO("Send config_bitmask = %#04x", config_pkt.config_bitmask);
+        serial_port.write(out_buf, encoded_size);
+    }
+    catch (std::exception &e)
+    {
+        ROS_ERROR_STREAM("Error writing to serial port");
+    }
+}
+
 void publishActuatorsTimerTask(const ros::TimerEvent &timer_event) {
     publishActuators();
     publishStatus();
+    publishLowLevelConfig();
 }
 
 bool setMowEnabled(mower_msgs::MowerControlSrvRequest &req, mower_msgs::MowerControlSrvResponse &res) {
@@ -416,6 +462,8 @@ int main(int argc, char **argv) {
 
     speed_l = speed_r = speed_mow = 0;
 
+    paramNh.getParam("dfp_is_5v", dfp_is_5v);
+    ROS_INFO_STREAM("DFP is set to 5V [boolean]: " << dfp_is_5v);
 
     // Setup XESC interfaces
     if(mowerParamNh.hasParam("xesc_type")) {

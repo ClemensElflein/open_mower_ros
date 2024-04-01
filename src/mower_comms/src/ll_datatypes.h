@@ -25,7 +25,7 @@
 #define PACKET_ID_LL_UI_EVENT 3
 #define PACKET_ID_LL_HEARTBEAT 0x42
 #define PACKET_ID_LL_HIGH_LEVEL_STATE 0x43
-
+#define PACKET_ID_LL_HIGH_LEVEL_CONFIG 0x44
 
 #pragma pack(push, 1)
 struct ll_status {
@@ -57,6 +57,7 @@ struct ll_status {
     // Charge current
     float charging_current;
     uint8_t batt_percentage;
+    uint8_t volume; // Volume (0-100%) feedback (if directly changed via CoverUI)
     uint16_t crc;
 } __attribute__((packed));
 #pragma pack(pop)
@@ -105,6 +106,18 @@ struct ll_high_level_state {
     uint8_t type;
     uint8_t current_mode; // see HighLevelMode
     uint8_t gps_quality;   // GPS quality in percent (0-100)
+    uint16_t crc;
+} __attribute__((packed));
+#pragma pack(pop)
+
+#define LL_HIGH_LEVEL_CONFIG_BIT_DFPIS5V 0b1 << 0           // Enable full sound via mower_config env var "OM_DFP_IS_5V"
+#define LL_HIGH_LEVEL_CONFIG_BIT_EMERGENCY_INVERSE 0b1 << 1 // Sample, for possible future usage, i.e. for SA-Type emergency
+
+#pragma pack(push, 1)
+struct ll_high_level_config
+{
+    uint8_t type;           // Type of this message. Has to be PACKET_ID_LL_HIGH_LEVEL_CONFIG
+    uint8_t config_bitmask; // See LL_HIGH_LEVEL_CONFIG_BIT_*
     uint16_t crc;
 } __attribute__((packed));
 #pragma pack(pop)
