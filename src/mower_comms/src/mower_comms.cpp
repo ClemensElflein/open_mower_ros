@@ -38,6 +38,8 @@
 #include <xbot_msgs/WheelTick.h>
 #include "mower_msgs/HighLevelStatus.h"
 
+#include <bitset>
+
 ros::Publisher status_pub;
 ros::Publisher wheel_tick_pub;
 
@@ -245,9 +247,7 @@ void publishLowLevelConfig() {
     if (!serial_port.isOpen() || !allow_send)
         return;
 
-    struct ll_high_level_config config_pkt = {
-        .type = PACKET_ID_LL_HIGH_LEVEL_CONFIG,
-        .config_bitmask = 0};
+    struct ll_high_level_config config_pkt;
 
     if (dfp_is_5v)
         config_pkt.config_bitmask |= LL_HIGH_LEVEL_CONFIG_BIT_DFPIS5V;
@@ -264,7 +264,7 @@ void publishLowLevelConfig() {
 
     try
     {
-        ROS_INFO("Send config_bitmask = %#04x", config_pkt.config_bitmask);
+        ROS_INFO_STREAM("Send ll_high_level_config packet with comms_version=" << +config_pkt.comms_version << ", config_bitmask=0b" << std::bitset<8>(config_pkt.config_bitmask));
         serial_port.write(out_buf, encoded_size);
     }
     catch (std::exception &e)

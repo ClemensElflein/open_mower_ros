@@ -57,7 +57,8 @@ struct ll_status {
     // Charge current
     float charging_current;
     uint8_t batt_percentage;
-    uint8_t volume; // Volume (0-100%) feedback (if directly changed via CoverUI)
+    // FIXME: Implement comms_version handling before integrating volume feedback
+    // uint8_t volume; // Volume (0-100%) feedback (if directly changed via CoverUI)
     uint16_t crc;
 } __attribute__((packed));
 #pragma pack(pop)
@@ -116,8 +117,11 @@ struct ll_high_level_state {
 #pragma pack(push, 1)
 struct ll_high_level_config
 {
-    uint8_t type;           // Type of this message. Has to be PACKET_ID_LL_HIGH_LEVEL_CONFIG
-    uint8_t config_bitmask; // See LL_HIGH_LEVEL_CONFIG_BIT_*
+    uint8_t type = PACKET_ID_LL_HIGH_LEVEL_CONFIG;
+    uint8_t comms_version = 1;  // Increasing comms version number for packet compatibility (n > 0)
+    uint8_t config_bitmask = 0; // See LL_HIGH_LEVEL_CONFIG_BIT_*
+    uint8_t spare1 = 0;         // Spare for future use
+    uint16_t spare2 = 0;        // Spare for future use
     uint16_t crc;
 } __attribute__((packed));
 #pragma pack(pop)
