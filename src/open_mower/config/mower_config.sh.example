@@ -62,6 +62,17 @@ export OM_MOWER_GAMEPAD="xbox360"
 # DO NOT enable "OM_DFP_IS_5V=True" if you haven't changed it in real. You might risk your "Raspberry Pico"!
 # And even if the Pico isn't expensive, it's a torture to replace it.
 # export OM_DFP_IS_5V=False
+#
+# Language as ISO-639-1 code string (currently only used by sound).
+# Overwrite a previously configure language (i.e. changed by CoverUI)
+# Supported languages: en|de
+# export OM_LANGUAGE="en"
+#
+# Sound volume (%)
+# Supported values:
+# 0-100 = Set sound volume on OM start, ignoring previously set volume level (i.e. by CoverUI)
+#    -1 = Don't change a previusoly set volume level (i.e. by CoverUI)
+# export OM_VOLUME=-1
 
 ################################
 ##        GPS Settings        ##

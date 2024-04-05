@@ -67,8 +67,9 @@ float speed_l = 0, speed_r = 0, speed_mow = 0;
 double wheel_ticks_per_m = 0.0;
 double wheel_distance_m = 0.0;
 
-bool ll_handled_config = false; // LL received (and processed) config packet
-bool dfp_is_5v = false;
+bool dfp_is_5v = false;       // DFP is set to 5V Vcc
+std::string language = "en";  // ISO-639-1 (2 char) language code
+int volume = -1;              // -1 = don't change, 0-100 = volume (%)
 
 // Serial port and buffer for the low level connection
 serial::Serial serial_port;
@@ -234,25 +235,17 @@ void publishStatus() {
 }
 
 void publishLowLevelConfig() {
-    if (ll_handled_config)
-        return;
-
-    // LowLevel (only) release emergency once it received and handled the config package
-    if (!emergency_low_level)
-    {
-        ll_handled_config = true;
-        return;
-    }
-
     if (!serial_port.isOpen() || !allow_send)
         return;
 
     struct ll_high_level_config config_pkt;
 
-    if (dfp_is_5v)
-        config_pkt.config_bitmask |= LL_HIGH_LEVEL_CONFIG_BIT_DFPIS5V;
-    else
-        config_pkt.config_bitmask &= ~LL_HIGH_LEVEL_CONFIG_BIT_DFPIS5V;
+    config_pkt.volume = volume;
+    for (unsigned int i = 0; i < sizeof(config_pkt.language) / sizeof(char); i++) {
+        config_pkt.language[i] = language[i];
+    }
+    // Set config_bitmask flags
+    (dfp_is_5v) ? config_pkt.config_bitmask |= LL_HIGH_LEVEL_CONFIG_BIT_DFPIS5V : config_pkt.config_bitmask &= ~LL_HIGH_LEVEL_CONFIG_BIT_DFPIS5V;
 
     crc.reset();
     crc.process_bytes(&config_pkt, sizeof(struct ll_high_level_config) - 2);
@@ -262,13 +255,12 @@ void publishLowLevelConfig() {
     out_buf[encoded_size] = 0;
     encoded_size++;
 
-    try
-    {
-        ROS_INFO_STREAM("Send ll_high_level_config packet with comms_version=" << +config_pkt.comms_version << ", config_bitmask=0b" << std::bitset<8>(config_pkt.config_bitmask));
+    try {
+        ROS_INFO_STREAM("Send ll_high_level_config packet 0x" << std::hex << +config_pkt.type << " with comms_version=" << +config_pkt.comms_version
+                                                              << ", config_bitmask=0b" << std::bitset<8>(config_pkt.config_bitmask)
+                                                              << ", volume=" << std::dec << +config_pkt.volume << ", language='" << config_pkt.language << "'");
         serial_port.write(out_buf, encoded_size);
-    }
-    catch (std::exception &e)
-    {
+    } catch (std::exception &e) {
         ROS_ERROR_STREAM("Error writing to serial port");
     }
 }
@@ -276,7 +268,6 @@ void publishLowLevelConfig() {
 void publishActuatorsTimerTask(const ros::TimerEvent &timer_event) {
     publishActuators();
     publishStatus();
-    publishLowLevelConfig();
 }
 
 bool setMowEnabled(mower_msgs::MowerControlSrvRequest &req, mower_msgs::MowerControlSrvResponse &res) {
@@ -389,6 +380,25 @@ void handleLowLevelUIEvent(struct ll_ui_event *ui_event) {
 
 }
 
+void handleLowLevelConfig(struct ll_high_level_config *config_pkt) {
+    ROS_INFO_STREAM("Received ll_high_level_config packet 0x" << std::hex << +config_pkt->type
+                                                              << " with comms_version=" << +config_pkt->comms_version
+                                                              << ", config_bitmask=0b" << std::bitset<8>(config_pkt->config_bitmask)
+                                                              << ", volume=" << std::dec << +config_pkt->volume << ", language='" << config_pkt->language << "'");
+
+    // TODO: Handle announced comms_version once required
+
+    if (config_pkt->volume >= 0)
+        volume = config_pkt->volume;
+    language = config_pkt->language;
+
+
+    if (config_pkt->type == PACKET_ID_LL_HIGH_LEVEL_CONFIG_REQ ||                      // Config requested
+        config_pkt->config_bitmask & LL_HIGH_LEVEL_CONFIG_BIT_DFPIS5V != dfp_is_5v) {  // Our DFP_IS_5V setting is leading
+        publishLowLevelConfig();
+    }
+}
+
 void handleLowLevelStatus(struct ll_status *status) {
     std::unique_lock<std::mutex> lk(ll_status_mutex);
     last_ll_status = *status;
@@ -463,7 +473,9 @@ int main(int argc, char **argv) {
     speed_l = speed_r = speed_mow = 0;
 
     paramNh.getParam("dfp_is_5v", dfp_is_5v);
-    ROS_INFO_STREAM("DFP is set to 5V [boolean]: " << dfp_is_5v);
+    paramNh.getParam("language", language);
+    paramNh.getParam("volume", volume);
+    ROS_INFO_STREAM("DFP is set to 5V [boolean]: " << dfp_is_5v << ", language: '" << language << "', volume: " << volume);
 
     // Setup XESC interfaces
     if(mowerParamNh.hasParam("xesc_type")) {
@@ -572,6 +584,15 @@ int main(int argc, char **argv) {
                                 } else {
                                     ROS_INFO_STREAM(
                                             "Low Level Board sent a valid packet with the wrong size. Type was UI_EVENT");
+                                }
+                                break;
+                            case PACKET_ID_LL_HIGH_LEVEL_CONFIG_REQ:
+                            case PACKET_ID_LL_HIGH_LEVEL_CONFIG_RSP:
+                                if (data_size == sizeof(struct ll_high_level_config)) {
+                                    handleLowLevelConfig((struct ll_high_level_config *)buffer_decoded);
+                                } else {
+                                    ROS_INFO_STREAM(
+                                        "Low Level Board sent a valid packet with the wrong size. Type was CONFIG_* (0x" << std::hex << buffer_decoded[0] << ")");
                                 }
                                 break;
                             default:
