@@ -11,6 +11,9 @@
         <rosparam if="$(eval env('OM_MOWER')=='CUSTOM')" file="$(env HOME)/mower_params/comms_params.yaml"/>
         <param name="wheel_ticks_per_m" value="$(env OM_WHEEL_TICKS_PER_M)"/>
         <param name="wheel_distance_m" value="$(env OM_WHEEL_DISTANCE_M)"/>
+        <param name="dfp_is_5v" value="$(optenv OM_DFP_IS_5V False)"/>
+        <param name="language" value="$(optenv OM_LANGUAGE en)"/>
+        <param name="volume" value="$(optenv OM_VOLUME -1)"/>
     </node>
     
     <include file="$(find open_mower)/launch/include/_gps.launch" unless="$(optenv OM_NO_GPS False)">
