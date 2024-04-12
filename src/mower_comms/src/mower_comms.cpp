@@ -388,10 +388,9 @@ void handleLowLevelConfig(struct ll_high_level_config *config_pkt) {
 
     // TODO: Handle announced comms_version once required
 
-    if (config_pkt->volume >= 0)
-        volume = config_pkt->volume;
-    language = config_pkt->language;
-
+    // We're not interested in the received langauge setting (yet)
+    
+    // We're not interested in the received volume setting (yet)
 
     if (config_pkt->type == PACKET_ID_LL_HIGH_LEVEL_CONFIG_REQ ||                      // Config requested
         config_pkt->config_bitmask & LL_HIGH_LEVEL_CONFIG_BIT_DFPIS5V != dfp_is_5v) {  // Our DFP_IS_5V setting is leading
