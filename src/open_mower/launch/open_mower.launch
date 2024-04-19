@@ -16,6 +16,7 @@
         <param name="enable_mower" value="$(env OM_ENABLE_MOWER)"/>
         <param name="battery_empty_voltage" value="$(env OM_BATTERY_EMPTY_VOLTAGE)"/>
         <param name="outline_count" value="$(env OM_OUTLINE_COUNT)"/>
+        <param name="outline_overlap_count" value="$(optenv OM_OUTLINE_OVERLAP_COUNT 0)"/>
         <param name="outline_offset" value="$(env OM_OUTLINE_OFFSET)"/>
         <param name="mow_angle_offset" value="$(optenv OM_MOWING_ANGLE_OFFSET 0)"/>
         <param name="mow_angle_offset_is_absolute" value="$(optenv OM_MOWING_ANGLE_OFFSET_IS_ABSOLUTE False)"/>
@@ -23,6 +24,8 @@
         <param name="battery_full_voltage" value="$(env OM_BATTERY_FULL_VOLTAGE)"/>
         <param name="motor_hot_temperature" value="$(env OM_MOWING_MOTOR_TEMP_HIGH)"/>
         <param name="motor_cold_temperature" value="$(env OM_MOWING_MOTOR_TEMP_LOW)"/>
+        <param name="gps_wait_time" value="$(optenv OM_GPS_WAIT_TIME_SEC 10.0)"/>
+        <param name="gps_timeout" value="$(optenv OM_GPS_TIMEOUT_SEC 10.0)"/>
     </node>
     <node pkg="slic3r_coverage_planner" type="slic3r_coverage_planner" name="slic3r_coverage_planner" output="screen"/>
 
@@ -38,6 +41,7 @@
         <param name="external_mqtt_port" value="$(optenv OM_MQTT_PORT)" />
         <param name="external_mqtt_username" value="$(optenv OM_MQTT_USER)" />
         <param name="external_mqtt_password" value="$(optenv OM_MQTT_PASSWORD)" />
+        <param name="external_mqtt_topic_prefix" value="$(optenv OM_MQTT_TOPIC_PREFIX)" />
         <remap from="/xbot_monitoring/remote_cmd_vel" to="/joy_vel"/>
     </node>
 
