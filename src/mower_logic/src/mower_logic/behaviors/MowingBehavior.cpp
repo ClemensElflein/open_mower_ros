@@ -515,7 +515,7 @@ bool MowingBehavior::execute_mowing_plan() {
                     // if something else -> Recovery Behaviour ?
 
                     // currentMowingPathIndex might be 0 if we never consumed one of the points, we advance at least 1 point
-                    currentMowingPathIndex++;
+                    if( currentMowingPathIndex == 0) currentMowingPathIndex++;
                     ROS_INFO_STREAM("MowingBehavior: (MOW) PAUSED due to MBF Error at " << currentMowingPathIndex);
                     this->setPause();
                     update_actions();
