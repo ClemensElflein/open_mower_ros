@@ -55,6 +55,25 @@ export OM_MOWER_GAMEPAD="xbox360"
 # Output will be stored in your $HOME
 # export OM_ENABLE_RECORDING_ALL=False
 
+# Full Sound Support - But read on carefully:
+# Up to (and inclusive) OM hardware version 0.13.x, DFPlayer's power supply is set by default to 3.3V.
+# This is done by solder jumper "JP1" whose board track is by default at 3.3V.
+# If you manually opened the 3.3V track and solder a bridge to 5V, then you can indicate it here to get full sound support.
+# DO NOT enable "OM_DFP_IS_5V=True" if you haven't changed it in real. You might risk your "Raspberry Pico"!
+# And even if the Pico isn't expensive, it's a torture to replace it.
+# Full details are available here: https://github.com/ClemensElflein/OpenMower/blob/main/Firmware/LowLevel/README-Sound%2C%20DFPIS5V.md
+# export OM_DFP_IS_5V=False
+#
+# Language as ISO-639-1 code string (currently only used by sound).
+# Supported languages: en|de
+# export OM_LANGUAGE="en"
+#
+# Sound volume (%)
+# Supported values:
+# 0-100 = Set sound volume on OM start, ignoring a previously set volume level (i.e. changed by CoverUI)
+#    -1 = Don't change a previously set volume level (i.e. changed by CoverUI)
+# export OM_VOLUME=-1
+
 ################################
 ##        GPS Settings        ##
 ################################
@@ -104,6 +123,9 @@ export OM_UNDOCK_DISTANCE=2.0
 
 # How many outlines should the mover drive. It's not recommended to set this below 4.
 export OM_OUTLINE_COUNT=4
+
+# How many outlines should the fill (lanes) overlap
+export OM_OUTLINE_OVERLAP_COUNT=0
 
 # Mowing angle offset -180 deg - +180 deg, 0 = east, -90 = north. If mowing angle offset is not absolute it gets added to the auto detected angle which is set by the first 2 m of recorded outline.
 export OM_MOWING_ANGLE_OFFSET=0
