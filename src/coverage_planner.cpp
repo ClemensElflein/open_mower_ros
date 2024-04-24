@@ -27,8 +27,9 @@ ros::Publisher marker_array_publisher;
 
 
 void
-createLineMarkers(const slic3r_coverage_planner::PlanPathResponse &planning_result,
-                  visualization_msgs::MarkerArray &markerArray) {
+createMarkers(const slic3r_coverage_planner::PlanPathRequest &planning_request,
+              const slic3r_coverage_planner::PlanPathResponse &planning_result,
+              visualization_msgs::MarkerArray &markerArray) {
 
     std::vector<std_msgs::ColorRGBA> colors;
 
@@ -89,11 +90,58 @@ createLineMarkers(const slic3r_coverage_planner::PlanPathResponse &planning_resu
         colors.push_back(color);
     }
 
+    // Create markers for the input polygon
+    {
+        // Walk through the paths we send to the navigation stack
+        auto &path = planning_request.outline.points;
+        // Each group gets a single line strip as marker
+        visualization_msgs::Marker marker;
+
+        marker.header.frame_id = "map";
+        marker.ns = "mower_map_service_lines";
+        marker.id = static_cast<int>(markerArray.markers.size());
+        marker.frame_locked = true;
+        marker.action = visualization_msgs::Marker::ADD;
+        marker.type = visualization_msgs::Marker::SPHERE_LIST;
+        marker.color = colors[0];
+        marker.pose.orientation.w = 1;
+        marker.scale.x = marker.scale.y = marker.scale.z = 0.02;
+
+        // Add the points to the line strip
+        for (auto &point: path) {
+
+            geometry_msgs::Point vpt;
+            vpt.x = point.x;
+            vpt.y = point.y;
+            marker.points.push_back(vpt);
+        }
+        markerArray.markers.push_back(marker);
+
+        // Create markers for start and end
+        if (!path.empty()) {
+            visualization_msgs::Marker marker{};
+
+            marker.header.frame_id = "map";
+            marker.ns = "mower_map_service_lines";
+            marker.id = static_cast<int>(markerArray.markers.size());
+            marker.frame_locked = true;
+            marker.action = visualization_msgs::Marker::ADD;
+            marker.type = visualization_msgs::Marker::SPHERE;
+            marker.color = colors[0];
+            marker.pose.position.x = path.front().x;
+            marker.pose.position.y = path.front().y;
+            marker.scale.x = 0.1;
+            marker.scale.y = marker.scale.z = 0.1;
+            markerArray.markers.push_back(marker);
+        }
+    }
+
+
     // keep track of the color used last, so that we can use a new one for each path
     uint32_t cidx = 0;
 
     // Walk through the paths we send to the navigation stack
-    for(auto &path : planning_result.paths) {
+    for (auto &path: planning_result.paths) {
         // Each group gets a single line strip as marker
         visualization_msgs::Marker marker;
 
@@ -108,7 +156,7 @@ createLineMarkers(const slic3r_coverage_planner::PlanPathResponse &planning_resu
         marker.scale.x = marker.scale.y = marker.scale.z = 0.02;
 
         // Add the points to the line strip
-        for(auto &point : path.path.poses) {
+        for (auto &point: path.path.poses) {
 
             geometry_msgs::Point vpt;
             vpt.x = point.pose.position.x;
@@ -116,6 +164,23 @@ createLineMarkers(const slic3r_coverage_planner::PlanPathResponse &planning_resu
             marker.points.push_back(vpt);
         }
         markerArray.markers.push_back(marker);
+
+        // Create markers for start and end
+        if (!path.path.poses.empty()) {
+            visualization_msgs::Marker marker;
+
+            marker.header.frame_id = "map";
+            marker.ns = "mower_map_service_lines";
+            marker.id = static_cast<int>(markerArray.markers.size());
+            marker.frame_locked = true;
+            marker.action = visualization_msgs::Marker::ADD;
+            marker.type = visualization_msgs::Marker::ARROW;
+            marker.color = colors[cidx];
+            marker.pose = path.path.poses.front().pose;
+            marker.scale.x = 0.2;
+            marker.scale.y = marker.scale.z = 0.05;
+            markerArray.markers.push_back(marker);
+        }
 
         // New color for a new path
         cidx = (cidx + 1) % colors.size();
@@ -321,29 +386,60 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
     }
 
 
-
-
     std_msgs::Header header;
     header.stamp = ros::Time::now();
     header.frame_id = "map";
     header.seq = 0;
 
+    /**
+     * Some postprocessing is done here. Until now we just have polygons (just points), but the ROS
+     * navigation stack requires an orientation for each of those points as well.
+     *
+     * In order to achieve this, we split the polygon at some point to make it into a line with start and end.
+     * Then we can calculate the orientation at each point by looking at the connection line between two points.
+     */
+
     for (auto &group: area_outlines) {
         slic3r_coverage_planner::Path path;
         path.is_outline = true;
         path.path.header = header;
-        int split_index = 0;
+
         for (int i = 0; i < group.size(); i++) {
             auto &poly = group[i];
 
+
+            // Find an appropriate point to split, this should be close to the last split point,
+            // so that we don't need to traverse a lot.
             Polyline line;
-            if (split_index < poly.points.size()) {
-                line = poly.split_at_index(split_index);
-            } else {
+            if (i == 0) {
+                // innermost group, split wherever
                 line = poly.split_at_first_point();
-                split_index = 0;
+            } else {
+                // Get last point of last group
+                const auto &last_pose = path.path.poses.back();
+                const auto &last_pose_orientation = tf2::Quaternion(
+                        last_pose.pose.orientation.x,
+                        last_pose.pose.orientation.y,
+                        last_pose.pose.orientation.z,
+                        last_pose.pose.orientation.w
+                );
+                // Find the closest point in the current poly and split there
+                double min_distance = INFINITY;
+                int min_split_index = 0;
+                for (int split_index = 0; split_index < poly.points.size(); ++split_index) {
+                    const auto &pt = poly.points[split_index];
+                    const auto pt_x = unscale(pt.x);
+                    const auto pt_y = unscale(pt.y);
+                    double distance = sqrt((pt_x - last_pose.pose.position.x) * (pt_x - last_pose.pose.position.x) +
+                                           (pt_y - last_pose.pose.position.y) * (pt_y - last_pose.pose.position.y));
+
+                    if (distance < min_distance) {
+                        min_distance = distance;
+                        min_split_index = split_index;
+                    }
+                }
+                line = poly.split_at_index(min_split_index);
             }
-            split_index += 2;
             line.remove_duplicate_points();
 
 
@@ -385,7 +481,6 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
             pose.pose.position.y = unscale(lastPoint->y);
             pose.pose.position.z = 0;
             path.path.poses.push_back(pose);
-
         }
         res.paths.push_back(path);
     }
@@ -515,7 +610,7 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
             marker.action = visualization_msgs::Marker::DELETEALL;
             arr.markers.push_back(marker);
         }
-        createLineMarkers(res, arr);
+        createMarkers(req, res, arr);
         marker_array_publisher.publish(arr);
     }
 
