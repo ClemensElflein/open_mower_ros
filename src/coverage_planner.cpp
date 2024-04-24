@@ -26,8 +26,9 @@ bool visualize_plan;
 ros::Publisher marker_array_publisher;
 
 
-
-void createLineMarkers(std::vector<Polygons> outline_groups,std::vector<Polygons> obstacle_groups, Polylines &fill_lines, visualization_msgs::MarkerArray &markerArray) {
+void
+createLineMarkers(const slic3r_coverage_planner::PlanPathResponse &planning_result,
+                  visualization_msgs::MarkerArray &markerArray) {
 
     std::vector<std_msgs::ColorRGBA> colors;
 
@@ -88,88 +89,37 @@ void createLineMarkers(std::vector<Polygons> outline_groups,std::vector<Polygons
         colors.push_back(color);
     }
 
+    // keep track of the color used last, so that we can use a new one for each path
     uint32_t cidx = 0;
 
-    for(auto &group: outline_groups) {
-        for (auto &line: group) {
-            {
-                visualization_msgs::Marker marker;
+    // Walk through the paths we send to the navigation stack
+    for(auto &path : planning_result.paths) {
+        // Each group gets a single line strip as marker
+        visualization_msgs::Marker marker;
 
-                marker.header.frame_id = "map";
-                marker.ns = "mower_map_service_lines";
-                marker.id = static_cast<int>(markerArray.markers.size());
-                marker.frame_locked = true;
-                marker.action = visualization_msgs::Marker::ADD;
-                marker.type = visualization_msgs::Marker::LINE_STRIP;
-                marker.color = colors[cidx];
-                marker.pose.orientation.w = 1;
-                marker.scale.x = marker.scale.y = marker.scale.z = 0.02;
-                for (auto &pt: line.points) {
-                    geometry_msgs::Point vpt;
-                    vpt.x = unscale(pt.x);
-                    vpt.y = unscale(pt.y);
-                    marker.points.push_back(vpt);
-                }
+        marker.header.frame_id = "map";
+        marker.ns = "mower_map_service_lines";
+        marker.id = static_cast<int>(markerArray.markers.size());
+        marker.frame_locked = true;
+        marker.action = visualization_msgs::Marker::ADD;
+        marker.type = visualization_msgs::Marker::LINE_STRIP;
+        marker.color = colors[cidx];
+        marker.pose.orientation.w = 1;
+        marker.scale.x = marker.scale.y = marker.scale.z = 0.02;
 
-                markerArray.markers.push_back(marker);
-            }
+        // Add the points to the line strip
+        for(auto &point : path.path.poses) {
+
+            geometry_msgs::Point vpt;
+            vpt.x = point.pose.position.x;
+            vpt.y = point.pose.position.y;
+            marker.points.push_back(vpt);
         }
+        markerArray.markers.push_back(marker);
+
+        // New color for a new path
         cidx = (cidx + 1) % colors.size();
     }
-
-    for (auto &line: fill_lines) {
-        {
-            visualization_msgs::Marker marker;
-
-            marker.header.frame_id = "map";
-            marker.ns = "mower_map_service_lines";
-            marker.id = static_cast<int>(markerArray.markers.size());
-            marker.frame_locked = true;
-            marker.action = visualization_msgs::Marker::ADD;
-            marker.type = visualization_msgs::Marker::LINE_STRIP;
-            marker.color = colors[cidx];
-            marker.pose.orientation.w = 1;
-            marker.scale.x = marker.scale.y = marker.scale.z = 0.02;
-            for (auto &pt: line.points) {
-                geometry_msgs::Point vpt;
-                vpt.x = unscale(pt.x);
-                vpt.y = unscale(pt.y);
-                marker.points.push_back(vpt);
-            }
-
-            markerArray.markers.push_back(marker);
-
-            cidx = (cidx + 1) % colors.size();
-        }
-    }
-        for(auto &group: obstacle_groups) {
-            for (auto &line: group) {
-                {
-                    visualization_msgs::Marker marker;
-
-                    marker.header.frame_id = "map";
-                    marker.ns = "mower_map_service_lines";
-                    marker.id = static_cast<int>(markerArray.markers.size());
-                    marker.frame_locked = true;
-                    marker.action = visualization_msgs::Marker::ADD;
-                    marker.type = visualization_msgs::Marker::LINE_STRIP;
-                    marker.color = colors[cidx];
-                    marker.pose.orientation.w = 1;
-                    marker.scale.x = marker.scale.y = marker.scale.z = 0.02;
-                    for (auto &pt: line.points) {
-                        geometry_msgs::Point vpt;
-                        vpt.x = unscale(pt.x);
-                        vpt.y = unscale(pt.y);
-                        marker.points.push_back(vpt);
-                    }
-
-                    markerArray.markers.push_back(marker);
-
-                }
-            }
-            cidx = (cidx + 1) % colors.size();
-
-        }
 }
 
 void traverse(std::vector<PerimeterGeneratorLoop> &contours, std::vector<Polygons> &line_groups) {
@@ -215,8 +165,6 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
     std::vector<Polygons> obstacle_outlines;
 
 
-
-
     coord_t distance = scale_(req.distance);
     coord_t outer_distance = scale_(req.outer_offset);
 
@@ -257,7 +205,7 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
 
 
             last = offsets;
-            if(i <= inner_loop_number) {
+            if (i <= inner_loop_number) {
                 inner = last;
             }
 
@@ -323,17 +271,15 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
         }
 
         traverse(contours[0], area_outlines);
-        for(auto &hole:holes) {
+        for (auto &hole: holes) {
             traverse(hole, obstacle_outlines);
         }
 
-        for(auto &obstacle_group : obstacle_outlines) {
+        for (auto &obstacle_group: obstacle_outlines) {
             std::reverse(obstacle_group.begin(), obstacle_group.end());
         }
 
     }
-
-
 
 
     ExPolygons expp = union_ex(inner);
@@ -376,20 +322,13 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
 
 
 
-    if (visualize_plan) {
-
-
-        visualization_msgs::MarkerArray arr;
-        createLineMarkers(area_outlines, obstacle_outlines, fill_lines, arr);
-        marker_array_publisher.publish(arr);
-    }
 
     std_msgs::Header header;
     header.stamp = ros::Time::now();
     header.frame_id = "map";
     header.seq = 0;
 
-    for(auto &group:area_outlines) {
+    for (auto &group: area_outlines) {
         slic3r_coverage_planner::Path path;
         path.is_outline = true;
         path.path.header = header;
@@ -398,15 +337,14 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
             auto &poly = group[i];
 
             Polyline line;
-            if(split_index < poly.points.size()) {
+            if (split_index < poly.points.size()) {
                 line = poly.split_at_index(split_index);
             } else {
                 line = poly.split_at_first_point();
                 split_index = 0;
             }
-            split_index+=2;
+            split_index += 2;
             line.remove_duplicate_points();
-
 
 
             auto equally_spaced_points = line.equally_spaced_points(scale_(0.1));
@@ -452,7 +390,7 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
         res.paths.push_back(path);
     }
 
-    for(auto &group:obstacle_outlines) {
+    for (auto &group: obstacle_outlines) {
         slic3r_coverage_planner::Path path;
         path.is_outline = true;
         path.path.header = header;
@@ -461,15 +399,14 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
             auto &poly = group[i];
 
             Polyline line;
-            if(split_index < poly.points.size()) {
+            if (split_index < poly.points.size()) {
                 line = poly.split_at_index(split_index);
             } else {
                 line = poly.split_at_first_point();
                 split_index = 0;
             }
-            split_index+=2;
+            split_index += 2;
             line.remove_duplicate_points();
-
 
 
             auto equally_spaced_points = line.equally_spaced_points(scale_(0.1));
@@ -514,7 +451,7 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
         }
         res.paths.push_back(path);
     }
-    
+
     for (int i = 0; i < fill_lines.size(); i++) {
         auto &line = fill_lines[i];
         slic3r_coverage_planner::Path path;
@@ -564,6 +501,22 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
         path.path.poses.push_back(pose);
 
         res.paths.push_back(path);
+    }
+
+    if (visualize_plan) {
+        visualization_msgs::MarkerArray arr;
+        {
+            visualization_msgs::Marker marker;
+
+            marker.header.frame_id = "map";
+            marker.ns = "mower_map_service_lines";
+            marker.id = -1;
+            marker.frame_locked = true;
+            marker.action = visualization_msgs::Marker::DELETEALL;
+            arr.markers.push_back(marker);
+        }
+        createLineMarkers(res, arr);
+        marker_array_publisher.publish(arr);
     }
 
 
