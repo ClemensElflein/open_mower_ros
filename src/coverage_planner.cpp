@@ -436,7 +436,7 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
                 // In order to smooth the transition we skip some points (think spiral movement of the mower).
                 // Check, that the skip did not break the path (cross the outer poly during transition).
                 // If it's fine, use the smoothed path, otherwise use the shortest point to split.
-                int smooth_split_index = (min_split_index + 3) % poly.points.size();
+                int smooth_split_index = (min_split_index + 2) % poly.points.size();
 
                 line = poly.split_at_index(smooth_split_index);
                 const Polygon *next_outer_poly;
@@ -449,9 +449,9 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
                 Line connection(line.first_point(),
                                 Point(scale_(last_pose.pose.position.x), scale_(last_pose.pose.position.y)));
                 Point intersection_pt{};
-                if (!next_outer_poly->intersection(connection, &intersection_pt)) {
-                    // No intersection, it's fine to use the smoothed point for splitting.
-                    min_split_index = smooth_split_index;
+                if (next_outer_poly->intersection(connection, &intersection_pt)) {
+                    // intersection, we need to split at closest point
+                    line = poly.split_at_index(min_split_index);
                 }
             }
             line.remove_duplicate_points();
