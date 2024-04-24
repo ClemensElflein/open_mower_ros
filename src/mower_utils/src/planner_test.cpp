@@ -14,6 +14,8 @@ int main(int argc, char **argv) {
     ros::NodeHandle n;
     ros::NodeHandle paramNh("~");
 
+    int area_index = paramNh.param("area_index", 0);
+    int outline_count = paramNh.param("outline_count", 4);
 
     ros::Publisher path_pub;
 
@@ -33,7 +35,7 @@ int main(int argc, char **argv) {
 
 
     mower_map::GetMowingAreaSrv mapSrv;
-    mapSrv.request.index = 0;
+    mapSrv.request.index = area_index;
 
     if (!mapClient.call(mapSrv)) {
         ROS_ERROR_STREAM("Error loading mowing area");
@@ -42,16 +44,23 @@ int main(int argc, char **argv) {
 
     slic3r_coverage_planner::PlanPath pathSrv;
     pathSrv.request.angle = 0;
-    pathSrv.request.outline_count = 1;
+    pathSrv.request.outline_count = outline_count;
     pathSrv.request.outline = mapSrv.response.area.area;
     pathSrv.request.holes = mapSrv.response.area.obstacles;
     pathSrv.request.fill_type = slic3r_coverage_planner::PlanPathRequest::FILL_LINEAR;
-    pathSrv.request.distance = 1.0;
+    pathSrv.request.distance = 0.13;
+    pathSrv.request.outer_offset = 0.05;
 
-    if (!pathClient.call(pathSrv)) {
-        ROS_ERROR_STREAM("Error getting path area");
-        return 1;
+    ros::Duration loop_time(1);
+    while(ros::ok()) {
+        if (!pathClient.call(pathSrv)) {
+            ROS_ERROR_STREAM("Error getting path area");
+        } else {
+            ROS_INFO_STREAM("Got path");
+        }
+        loop_time.sleep();
     }
+
     return 0;
 }
 
