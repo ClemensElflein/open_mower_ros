@@ -415,14 +415,8 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
                 // innermost group, split wherever
                 line = poly.split_at_first_point();
             } else {
-                // Get last point of last group
+                // Get last point of last group. this is the next inner poly from this point of view
                 const auto &last_pose = path.path.poses.back();
-                const auto &last_pose_orientation = tf2::Quaternion(
-                        last_pose.pose.orientation.x,
-                        last_pose.pose.orientation.y,
-                        last_pose.pose.orientation.z,
-                        last_pose.pose.orientation.w
-                );
                 // Find the closest point in the current poly and split there
                 double min_distance = INFINITY;
                 int min_split_index = 0;
@@ -438,7 +432,27 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
                         min_split_index = split_index;
                     }
                 }
-                line = poly.split_at_index(min_split_index);
+
+                // In order to smooth the transition we skip some points (think spiral movement of the mower).
+                // Check, that the skip did not break the path (cross the outer poly during transition).
+                // If it's fine, use the smoothed path, otherwise use the shortest point to split.
+                int smooth_split_index = (min_split_index + 3) % poly.points.size();
+
+                line = poly.split_at_index(smooth_split_index);
+                const Polygon *next_outer_poly;
+                if(i < group.size()-1) {
+                    next_outer_poly = &group[i+1];
+                } else {
+                    // we are in the outermost line, use outline for collision check
+                    next_outer_poly = &outline_poly;
+                }
+                Line connection(line.first_point(),
+                                Point(scale_(last_pose.pose.position.x), scale_(last_pose.pose.position.y)));
+                Point intersection_pt{};
+                if (!next_outer_poly->intersection(connection, &intersection_pt)) {
+                    // No intersection, it's fine to use the smoothed point for splitting.
+                    min_split_index = smooth_split_index;
+                }
             }
             line.remove_duplicate_points();
 
