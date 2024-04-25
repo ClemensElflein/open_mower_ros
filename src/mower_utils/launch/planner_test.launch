@@ -4,7 +4,17 @@
 <launch>
     <node name="rviz" pkg="rviz" type="rviz" args="-d $(find mower_utils)/rviz/planner_test.rviz" required="true" />
     <node pkg="mower_map" type="mower_map_service" name="mower_map" required="true" />
-    <node pkg="slic3r_coverage_planner" type="slic3r_coverage_planner" name="slic3r_coverage_planner" required="true" />
-    <node pkg="mower_utils" type="planner_test" name="planner_test" required="false" />
+    <node pkg="slic3r_coverage_planner" type="slic3r_coverage_planner" name="slic3r_coverage_planner" required="false" />
+
+    <node
+            if="$(eval optenv('START_PLANNER', True))"
+            pkg="mower_utils"
+            type="planner_test"
+            name="planner_test"
+            required="false"
+    >
+        <param name="area_index" value="$(eval optenv('AREA_INDEX', 0))"/>
+        <param name="outline_count" value="$(eval optenv('OM_OUTLINE_COUNT', 10))"/>
+    </node>
 <!--    <node pkg="mower_logic" type="mower_logic" name="mower_logic" required="true" />-->
 </launch>
