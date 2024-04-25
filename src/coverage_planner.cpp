@@ -165,7 +165,7 @@ createMarkers(const slic3r_coverage_planner::PlanPathRequest &planning_request,
         }
         markerArray.markers.push_back(marker);
 
-        // Create markers for start and end
+        // Create markers for start
         if (!path.path.poses.empty()) {
             visualization_msgs::Marker marker;
 
@@ -339,11 +339,6 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
         for (auto &hole: holes) {
             traverse(hole, obstacle_outlines);
         }
-
-        for (auto &obstacle_group: obstacle_outlines) {
-            std::reverse(obstacle_group.begin(), obstacle_group.end());
-        }
-
     }
 
 
@@ -499,23 +494,65 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
         res.paths.push_back(path);
     }
 
+    // At this point, the obstacles outlines are still "the wrong way" (i.e. inner first, then outer ...),
+    // this is intentional, because then it's easier to find good traversal points.
+    // In order to make the mower approach the obstacle, we will reverse the path later.
     for (auto &group: obstacle_outlines) {
         slic3r_coverage_planner::Path path;
         path.is_outline = true;
         path.path.header = header;
-        int split_index = 0;
         for (int i = 0; i < group.size(); i++) {
             auto &poly = group[i];
 
+
+            // Find an appropriate point to split, this should be close to the last split point,
+            // so that we don't need to traverse a lot.
             Polyline line;
-            if (split_index < poly.points.size()) {
-                line = poly.split_at_index(split_index);
-            } else {
+            if (i == 0) {
+                // innermost group, split wherever
                 line = poly.split_at_first_point();
-                split_index = 0;
+            } else {
+                // Get last point of last group. this is the next inner poly from this point of view
+                const auto &last_pose = path.path.poses.back();
+                // Find the closest point in the current poly and split there
+                double min_distance = INFINITY;
+                int min_split_index = 0;
+                for (int split_index = 0; split_index < poly.points.size(); ++split_index) {
+                    const auto &pt = poly.points[split_index];
+                    const auto pt_x = unscale(pt.x);
+                    const auto pt_y = unscale(pt.y);
+                    double distance = sqrt((pt_x - last_pose.pose.position.x) * (pt_x - last_pose.pose.position.x) +
+                                           (pt_y - last_pose.pose.position.y) * (pt_y - last_pose.pose.position.y));
+
+                    if (distance < min_distance) {
+                        min_distance = distance;
+                        min_split_index = split_index;
+                    }
+                }
+
+                // In order to smooth the transition we skip some points (think spiral movement of the mower).
+                // Check, that the skip did not break the path (cross the outer poly during transition).
+                // If it's fine, use the smoothed path, otherwise use the shortest point to split.
+                int smooth_split_index = (min_split_index + 2) % poly.points.size();
+
+                line = poly.split_at_index(smooth_split_index);
+                const Polygon *next_outer_poly;
+                if(i < group.size()-1) {
+                    next_outer_poly = &group[i+1];
+                } else {
+                    // we are in the outermost line, use outline for collision check
+                    next_outer_poly = &outline_poly;
+                }
+                Line connection(line.first_point(),
+                                Point(scale_(last_pose.pose.position.x), scale_(last_pose.pose.position.y)));
+                Point intersection_pt{};
+                if (next_outer_poly->intersection(connection, &intersection_pt)) {
+                    // intersection, we need to split at closest point
+                    line = poly.split_at_index(min_split_index);
+                }
             }
-            split_index += 2;
             line.remove_duplicate_points();
+
 
 
             auto equally_spaced_points = line.equally_spaced_points(scale_(0.1));
@@ -534,7 +571,8 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
 
                 // calculate pose for "lastPoint" pointing to current point
 
-                auto dir = pt - *lastPoint;
+                // Direction needs to be inversed compared to outline, because we will reverse the point order later.
+                auto dir =  *lastPoint - pt;
                 double orientation = atan2(dir.y, dir.x);
                 tf2::Quaternion q(0.0, 0.0, orientation);
 
@@ -558,6 +596,8 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
             path.path.poses.push_back(pose);
 
         }
+        // Reverse here to make the mower approach the obstacle instead of starting close to the obstacle
+        std::reverse(path.path.poses.begin(), path.path.poses.end());
         res.paths.push_back(path);
     }
 
