@@ -57,7 +57,6 @@ std::string external_mqtt_port = "";
 
 class MqttCallback : public mqtt::callback {
 
-
     void connected(const mqtt::string &string) override {
         ROS_INFO_STREAM("MQTT Connected");
         publish_sensor_metadata();
@@ -65,18 +64,18 @@ class MqttCallback : public mqtt::callback {
         publish_map_overlay();
         publish_actions();
 
-
-        client_->subscribe("/teleop", 0);
-        client_->subscribe("/command", 0);
-        client_->subscribe("/action", 0);
+        client_->subscribe(this->mqtt_topic_prefix + "/teleop", 0);
+        client_->subscribe(this->mqtt_topic_prefix + "/command", 0);
+        client_->subscribe(this->mqtt_topic_prefix + "/action", 0);
     }
 
 public:
-    void setMqttClient(std::shared_ptr<mqtt::async_client> c) {
+    void setMqttClient(std::shared_ptr<mqtt::async_client> c, const std::string &mqtt_topic_prefix) {
         this->client_ = std::move(c);
+        this->mqtt_topic_prefix = mqtt_topic_prefix;
     }
     void message_arrived(mqtt::const_message_ptr ptr) override {
-        if(ptr->get_topic() == "/teleop") {
+        if(ptr->get_topic() == this->mqtt_topic_prefix + "/teleop") {
             try {
                 json json = json::from_bson(ptr->get_payload().begin(), ptr->get_payload().end());
                 geometry_msgs::Twist t;
@@ -86,7 +85,7 @@ public:
             } catch (const json::exception &e) {
                 ROS_ERROR_STREAM("Error decoding /teleop bson: " << e.what());
             }
-        } else if(ptr->get_topic() == "/action") {
+        } else if(ptr->get_topic() == this->mqtt_topic_prefix + "/action") {
             ROS_INFO_STREAM("Got action: " + ptr->get_payload());
             std_msgs::String action_msg;
             action_msg.data = ptr->get_payload_str();
@@ -95,6 +94,7 @@ public:
     }
 private:
     std::shared_ptr<mqtt::async_client> client_;
+    std::string mqtt_topic_prefix = "";
 };
 
 MqttCallback mqtt_callback;
@@ -124,7 +124,7 @@ void setupMqttClient() {
         try {
             client_ = std::make_shared<mqtt::async_client>(
                     uri, "xbot_monitoring");
-            mqtt_callback.setMqttClient(client_);
+            mqtt_callback.setMqttClient(client_, "");
             client_->set_callback(mqtt_callback);
 
             client_->connect(connect_options_);
@@ -157,7 +157,7 @@ void setupMqttClient() {
         try {
             client_external_ = std::make_shared<mqtt::async_client>(
                     uri, "xbot_monitoring");
-            mqtt_callback_external.setMqttClient(client_external_);
+            mqtt_callback_external.setMqttClient(client_external_, external_mqtt_topic_prefix);
             client_external_->set_callback(mqtt_callback_external);
 
             client_external_->connect(connect_options_);
@@ -194,6 +194,7 @@ void try_publish(std::string topic, std::string data, bool retain = false) {
         }
     }
 }
+
 void try_publish_binary(std::string topic, const void *data, size_t size, bool retain = false) {
     try {
         if (retain) {
@@ -537,7 +538,7 @@ int main(int argc, char **argv) {
     external_mqtt_password = paramNh.param("external_mqtt_password", std::string(""));
 
     if(external_mqtt_enable) {
-        ROS_INFO_STREAM("Using extnernal MQTT broker: " << external_mqtt_hostname << ":" << external_mqtt_port << " with topic prefix: " + external_mqtt_topic_prefix);
+        ROS_INFO_STREAM("Using external MQTT broker: " << external_mqtt_hostname << ":" << external_mqtt_port << " with topic prefix: " + external_mqtt_topic_prefix);
     }
 
     // First setup MQTT
