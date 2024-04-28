@@ -202,8 +202,8 @@ void registerSensors() {
     si_gps_accuracy.sensor_id = "om_gps_accuracy";
     si_gps_accuracy.sensor_name = "GPS Accuracy";
     si_gps_accuracy.value_type = xbot_msgs::SensorInfo::TYPE_DOUBLE;
-    si_gps_accuracy.value_description = xbot_msgs::SensorInfo::VALUE_DESCRIPTION_PERCENT;
-    si_gps_accuracy.unit = "%";
+    si_gps_accuracy.value_description = xbot_msgs::SensorInfo::VALUE_DESCRIPTION_DISTANCE;
+    si_gps_accuracy.unit = "m";
     si_gps_accuracy_pub = n->advertise<xbot_msgs::SensorInfo>("xbot_monitoring/sensors/" + si_gps_accuracy.sensor_id + "/info", 1, true);
     gps_accuracy_data_pub = n->advertise<xbot_msgs::SensorDataDouble>("xbot_monitoring/sensors/" + si_gps_accuracy.sensor_id + "/data",10);
     si_gps_accuracy_pub.publish(si_gps_accuracy);
