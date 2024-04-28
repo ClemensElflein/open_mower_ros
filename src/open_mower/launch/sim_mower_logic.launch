@@ -35,7 +35,7 @@
     </node>
 
 
-    <node pkg="xbot_monitoring" type="xbot_monitoring" name="xbot_monitoring" output="screen" respawn="true" respawn_delay="10">
+    <node pkg="xbot_monitoring" type="xbot_monitoring" name="xbot_monitoring" output="screen" respawn="false">
         <param name="external_mqtt_enable" value="$(optenv OM_MQTT_ENABLE False)" />
         <param name="external_mqtt_hostname" value="$(optenv OM_MQTT_HOSTNAME)" />
         <param name="external_mqtt_port" value="$(optenv OM_MQTT_PORT)" />
