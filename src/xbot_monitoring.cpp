@@ -64,6 +64,13 @@ class MqttCallback : public mqtt::callback {
         publish_map_overlay();
         publish_actions();
 
+        // BEGIN: Deprecated code (1/2)
+        // Earlier implementations subscribed to "/action" and "prefix//action" topics, we do it to not break stuff as well.
+        client_->subscribe(this->mqtt_topic_prefix + "/teleop", 0);
+        client_->subscribe(this->mqtt_topic_prefix + "/command", 0);
+        client_->subscribe(this->mqtt_topic_prefix + "/action", 0);
+        // END: Deprecated code (1/2)
+
         client_->subscribe(this->mqtt_topic_prefix + "teleop", 0);
         client_->subscribe(this->mqtt_topic_prefix + "command", 0);
         client_->subscribe(this->mqtt_topic_prefix + "action", 0);
@@ -90,6 +97,13 @@ public:
             std_msgs::String action_msg;
             action_msg.data = ptr->get_payload_str();
             action_pub.publish(action_msg);
+        } else if(ptr->get_topic() == this->mqtt_topic_prefix + "/action") {
+            // BEGIN: Deprecated code (2/2)
+            ROS_WARN_STREAM("Got action on deprecated topic! Change your topic names!: " + ptr->get_payload());
+            std_msgs::String action_msg;
+            action_msg.data = ptr->get_payload_str();
+            action_pub.publish(action_msg);
+            // END: Deprecated code (2/2)
         }
     }
 private:
