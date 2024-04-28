@@ -64,9 +64,9 @@ class MqttCallback : public mqtt::callback {
         publish_map_overlay();
         publish_actions();
 
-        client_->subscribe(this->mqtt_topic_prefix + "/teleop", 0);
-        client_->subscribe(this->mqtt_topic_prefix + "/command", 0);
-        client_->subscribe(this->mqtt_topic_prefix + "/action", 0);
+        client_->subscribe(this->mqtt_topic_prefix + "teleop", 0);
+        client_->subscribe(this->mqtt_topic_prefix + "command", 0);
+        client_->subscribe(this->mqtt_topic_prefix + "action", 0);
     }
 
 public:
@@ -75,7 +75,7 @@ public:
         this->mqtt_topic_prefix = mqtt_topic_prefix;
     }
     void message_arrived(mqtt::const_message_ptr ptr) override {
-        if(ptr->get_topic() == this->mqtt_topic_prefix + "/teleop") {
+        if(ptr->get_topic() == this->mqtt_topic_prefix + "teleop") {
             try {
                 json json = json::from_bson(ptr->get_payload().begin(), ptr->get_payload().end());
                 geometry_msgs::Twist t;
@@ -83,9 +83,9 @@ public:
                 t.angular.z = json["vz"];
                 cmd_vel_pub.publish(t);
             } catch (const json::exception &e) {
-                ROS_ERROR_STREAM("Error decoding /teleop bson: " << e.what());
+                ROS_ERROR_STREAM("Error decoding teleop bson: " << e.what());
             }
-        } else if(ptr->get_topic() == this->mqtt_topic_prefix + "/action") {
+        } else if(ptr->get_topic() == this->mqtt_topic_prefix + "action") {
             ROS_INFO_STREAM("Got action: " + ptr->get_payload());
             std_msgs::String action_msg;
             action_msg.data = ptr->get_payload_str();
@@ -156,7 +156,7 @@ void setupMqttClient() {
 
         try {
             client_external_ = std::make_shared<mqtt::async_client>(
-                    uri, "xbot_monitoring");
+                    uri, "ext_xbot_monitoring");
             mqtt_callback_external.setMqttClient(client_external_, external_mqtt_topic_prefix);
             client_external_->set_callback(mqtt_callback_external);
 
