@@ -14,17 +14,20 @@ find_package(catkin REQUIRED COMPONENTS
   mower_map
   mower_msgs
   nav_msgs
+  rosbag
   roscpp
   slic3r_coverage_planner
   tf2
   tf2_geometry_msgs
   tf2_ros
-        sensor_msgs
-        robot_localization
-        xbot_msgs
-        xbot_positioning
+  sensor_msgs
+  robot_localization
+  xbot_msgs
+  xbot_positioning
 )
 
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(CRYPTOPP REQUIRED libcrypto++)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -60,11 +63,10 @@ find_package(catkin REQUIRED COMPONENTS
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-# add_message_files(
-#   FILES
-#   Message1.msg
-#   Message2.msg
-# )
+add_message_files(
+  FILES
+  CheckPoint.msg
+)
 
 ## Generate services in the 'srv' folder
 # add_service_files(
@@ -81,10 +83,10 @@ find_package(catkin REQUIRED COMPONENTS
 # )
 
 ## Generate added messages and services with any dependencies listed here
-# generate_messages(
+generate_messages(
 #   DEPENDENCIES
 #   mbf_msgs#   mower_msgs#   nav_msgs#   tf2_geometry_msgs
-# )
+)
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -131,6 +133,7 @@ catkin_package(
 include_directories(
 # include
   ${catkin_INCLUDE_DIRS}
+  ${CRYPTOPP_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library
@@ -180,7 +183,7 @@ add_executable(mower_logic
         src/mower_logic/behaviors/AreaRecordingBehavior.cpp
         )
 add_dependencies(mower_logic ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
-target_link_libraries(mower_logic ${catkin_LIBRARIES})
+target_link_libraries(mower_logic ${catkin_LIBRARIES} ${CRYPTOPP_LIBRARIES})
 
 add_executable(mower_odometry src/mower_odometry/mower_odometry.cpp)
 add_dependencies(mower_odometry ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
