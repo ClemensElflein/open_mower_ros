@@ -51,6 +51,8 @@
 #include "xbot_msgs/RegisterActionsSrv.h"
 #include <mutex>
 #include <atomic>
+#include <sstream>
+#include <ios>
 
 ros::ServiceClient pathClient, mapClient, dockingPointClient, gpsClient, mowClient, emergencyClient, pathProgressClient, setNavPointClient, clearNavPointClient, clearMapClient, positioningClient, actionRegistrationClient;
 
@@ -468,8 +470,20 @@ void checkSafety(const ros::TimerEvent &timer_event) {
 
     // we are in non emergency, check if we should pause. This could be empty battery, rain or hot mower motor etc.
     bool dockingNeeded = false;
-    if (last_status.v_battery < last_config.battery_empty_voltage || last_status.mow_esc_status.temperature_motor >= last_config.motor_hot_temperature ||
-        last_config.manual_pause_mowing) {
+    std::stringstream dockingReason("Docking: ", std::ios_base::ate | std::ios_base::in | std::ios_base::out);
+
+    if (last_config.manual_pause_mowing) {
+        dockingReason << "Manual pause";
+        dockingNeeded = true;
+    }
+
+    if(!dockingNeeded && last_status.v_battery < last_config.battery_empty_voltage) {
+        dockingReason << "Battery low: " << last_status.v_battery;
+        dockingNeeded = true;
+    }
+
+    if (!dockingNeeded && last_status.mow_esc_status.temperature_motor >= last_config.motor_hot_temperature) {
+        dockingReason << "Mow motor over temp: " << last_status.mow_esc_status.temperature_motor;
         dockingNeeded = true;
     }
 
