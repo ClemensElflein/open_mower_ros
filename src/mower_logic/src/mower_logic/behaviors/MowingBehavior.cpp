@@ -328,6 +328,7 @@ bool MowingBehavior::execute_mowing_plan() {
             moveBaseGoal.target_pose = path.path.poses[currentMowingPathIndex];
             moveBaseGoal.controller = "FTCPlanner";
             mbfClient->sendGoal(moveBaseGoal);
+            sleep(1);
             actionlib::SimpleClientGoalState current_status(actionlib::SimpleClientGoalState::PENDING);
             ros::Rate r(10);
 
@@ -438,6 +439,7 @@ bool MowingBehavior::execute_mowing_plan() {
 
             ROS_INFO_STREAM("MowingBehavior: (MOW) First point reached - Executing mow path with " << path.path.poses.size() << " poses, from index " << exePathStartIndex);
             mbfClientExePath->sendGoal(exePathGoal);
+            sleep(1);
             actionlib::SimpleClientGoalState current_status(actionlib::SimpleClientGoalState::PENDING);
             ros::Rate r(10);
 
