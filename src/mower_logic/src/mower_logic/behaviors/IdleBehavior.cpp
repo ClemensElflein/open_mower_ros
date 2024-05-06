@@ -71,7 +71,7 @@ Behavior *IdleBehavior::execute() {
         const auto last_status = getStatus();
 
         const bool automatic_mode = last_config.automatic_mode == eAutoMode::AUTO;
-        const bool active_semiautomatic_task = last_config.automatic_mode == eAutoMode::SEMIAUTO && shared_state->active_semiautomatic_task == true;
+        const bool active_semiautomatic_task = last_config.automatic_mode == eAutoMode::SEMIAUTO && shared_state->active_semiautomatic_task && !shared_state->semiautomatic_task_paused;
         const bool mower_ready = last_status.v_battery > last_config.battery_full_voltage && last_status.mow_esc_status.temperature_motor < last_config.motor_cold_temperature &&
                 !last_config.manual_pause_mowing;
 
@@ -142,6 +142,8 @@ void IdleBehavior::command_home() {
 }
 
 void IdleBehavior::command_start() {
+    // We got start, so we can reset the last manual pause
+    shared_state->semiautomatic_task_paused = false;
     manual_start_mowing = true;
 }
 
@@ -187,9 +189,9 @@ IdleBehavior::IdleBehavior() {
 void IdleBehavior::handle_action(std::string action) {
     if(action == "mower_logic:idle/start_mowing") {
         ROS_INFO_STREAM("Got start_mowing command");
-        manual_start_mowing = true;
+        command_start();
     } else if(action == "mower_logic:idle/start_area_recording") {
         ROS_INFO_STREAM("Got start_area_recording command");
-        start_area_recorder = true;
+        command_s1();
     }
 }
