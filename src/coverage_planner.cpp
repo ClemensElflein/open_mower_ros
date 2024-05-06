@@ -339,6 +339,12 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
         for (auto &hole: holes) {
             traverse(hole, obstacle_outlines);
         }
+
+        for (auto &obstacle_group: obstacle_outlines) {
+            for (auto &poly: obstacle_group) {
+                std::reverse(poly.points.begin(), poly.points.end());
+            }
+        }
     }
 
 
@@ -436,8 +442,8 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
 
                 line = poly.split_at_index(smooth_split_index);
                 const Polygon *next_outer_poly;
-                if(i < group.size()-1) {
-                    next_outer_poly = &group[i+1];
+                if (i < group.size() - 1) {
+                    next_outer_poly = &group[i + 1];
                 } else {
                     // we are in the outermost line, use outline for collision check
                     next_outer_poly = &outline_poly;
@@ -505,22 +511,23 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
             // Note: back() polygon is the first (outer) loop
             prev_point = &obstacle_outlines.front().back().points.front();
         }
-        while(obstacle_outlines.size()){
+        while (obstacle_outlines.size()) {
             // Sort be desc distance then pop closest outline from the back of the vector
-            std::sort(obstacle_outlines.begin(), obstacle_outlines.end(), [prev_point](Slic3r::Polygons &a, Slic3r::Polygons &b) {
-                // Note: back() polygon is the first (outer) loop
-                auto a_firstPoint = a.back().points.front();
-                double distance_a = sqrt(
-                    (a_firstPoint.x - prev_point->x) * (a_firstPoint.x - prev_point->x) +
-                    (a_firstPoint.y - prev_point->y) * (a_firstPoint.y - prev_point->y)
-                );
-                auto b_firstPoint = b.back().points.front();
-                double distance_b = sqrt(
-                    (b_firstPoint.x - prev_point->x) * (b_firstPoint.x - prev_point->x) +
-                    (b_firstPoint.y - prev_point->y) * (b_firstPoint.y - prev_point->y)
-                );
-                return distance_a >= distance_b;
-            });
+            std::sort(obstacle_outlines.begin(), obstacle_outlines.end(),
+                      [prev_point](Slic3r::Polygons &a, Slic3r::Polygons &b) {
+                          // Note: back() polygon is the first (outer) loop
+                          auto a_firstPoint = a.back().points.front();
+                          double distance_a = sqrt(
+                                  (a_firstPoint.x - prev_point->x) * (a_firstPoint.x - prev_point->x) +
+                                  (a_firstPoint.y - prev_point->y) * (a_firstPoint.y - prev_point->y)
+                          );
+                          auto b_firstPoint = b.back().points.front();
+                          double distance_b = sqrt(
+                                  (b_firstPoint.x - prev_point->x) * (b_firstPoint.x - prev_point->x) +
+                                  (b_firstPoint.y - prev_point->y) * (b_firstPoint.y - prev_point->y)
+                          );
+                          return distance_a >= distance_b;
+                      });
             ordered_obstacle_outlines.push_back(obstacle_outlines.back());
             obstacle_outlines.pop_back();
             // Note: front() polygon is the last (inner) loop
@@ -571,8 +578,8 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
 
                 line = poly.split_at_index(smooth_split_index);
                 const Polygon *next_outer_poly;
-                if(i < group.size()-1) {
-                    next_outer_poly = &group[i+1];
+                if (i < group.size() - 1) {
+                    next_outer_poly = &group[i + 1];
                 } else {
                     // we are in the outermost line, use outline for collision check
                     next_outer_poly = &outline_poly;
@@ -586,7 +593,6 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
                 }
             }
             line.remove_duplicate_points();
-
 
 
             auto equally_spaced_points = line.equally_spaced_points(scale_(0.1));
@@ -606,7 +612,7 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
                 // calculate pose for "lastPoint" pointing to current point
 
                 // Direction needs to be inversed compared to outline, because we will reverse the point order later.
-                auto dir =  *lastPoint - pt;
+                auto dir = *lastPoint - pt;
                 double orientation = atan2(dir.y, dir.x);
                 tf2::Quaternion q(0.0, 0.0, orientation);
 
