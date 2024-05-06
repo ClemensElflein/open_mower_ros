@@ -45,10 +45,12 @@ dynamic_reconfigure::Server<mower_simulation::MowerSimulationConfig> *reconfig_s
 
 geometry_msgs::Twist last_cmd_vel;
 
-geometry_msgs::PoseWithCovarianceStamped poseMsg;
+xbot_msgs::AbsolutePose pose{};
+geometry_msgs::PoseWithCovarianceStamped initialPoseMsg;
 
 bool has_dock = false;
 double dockX = 0, dockY = 0;
+bool is_docked = false;
 
 
 bool setGpsState(xbot_positioning::GPSControlSrvRequest &req, xbot_positioning::GPSControlSrvResponse &res) {
@@ -70,12 +72,17 @@ void fetchDock(const ros::TimerEvent &timer_event) {
     mower_map::GetDockingPointSrv get_docking_point_srv;
     geometry_msgs::PoseWithCovarianceStamped docking_pose_stamped;
 
+    bool last_has_dock = has_dock;
     if(docking_point_client.call(get_docking_point_srv)) {
         has_dock = true;
         dockX = get_docking_point_srv.response.docking_pose.position.x;
         dockY = get_docking_point_srv.response.docking_pose.position.y;
     } else {
         has_dock = false;
+    }
+
+    if(last_has_dock != has_dock) {
+        ROS_INFO_STREAM("map has a dock: " << (has_dock ? "YES" : "NO"));
     }
 
 }
@@ -107,11 +114,19 @@ void publishStatus(const ros::TimerEvent &timer_event) {
 
     fake_mow_status.v_battery = config.battery_voltage;
 
-    if(has_dock && sqrt(pow(poseMsg.pose.pose.position.x - dockX, 2)+pow(poseMsg.pose.pose.position.y - dockY, 2)) < 0.5) {
-        // "docked"
-        fake_mow_status.v_charge = config.battery_voltage + 0.2;
+    bool last_is_docked = is_docked;
+    is_docked = has_dock && sqrt(pow(pose.pose.pose.position.x - dockX, 2) + pow(pose.pose.pose.position.y - dockY, 2)) < 0.25;
+
+    if(last_is_docked != is_docked) {
+        ROS_INFO_STREAM("simulation is inside dock: " << (is_docked ? "YES" : "NO"));
+    }
+
+    if(is_docked) {
+        // "docked", simulate charge voltage.
+        fake_mow_status.v_charge = 29.4;
     } else {
-        fake_mow_status.v_charge = config.is_charging ? config.battery_voltage + 0.2 : 0.0;
+        // Not docked, use manual charge flag for charging status
+        fake_mow_status.v_charge = config.is_charging ? 29.5 : 0.0;
     }
     if (config.wheels_stalled) {
         fake_mow_status.left_esc_status.status = mower_msgs::ESCStatus ::ESC_STATUS_STALLED;
@@ -133,7 +148,7 @@ void velReceived(const geometry_msgs::Twist::ConstPtr &msg) {
     last_cmd_vel = *msg;
 }
 void odomReceived(const nav_msgs::Odometry::ConstPtr &msg) {
-    xbot_msgs::AbsolutePose pose;
+
     pose.header = msg->header;
     pose.pose = msg->pose;
     pose.orientation_valid = true;
@@ -175,15 +190,15 @@ bool setPose(xbot_positioning::SetPoseSrvRequest &req, xbot_positioning::SetPose
     tf2::Quaternion q(0.0, 0.0, yaw);
 
 
-    poseMsg.header.stamp = ros::Time::now();
-    poseMsg.header.frame_id = "base_link";
-    poseMsg.header.seq++;
-    poseMsg.pose.pose.position.x = req.robot_pose.position.x;
-    poseMsg.pose.pose.position.y = req.robot_pose.position.y;
-    poseMsg.pose.pose.position.z = 0;
-    poseMsg.pose.pose.orientation = tf2::toMsg(q);
+    initialPoseMsg.header.stamp = ros::Time::now();
+    initialPoseMsg.header.frame_id = "base_link";
+    initialPoseMsg.header.seq++;
+    initialPoseMsg.pose.pose.position.x = req.robot_pose.position.x;
+    initialPoseMsg.pose.pose.position.y = req.robot_pose.position.y;
+    initialPoseMsg.pose.pose.position.z = 0;
+    initialPoseMsg.pose.pose.orientation = tf2::toMsg(q);
 
-    initial_pose_publisher.publish(poseMsg);
+    initial_pose_publisher.publish(initialPoseMsg);
 
 
     return true;

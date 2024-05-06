@@ -1,4 +1,5 @@
 <!--
+
     Use this file to record new mowing and navigation areas in the simulator.
  -->
 <launch>
@@ -9,7 +10,7 @@
     <node name="rviz" pkg="rviz" type="rviz" args="-d $(find open_mower)/rviz/sim_mower_logic.rviz" required="true" />
     <node pkg="mower_map" type="mower_map_service" name="mower_map" required="true" />
     <node pkg="slic3r_coverage_planner" type="slic3r_coverage_planner" name="slic3r_coverage_planner" output="screen" required="true" />
-    <node pkg="mower_logic" type="mower_logic" name="mower_logic" output="log" required="true">
+    <node pkg="mower_logic" type="mower_logic" name="mower_logic" output="log" required="false">
         <param name="ignore_gps_errors" value="true"/>
         <param name="gps_wait_time" value="0"/>
         <param name="automatic_mode" value="$(optenv OM_AUTOMATIC_MODE 0)"/>
