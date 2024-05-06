@@ -1,3 +1,7 @@
+## I am available for hire
+Hello! With a background in software engineering, embedded programming, hardware design, and robotics, I'm on the lookout for new challenges.
+If you're in search of someone with my skills, let's team up and create something amazing! https://x-tech.online/
+
 # ROS Workspace
 
 [![Build](https://github.com/ClemensElflein/open_mower_ros/actions/workflows/build-image.yaml/badge.svg)](https://github.com/ClemensElflein/open_mower_ros/actions/workflows/build-image.yaml)
