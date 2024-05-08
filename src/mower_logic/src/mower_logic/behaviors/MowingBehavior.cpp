@@ -626,13 +626,7 @@ void MowingBehavior::handle_action(std::string action) {
         this->requestContinue();
     } else if(action == "mower_logic:mowing/abort_mowing") {
         ROS_INFO_STREAM("got abort mowing command");
-        if (paused)
-        {
-            // Request continue to wait for odom
-            this->requestContinue();
-            // Then instantly abort i.e. go to dock.
-        }
-        this->abort();
+        command_home();
     } else if(action == "mower_logic:mowing/skip_area") {
         ROS_INFO_STREAM("got skip_area command");
         skip_area = true;
