@@ -43,6 +43,9 @@ extern void registerActions(std::string prefix, const std::vector<xbot_msgs::Act
 MowingBehavior MowingBehavior::INSTANCE;
 
 std::string MowingBehavior::state_name() {
+    if(paused) {
+        return "PAUSED";
+    }
     return "MOWING";
 }
 
