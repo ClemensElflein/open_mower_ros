@@ -14,6 +14,7 @@
         <rosparam if="$(eval env('OM_MOWER')=='CUSTOM')" file="$(env HOME)/mower_params/gps_params.yaml"/>
         <rosparam unless="$(eval env('OM_MOWER')=='CUSTOM')" file="$(find open_mower)/params/hardware_specific/$(env OM_MOWER)/comms_gps_params.yaml"/>
         <param if="$(eval optenv('OM_GPS_BAUDRATE')!='')" name="baudrate" value="$(optenv OM_GPS_BAUDRATE)"/>
+        <param if="$(eval optenv('OM_GPS_PORT')!='')" name="serial_port" value="$(optenv OM_GPS_PORT)"/>
         <param name="mode" value="absolute" unless="$(env OM_USE_RELATIVE_POSITION)"/>
         <param name="mode" value="relative" if="$(env OM_USE_RELATIVE_POSITION)"/>
         <param name="ubx_mode" value="$(eval optenv('OM_GPS_PROTOCOL','UBX')=='UBX')"/>
