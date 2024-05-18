@@ -8,12 +8,12 @@ on:
       - 'main'
       - 'releases/**'
     tags:
-      - 'v*.*.*'
+      - 'v*'
   pull_request:
     branches:
       - 'main'
 
-# Allow to stop obsolete workflows
+# Allow stopping obsolete workflows
 concurrency:
   group: ci-buildtrain-${{ github.ref }}-1
   cancel-in-progress: true
