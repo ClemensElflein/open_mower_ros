@@ -50,12 +50,12 @@ jobs:
 
       # https://github.com/docker/setup-qemu-action
       - name: Set up QEMU (arm64)
-        if: runner.arch != 'arm64'
+        if: runner.arch != 'arm64' && matrix.docker_build_arch == 'linux/arm64'
         uses: docker/setup-qemu-action@v3
         with:
           platforms: arm64
       - name: Set up QEMU (x64)
-        if: runner.arch != 'x64'
+        if: runner.arch != 'x64' && matrix.docker_build_arch == 'linux/amd64'
         uses: docker/setup-qemu-action@v3
         with:
           platforms: amd64
