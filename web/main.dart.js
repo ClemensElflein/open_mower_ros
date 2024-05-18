@@ -27440,7 +27440,7 @@ A.aqd.prototype={
 $1(a){var s=A.fY().b
 if(s==null)s=null
 else{s=s.canvasKitBaseUrl
-if(s==null)s=null}return(s==null?"https://www.gstatic.com/flutter-canvaskit/c4cd48e186460b32d44585ce3c103271ab676355/":s)+a},
+if(s==null)s=null}return(s==null?"/canvaskit/":s)+a},
 $S:67}
 A.aqm.prototype={
 $1(a){this.a.remove()
