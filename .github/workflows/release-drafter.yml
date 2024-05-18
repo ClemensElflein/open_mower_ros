@@ -19,6 +19,5 @@ jobs:
       - uses: release-drafter/release-drafter@v6
         with:
           prerelease: true
-          prerelease-identifier: edge
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

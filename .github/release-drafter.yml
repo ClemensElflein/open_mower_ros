@@ -1,6 +1,7 @@
 name-template: "v$RESOLVED_VERSION 🚜"
 tag-template: "v$RESOLVED_VERSION"
 sort-direction: ascending
+prerelease-identifier: edge
 categories:
   - title: "⚠ Breaking changes"
     label: "breaking change"
