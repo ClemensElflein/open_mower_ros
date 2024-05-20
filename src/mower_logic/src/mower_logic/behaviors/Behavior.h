@@ -84,17 +84,22 @@ public:
 
     void requestContinue()
     {
-        requested_continue_flag = true;
+        if (paused) {
+            requested_continue_flag = true;
+        }
     }
 
     void requestPause()
     {
-        requested_pause_flag = true;
+        if (!paused) {
+            requested_pause_flag = true;
+        }
     }
 
     void setPause()
     {
         paused = true;
+        requested_continue_flag = false;
     }
 
     void setContinue()

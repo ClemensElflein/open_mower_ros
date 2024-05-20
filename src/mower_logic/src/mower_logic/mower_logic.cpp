@@ -341,13 +341,6 @@ void setEmergencyMode(bool emergency)
         ROS_ERROR_STREAM("Error setting emergency. THIS SHOULD NEVER HAPPEN");
     }
 
-    if(currentBehavior) {
-        if(emergency) {
-            currentBehavior->requestPause();
-        } else {
-            currentBehavior->requestContinue();
-        }
-    }
 }
 
 void updateUI(const ros::TimerEvent &timer_event) {
@@ -381,7 +374,6 @@ void checkSafety(const ros::TimerEvent &timer_event) {
     const auto status_time = getStatusTime();
     const auto last_good_gps = getLastGoodGPS();
 
-
     // call the mower
     setMowerEnabled(currentBehavior != nullptr && currentBehavior->mower_enabled());
 
@@ -389,12 +381,17 @@ void checkSafety(const ros::TimerEvent &timer_event) {
     high_level_status.is_charging = last_status.v_charge > 10.0;
 
     // send to idle if emergency and we're not recording
-    if(last_status.emergency) {
-        if(currentBehavior == &AreaRecordingBehavior::INSTANCE || currentBehavior == &IdleBehavior::INSTANCE) {
-            if(last_status.v_charge > 10.0) {
-                // emergency and docked and idle or area recording, so it's safe to reset the emergency mode, reset it. It's safe since we won't start moving in this mode.
-                setEmergencyMode(false);
+    if (currentBehavior != nullptr) {
+        if(last_status.emergency) {
+            currentBehavior->requestPause();
+            if(currentBehavior == &AreaRecordingBehavior::INSTANCE || currentBehavior == &IdleBehavior::INSTANCE) {
+                if(last_status.v_charge > 10.0) {
+                    // emergency and docked and idle or area recording, so it's safe to reset the emergency mode, reset it. It's safe since we won't start moving in this mode.
+                    setEmergencyMode(false);
+                }
             }
+        } else {
+            currentBehavior->requestContinue();
         }
     }
 
