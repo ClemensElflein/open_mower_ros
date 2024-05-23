@@ -29,6 +29,11 @@ enum eAutoMode {
     AUTO = 2
 };
 
+enum pauseType {
+    PAUSE_MANUAL = 0b1,
+    PAUSE_EMERGENCY = 0b10
+};
+
 struct sSharedState {
     // True, if the semiautomatic task is still in progress
     bool active_semiautomatic_task;
@@ -48,8 +53,7 @@ protected:
     std::atomic<bool> aborted;
     std::atomic<bool> paused;
 
-    std::atomic<bool> requested_continue_flag;
-    std::atomic<bool> requested_pause_flag;
+    std::atomic<u_int8_t> requested_pause_flag;
 
     std::atomic<bool> isGPSGood;
     std::atomic<uint8_t> sub_state;
@@ -82,31 +86,14 @@ public:
         isGPSGood = isGood;
     }
 
-    void requestContinue()
+    void requestContinue(pauseType reason = pauseType::PAUSE_MANUAL)
     {
-        if (paused) {
-            requested_continue_flag = true;
-        }
+        requested_pause_flag &= ~reason;
     }
 
-    void requestPause()
+    void requestPause(pauseType reason = pauseType::PAUSE_MANUAL)
     {
-        if (!paused) {
-            requested_pause_flag = true;
-        }
-    }
-
-    void setPause()
-    {
-        paused = true;
-        requested_continue_flag = false;
-    }
-
-    void setContinue()
-    {
-        paused = false;
-        requested_continue_flag = false;
-        requested_pause_flag = false;
+        requested_pause_flag |= reason;
     }
 
     void start(mower_logic::MowerLogicConfig &c, std::shared_ptr<sSharedState> s) {
@@ -117,8 +104,7 @@ public:
         ROS_INFO_STREAM("--------------------------------------");
         aborted = false;
         paused = false;
-        requested_continue_flag = false;
-        requested_pause_flag = false;
+        requested_pause_flag = 0;
         this->config = c;
         this->shared_state = std::move(s);
         startTime = ros::Time::now();
