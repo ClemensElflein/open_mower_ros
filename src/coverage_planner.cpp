@@ -413,7 +413,8 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
             // Find an appropriate point to split, this should be close to the last split point,
             // so that we don't need to traverse a lot.
             Polyline line;
-            if (i == 0) {
+            // Cannot use i==0 here, because we might skip a path later ("Skipping single dot")
+            if (path.path.poses.empty()) {
                 // innermost group, split wherever
                 line = poly.split_at_first_point();
             } else {
