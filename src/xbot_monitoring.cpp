@@ -26,6 +26,7 @@ void publish_sensor_metadata();
 void publish_map();
 void publish_map_overlay();
 void publish_actions();
+void publish_version();
 
 // Stores registered actions (prefix to vector<action>)
 std::map<std::string, std::vector<xbot_msgs::ActionInfo>> registered_actions;
@@ -54,6 +55,7 @@ std::string external_mqtt_password = "";
 std::string external_mqtt_hostname = "";
 std::string external_mqtt_topic_prefix = "";
 std::string external_mqtt_port = "";
+std::string version_string = "";
 
 class MqttCallback : public mqtt::callback {
 
@@ -63,6 +65,7 @@ class MqttCallback : public mqtt::callback {
         publish_map();
         publish_map_overlay();
         publish_actions();
+        publish_version();
 
         // BEGIN: Deprecated code (1/2)
         // Earlier implementations subscribed to "/action" and "prefix//action" topics, we do it to not break stuff as well.
@@ -220,6 +223,15 @@ void try_publish_binary(std::string topic, const void *data, size_t size, bool r
     } catch (const mqtt::exception &e) {
         // client disconnected or something, we drop it.
     }
+}
+
+void publish_version() {
+    json version = {
+            {"version", version_string}
+    };
+    try_publish("version", version.dump(), true);
+    auto bson = json::to_bson(version);
+    try_publish_binary("version", bson.data(), bson.size(), true);
 }
 
 void publish_sensor_metadata() {
@@ -538,6 +550,11 @@ int main(int argc, char **argv) {
 
     n = new ros::NodeHandle();
     ros::NodeHandle paramNh("~");
+
+    version_string = paramNh.param("software_version", std::string("UNKNOWN VERSION"));
+    if(version_string.empty()) {
+        version_string = "UNKNOWN VERSION";
+    }
 
     external_mqtt_enable = paramNh.param("external_mqtt_enable", false);
     external_mqtt_topic_prefix = paramNh.param("external_mqtt_topic_prefix", std::string(""));
