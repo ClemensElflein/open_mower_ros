@@ -43,6 +43,7 @@
         <param name="external_mqtt_username" value="$(optenv OM_MQTT_USER)" />
         <param name="external_mqtt_password" value="$(optenv OM_MQTT_PASSWORD)" />
         <param name="external_mqtt_topic_prefix" value="$(optenv OM_MQTT_TOPIC_PREFIX)" />
+        <param name="software_version" value="$(optenv OM_SOFTWARE_VERSION)" />
         <remap from="/xbot_monitoring/remote_cmd_vel" to="/joy_vel"/>
     </node>
 
