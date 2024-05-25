@@ -224,11 +224,11 @@ bool setGPS(bool enabled) {
 }
 
 
-/// @brief If the BLADE Motor is not in the requested status (enabled),we call the 
+/// @brief If the BLADE Motor is not in the requested status (enabled),we call the
 ///        the mower_service/mow_enabled service to enable/disable. TODO: get feedback about spinup and delay if needed
-/// @param enabled 
-/// @return 
-bool setMowerEnabled(bool enabled) 
+/// @param enabled
+/// @return
+bool setMowerEnabled(bool enabled)
 {
     const auto last_config = getConfig();
 
@@ -236,7 +236,7 @@ bool setMowerEnabled(bool enabled)
         // ROS_INFO_STREAM("om_mower_logic: setMowerEnabled() - Mower should be enabled but is hard-disabled in the config.");
         enabled = false;
     }
-    
+
     // status change ?
     if (mowerEnabled != enabled)
     {
@@ -317,8 +317,8 @@ void stopBlade()
 
 
 /// @brief Stop BLADE motor and any movement
-/// @param emergency 
-void setEmergencyMode(bool emergency) 
+/// @param emergency
+void setEmergencyMode(bool emergency)
 {
     stopBlade();
     stopMoving();
@@ -365,7 +365,7 @@ bool isGpsGood() {
 }
 
 /// @brief Called every 0.5s, used to control BLADE motor via mower_enabled variable and stop any movement in case of /odom and /mower/status outages
-/// @param timer_event 
+/// @param timer_event
 void checkSafety(const ros::TimerEvent &timer_event) {
     const auto last_status = getStatus();
     const auto last_config = getConfig();
@@ -374,7 +374,6 @@ void checkSafety(const ros::TimerEvent &timer_event) {
     const auto status_time = getStatusTime();
     const auto last_good_gps = getLastGoodGPS();
 
-
     // call the mower
     setMowerEnabled(currentBehavior != nullptr && currentBehavior->mower_enabled());
 
@@ -382,12 +381,17 @@ void checkSafety(const ros::TimerEvent &timer_event) {
     high_level_status.is_charging = last_status.v_charge > 10.0;
 
     // send to idle if emergency and we're not recording
-    if(last_status.emergency) {
-        if(currentBehavior != &AreaRecordingBehavior::INSTANCE && currentBehavior != &IdleBehavior::INSTANCE) {
-            abortExecution();
-        } else if(last_status.v_charge > 10.0) {
-            // emergency and docked and idle or area recording, so it's safe to reset the emergency mode, reset it. It's safe since we won't start moving in this mode.
-            setEmergencyMode(false);
+    if (currentBehavior != nullptr) {
+        if(last_status.emergency) {
+            currentBehavior->requestPause(pauseType::PAUSE_EMERGENCY);
+            if(currentBehavior == &AreaRecordingBehavior::INSTANCE || currentBehavior == &IdleBehavior::INSTANCE) {
+                if(last_status.v_charge > 10.0) {
+                    // emergency and docked and idle or area recording, so it's safe to reset the emergency mode, reset it. It's safe since we won't start moving in this mode.
+                    setEmergencyMode(false);
+                }
+            }
+        } else {
+            currentBehavior->requestContinue(pauseType::PAUSE_EMERGENCY);
         }
     }
 
@@ -401,10 +405,10 @@ void checkSafety(const ros::TimerEvent &timer_event) {
         ROS_WARN_STREAM_THROTTLE(5, "om_mower_logic: EMERGENCY pose values stopped. dt was: " << (ros::Time::now() - pose_time));
         return;
     }
- 
+
     // check if status is current. if not, we have a problem since it contains wheel ticks and so on.
     // Since these should never drop out, we enter emergency instead of "only" stopping
-    if (ros::Time::now() - status_time > ros::Duration(3)) 
+    if (ros::Time::now() - status_time > ros::Duration(3))
     {
         setEmergencyMode(true);
         ROS_WARN_STREAM_THROTTLE(5, "om_mower_logic: EMERGENCY /mower/status values stopped. dt was: " << (ros::Time::now() - status_time));
@@ -505,7 +509,7 @@ bool highLevelCommand(mower_msgs::HighLevelControlSrvRequest &req, mower_msgs::H
             }
             break;
         case mower_msgs::HighLevelControlSrvRequest::COMMAND_S2:
-	        ROS_INFO_STREAM("COMMAND_S2"); 
+	        ROS_INFO_STREAM("COMMAND_S2");
             if(currentBehavior) {
                 currentBehavior->command_s2();
             }

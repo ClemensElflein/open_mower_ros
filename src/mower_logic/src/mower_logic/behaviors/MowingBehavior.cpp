@@ -129,8 +129,8 @@ void MowingBehavior::update_actions() {
     }
 
     // pause / resume switch. other actions are always available
-    actions[0].enabled = !paused &&  !requested_pause_flag;
-    actions[1].enabled = paused && !requested_continue_flag;
+    actions[0].enabled = !(requested_pause_flag & pauseType::PAUSE_MANUAL);
+    actions[1].enabled = requested_pause_flag & pauseType::PAUSE_MANUAL;
 
     registerActions("mower_logic:mowing", actions);
 }
@@ -272,31 +272,44 @@ bool MowingBehavior::execute_mowing_plan() {
         ////////////////////////////////////////////////
         if (requested_pause_flag)
         {  // pause was requested
-            this->setPause();  // set paused=true
-            update_actions();
+            paused = true;
             mowerEnabled = false;
-            while (!requested_continue_flag) // while not asked to continue, we wait
+            u_int8_t last_requested_pause_flags = 0;
+            while (requested_pause_flag) // while emergency and/or manual pause not asked to continue, we wait
             {
-                ROS_INFO_STREAM("MowingBehavior: PAUSED (waiting for CONTINUE)");
+                if (last_requested_pause_flags != requested_pause_flag) {
+                    update_actions();
+                }
+                last_requested_pause_flags = requested_pause_flag;
+
+                std::string pause_reason = "";
+                if (requested_pause_flag & pauseType::PAUSE_EMERGENCY) {
+                    pause_reason += "on EMERGENCY";
+                    if (requested_pause_flag & pauseType::PAUSE_MANUAL) {
+                        pause_reason += " and ";
+                    }
+                }
+                if (requested_pause_flag & pauseType::PAUSE_MANUAL) {
+                    pause_reason += "waiting for CONTINUE";
+                }
+                ROS_INFO_STREAM_THROTTLE(30, "MowingBehavior: PAUSED (" << pause_reason << ")");
                 ros::Rate r(1.0);
                 r.sleep();
             }
-            // we will drop into paused, thus will also wait for /odom to be valid again
+            // we will drop into paused, thus will also wait for GPS to be valid again
         }
         if (paused)
         {   
             paused_time = ros::Time::now();
-            mowerEnabled = false;
             while (!this->hasGoodGPS()) // while no good GPS we wait
             {
-                ROS_INFO_STREAM("MowingBehavior: PAUSED (" << (ros::Time::now()-paused_time).toSec() << "s) (waiting for /odom)");
+                ROS_INFO_STREAM("MowingBehavior: PAUSED (" << (ros::Time::now()-paused_time).toSec() << "s) (waiting for GPS)");
                 ros::Rate r(1.0);
                 r.sleep();
             }
             ROS_INFO_STREAM("MowingBehavior: CONTINUING");
-            this->setContinue();
+            paused = false;
             update_actions();
-            mowerEnabled = true;
         }
     
 
@@ -385,7 +398,7 @@ bool MowingBehavior::execute_mowing_plan() {
                 if (first_point_attempt_counter < config.max_first_point_attempts)
                 {
                     ROS_WARN_STREAM("MowingBehavior: (FIRST POINT) - Attempt " << first_point_attempt_counter << " / " << config.max_first_point_attempts << " Making a little pause ...");
-                    this->setPause();
+                    paused = true;
                     update_actions();
                 }
                 else
@@ -400,7 +413,7 @@ bool MowingBehavior::execute_mowing_plan() {
                         currentMowingPathIndex++;
                         first_point_trim_counter++;
                         first_point_attempt_counter = 0; // give it another <config.max_first_point_attempts> attempts
-                        this->setPause();
+                        paused = true;
                         update_actions();
                     }
                     else
@@ -522,9 +535,11 @@ bool MowingBehavior::execute_mowing_plan() {
 
                     // currentMowingPathIndex might be 0 if we never consumed one of the points, we advance at least 1 point
                     if( currentMowingPathIndex == 0) currentMowingPathIndex++;
-                    ROS_INFO_STREAM("MowingBehavior: (MOW) PAUSED due to MBF Error at " << currentMowingPathIndex);
-                    this->setPause();
-                    update_actions();
+                    if (!requested_pause_flag) {
+                        ROS_INFO_STREAM("MowingBehavior: (MOW) PAUSED due to MBF Error at " << currentMowingPathIndex);
+                        paused = true;
+                        update_actions();
+                    }
                 }
             }
         }
