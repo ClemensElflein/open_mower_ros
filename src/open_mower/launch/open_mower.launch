@@ -15,6 +15,7 @@
         <param name="perimeter_signal" value="$(optenv OM_PERIMETER_SIGNAL)"/>
         <param name="tool_width" value="$(env OM_TOOL_WIDTH)"/>
         <param name="enable_mower" value="$(env OM_ENABLE_MOWER)"/>
+        <param name="enable_mowing_motor_random_direction" value="$(optenv OM_ENABLE_MOWING_MOTOR_RANDOM_DIRECTION False)"/>
         <param name="battery_empty_voltage" value="$(env OM_BATTERY_EMPTY_VOLTAGE)"/>
         <param name="outline_count" value="$(env OM_OUTLINE_COUNT)"/>
         <param name="outline_overlap_count" value="$(optenv OM_OUTLINE_OVERLAP_COUNT 0)"/>
@@ -22,6 +23,7 @@
         <param name="mow_angle_offset" value="$(optenv OM_MOWING_ANGLE_OFFSET 0)"/>
         <param name="mow_angle_offset_is_absolute" value="$(optenv OM_MOWING_ANGLE_OFFSET_IS_ABSOLUTE False)"/>
         <param name="mow_angle_increment" value="$(optenv OM_MOWING_ANGLE_INCREMENT 0)"/>
+        <param name="gps_message_throttle" value="$(optenv OM_GPS_MESSAGE_THROTTLE 1)"/>
         <param name="battery_full_voltage" value="$(env OM_BATTERY_FULL_VOLTAGE)"/>
         <param name="motor_hot_temperature" value="$(env OM_MOWING_MOTOR_TEMP_HIGH)"/>
         <param name="motor_cold_temperature" value="$(env OM_MOWING_MOTOR_TEMP_LOW)"/>
