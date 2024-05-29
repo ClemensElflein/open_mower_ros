@@ -3,6 +3,11 @@ name: Build
 # Controls when the workflow will run
 on:
   workflow_dispatch:
+    inputs:
+      clean_build:
+        description: 'Clean build without cache'
+        default: false
+        type: boolean
   push:
     branches:
       - 'main'
@@ -78,6 +83,7 @@ jobs:
           context: .
           file: ./docker/Dockerfile
           platforms: ${{ matrix.docker_build_arch }}
+          no-cache: ${{ inputs.clean_build == true }}
           labels: ${{ steps.meta.outputs.labels }}
           outputs: type=image,name=ghcr.io/${{ env.REPOSITORY_LC }},push-by-digest=true,name-canonical=true,push=true
           cache-from: type=gha
