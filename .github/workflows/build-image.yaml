@@ -52,7 +52,7 @@ jobs:
           # list of Docker images to use as base name for tags
           images: |
             ghcr.io/${{ env.REPOSITORY_LC }}
-      - run: echo "export OM_SOFTWARE_VERSION=$(git describe --tags || git describe --always || echo "v0.0.0")" > version_info.env
+
       # https://github.com/docker/setup-qemu-action
       - name: Set up QEMU (arm64)
         if: runner.arch != 'arm64' && matrix.docker_build_arch == 'linux/arm64'
