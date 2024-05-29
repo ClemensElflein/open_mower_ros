@@ -13,8 +13,8 @@ RUN apt-get update && apt-get install --yes \
     rm -rf /var/lib/apt/lists/*
 
 # Install our configs
-COPY --link ./assets/mosquitto.conf /etc/mosquitto/mosquitto.conf
-COPY --link ./assets/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --link ./docker/assets/mosquitto.conf /etc/mosquitto/mosquitto.conf
+COPY --link ./docker/assets/nginx.conf /etc/nginx/conf.d/default.conf
 
 # Update rosdep
 RUN rosdep update --rosdistro $ROS_DISTRO
@@ -25,7 +25,6 @@ FROM base as fetch
 ENV DEBIAN_FRONTEND=noninteractive
 
 COPY --link ./ /opt/open_mower_ros
-#RUN git clone https://github.com/ClemensElflein/open_mower_ros /opt/open_mower_ros
 
 WORKDIR /opt/open_mower_ros
 
@@ -87,13 +86,13 @@ COPY --link --from=fetch /opt/open_mower_ros /opt/open_mower_ros
 #delete prebuilt libs (so that they won't shadow the preinstalled ones)
 RUN rm -rf /opt/open_mower_ros/src/lib/slic3r_coverage_planner /apt-install_list
 
-#RUN git clone https://github.com/ClemensElflein/open_mower_ros /opt/open_mower_ros
-
 WORKDIR /opt/open_mower_ros
 
 RUN bash -c "source /opt/ros/$ROS_DISTRO/setup.bash && cd /opt/open_mower_ros/src && catkin_init_workspace && cd .. && source /opt/prebuilt/slic3r_coverage_planner/setup.bash && catkin_make -DCATKIN_BLACKLIST_PACKAGES=slic3r_coverage_planner"
 
-COPY .github/assets/openmower_entrypoint.sh /openmower_entrypoint.sh
+RUN echo "export OM_SOFTWARE_VERSION=$(git describe --tags || git describe --always || echo "v0.0.0")" > version_info.env
+
+COPY ./docker/openmower_entrypoint.sh /openmower_entrypoint.sh
 RUN chmod +x /openmower_entrypoint.sh
 
 ENTRYPOINT ["/openmower_entrypoint.sh"]
