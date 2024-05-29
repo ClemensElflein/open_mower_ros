@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.0.2)
 include(ExternalProject)
+include(ProcessorCount)
 project(slic3r_coverage_planner)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
@@ -18,6 +19,7 @@ find_package(catkin REQUIRED COMPONENTS
         tf2_geometry_msgs
         )
 
+ProcessorCount(NPROC)
 set(EP_SLIC3R "Slic3r")
 ExternalProject_Add(
         ${EP_SLIC3R}
@@ -34,7 +36,7 @@ ExternalProject_Add(
         CMAKE_CACHE_ARGS
         SOURCE_SUBDIR src
         CMAKE_ARGS -DSLIC3R_BUILD_TESTS=OFF
-        BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release
+        BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release --parallel ${NPROC}
 )
 
 

@@ -4,6 +4,8 @@
 
 #include "ros/ros.h"
 
+#include <boost/range/adaptor/reversed.hpp>
+
 #include "ExPolygon.hpp"
 #include "Polyline.hpp"
 #include "Fill/FillRectilinear.hpp"
@@ -187,12 +189,23 @@ createMarkers(const slic3r_coverage_planner::PlanPathRequest &planning_request,
     }
 }
 
-void traverse(std::vector<PerimeterGeneratorLoop> &contours, std::vector<Polygons> &line_groups) {
+void traverse_from_left(std::vector<PerimeterGeneratorLoop> &contours, std::vector<Polygons> &line_groups) {
     for (auto &contour: contours) {
         if (contour.children.empty()) {
             line_groups.push_back(Polygons());
         } else {
-            traverse(contour.children, line_groups);
+            traverse_from_left(contour.children, line_groups);
+        }
+        line_groups.back().push_back(contour.polygon);
+    }
+}
+
+void traverse_from_right(std::vector<PerimeterGeneratorLoop> &contours, std::vector<Polygons> &line_groups) {
+    for (auto &contour: boost::adaptors::reverse(contours)) {
+        if (contour.children.empty()) {
+            line_groups.push_back(Polygons());
+        } else {
+            traverse_from_right(contour.children, line_groups);
         }
         line_groups.back().push_back(contour.polygon);
     }
@@ -335,9 +348,9 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
             }
         }
 
-        traverse(contours[0], area_outlines);
+        traverse_from_right(contours[0], area_outlines);
         for (auto &hole: holes) {
-            traverse(hole, obstacle_outlines);
+            traverse_from_left(hole, obstacle_outlines);
         }
 
         for (auto &obstacle_group: obstacle_outlines) {
