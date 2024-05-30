@@ -83,6 +83,8 @@ std::atomic<bool> mowerEnabled;
 
 Behavior *currentBehavior = &IdleBehavior::INSTANCE;
 
+ros::Time last_v_battery_check;
+double max_v_battery_seen = 0.0;
 
 /**
  * Some thread safe methods to get a copy of the logic state
@@ -477,9 +479,21 @@ void checkSafety(const ros::TimerEvent &timer_event) {
         dockingNeeded = true;
     }
 
-    if(!dockingNeeded && last_status.v_battery < last_config.battery_empty_voltage) {
-        dockingReason << "Battery low: " << last_status.v_battery;
+    // Dock if below critical voltage to avoid BMS undervoltage protection
+    if(!dockingNeeded && (last_status.v_battery < last_config.battery_critical_voltage)) {
+        dockingReason << "Battery voltage min critical: " << last_status.v_battery;
         dockingNeeded = true;
+    }
+
+    // Otherwise take the max battery voltage over 20s to ignore droop during short current spikes
+    max_v_battery_seen = std::max<double>(max_v_battery_seen, last_status.v_battery);
+    if (ros::Time::now() - last_v_battery_check > ros::Duration(20.0)) {
+        if(!dockingNeeded && (max_v_battery_seen < last_config.battery_empty_voltage)) {
+            dockingReason << "Battery average voltage low: " << max_v_battery_seen;
+            dockingNeeded = true;
+        }
+        max_v_battery_seen = 0.0;
+        last_v_battery_check = ros::Time::now();
     }
 
     if (!dockingNeeded && last_status.mow_esc_status.temperature_motor >= last_config.motor_hot_temperature) {
@@ -644,6 +658,7 @@ int main(int argc, char **argv) {
         }
         r.sleep();
     }
+
     ROS_INFO("Waiting for a pose message");
     while (pose_time == ros::Time(0.0)) {
         if (!ros::ok()) {
@@ -776,6 +791,7 @@ int main(int argc, char **argv) {
 
 
 
+    last_v_battery_check = ros::Time::now();
     ros::Timer safety_timer = n->createTimer(ros::Duration(0.5), checkSafety);
     ros::Timer ui_timer = n->createTimer(ros::Duration(1.0), updateUI);
 
