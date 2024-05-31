@@ -13,6 +13,7 @@ uint8 state
 string state_name
 string sub_state_name
 int16 current_area
+int16 current_path
 float32 gps_quality_percent
 float32 battery_percent
 bool is_charging

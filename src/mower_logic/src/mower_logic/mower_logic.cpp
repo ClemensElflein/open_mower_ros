@@ -356,8 +356,10 @@ void setEmergencyMode(bool emergency) {
 void updateUI(const ros::TimerEvent &timer_event) {
     if(currentBehavior == &MowingBehavior::INSTANCE) {
             high_level_status.current_area = MowingBehavior::INSTANCE.get_current_area();
+            high_level_status.current_path = MowingBehavior::INSTANCE.get_current_path();
     } else {
         high_level_status.current_area = -1;
+        high_level_status.current_path = -1;
     }
 
     if (currentBehavior) {
