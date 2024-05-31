@@ -506,7 +506,8 @@ void checkSafety(const ros::TimerEvent &timer_event) {
             currentBehavior != &DockingBehavior::INSTANCE &&
             currentBehavior != &UndockingBehavior::RETRY_INSTANCE &&
             currentBehavior != &IdleBehavior::INSTANCE
-        ) {
+    ) {
+        ROS_INFO_STREAM(dockingReason.rdbuf());
         abortExecution();
     }
 }
