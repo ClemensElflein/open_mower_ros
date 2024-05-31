@@ -105,6 +105,7 @@ void high_level_status(const mower_msgs::HighLevelStatus::ConstPtr &msg) {
     state.gps_percentage = msg->gps_quality_percent;
     state.current_state = msg->state_name;
     state.current_sub_state = msg->sub_state_name;
+    state.current_area = msg->current_area;
     state.battery_percentage = msg->battery_percent;
     state.emergency = msg->emergency;
     state.is_charging = msg->is_charging;
