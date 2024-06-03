@@ -204,8 +204,8 @@ Behavior *DockingBehavior::execute() {
         return &IdleBehavior::INSTANCE;
     }
 
-    // Reset retryCount
-    reset();
+    // Reset retryCount here would cause an infinite loop
+    // reset();
 
     // Disable GPS
     inApproachMode = false;
@@ -226,8 +226,10 @@ Behavior *DockingBehavior::execute() {
         }
 
         ROS_ERROR("Giving up on docking");
-        return &IdleBehavior::INSTANCE;
     }
+
+    // Reset retryCount
+    reset();
 
     return &IdleBehavior::INSTANCE;
 }

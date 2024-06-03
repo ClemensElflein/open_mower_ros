@@ -88,8 +88,12 @@ export OM_USE_RELATIVE_POSITION=False
 # GPS protocol. Use UBX for u-blox chipsets and NMEA for everything else
 export OM_GPS_PROTOCOL=UBX
 
-# If you use a different gps board you maybe want to set a different baudrate.
-export OM_GPS_BAUDRATE="921600"
+# If you use a different gps board setup you maybe want to set a different port and/or baudrate.
+# For example to use an Ardusimple simpleRTK with USB connection:
+# OM_GPS_PORT="/dev/serial/by-id/usb-u-blox_AG_-_www.u-blox.com_u-blox_GNSS_receiver-if00"
+# You can obtain your usb gps path by executing "ls -l /dev/serial/by-id/*" and look for your gps there.
+# export OM_GPS_BAUDRATE="921600"
+# export OM_GPS_PORT="/dev/..."
 
 # If you want to use F9R's sensor fusion, set this to true (you will also need to set DATUM_LAT and DATUM_LONG).
 # Consider this option unstable, since I don't have the F9R anymore, so I'm not able to test this.
@@ -142,8 +146,11 @@ export OM_MOWING_ANGLE_INCREMENT=0
 export OM_TOOL_WIDTH=0.13
 
 # Voltages for battery to be considered full or empty
-export OM_BATTERY_EMPTY_VOLTAGE=25.0
 export OM_BATTERY_FULL_VOLTAGE=28.5
+# Dock if voltage remains below empty for 20s
+export OM_BATTERY_EMPTY_VOLTAGE=24.0
+# Immediate dock if voltage is critical
+export OM_BATTERY_CRITICAL_VOLTAGE=23.0
 
 # Mower motor temperatures to stop and start mowing
 export OM_MOWING_MOTOR_TEMP_HIGH=80.0

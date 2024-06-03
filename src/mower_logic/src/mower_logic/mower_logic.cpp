@@ -51,6 +51,8 @@
 #include "xbot_msgs/RegisterActionsSrv.h"
 #include <mutex>
 #include <atomic>
+#include <sstream>
+#include <ios>
 
 ros::ServiceClient pathClient, mapClient, dockingPointClient, gpsClient, mowClient, emergencyClient, pathProgressClient, setNavPointClient, clearNavPointClient, clearMapClient, positioningClient, actionRegistrationClient;
 
@@ -81,6 +83,8 @@ std::atomic<bool> mowerEnabled;
 
 Behavior *currentBehavior = &IdleBehavior::INSTANCE;
 
+ros::Time last_v_battery_check;
+double max_v_battery_seen = 0.0;
 
 /**
  * Some thread safe methods to get a copy of the logic state
@@ -224,11 +228,11 @@ bool setGPS(bool enabled) {
 }
 
 
-/// @brief If the BLADE Motor is not in the requested status (enabled),we call the 
+/// @brief If the BLADE Motor is not in the requested status (enabled),we call the
 ///        the mower_service/mow_enabled service to enable/disable. TODO: get feedback about spinup and delay if needed
-/// @param enabled 
-/// @return 
-bool setMowerEnabled(bool enabled) 
+/// @param enabled
+/// @return
+bool setMowerEnabled(bool enabled)
 {
     const auto last_config = getConfig();
 
@@ -236,7 +240,7 @@ bool setMowerEnabled(bool enabled)
         // ROS_INFO_STREAM("om_mower_logic: setMowerEnabled() - Mower should be enabled but is hard-disabled in the config.");
         enabled = false;
     }
-    
+
     // status change ?
     if (mowerEnabled != enabled)
     {
@@ -317,8 +321,8 @@ void stopBlade()
 
 
 /// @brief Stop BLADE motor and any movement
-/// @param emergency 
-void setEmergencyMode(bool emergency) 
+/// @param emergency
+void setEmergencyMode(bool emergency)
 {
     stopBlade();
     stopMoving();
@@ -365,7 +369,7 @@ bool isGpsGood() {
 }
 
 /// @brief Called every 0.5s, used to control BLADE motor via mower_enabled variable and stop any movement in case of /odom and /mower/status outages
-/// @param timer_event 
+/// @param timer_event
 void checkSafety(const ros::TimerEvent &timer_event) {
     const auto last_status = getStatus();
     const auto last_config = getConfig();
@@ -374,7 +378,6 @@ void checkSafety(const ros::TimerEvent &timer_event) {
     const auto status_time = getStatusTime();
     const auto last_good_gps = getLastGoodGPS();
 
-
     // call the mower
     setMowerEnabled(currentBehavior != nullptr && currentBehavior->mower_enabled());
 
@@ -382,12 +385,17 @@ void checkSafety(const ros::TimerEvent &timer_event) {
     high_level_status.is_charging = last_status.v_charge > 10.0;
 
     // send to idle if emergency and we're not recording
-    if(last_status.emergency) {
-        if(currentBehavior != &AreaRecordingBehavior::INSTANCE && currentBehavior != &IdleBehavior::INSTANCE) {
-            abortExecution();
-        } else if(last_status.v_charge > 10.0) {
-            // emergency and docked and idle or area recording, so it's safe to reset the emergency mode, reset it. It's safe since we won't start moving in this mode.
-            setEmergencyMode(false);
+    if (currentBehavior != nullptr) {
+        if(last_status.emergency) {
+            currentBehavior->requestPause(pauseType::PAUSE_EMERGENCY);
+            if(currentBehavior == &AreaRecordingBehavior::INSTANCE || currentBehavior == &IdleBehavior::INSTANCE) {
+                if(last_status.v_charge > 10.0) {
+                    // emergency and docked and idle or area recording, so it's safe to reset the emergency mode, reset it. It's safe since we won't start moving in this mode.
+                    setEmergencyMode(false);
+                }
+            }
+        } else {
+            currentBehavior->requestContinue(pauseType::PAUSE_EMERGENCY);
         }
     }
 
@@ -401,10 +409,10 @@ void checkSafety(const ros::TimerEvent &timer_event) {
         ROS_WARN_STREAM_THROTTLE(5, "om_mower_logic: EMERGENCY pose values stopped. dt was: " << (ros::Time::now() - pose_time));
         return;
     }
- 
+
     // check if status is current. if not, we have a problem since it contains wheel ticks and so on.
     // Since these should never drop out, we enter emergency instead of "only" stopping
-    if (ros::Time::now() - status_time > ros::Duration(3)) 
+    if (ros::Time::now() - status_time > ros::Duration(3))
     {
         setEmergencyMode(true);
         ROS_WARN_STREAM_THROTTLE(5, "om_mower_logic: EMERGENCY /mower/status values stopped. dt was: " << (ros::Time::now() - status_time));
@@ -464,8 +472,32 @@ void checkSafety(const ros::TimerEvent &timer_event) {
 
     // we are in non emergency, check if we should pause. This could be empty battery, rain or hot mower motor etc.
     bool dockingNeeded = false;
-    if (last_status.v_battery < last_config.battery_empty_voltage || last_status.mow_esc_status.temperature_motor >= last_config.motor_hot_temperature ||
-        last_config.manual_pause_mowing) {
+    std::stringstream dockingReason("Docking: ", std::ios_base::ate | std::ios_base::in | std::ios_base::out);
+
+    if (last_config.manual_pause_mowing) {
+        dockingReason << "Manual pause";
+        dockingNeeded = true;
+    }
+
+    // Dock if below critical voltage to avoid BMS undervoltage protection
+    if(!dockingNeeded && (last_status.v_battery < last_config.battery_critical_voltage)) {
+        dockingReason << "Battery voltage min critical: " << last_status.v_battery;
+        dockingNeeded = true;
+    }
+
+    // Otherwise take the max battery voltage over 20s to ignore droop during short current spikes
+    max_v_battery_seen = std::max<double>(max_v_battery_seen, last_status.v_battery);
+    if (ros::Time::now() - last_v_battery_check > ros::Duration(20.0)) {
+        if(!dockingNeeded && (max_v_battery_seen < last_config.battery_empty_voltage)) {
+            dockingReason << "Battery average voltage low: " << max_v_battery_seen;
+            dockingNeeded = true;
+        }
+        max_v_battery_seen = 0.0;
+        last_v_battery_check = ros::Time::now();
+    }
+
+    if (!dockingNeeded && last_status.mow_esc_status.temperature_motor >= last_config.motor_hot_temperature) {
+        dockingReason << "Mow motor over temp: " << last_status.mow_esc_status.temperature_motor;
         dockingNeeded = true;
     }
 
@@ -474,7 +506,8 @@ void checkSafety(const ros::TimerEvent &timer_event) {
             currentBehavior != &DockingBehavior::INSTANCE &&
             currentBehavior != &UndockingBehavior::RETRY_INSTANCE &&
             currentBehavior != &IdleBehavior::INSTANCE
-        ) {
+    ) {
+        ROS_INFO_STREAM(dockingReason.rdbuf());
         abortExecution();
     }
 }
@@ -505,7 +538,7 @@ bool highLevelCommand(mower_msgs::HighLevelControlSrvRequest &req, mower_msgs::H
             }
             break;
         case mower_msgs::HighLevelControlSrvRequest::COMMAND_S2:
-	        ROS_INFO_STREAM("COMMAND_S2"); 
+	        ROS_INFO_STREAM("COMMAND_S2");
             if(currentBehavior) {
                 currentBehavior->command_s2();
             }
@@ -626,6 +659,7 @@ int main(int argc, char **argv) {
         }
         r.sleep();
     }
+
     ROS_INFO("Waiting for a pose message");
     while (pose_time == ros::Time(0.0)) {
         if (!ros::ok()) {
@@ -758,6 +792,7 @@ int main(int argc, char **argv) {
 
 
 
+    last_v_battery_check = ros::Time::now();
     ros::Timer safety_timer = n->createTimer(ros::Duration(0.5), checkSafety);
     ros::Timer ui_timer = n->createTimer(ros::Duration(1.0), updateUI);
 

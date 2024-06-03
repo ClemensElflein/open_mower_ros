@@ -1,0 +1,11 @@
+name: 'Label PR'
+on:
+  pull_request:
+
+jobs:
+  label-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: grafana/pr-labeler-action@v0.1.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
