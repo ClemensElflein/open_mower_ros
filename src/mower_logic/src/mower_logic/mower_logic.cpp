@@ -370,7 +370,8 @@ void updateUI(const ros::TimerEvent &timer_event) {
             }
         catch(const std::runtime_error& re)
             {
-                ROS_ERROR_STREAM("Error getting current path: " << re.what())
+                ROS_ERROR_STREAM("Error getting current path: " << re.what());
+            }
     } else {
         high_level_status.current_area = -1;
         high_level_status.current_path = -1;
