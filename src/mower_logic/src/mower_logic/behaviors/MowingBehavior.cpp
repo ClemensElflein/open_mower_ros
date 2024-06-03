@@ -317,7 +317,7 @@ bool MowingBehavior::execute_mowing_plan() {
         ROS_INFO_STREAM("MowingBehavior: Path segment length: " << path.path.poses.size() << " poses.");
 
         // Check if path is empty. If so, directly skip it
-        if(path.path.poses.size() - currentMowingPathIndex <= 0) {
+        if(currentMowingPathIndex >= path.path.poses.size()) {
             ROS_INFO_STREAM("MowingBehavior: Skipping empty path.");
             currentMowingPath++;
             currentMowingPathIndex = 0;
