@@ -61,8 +61,8 @@
     <param name="rtcm_message_package" value="$(arg rtcm_message_package)" />
 
     <!-- Will affect how many times the node will attempt to reconnect before exiting, and how long it will wait in between attempts when a reconnect occurs -->
-    <param name="reconnect_attempt_max" value="99999" />
-    <param name="reconnect_attempt_wait_seconds" value="5" />
+    <param name="reconnect_attempt_max" value="10" />
+    <param name="reconnect_attempt_wait_seconds" value="10" />
 
     <!-- How many seconds is acceptable in between receiving RTCM. If RTCM is not received for this duration, the node will attempt to reconnect -->
     <param name="rtcm_timeout_seconds" value="30" />
