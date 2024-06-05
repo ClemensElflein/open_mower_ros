@@ -34,6 +34,9 @@ def bounding_box(points: List[Point32]):
 
   return (min_x, min_y, max_x - min_x, max_y - min_y)
 
+def convert_point(point: Point32):
+  return (point.x, point.y)
+
 def convert_points(points: List[Point32]):
   return map(lambda p: (p.x, p.y), points)
 
@@ -62,9 +65,13 @@ if __name__ == "__main__":
   svg.add(svgwrite.shapes.Polygon(convert_points(area.area.points), fill='none', stroke='green', stroke_width=0.01))
   for obstacle in area.obstacles:
     svg.add(svgwrite.shapes.Polygon(convert_points(obstacle.points), fill='none', stroke='red', stroke_width=0.01))
+
   color_idx = 0
   for path in res.paths:
     color = colors[color_idx]
     color_idx = (color_idx + 1) % len(colors)
     svg.add(svgwrite.shapes.Polyline(convert_points(map(lambda x: x.pose.position, path.path.poses)), fill='none', stroke=color, stroke_width=0.01))
+    svg.add(svgwrite.shapes.Circle(convert_point(path.path.poses[0].pose.position), r=0.05, fill=color))
+    svg.add(svgwrite.shapes.Circle(convert_point(path.path.poses[-1].pose.position), r=0.05, fill='white', stroke=color, stroke_width=0.03))
+
   svg.save()
