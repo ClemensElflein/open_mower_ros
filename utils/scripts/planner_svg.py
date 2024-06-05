@@ -67,9 +67,13 @@ if __name__ == "__main__":
     svg.add(svgwrite.shapes.Polygon(convert_points(obstacle.points), fill='none', stroke='red', stroke_width=0.01))
 
   color_idx = 0
+  prev_point = None
   for path in res.paths:
     color = colors[color_idx]
     color_idx = (color_idx + 1) % len(colors)
+    if prev_point is not None:
+      svg.add(svgwrite.shapes.Line(start=convert_point(path.path.poses[0].pose.position), end=convert_point(prev_point), stroke=color, stroke_dasharray='0.04', stroke_width=0.01))
+    prev_point = path.path.poses[-1].pose.position
     svg.add(svgwrite.shapes.Polyline(convert_points(map(lambda x: x.pose.position, path.path.poses)), fill='none', stroke=color, stroke_width=0.01))
     svg.add(svgwrite.shapes.Circle(convert_point(path.path.poses[0].pose.position), r=0.05, fill=color))
     svg.add(svgwrite.shapes.Circle(convert_point(path.path.poses[-1].pose.position), r=0.05, fill='white', stroke=color, stroke_width=0.03))
