@@ -8,6 +8,8 @@ import svgwrite
 import svgwrite.shapes
 from typing import List
 
+colors = ['#e6261f', '#eb7532', '#f7d038', '#a3e048', '#49da9a', '#34bbe6', '#4355db', '#d23be7', '#000000']
+
 def read_areas_from_map_bag(filename) -> List[MapArea]:
   areas = []
   with rosbag.Bag(filename) as bag:
@@ -60,6 +62,9 @@ if __name__ == "__main__":
   svg.add(svgwrite.shapes.Polygon(convert_points(area.area.points), fill='none', stroke='green', stroke_width=0.01))
   for obstacle in area.obstacles:
     svg.add(svgwrite.shapes.Polygon(convert_points(obstacle.points), fill='none', stroke='red', stroke_width=0.01))
+  color_idx = 0
   for path in res.paths:
-    svg.add(svgwrite.shapes.Polyline(convert_points(map(lambda x: x.pose.position, path.path.poses)), fill='none', stroke='blue', stroke_width=0.01))
+    color = colors[color_idx]
+    color_idx = (color_idx + 1) % len(colors)
+    svg.add(svgwrite.shapes.Polyline(convert_points(map(lambda x: x.pose.position, path.path.poses)), fill='none', stroke=color, stroke_width=0.01))
   svg.save()
