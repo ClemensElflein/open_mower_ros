@@ -413,7 +413,7 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
      * Then we can calculate the orientation at each point by looking at the connection line between two points.
      */
 
-    Point *areaLastPoint = nullptr;
+    Point areaLastPoint;
     for (auto &group: area_outlines) {
         slic3r_coverage_planner::Path path;
         path.is_outline = true;
@@ -480,37 +480,39 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
             }
             ROS_INFO_STREAM("Got " << equally_spaced_points.size() << " points");
 
-            areaLastPoint = nullptr;
+            Point *lastPoint = nullptr;
             for (auto &pt: equally_spaced_points) {
-                if (areaLastPoint == nullptr) {
-                    areaLastPoint = &pt;
+                if (lastPoint == nullptr) {
+                    lastPoint = &pt;
                     continue;
                 }
 
                 // calculate pose for "lastPoint" pointing to current point
 
-                auto dir = pt - *areaLastPoint;
+                auto dir = pt - *lastPoint;
                 double orientation = atan2(dir.y, dir.x);
                 tf2::Quaternion q(0.0, 0.0, orientation);
 
                 geometry_msgs::PoseStamped pose;
                 pose.header = header;
                 pose.pose.orientation = tf2::toMsg(q);
-                pose.pose.position.x = unscale(areaLastPoint->x);
-                pose.pose.position.y = unscale(areaLastPoint->y);
+                pose.pose.position.x = unscale(lastPoint->x);
+                pose.pose.position.y = unscale(lastPoint->y);
                 pose.pose.position.z = 0;
                 path.path.poses.push_back(pose);
-                areaLastPoint = &pt;
+                lastPoint = &pt;
             }
 
             // finally, we add the final pose for "lastPoint" with the same orientation as the last poe
             geometry_msgs::PoseStamped pose;
             pose.header = header;
             pose.pose.orientation = path.path.poses.back().pose.orientation;
-            pose.pose.position.x = unscale(areaLastPoint->x);
-            pose.pose.position.y = unscale(areaLastPoint->y);
+            pose.pose.position.x = unscale(lastPoint->x);
+            pose.pose.position.y = unscale(lastPoint->y);
             pose.pose.position.z = 0;
             path.path.poses.push_back(pose);
+
+            areaLastPoint = *lastPoint;
         }
         res.paths.push_back(path);
     }
@@ -518,13 +520,12 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
     // The order for 3d printing seems to be to sweep across the X and then up the Y axis
     // which is very inefficient for a mower. Order the holes by distance to the previous end-point instead.
     std::vector<Slic3r::Polygons> ordered_obstacle_outlines;
-    {
-        auto prev_point = areaLastPoint;
-        if (prev_point == nullptr && obstacle_outlines.size() > 0) {
-            // If no prev point set to the first point in first obstacle
-            // Note: back() polygon is the first (outer) loop
-            prev_point = &obstacle_outlines.front().back().points.front();
-        }
+    if (obstacle_outlines.size() > 0) {
+        // If no prev point set to the first point in first obstacle
+        // Note: back() polygon is the first (outer) loop
+        auto prev_point = area_outlines.size() > 0 ? &areaLastPoint :
+            &obstacle_outlines.front().back().points.front();
+
         while (obstacle_outlines.size()) {
             // Sort be desc distance then pop closest outline from the back of the vector
             std::sort(obstacle_outlines.begin(), obstacle_outlines.end(),
