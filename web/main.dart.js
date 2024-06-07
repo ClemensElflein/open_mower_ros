@@ -86480,7 +86480,7 @@ $S:0}
 A.ty.prototype={
 L(a){var s=null,r=A.aj3(this.adc(),!0,!0,!0)
 return new A.BA(new A.x0(B.IM,10,B.m,0,new A.WW(s,s,1/0,56),s),new A.fT(new A.a9Q(this),s),new A.Kd(A.rH(A.b([A.awA(new A.LR(r,B.at,B.ai,!1,s,s,B.cY,!1,s,3,B.a_,B.dv,s,B.U,s)),new A.fT(new A.a9R(this),s)],t.p),B.br,s,B.aM,B.et,s,s,B.aH),s),s)},
-adc(){return A.b([B.DN,A.aCa(A.iZ(B.EW),new A.a9O(this),B.Uh),A.aCa(A.iZ(B.EY),new A.a9P(this),B.Ui)],t.p)}}
+adc(){return A.b([B.DN,A.aCa(A.iZ(B.EW),new A.a9O(this),B.Uh),A.aCa(A.iZ(B.EY),new A.a9P(this),B.Uj)],t.p)}}
 A.a9R.prototype={
 $0(){var s=null
 return new A.bI(new A.a4(10,10,10,10),A.iq(this.a.r.CW.gj(0),s,s,s,s,s,s,s,s,s,s,s,s,s),s)},
@@ -86598,7 +86598,7 @@ $0(){return A.bU([A.aGW(!0,null,new A.ao2(this.a),this.b,!0,t.N)],t.D3)},
 $S:0}
 A.ao2.prototype={
 $1(a){var s=null
-return A.azY(A.b([A.PR(!1,B.Ul,s,s,B.aE,s,s,s,s,new A.ao0(a),s,s),A.PR(!1,B.Uk,s,s,B.aE,s,s,s,s,new A.ao1(this.a,a),s,s)],t.p),s,s,s,s,s,s,B.r,B.Uj,s,s,s,s,s,!1,s,s,B.Um,s,s)},
+return A.azY(A.b([A.PR(!1,B.Ul,s,s,B.aE,s,s,s,s,new A.ao0(a),s,s),A.PR(!1,B.Uk,s,s,B.aE,s,s,s,s,new A.ao1(this.a,a),s,s)],t.p),s,s,s,s,s,s,B.r,B.Ui,s,s,s,s,s,!1,s,s,B.Um,s,s)},
 $S:516}
 A.ao0.prototype={
 $0(){A.pD(this.a,!1).qj(null)
@@ -87907,7 +87907,9 @@ p=A.dT(p)
 p.gDi().gada()
 p.gDi().b=B.x
 p.r=B.cu
-s=B.c.aa(q.b,2)
+s=q.b
+s=B.c.aa(s,2)
+if(s==null)s="N/A"
 q=A.a0E(q.e,"deg.C","\xb0C")
 q=A.pF(A.b([p,new A.x4(s+" "+A.j(q),B.Qm,1,r)],t.p))
 q.sqh(12)
@@ -94206,8 +94208,8 @@ B.Sz=new A.o(!1,null,null,null,null,null,12,B.a7,null,0.5,null,B.q,1.33,B.y,null
 B.QR=new A.o(!1,null,null,null,null,null,11,B.a7,null,0.5,null,B.q,1.45,B.y,null,null,null,null,null,null,null,"tall labelSmall 2021",null,null,null,null)
 B.Ug=new A.dA(B.SQ,B.R6,B.T1,B.Qs,B.TJ,B.QT,B.Qd,B.QU,B.Rc,B.RQ,B.Sq,B.Re,B.Ri,B.Sz,B.QR)
 B.Uh=new A.ip("Dashboard",null,null,null,null,null,null,null,null,null,null,null,null,null,null)
-B.Ui=new A.ip("Sensor Values",null,null,null,null,null,null,null,null,null,null,null,null,null,null)
-B.Uj=new A.ip("Did you checked and fixed the emergency cause?",null,null,null,null,null,null,null,null,null,null,null,null,null,null)
+B.Ui=new A.ip("Only confirm this if you are sure the emergency has been resolved (e.g. no one is carrying the robot).\n\nAre you sure you want to reset the emergency?",null,null,null,null,null,null,null,null,null,null,null,null,null,null)
+B.Uj=new A.ip("Sensor Values",null,null,null,null,null,null,null,null,null,null,null,null,null,null)
 B.Uk=new A.ip("Yes",null,null,null,null,null,null,null,null,null,null,null,null,null,null)
 B.Ul=new A.ip("No",null,null,null,null,null,null,null,null,null,null,null,null,null,null)
 B.Um=new A.ip("Emergency Reset",null,null,null,null,null,null,null,null,null,null,null,null,null,null)
