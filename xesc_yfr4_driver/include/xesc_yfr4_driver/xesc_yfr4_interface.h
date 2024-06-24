@@ -32,7 +32,7 @@ namespace xesc_yfr4_driver {
         uint32_t seq;
         uint8_t fw_version_major;
         uint8_t fw_version_minor;
-        XESC2040_CONNECTION_STATE connection_state;
+        XESCYFR4_CONNECTION_STATE connection_state;
         double temperature_pcb;     // temperature of printed circuit board (degrees Celsius)
         double current_input;       // input current (ampere)
         double duty_cycle;          // duty cycle (0 to 1)

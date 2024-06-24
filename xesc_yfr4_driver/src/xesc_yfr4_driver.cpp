@@ -18,7 +18,6 @@ xesc_yfr4_driver::XescYFR4Driver::XescYFR4Driver(ros::NodeHandle &nh, ros::NodeH
         ROS_ERROR_STREAM("You need to provide parameter serial_port.");
         throw ros::InvalidParameterException("You need to provide parameter serial_port.");
     }
-
     if (!private_nh.getParam("motor_current_limit", motor_current_limit)) {
         ROS_ERROR_STREAM("You need to provide parameter motor_current_limit");
         throw ros::InvalidParameterException("You need to provide parameter motor_current_limit");
@@ -36,7 +35,7 @@ xesc_yfr4_driver::XescYFR4Driver::XescYFR4Driver(ros::NodeHandle &nh, ros::NodeH
     xesc_interface->start(private_nh.param("serial_port", serial_port));
 }
 
-void xesc_yfr4_driver::XescYFR40Driver::getStatus(xesc_msgs::XescStateStamped &state_msg) {
+void xesc_yfr4_driver::XescYFR4Driver::getStatus(xesc_msgs::XescStateStamped &state_msg) {
     if (!xesc_interface)
         return;
 
@@ -58,7 +57,6 @@ void xesc_yfr4_driver::XescYFR4Driver::getStatusBlocking(xesc_msgs::XescStateSta
     if (!xesc_interface)
         return;
     xesc_interface->wait_for_status(&status);
-
     state_msg.header.stamp = ros::Time::now();
     state_msg.state.connection_state = status.connection_state;
     state_msg.state.fw_major = status.fw_version_major;

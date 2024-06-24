@@ -17,7 +17,7 @@ void *XescYFR4Interface::rx_thread() {
     COBS cobs;
     boost::crc_ccitt_type crc;
 
-    size_t buffer_size = 1000;  // cobs.getEncodedBufferSize(sizeof(Xesc2040StatusPacket));
+    size_t buffer_size = 1000;  // cobs.getEncodedBufferSize(sizeof(XescYFR4StatusPacket));
     uint8_t buffer[buffer_size];
     uint8_t buffer_decoded[buffer_size];
     size_t read = 0;
