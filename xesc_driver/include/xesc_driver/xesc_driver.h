@@ -9,6 +9,7 @@
 #include <xesc_interface/xesc_interface.h>
 #include "xesc_2040_driver/xesc_2040_driver.h"
 #include "vesc_driver/vesc_driver.h"
+#include "xesc_yfr4_driver/xesc_yfr4_driver.h"
 
 
 namespace xesc_driver  {
