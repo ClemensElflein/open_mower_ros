@@ -44,6 +44,7 @@ export OM_MOWER="YardForce500"
 # Select your ESC type
 # Supported values as of today:
 # xesc_mini: for the STM32 version (VESC)
+# xesc_mini_w_r4ma: for the STM32 version (VESC), but with Rev4 (Mow) Motor Adapter (only available for YardForceSA650 mower type)
 # xesc_2040: for the RP2040 version (very experimental!)
 export OM_MOWER_ESC_TYPE="xesc_mini"
 
