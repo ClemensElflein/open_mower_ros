@@ -1,0 +1,20 @@
+services:
+  ros:
+    build:
+      context: ..
+      dockerfile: devenv/Dockerfile
+      args:
+        - MY_UID=${MY_UID}
+        - MY_GID=${MY_GID}
+        - MY_USER=${MY_USER}
+    # this will block forever and keep the container running
+    command: tail -F /dev/null
+    environment:
+      - DISPLAY=${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+    # mounts x11, so that we can use GUI apps
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ../:/workspace:rw
+    user: "${MY_UID}:${MY_GID}"
+
