@@ -29,6 +29,8 @@ export OM_NTRIP_PORT=2101
 export OM_NTRIP_USER=gps
 export OM_NTRIP_PASSWORD=gps
 export OM_NTRIP_ENDPOINT=BASE1
+export OM_NTRIP_RECONNECT_WAIT_SECONDS=10
+export OM_NTRIP_RECONNECT_MAX=10
 
 ################################
 ## Hardware Specific Settings ##
