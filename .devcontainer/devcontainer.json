@@ -1,0 +1,17 @@
+{
+  "name": "ROS Noetic Development Container",
+  "dockerComposeFile": "../devenv/docker-compose.yaml",
+  "service": "ros",
+  "workspaceFolder": "/workspace",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-azuretools.vscode-docker",
+        "ms-python.python",
+        "ms-vscode.cpptools",
+        "ms-iot.vscode-ros"
+      ]
+    }
+  },
+  "remoteUser": "dev"
+}

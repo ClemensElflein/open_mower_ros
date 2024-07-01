@@ -4,9 +4,9 @@ services:
       context: ..
       dockerfile: devenv/Dockerfile
       args:
-        - MY_UID=${MY_UID}
-        - MY_GID=${MY_GID}
-        - MY_USER=${MY_USER}
+        - MY_UID=${MY_UID:-1000}
+        - MY_GID=${MY_GID:-1000}
+        - MY_USER=${MY_USER:-dev}
     # this will block forever and keep the container running
     command: tail -F /dev/null
     environment:
@@ -16,5 +16,5 @@ services:
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
       - ../:/workspace:rw
-    user: "${MY_UID}:${MY_GID}"
+    user: "${MY_UID:-1000}:${MY_GID:-1000}"
 
