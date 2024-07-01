@@ -27,14 +27,16 @@
 
 class IdleBehavior : public Behavior {
 private:
+    bool stay_docked = false;
     bool manual_start_mowing = false;
     bool start_area_recorder = false;
     std::vector<xbot_msgs::ActionInfo> actions;
 
 public:
-    IdleBehavior();
+    IdleBehavior(bool stayDocked);
 
     static IdleBehavior INSTANCE;
+    static IdleBehavior DOCKED_INSTANCE;
 
     std::string state_name() override;
 
