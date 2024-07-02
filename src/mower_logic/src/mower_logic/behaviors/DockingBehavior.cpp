@@ -181,7 +181,7 @@ Behavior *DockingBehavior::execute() {
     if(getStatus().v_charge > 5.0) {
         ROS_INFO_STREAM("Already inside docking station, going directly to idle.");
         stopMoving();
-        return &IdleBehavior::INSTANCE;
+        return &IdleBehavior::DOCKED_INSTANCE;
     }
 
     while(!isGPSGood){
@@ -226,12 +226,15 @@ Behavior *DockingBehavior::execute() {
         }
 
         ROS_ERROR("Giving up on docking");
+        // Reset retryCount
+        reset();
+        return &IdleBehavior::INSTANCE;
     }
 
     // Reset retryCount
     reset();
 
-    return &IdleBehavior::INSTANCE;
+    return &IdleBehavior::DOCKED_INSTANCE;
 }
 
 void DockingBehavior::enter() {
