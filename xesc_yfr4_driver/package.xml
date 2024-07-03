@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>xesc_driver</name>
+  <name>xesc_yfr4_driver</name>
   <version>1.0.0</version>
   <description>
-    ROS device driver for xESC open source motor driver.
+    ROS device driver for xESC open source YardForce Rev4 mow-motor adapter driver.
   </description>
   <maintainer email="clemens.elflein@gmail.com">Clemens Elflein</maintainer>
   <author email="clemens.elflein@gmail.com">Clemens Elflein</author>
@@ -12,9 +12,6 @@
   <buildtool_depend>catkin</buildtool_depend>
 
   <depend>xesc_interface</depend>
-  <depend>xesc_2040_driver</depend>
-  <depend>vesc_driver</depend>
-  <depend>xesc_yfr4_driver</depend>
   <depend>pluginlib</depend>
   <depend>roscpp</depend>
   <depend>std_msgs</depend>
