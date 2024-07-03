@@ -48,7 +48,6 @@ ros::Publisher sensor_mag_pub;
 
 COBS cobs;
 
-
 // True, if ROS thinks there sould be an emergency
 bool emergency_high_level = false;
 // True, if the LL board thinks there should be an emergency
@@ -61,7 +60,7 @@ bool ll_clear_emergency = false;
 bool allow_send = false;
 
 // Current speeds (duty cycle) for the three ESCs
-float speed_l = 0, speed_r = 0, speed_mow = 0;
+float speed_l = 0, speed_r = 0, speed_mow = 0, target_speed_mow = 0;
 
 // Ticks / m and wheel distance for this robot
 double wheel_ticks_per_m = 0.0;
@@ -98,7 +97,10 @@ bool is_emergency() {
 }
 
 void publishActuators() {
-// emergency or timeout -> send 0 speeds
+
+    speed_mow = target_speed_mow;
+
+    // emergency or timeout -> send 0 speeds
     if (is_emergency()) {
         speed_l = 0;
         speed_r = 0;
@@ -186,6 +188,7 @@ void publishStatus() {
     status_msg.sound_module_available = (last_ll_status.status_bitmask & 0b00100000) != 0;
     status_msg.sound_module_busy = (last_ll_status.status_bitmask & 0b01000000) != 0;
     status_msg.ui_board_available = (last_ll_status.status_bitmask & 0b10000000) != 0;
+    status_msg.mow_enabled = !(target_speed_mow == 0);
 
     for (uint8_t i = 0; i < 5; i++) {
         status_msg.ultrasonic_ranges[i] = last_ll_status.uss_ranges_m[i];
@@ -272,11 +275,11 @@ void publishActuatorsTimerTask(const ros::TimerEvent &timer_event) {
 
 bool setMowEnabled(mower_msgs::MowerControlSrvRequest &req, mower_msgs::MowerControlSrvResponse &res) {
     if (req.mow_enabled && !is_emergency()) {
-        speed_mow = req.mow_direction ? 1 : -1;
+        target_speed_mow = req.mow_direction ? 1 : -1;
     } else {
-        speed_mow = 0;
+        target_speed_mow = 0;
     }
-    ROS_INFO_STREAM("Setting mow enabled to " << speed_mow);
+    ROS_INFO_STREAM("Setting mow enabled to " << target_speed_mow);
     return true;
 }
 
@@ -469,7 +472,7 @@ int main(int argc, char **argv) {
     ROS_INFO_STREAM("Wheel ticks [1/m]: " << wheel_ticks_per_m);
     ROS_INFO_STREAM("Wheel distance [m]: " << wheel_distance_m);
 
-    speed_l = speed_r = speed_mow = 0;
+    speed_l = speed_r = speed_mow = target_speed_mow = 0;
 
     paramNh.getParam("dfp_is_5v", dfp_is_5v);
     paramNh.getParam("language", language);
