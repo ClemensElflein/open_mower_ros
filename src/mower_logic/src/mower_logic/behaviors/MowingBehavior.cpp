@@ -604,6 +604,9 @@ int16_t MowingBehavior::get_current_area() {
 int16_t MowingBehavior::get_current_path() {
     return currentMowingPath;
 }
+int16_t MowingBehavior::get_current_path_index() {
+    return currentMowingPathIndex;
+}
 
 MowingBehavior::MowingBehavior() {
     last_checkpoint = ros::Time(0.0);

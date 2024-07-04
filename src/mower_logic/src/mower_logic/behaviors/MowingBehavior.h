@@ -85,6 +85,8 @@ public:
 
     int16_t get_current_path();
 
+    int16_t get_current_path_index();
+
     void handle_action(std::string action) override;
 
     void update_actions();

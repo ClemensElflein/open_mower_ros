@@ -14,6 +14,7 @@ string state_name
 string sub_state_name
 int16 current_area
 int16 current_path
+int16 current_path_index
 float32 gps_quality_percent
 float32 battery_percent
 bool is_charging
