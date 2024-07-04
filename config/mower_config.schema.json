@@ -38,7 +38,9 @@
           "title":"ESC Type",
           "enum":[
             "xesc_mini",
-            "xesc_2040"
+            "xesc_2040",
+            "xesc_mini_w_r4ma",
+            "xesc_2040_w_r4ma"
           ],
           "default":"xesc_mini",
           "description":"Select which ESC (speed controller) type you are using. Use xesc_mini if unsure.",
