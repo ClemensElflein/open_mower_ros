@@ -219,6 +219,13 @@
           "description":"Extra time in [s] to continue docking after voltage detection. This can be useful to make good contact with the base station. Use carefully.",
           "x-environment-variable":"OM_DOCKING_EXTRA_TIME"
         },
+        "OM_DOCKING_RETRY_COUNT":{
+          "type":"number",
+          "title":"Docking retry count",
+          "default":4,
+          "description":"How many times to retry docking before giving up.",
+          "x-environment-variable":"OM_DOCKING_RETRY_COUNT"
+        },
         "OM_UNDOCK_DISTANCE":{
           "type":"number",
           "title":"Undock Distance",
