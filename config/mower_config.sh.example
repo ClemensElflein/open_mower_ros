@@ -117,6 +117,9 @@ export OM_DOCKING_DISTANCE=1.0
 # Extra time (s) to continue docking after detecting voltage
 export OM_DOCKING_EXTRA_TIME=0.0
 
+# How many times to retry docking before giving up.
+export OM_DOCKING_RETRY_COUNT=4
+
 # The distance to drive for undocking. This needs to be large enough for the robot to have GPS reception
 export OM_UNDOCK_DISTANCE=2.0
 
