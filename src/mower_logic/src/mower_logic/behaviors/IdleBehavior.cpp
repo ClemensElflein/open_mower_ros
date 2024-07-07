@@ -33,7 +33,8 @@ extern ros::ServiceClient mapClient;
 extern ros::ServiceClient dockingPointClient;
 
 
-IdleBehavior IdleBehavior::INSTANCE;
+IdleBehavior IdleBehavior::INSTANCE(false);
+IdleBehavior IdleBehavior::DOCKED_INSTANCE(true);
 
 std::string IdleBehavior::state_name() {
     return "IDLE";
@@ -76,7 +77,7 @@ Behavior *IdleBehavior::execute() {
                 !last_config.manual_pause_mowing;
 
         if (manual_start_mowing || ((automatic_mode || active_semiautomatic_task) && mower_ready)) {
-            // set the robot's position to the dock if we're actually docked
+                        // set the robot's position to the dock if we're actually docked
             if(last_status.v_charge > 5.0) {
               if (PerimeterUndockingBehavior::configured(config))
                 return &PerimeterUndockingBehavior::INSTANCE;
@@ -96,6 +97,11 @@ Behavior *IdleBehavior::execute() {
         // This gets called if we need to refresh, e.g. on clearing maps
         if(aborted) {
             return &IdleBehavior::INSTANCE;
+        }
+
+        if (last_config.docking_redock && stay_docked && last_status.v_charge < 5.0) {
+            ROS_WARN("We docked but seem to have lost contact with the charger.  Undocking and trying again!");
+            return &UndockingBehavior::RETRY_INSTANCE;
         }
 
         r.sleep();
@@ -170,7 +176,9 @@ uint8_t IdleBehavior::get_state() {
 
 
 
-IdleBehavior::IdleBehavior() {
+IdleBehavior::IdleBehavior(bool stayDocked) {
+    this->stay_docked = stayDocked;
+
     xbot_msgs::ActionInfo start_mowing_action;
     start_mowing_action.action_id = "start_mowing";
     start_mowing_action.enabled = false;

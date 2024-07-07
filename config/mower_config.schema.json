@@ -1,0 +1,476 @@
+{
+  "type":"object",
+  "properties":{
+    "important_settings":{
+      "title":"Hardware Settings",
+      "type":"object",
+      "properties":{
+        "OM_HARDWARE_VERSION":{
+          "title":"Mainboard Version",
+          "type":"string",
+          "enum":[
+            "0_13_X",
+            "0_12_X_LSM6DSO",
+            "0_11_X_WT901",
+            "0_10_X_WT901",
+            "0_10_X_MPU9250",
+            "0_9_X_WT901_INSTEAD_OF_SOUND",
+            "0_9_X_MPU9250"
+          ],
+          "default":"0_13_X",
+          "description":"Your hardware/firmware version. This corresponds to the mainboard you are using in your build.",
+          "x-environment-variable":"OM_HARDWARE_VERSION"
+        },
+        "OM_MOWER":{
+          "type":"string",
+          "title":"Mower Model",
+          "enum":[
+            "YardForce500",
+            "YardForceSA650",
+            "CUSTOM"
+          ],
+          "default":"YardForce500",
+          "description":"The type of mower you're using. This sets physical properties like antenna position and wheel ticks per meter. Use CUSTOM for a custom mower buiold.",
+          "x-environment-variable":"OM_MOWER"
+        },
+        "OM_MOWER_ESC_TYPE":{
+          "type":"string",
+          "title":"ESC Type",
+          "enum":[
+            "xesc_mini",
+            "xesc_2040",
+            "xesc_mini_w_r4ma",
+            "xesc_2040_w_r4ma"
+          ],
+          "default":"xesc_mini",
+          "description":"Select which ESC (speed controller) type you are using. Use xesc_mini if unsure.",
+          "x-environment-variable":"OM_MOWER_ESC_TYPE"
+        },
+        "OM_MOWER_GAMEPAD":{
+          "type":"string",
+          "title":"Gamepad",
+          "enum":[
+            "ps3",
+            "steam_stick",
+            "steam_touch",
+            "xbox360"
+          ],
+          "default":"xbox360",
+          "description":"Select your gamepad. The cheap ones are usually xbox360.",
+          "x-environment-variable":"OM_MOWER_GAMEPAD"
+        }
+      }
+    },
+    "gps_settings":{
+      "title":"GPS Settings",
+      "type":"object",
+      "properties":{
+        "DATUM":{
+          "type":"object",
+          "title":"Origin / Datum",
+          "description":"Set the coordinates for the robot's map origin. The only requirement is, that these are near your docking station (within a few meters).",
+          "properties":{
+            "OM_DATUM_LAT":{
+              "type":"string",
+              "title":"Datum Lat",
+              "description":"Coordinates near your docking station.",
+              "x-environment-variable":"OM_DATUM_LAT"
+            },
+            "OM_DATUM_LONG":{
+              "type":"string",
+              "title":"Datum Long",
+              "description":"Coordinates near your docking station.",
+              "x-environment-variable":"OM_DATUM_LONG"
+            }
+          }
+        },
+        "NTRIP":{
+          "title":"NTRIP Settings",
+          "type":"object",
+          "properties":{
+            "OM_USE_NTRIP":{
+              "type":"boolean",
+              "default":true,
+              "title":"Use Ntrip for receiving corrections",
+              "description":"Set to False if using an external radio.",
+              "x-environment-variable":"OM_USE_NTRIP"
+            }
+          },
+          "allOf":[
+            {
+              "if":{
+                "properties":{
+                  "OM_USE_NTRIP":{
+                    "const":true
+                  }
+                }
+              },
+              "then":{
+                "properties":{
+                  "OM_NTRIP_HOSTNAME":{
+                    "type":"string",
+                    "title":"NTRIP Hostname",
+                    "description":"Hostname or IP of your NTRIP caster.",
+                    "default": "your-ntrip-caster",
+                    "x-environment-variable":"OM_NTRIP_HOSTNAME"
+                  },
+                  "OM_NTRIP_PORT":{
+                    "type":"number",
+                    "title":"NTRIP port",
+                    "default": 2101,
+                    "description":"Port of your NTRIP caster.",
+                    "x-environment-variable":"OM_NTRIP_PORT"
+                  },
+                  "OM_NTRIP_USER":{
+                    "type":"string",
+                    "title":"NTRIP Username",
+                    "description":"NTRIP username.",
+                    "default": "gps",
+                    "x-environment-variable":"OM_NTRIP_USER"
+                  },
+                  "OM_NTRIP_PASSWORD":{
+                    "type":"string",
+                    "title":"NTRIP Password",
+                    "description":"NTRIP password.",
+                    "default": "gps",
+                    "x-environment-variable":"OM_NTRIP_PASSWORD"
+                  },
+                  "OM_NTRIP_ENDPOINT":{
+                    "type":"string",
+                    "title":"NTRIP Endpoint",
+                    "default": "BASE1",
+                    "description":"NTRIP endpoint / mount point.",
+                    "x-environment-variable":"OM_NTRIP_ENDPOINT"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "advanced":{
+          "type":"boolean",
+          "description":"Show advanced GPS settings"
+        }
+      },
+      "allOf":[
+        {
+          "if":{
+            "properties":{
+              "advanced":{
+                "const":true
+              }
+            }
+          },
+          "then":{
+            "properties":{
+              "OM_GPS_PROTOCOL":{
+                "title":"GPS Protocol",
+                "type":"string",
+                "enum":[
+                  "UBX",
+                  "NMEA"
+                ],
+                "default":"UBX",
+                "description":"Protocol used by your GPS board. For u-blox devices use UBX, otherwise NMEA.",
+                "x-environment-variable":"OM_GPS_PROTOCOL"
+              },
+              "OM_GPS_PORT":{
+                "type":"string",
+                "description":"Port for GPS board. Keep empty for default values.",
+                "x-environment-variable":"OM_GPS_PORT"
+              },
+              "OM_GPS_BAUDRATE":{
+                "type":"string",
+                "description":"Baud rate for GPS board.",
+                "x-environment-variable":"OM_GPS_BAUDRATE"
+              },
+              "OM_USE_F9R_SENSOR_FUSION":{
+                "type":"boolean",
+                "default":false,
+                "description":"Use F9R's sensor fusion. Disable, if unsure.",
+                "x-environment-variable":"OM_USE_F9R_SENSOR_FUSION"
+              },
+              "OM_USE_RELATIVE_POSITION":{
+                "title":"Use Relative Position",
+                "type":"boolean",
+                "default":false,
+                "description":"True, to use Relative Positioning. If you are unsure keep at false.",
+                "x-environment-variable":"OM_USE_RELATIVE_POSITION"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "mower_logic_settings":{
+      "title":"Mower Logic Settings",
+      "type":"object",
+      "properties":{
+        "OM_DOCKING_DISTANCE":{
+          "type":"number",
+          "default":1.0,
+          "title":"Docking Distance",
+          "description":"Distance in [m] to drive forward after docking.",
+          "x-environment-variable":"OM_DOCKING_DISTANCE"
+        },
+        "OM_DOCKING_EXTRA_TIME":{
+          "type":"number",
+          "default":0.0,
+          "description":"Extra time in [s] to continue docking after voltage detection. This can be useful to make good contact with the base station. Use carefully.",
+          "x-environment-variable":"OM_DOCKING_EXTRA_TIME"
+        },
+        "OM_DOCKING_RETRY_COUNT":{
+          "type":"number",
+          "title":"Docking retry count",
+          "default":4,
+          "description":"How many times to retry docking before giving up.",
+          "x-environment-variable":"OM_DOCKING_RETRY_COUNT"
+        },
+        "OM_DOCKING_REDOCK":{
+          "type":"boolean",
+          "title":"Docking retry count",
+          "default":false,
+          "description":"Whether to attempt redocking if the voltage is no longer detected after docking.",
+          "x-environment-variable":"OM_DOCKING_REDOCK"
+        },
+        "OM_UNDOCK_DISTANCE":{
+          "type":"number",
+          "title":"Undock Distance",
+          "default":2.0,
+          "description":"Distance in [m] to drive for undocking.",
+          "x-environment-variable":"OM_UNDOCK_DISTANCE"
+        },
+        "OM_OUTLINE_COUNT":{
+          "type":"number",
+          "default":4,
+          "description":"How many outlines should the mover drive. It's not recommended to set this below 4.",
+          "x-environment-variable":"OM_OUTLINE_COUNT"
+        },
+        "OM_TOOL_WIDTH":{
+          "type":"number",
+          "title":"Mowing Tool Width",
+          "default":0.13,
+          "description":"Width of mowing paths in [m]. Use smaller values for more overlap.",
+          "x-environment-variable":"OM_TOOL_WIDTH"
+        },
+        "OM_BATTERY_FULL_VOLTAGE":{
+          "type":"number",
+          "title":"Battery Full Voltage",
+          "default":28.5,
+          "description":"Voltage for battery to be considered full.",
+          "x-environment-variable":"OM_BATTERY_FULL_VOLTAGE"
+        },
+        "OM_BATTERY_EMPTY_VOLTAGE":{
+          "type":"number",
+          "default":24.0,
+          "title":"Battery Empty Voltage",
+          "description":"Dock if voltage remains below empty for 20s.",
+          "x-environment-variable":"OM_BATTERY_EMPTY_VOLTAGE"
+        },
+        "OM_BATTERY_CRITICAL_VOLTAGE":{
+          "type":"number",
+          "default":23.0,
+          "title":"Battery Critical Voltage",
+          "description":"Immediate dock if voltage is critical.",
+          "x-environment-variable":"OM_BATTERY_CRITICAL_VOLTAGE"
+        },
+        "OM_MOWING_MOTOR_TEMP_HIGH":{
+          "type":"number",
+          "default":80.0,
+          "title":"Mower max. Temperature",
+          "description":"Motor temperature to stop mowing and wait for cooldown. This value is in deg. C.",
+          "x-environment-variable":"OM_MOWING_MOTOR_TEMP_HIGH"
+        },
+        "OM_MOWING_MOTOR_TEMP_LOW":{
+          "type":"number",
+          "default":40.0,
+          "title":"Mower low Temperature",
+          "description":"After reaching the max temperature, mowing will be paused until the mower temperature is above this value. This value is in deg. C.",
+          "x-environment-variable":"OM_MOWING_MOTOR_TEMP_LOW"
+        },
+        "OM_GPS_WAIT_TIME_SEC":{
+          "type":"number",
+          "default":10.0,
+          "title":"GPS Wait Time",
+          "description":"Additional wait time in [s] after undocking. Increase this value, if you get inconsistent fixes after undocking.",
+          "x-environment-variable":"OM_GPS_WAIT_TIME_SEC"
+        },
+        "OM_GPS_TIMEOUT_SEC":{
+          "type":"number",
+          "default":5.0,
+          "title":"GPS Timeout",
+          "description":"Timeout for GPS in [s]. Mowing will pause, if no GPS update was received within this configured time.",
+          "x-environment-variable":"OM_GPS_TIMEOUT_SEC"
+        },
+        "OM_ENABLE_MOWER":{
+          "type":"boolean",
+          "default":false,
+          "title":"Enable Mowing Motor",
+          "description":"Enable mowing motor. Set to false for testing.",
+          "x-environment-variable":"OM_ENABLE_MOWER"
+        },
+        "OM_AUTOMATIC_MODE":{
+          "type":"string",
+          "enum":[
+            "MANUAL",
+            "SEMIAUTO",
+            "AUTO"
+          ],
+          "default":"MANUAL",
+          "title":"Automatic Mode",
+          "description":"Automatic start value.",
+          "x-environment-variable":"OM_AUTOMATIC_MODE",
+          "x-remap-values":{
+            "MANUAL":0,
+            "SEMIAUTO":1,
+            "AUTO":2
+          }
+        },
+        "OM_OUTLINE_OFFSET":{
+          "type":"number",
+          "default":0.05,
+          "title":"Mowing Outline Offset",
+          "description":"Offset to be applied to the recorded outline. Positive values move the outline inwards (i.e. safety margin).",
+          "x-environment-variable":"OM_OUTLINE_OFFSET"
+        },
+        "OM_ENABLE_RECORDING_ALL":{
+          "type":"boolean",
+          "default":false,
+          "title":"Enable Recording",
+          "description":"Set to true to record your session for debugging. Recordings will be stored in $HOME. Only enable for testing, otherwise your SD card will get full soon.",
+          "x-environment-variable":"OM_ENABLE_RECORDING_ALL"
+        },
+        "advanced":{
+          "type":"boolean",
+          "description":"Show advanced Mower Logic settings"
+        }
+      },
+      "allOf":[
+        {
+          "if":{
+            "properties":{
+              "advanced":{
+                "const":true
+              }
+            }
+          },
+          "then":{
+            "properties":{
+              "OM_OUTLINE_OVERLAP_COUNT":{
+                "type":"number",
+                "default":0,
+                "description":"Number of outlines to overlap.",
+                "x-environment-variable":"OM_OUTLINE_OVERLAP_COUNT"
+              },
+              "OM_MOWING_ANGLE_OFFSET":{
+                "type":"number",
+                "default":0,
+                "description":"Mowing angle offset -180 deg - +180 deg, 0 = east, -90 = north. If mowing angle offset is not absolute it gets added to the auto detected angle which is set by the first 2 m of recorded outline.",
+                "x-environment-variable":"OM_MOWING_ANGLE_OFFSET"
+              },
+              "OM_MOWING_ANGLE_OFFSET_IS_ABSOLUTE":{
+                "type":"boolean",
+                "default":false,
+                "description":"If mowing angle offset is absolute.",
+                "x-environment-variable":"OM_MOWING_ANGLE_OFFSET_IS_ABSOLUTE"
+              },
+              "OM_MOWING_ANGLE_INCREMENT":{
+                "type":"number",
+                "default":0,
+                "description":"The increment value will automatically add specified number of degrees to the mowing angle everytime the whole map is finished",
+                "x-environment-variable":"OM_MOWING_ANGLE_INCREMENT"
+              },
+              "OM_PERIMETER_SIGNAL":{
+                "type":"number",
+                "description":"Use perimeter sensor for docking. Set to 1 or 2 depending on the signal selected on the docking station. This is only supported by Mowgli builds for now.",
+                "x-environment-variable":"OM_PERIMETER_SIGNAL"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "external_mqtt_broker":{
+      "title":"External MQTT Broker",
+      "description":"You can configure Open Mower to publish status and sensor data to your MQTT broker.",
+      "type":"object",
+      "properties":{
+        "OM_MQTT_ENABLE":{
+          "type":"boolean",
+          "title":"Enable MQTT Publisher",
+          "description":"Enable publishing to the external MQTT broker.",
+          "x-environment-variable":"OM_MQTT_ENABLE"
+        },
+        "OM_MQTT_HOSTNAME":{
+          "type":"string",
+          "title":"MQTT Broker Hostname",
+          "description":"MQTT broker hostname or IP address.",
+          "x-environment-variable":"OM_MQTT_HOSTNAME"
+        },
+        "OM_MQTT_PORT":{
+          "type":"number",
+          "title":"MQTT Broker Port",
+          "description":"MQTT broker port.",
+          "x-environment-variable":"OM_MQTT_PORT"
+        },
+        "OM_MQTT_USER":{
+          "type":"string",
+          "title":"MQTT Broker Username",
+          "description":"MQTT broker user.",
+          "x-environment-variable":"OM_MQTT_USER"
+        },
+        "OM_MQTT_PASSWORD":{
+          "type":"string",
+          "title":"MQTT Broker Password",
+          "description":"MQTT broker password.",
+          "x-environment-variable":"OM_MQTT_PASSWORD"
+        },
+        "OM_MQTT_TOPIC_PREFIX":{
+          "type":"string",
+          "title":"MQTT Topic Prefix",
+          "description":"MQTT topic prefix.",
+          "x-environment-variable":"OM_MQTT_TOPIC_PREFIX"
+        }
+      }
+    },
+    "sound_settings":{
+      "type":"object",
+      "title":"Sound Settings",
+      "description":"For Full Sound Support read the instructions carefully. You will probably need to make hardware modifications before enabling these options.",
+      "properties":{
+        "OM_DFP_IS_5V":{
+          "type":"boolean",
+          "title":"DFPlayer is set to 5V",
+          "description":"Enable if DFPlayer is set to 5V. Important: ONLY enable this, if you are sure that you have done the required modification. Otherwise you might break your Raspberry Pi Pico.",
+          "default":false,
+          "x-environment-variable":"OM_DFP_IS_5V"
+        },
+        "OM_LANGUAGE":{
+          "type":"string",
+          "enum":[
+            "en",
+            "de"
+          ],
+          "description":"Language as ISO-639-1 code string. This is use for sound output.",
+          "default":"en",
+          "x-environment-variable":"OM_LANGUAGE"
+        },
+        "OM_VOLUME":{
+          "type":"number",
+          "description":"Sound volume (0-100 or -1). -1 means the volume is managed by the CoverUI.",
+          "default":-1,
+          "x-environment-variable":"OM_VOLUME"
+        }
+      }
+    },
+    "custom_environment":{
+      "type":"object",
+      "title":"Additional Environment Variables",
+      "description":"Click the + button to add additional environment variables. Each row is a KEY=VALUE pair and will be injected into the container.",
+      "additionalProperties":{
+        "type":"string"
+      }
+    }
+  }
+}
+
