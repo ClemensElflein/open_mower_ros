@@ -3,19 +3,21 @@
   <!-- Standalone example launch file for an ntrip client -->
 
   <!-- Declare arguments with default values -->
-  <arg name="host"                   default = "$(env OM_NTRIP_HOSTNAME)" />
-  <arg name="port"                   default = "$(env OM_NTRIP_PORT)" />
-  <arg name="mountpoint"             default = "$(env OM_NTRIP_ENDPOINT)" />
-  <arg name="authenticate"           default = "true" />
-  <arg name="username"               default = "$(env OM_NTRIP_USER)" />
-  <arg name="password"               default = "$(env OM_NTRIP_PASSWORD)" />
-  <arg name="ntrip_version"          default = "" />
-  <arg name="ssl"                    default = "false" />
-  <arg name="cert"                   default = "" />
-  <arg name="key"                    default = "" />
-  <arg name="ca_cert"                default = "" />
-  <arg name="debug"                  default = "false" />
-  <arg name="rtcm_message_package"   default = "rtcm_msgs" />
+  <arg name="host"                            default = "$(env OM_NTRIP_HOSTNAME)" />
+  <arg name="port"                            default = "$(env OM_NTRIP_PORT)" />
+  <arg name="mountpoint"                      default = "$(env OM_NTRIP_ENDPOINT)" />
+  <arg name="authenticate"                    default = "true" />
+  <arg name="username"                        default = "$(env OM_NTRIP_USER)" />
+  <arg name="password"                        default = "$(env OM_NTRIP_PASSWORD)" />
+  <arg name="reconnect_attempt_wait_seconds"  default = "$(optenv OM_NTRIP_RECONNECT_WAIT_SECONDS 10)"/>
+  <arg name="reconnect_attempt_max"           default = "$(optenv OM_NTRIP_RECONNECT_MAX 10)"/>
+  <arg name="ntrip_version"                   default = "" />
+  <arg name="ssl"                             default = "false" />
+  <arg name="cert"                            default = "" />
+  <arg name="key"                             default = "" />
+  <arg name="ca_cert"                         default = "" />
+  <arg name="debug"                           default = "false" />
+  <arg name="rtcm_message_package"            default = "rtcm_msgs" />
 
   <!-- Set the log level to debug -->
   <env name="NTRIP_CLIENT_DEBUG" value="$(arg debug)" />
@@ -23,7 +25,7 @@
   <!-- ****************************************************************** -->
   <!-- NTRIP Client Node -->
   <!-- ****************************************************************** -->
-  <node name="ntrip_client_node" pkg="ntrip_client" type="ntrip_ros.py" output="screen" ns="ntrip_client" respawn="true" respawn_delay="1">
+  <node name="ntrip_client_node" pkg="ntrip_client" type="ntrip_ros.py" output="screen" ns="ntrip_client" respawn="true" respawn_delay="10">
 
     <!-- Required parameters used to connect to the NTRIP server -->
     <param name="host"       value="$(arg host)" />
@@ -61,8 +63,8 @@
     <param name="rtcm_message_package" value="$(arg rtcm_message_package)" />
 
     <!-- Will affect how many times the node will attempt to reconnect before exiting, and how long it will wait in between attempts when a reconnect occurs -->
-    <param name="reconnect_attempt_max" value="99999" />
-    <param name="reconnect_attempt_wait_seconds" value="5" />
+    <param name="reconnect_attempt_max" value="$(arg reconnect_attempt_max)" />
+    <param name="reconnect_attempt_wait_seconds" value="$(arg reconnect_attempt_wait_seconds)" />
 
     <!-- How many seconds is acceptable in between receiving RTCM. If RTCM is not received for this duration, the node will attempt to reconnect -->
     <param name="rtcm_timeout_seconds" value="30" />
