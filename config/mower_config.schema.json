@@ -226,6 +226,13 @@
           "description":"How many times to retry docking before giving up.",
           "x-environment-variable":"OM_DOCKING_RETRY_COUNT"
         },
+        "OM_DOCKING_REDOCK":{
+          "type":"boolean",
+          "title":"Docking retry count",
+          "default":false,
+          "description":"Whether to attempt redocking if the voltage is no longer detected after docking.",
+          "x-environment-variable":"OM_DOCKING_REDOCK"
+        },
         "OM_UNDOCK_DISTANCE":{
           "type":"number",
           "title":"Undock Distance",
