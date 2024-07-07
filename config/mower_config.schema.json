@@ -142,14 +142,14 @@
                     "description":"NTRIP endpoint / mount point.",
                     "x-environment-variable":"OM_NTRIP_ENDPOINT"
                   },
-				  "OM_NTRIP_RECONNECT_WAIT_SECONDS":{
+                  "OM_NTRIP_RECONNECT_WAIT_SECONDS":{
                     "type":"number",
                     "title":"NTRIP Reconnect Wait Seconds",
                     "default": "5",
                     "description":"How long in seconds the NTRIP client waits before reconnecting",
                     "x-environment-variable":"OM_NTRIP_RECONNECT_WAIT_SECONDS"
                   },
-				  "OM_NTRIP_RECONNECT_MAX":{
+                  "OM_NTRIP_RECONNECT_MAX":{
                     "type":"number",
                     "title":"NTRIP Max Reconnection Attempts",
                     "default": "99999",
