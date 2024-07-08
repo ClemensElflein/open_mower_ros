@@ -396,7 +396,7 @@ void checkSafety(const ros::TimerEvent &timer_event) {
     if (currentBehavior != nullptr) {
         if (last_status.emergency) {
             currentBehavior->requestPause(pauseType::PAUSE_EMERGENCY);
-            if (currentBehavior == &AreaRecordingBehavior::INSTANCE || currentBehavior == &IdleBehavior::INSTANCE) {
+            if (currentBehavior == &AreaRecordingBehavior::INSTANCE || currentBehavior == &IdleBehavior::INSTANCE || currentBehavior == &IdleBehavior::DOCKED_INSTANCE) {
                 if (last_status.v_charge > 10.0) {
                     // emergency and docked and idle or area recording, so it's safe to reset the emergency mode, reset it. It's safe since we won't start moving in this mode.
                     setEmergencyMode(false);
@@ -517,7 +517,8 @@ void checkSafety(const ros::TimerEvent &timer_event) {
             dockingNeeded &&
             currentBehavior != &DockingBehavior::INSTANCE &&
             currentBehavior != &UndockingBehavior::RETRY_INSTANCE &&
-            currentBehavior != &IdleBehavior::INSTANCE
+            currentBehavior != &IdleBehavior::INSTANCE &&
+            currentBehavior != &IdleBehavior::DOCKED_INSTANCE
     ) {
         ROS_INFO_STREAM(dockingReason.rdbuf());
         abortExecution();
@@ -558,8 +559,7 @@ bool highLevelCommand(mower_msgs::HighLevelControlSrvRequest &req, mower_msgs::H
         case mower_msgs::HighLevelControlSrvRequest::COMMAND_DELETE_MAPS: {
             ROS_WARN_STREAM("COMMAND_DELETE_MAPS");
             if (currentBehavior != &AreaRecordingBehavior::INSTANCE && currentBehavior != &IdleBehavior::INSTANCE &&
-                currentBehavior !=
-                nullptr) {
+                currentBehavior != &IdleBehavior::DOCKED_INSTANCE && currentBehavior != nullptr) {
                 ROS_ERROR_STREAM("Deleting maps is only allowed during IDLE or AreaRecording!");
                 return true;
             }
@@ -861,4 +861,3 @@ int main(int argc, char **argv) {
     delete (mbfClientExePath);
     return 0;
 }
-

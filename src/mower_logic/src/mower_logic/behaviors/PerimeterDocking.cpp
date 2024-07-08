@@ -100,7 +100,7 @@ Behavior* PerimeterSearchBehavior::execute() {
   /* We expect to be currently outside the perimeter wire => negative signal */
   calibrationLeft=calibrationRight=signCenter=
     lastPerimeter.left<0 ? 1 : -1; // Determine polarity of the cable.
-  
+
   if (innerSignal()>-MIN_SIGNAL || outerSignal()>-MIN_SIGNAL) {
     ROS_ERROR("Signal too weak.");
     return shutdownConnections();
@@ -108,7 +108,7 @@ Behavior* PerimeterSearchBehavior::execute() {
   calibrationLeft/=fabs(lastPerimeter.left);
   maxCenter=fabs(lastPerimeter.center);
   calibrationRight/=fabs(lastPerimeter.right);
-  
+
   geometry_msgs::Twist vel;
   /* Move straight until one of the signals changes to positive (inside) */
   vel.angular.z=0;
@@ -177,7 +177,7 @@ Behavior* PerimeterUndockingBehavior::execute() {
   // Determine polarity of the cable.
   calibrationLeft=calibrationRight=signCenter=1;
   if (innerSignal()<0) calibrationLeft=calibrationRight=signCenter=-1;
-  
+
   float maxLeft=lastPerimeter.left*calibrationLeft;
   maxCenter=fabs(lastPerimeter.center);
   float maxRight=lastPerimeter.right*calibrationRight;;
@@ -202,7 +202,7 @@ Behavior* PerimeterUndockingBehavior::execute() {
     ROS_ERROR("Could not turn inwards");
     return shutdownConnections();
   }
-  
+
   if (maxLeft<MIN_SIGNAL || maxRight<MIN_SIGNAL) {
     ROS_ERROR("Signal too weak.");
     return shutdownConnections();
@@ -228,12 +228,12 @@ Behavior* PerimeterDockingBehavior::arrived() {
     chargeSeen++;
     if (chargeSeen>=2) {
       chargeSeen=0;
-      return &IdleBehavior::INSTANCE;
+      return &IdleBehavior::DOCKED_INSTANCE;
     }
   } else {
     chargeSeen=0;
   }
-  return NULL; 
+  return NULL;
 }
 
 Behavior* PerimeterFollowBehavior::execute() {
@@ -381,4 +381,3 @@ std::string PerimeterMoveToGpsBehavior::state_name() {
 Behavior* PerimeterMoveToGpsBehavior::arrived() {
   return travelled>=config.undock_distance-0.9 ? &MowingBehavior::INSTANCE : NULL;
 }
-

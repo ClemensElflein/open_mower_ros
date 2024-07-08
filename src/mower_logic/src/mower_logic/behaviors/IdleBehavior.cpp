@@ -77,7 +77,7 @@ Behavior *IdleBehavior::execute() {
                 !last_config.manual_pause_mowing;
 
         if (manual_start_mowing || ((automatic_mode || active_semiautomatic_task) && mower_ready)) {
-                        // set the robot's position to the dock if we're actually docked
+            // set the robot's position to the dock if we're actually docked
             if(last_status.v_charge > 5.0) {
               if (PerimeterUndockingBehavior::configured(config))
                 return &PerimeterUndockingBehavior::INSTANCE;
@@ -158,7 +158,7 @@ void IdleBehavior::command_s1() {
 }
 
 void IdleBehavior::command_s2() {
-    
+
 }
 
 bool IdleBehavior::redirect_joystick() {
