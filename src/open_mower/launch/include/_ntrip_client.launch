@@ -9,8 +9,8 @@
   <arg name="authenticate"                    default = "true" />
   <arg name="username"                        default = "$(env OM_NTRIP_USER)" />
   <arg name="password"                        default = "$(env OM_NTRIP_PASSWORD)" />
-  <arg name="reconnect_attempt_wait_seconds"  default = "$(optenv OM_NTRIP_RECONNECT_WAIT_SECONDS 10)"/>
-  <arg name="reconnect_attempt_max"           default = "$(optenv OM_NTRIP_RECONNECT_MAX 10)"/>
+  <arg name="reconnect_attempt_wait_seconds"  default = "$(optenv OM_NTRIP_RECONNECT_WAIT_SECONDS 5)"/>
+  <arg name="reconnect_attempt_max"           default = "$(optenv OM_NTRIP_RECONNECT_MAX 99999)"/>
   <arg name="ntrip_version"                   default = "" />
   <arg name="ssl"                             default = "false" />
   <arg name="cert"                            default = "" />
