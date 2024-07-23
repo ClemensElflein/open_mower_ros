@@ -103,6 +103,7 @@ void publishStatus(const ros::TimerEvent &timer_event) {
         cmd_vel_pub.publish(last_cmd_vel);
     }
 
+    fake_mow_status.stamp = ros::Time::now();
     fake_mow_status.mow_esc_status.temperature_motor = config.temperature_mower;
     fake_mow_status.mow_esc_status.status = mower_msgs::ESCStatus::ESC_STATUS_OK;
     if (config.mower_error) {
