@@ -354,6 +354,37 @@ void setEmergencyMode(bool emergency) {
 }
 
 void updateUI(const ros::TimerEvent &timer_event) {
+    if(currentBehavior == &MowingBehavior::INSTANCE) {
+        try
+            {
+                high_level_status.current_area = MowingBehavior::INSTANCE.get_current_area();
+            }
+        catch(const std::runtime_error& re)
+            {
+                // specific handling for runtime_error
+                ROS_ERROR_STREAM("Error getting current area: " << re.what()) ;
+            }
+        try
+            {
+                high_level_status.current_path = MowingBehavior::INSTANCE.get_current_path();
+            }
+        catch(const std::runtime_error& re)
+            {
+                ROS_ERROR_STREAM("Error getting current path: " << re.what());
+            }
+        try
+            {
+                high_level_status.current_path_index = MowingBehavior::INSTANCE.get_current_path_index();
+            }
+        catch(const std::runtime_error& re)
+            {
+                ROS_ERROR_STREAM("Error getting current path index: " << re.what());
+            }
+    } else {
+        high_level_status.current_area = -1;
+        high_level_status.current_path = -1;
+        high_level_status.current_path_index = -1;
+    }
 
     if (currentBehavior) {
         high_level_status.state_name = currentBehavior->state_name();
