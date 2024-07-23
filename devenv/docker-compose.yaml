@@ -7,8 +7,6 @@ services:
         - MY_UID=${MY_UID:-1000}
         - MY_GID=${MY_GID:-1000}
         - MY_USER=${MY_USER:-dev}
-    # this will block forever and keep the container running
-    command: tail -F /dev/null
     environment:
       - DISPLAY=${DISPLAY}
       - QT_X11_NO_MITSHM=1
@@ -17,4 +15,4 @@ services:
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
       - ../:/workspace:rw
     user: "${MY_UID:-1000}:${MY_GID:-1000}"
-
+    network_mode: "host"
