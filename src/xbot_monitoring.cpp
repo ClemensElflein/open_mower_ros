@@ -360,6 +360,9 @@ void robot_state_callback(const xbot_msgs::RobotState::ConstPtr &msg) {
     j["current_action_progress"] = msg->current_action_progress;
     j["current_state"] = msg->current_state;
     j["current_sub_state"] = msg->current_sub_state;
+    j["current_area"] = msg->current_area;
+    j["current_path"] = msg->current_path;
+    j["current_path_index"] = msg->current_path_index;
     j["emergency"] = msg->emergency;
     j["is_charging"] = msg->is_charging;
     j["pose"]["x"] = msg->robot_pose.pose.pose.position.x;
