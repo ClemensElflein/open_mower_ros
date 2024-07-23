@@ -34,6 +34,8 @@ export OM_NTRIP_PORT=2101
 export OM_NTRIP_USER=gps
 export OM_NTRIP_PASSWORD=gps
 export OM_NTRIP_ENDPOINT=BASE1
+export OM_NTRIP_RECONNECT_WAIT_SECONDS=5
+export OM_NTRIP_RECONNECT_MAX=99999
 
 ################################
 ## Hardware Specific Settings ##
@@ -49,7 +51,9 @@ export OM_MOWER="YardForce500"
 # Select your ESC type
 # Supported values as of today:
 # xesc_mini: for the STM32 version (VESC)
+# xesc_mini_w_r4ma: for the STM32 version (VESC), but with Rev4 (Mow) Motor Adapter (only available for YardForceSA650 mower type)
 # xesc_2040: for the RP2040 version (very experimental!)
+# xesc_2040_w_r4ma: for the RP2040 version (very experimental!), but with Rev4 (Mow) Motor Adapter (only available for YardForceSA650 mower type)
 export OM_MOWER_ESC_TYPE="xesc_mini"
 
 # Select your gamepad
@@ -114,6 +118,12 @@ export OM_DOCKING_DISTANCE=1.0
 
 # Extra time (s) to continue docking after detecting voltage
 export OM_DOCKING_EXTRA_TIME=0.0
+
+# How many times to retry docking before giving up.
+export OM_DOCKING_RETRY_COUNT=4
+
+# Whether to attempt redocking if the voltage is no longer detected after docking.
+export OM_DOCKING_REDOCK=False
 
 # The distance to drive for undocking. This needs to be large enough for the robot to have GPS reception
 export OM_UNDOCK_DISTANCE=2.0

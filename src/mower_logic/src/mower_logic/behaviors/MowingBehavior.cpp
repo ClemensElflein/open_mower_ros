@@ -598,6 +598,15 @@ uint8_t MowingBehavior::get_sub_state() {
 uint8_t MowingBehavior::get_state() {
     return mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_AUTONOMOUS;
 }
+int16_t MowingBehavior::get_current_area() {
+    return currentMowingArea;
+}
+int16_t MowingBehavior::get_current_path() {
+    return currentMowingPath;
+}
+int16_t MowingBehavior::get_current_path_index() {
+    return currentMowingPathIndex;
+}
 
 MowingBehavior::MowingBehavior() {
     last_checkpoint = ros::Time(0.0);

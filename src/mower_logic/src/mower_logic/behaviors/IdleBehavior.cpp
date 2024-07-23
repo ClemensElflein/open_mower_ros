@@ -33,7 +33,8 @@ extern ros::ServiceClient mapClient;
 extern ros::ServiceClient dockingPointClient;
 
 
-IdleBehavior IdleBehavior::INSTANCE;
+IdleBehavior IdleBehavior::INSTANCE(false);
+IdleBehavior IdleBehavior::DOCKED_INSTANCE(true);
 
 std::string IdleBehavior::state_name() {
     return "IDLE";
@@ -98,6 +99,11 @@ Behavior *IdleBehavior::execute() {
             return &IdleBehavior::INSTANCE;
         }
 
+        if (last_config.docking_redock && stay_docked && last_status.v_charge < 5.0) {
+            ROS_WARN("We docked but seem to have lost contact with the charger.  Undocking and trying again!");
+            return &UndockingBehavior::RETRY_INSTANCE;
+        }
+
         r.sleep();
     }
 
@@ -152,7 +158,7 @@ void IdleBehavior::command_s1() {
 }
 
 void IdleBehavior::command_s2() {
-    
+
 }
 
 bool IdleBehavior::redirect_joystick() {
@@ -170,7 +176,9 @@ uint8_t IdleBehavior::get_state() {
 
 
 
-IdleBehavior::IdleBehavior() {
+IdleBehavior::IdleBehavior(bool stayDocked) {
+    this->stay_docked = stayDocked;
+
     xbot_msgs::ActionInfo start_mowing_action;
     start_mowing_action.action_id = "start_mowing";
     start_mowing_action.enabled = false;

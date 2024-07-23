@@ -601,9 +601,11 @@ bool setNavPoint(mower_map::SetNavPointSrvRequest &req, mower_map::SetNavPointSr
 bool clearNavPoint(mower_map::ClearNavPointSrvRequest &req, mower_map::ClearNavPointSrvResponse &res) {
     ROS_INFO_STREAM("Clearing Nav Point");
 
-    show_fake_obstacle = false;
+    if (show_fake_obstacle) {
+        show_fake_obstacle = false;
 
-    buildMap();
+        buildMap();
+    }
 
     return true;
 }
