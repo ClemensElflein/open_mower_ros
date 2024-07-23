@@ -79,7 +79,7 @@ std::recursive_mutex mower_logic_mutex;
 
 mower_msgs::HighLevelStatus high_level_status;
 
-std::atomic<bool> mowerEnabled;
+std::atomic<bool> mowerAllowed;
 
 Behavior *currentBehavior = &IdleBehavior::INSTANCE;
 
@@ -246,7 +246,8 @@ bool setMowerEnabled(bool enabled) {
     }
 
     // status change ?
-    if (mowerEnabled != enabled) {
+    if (last_status.mow_enabled != enabled)
+    {
         ros::Time started = ros::Time::now();
         mower_msgs::MowerControlSrv mow_srv;
         mow_srv.request.mow_enabled = enabled;
@@ -277,7 +278,6 @@ bool setMowerEnabled(bool enabled) {
                                                                 << static_cast<unsigned>(mow_srv.request.mow_direction)
                                                                 << ") call completed within "
                                                                 << (ros::Time::now() - started).toSec() << "s");
-        mowerEnabled = enabled;
     }
 
 // TODO: Spinup feedback & delay
@@ -318,11 +318,11 @@ void stopMoving() {
 }
 
 /// @brief If the BLADE motor is currently enabled, we stop it
-void stopBlade() {
+void stopBlade()
+{
     // ROS_INFO_STREAM("om_mower_logic: stopBlade() - stopping blade motor if running");
-    if (mowerEnabled) {
-        setMowerEnabled(false);
-    }
+    setMowerEnabled(false);
+    mowerAllowed = false;
     // ROS_INFO_STREAM("om_mower_logic: stopBlade() - finished");
 }
 
@@ -417,11 +417,11 @@ void checkSafety(const ros::TimerEvent &timer_event) {
     const auto status_time = getStatusTime();
     const auto last_good_gps = getLastGoodGPS();
 
-    // call the mower
-    setMowerEnabled(currentBehavior != nullptr && currentBehavior->mower_enabled());
-
     high_level_status.emergency = last_status.emergency;
     high_level_status.is_charging = last_status.v_charge > 10.0;
+
+    // Initialize to true, if after all checks it is still true then mower should be enabled.
+    mowerAllowed = true;
 
     // send to idle if emergency and we're not recording
     if (currentBehavior != nullptr) {
@@ -495,13 +495,17 @@ void checkSafety(const ros::TimerEvent &timer_event) {
     }
 
     if (currentBehavior != nullptr && currentBehavior->needs_gps()) {
+        currentBehavior->setGoodGPS(!gpsTimeout);
         // Stop the mower
         if (gpsTimeout) {
             stopBlade();
             stopMoving();
+            return;
         }
-        currentBehavior->setGoodGPS(!gpsTimeout);
     }
+
+    // enable the mower (if not aleady) if mowerAllowed is still true after checks and bahavior agrees
+    setMowerEnabled(currentBehavior != nullptr && mowerAllowed && currentBehavior->mower_enabled());
 
     double battery_percent = (last_status.v_battery - last_config.battery_empty_voltage) /
                              (last_config.battery_full_voltage - last_config.battery_empty_voltage);
@@ -643,7 +647,7 @@ int main(int argc, char **argv) {
 
     n = new ros::NodeHandle();
     paramNh = new ros::NodeHandle("~");
-    mowerEnabled = false;
+    mowerAllowed = false;
 
     boost::recursive_mutex mutex;
 
