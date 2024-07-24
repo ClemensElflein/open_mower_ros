@@ -4,4 +4,4 @@ include-commits: true
 label-mapping:
   bug: [ 'fix', 'bug' ]
   feature: [ 'feat', 'feature' ]
-  misc: [ 'chore','performance','refactor','style','refactoring' ]
+  misc: [ 'chore','performance','refactor','style','refactoring','meta' ]
