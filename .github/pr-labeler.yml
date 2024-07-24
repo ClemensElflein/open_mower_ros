@@ -1,7 +1,0 @@
-add-missing-labels: true
-clear-prexisting: false
-include-commits: true
-label-mapping:
-  bug: [ 'fix', 'bug' ]
-  feature: [ 'feat', 'feature' ]
-  misc: [ 'chore','performance','refactor','style','refactoring','meta' ]
