@@ -3,7 +3,8 @@
 //
 // This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License.
 //
-// Feel free to use the design in your private/educational projects, but don't try to sell the design or products based on it without getting my consent first.
+// Feel free to use the design in your private/educational projects, but don't try to sell the design or products based
+// on it without getting my consent first.
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -19,82 +20,78 @@
 
 #include "Behavior.h"
 #include "UndockingBehavior.h"
-
-#include "slic3r_coverage_planner/PlanPath.h"
-#include "slic3r_coverage_planner/Path.h"
 #include "ftc_local_planner/PlannerGetProgress.h"
+#include "slic3r_coverage_planner/Path.h"
+#include "slic3r_coverage_planner/PlanPath.h"
 #include "xbot_msgs/ActionInfo.h"
 
 class MowingBehavior : public Behavior {
+ private:
+  std::vector<xbot_msgs::ActionInfo> actions;
 
-private:
-    std::vector<xbot_msgs::ActionInfo> actions;
+  bool skip_area;
+  bool skip_path;
+  bool create_mowing_plan(int area_index);
 
-    bool skip_area;
-    bool skip_path;
-    bool create_mowing_plan(int area_index);
+  bool execute_mowing_plan();
 
-    bool execute_mowing_plan();
+  // Progress
+  bool mowerEnabled = false;
+  std::vector<slic3r_coverage_planner::Path> currentMowingPaths;
 
-    // Progress
-    bool mowerEnabled = false;
-    std::vector<slic3r_coverage_planner::Path> currentMowingPaths;
+  ros::Time last_checkpoint;
+  int currentMowingPath;
+  int currentMowingArea;
+  int currentMowingPathIndex;
+  std::string currentMowingPlanDigest;
+  double currentMowingAngleIncrementSum;
 
-    ros::Time last_checkpoint;
-    int currentMowingPath;
-    int currentMowingArea;
-    int currentMowingPathIndex;
-    std::string currentMowingPlanDigest;
-    double currentMowingAngleIncrementSum;
+ public:
+  MowingBehavior();
 
+  static MowingBehavior INSTANCE;
 
-public:
-    MowingBehavior();
+  std::string state_name() override;
 
-    static MowingBehavior INSTANCE;
+  Behavior *execute() override;
 
-    std::string state_name() override;
+  void enter() override;
 
-    Behavior *execute() override;
+  void exit() override;
 
-    void enter() override;
+  void reset() override;
 
-    void exit() override;
+  bool needs_gps() override;
 
-    void reset() override;
+  bool mower_enabled() override;
 
-    bool needs_gps() override;
+  void command_home() override;
 
-    bool mower_enabled() override;
+  void command_start() override;
 
-    void command_home() override;
+  void command_s1() override;
 
-    void command_start() override;
+  void command_s2() override;
 
-    void command_s1() override;
+  bool redirect_joystick() override;
 
-    void command_s2() override;
+  uint8_t get_sub_state() override;
 
-    bool redirect_joystick() override;
+  uint8_t get_state() override;
 
-    uint8_t get_sub_state() override;
+  int16_t get_current_area();
 
-    uint8_t get_state() override;
+  int16_t get_current_path();
 
-    int16_t get_current_area();
+  int16_t get_current_path_index();
 
-    int16_t get_current_path();
+  void handle_action(std::string action) override;
 
-    int16_t get_current_path_index();
+  void update_actions();
 
-    void handle_action(std::string action) override;
+  void checkpoint();
 
-    void update_actions();
-
-    void checkpoint();
-
-    bool restore_checkpoint();
+  bool restore_checkpoint();
 };
 
-
-#endif //SRC_MOWINGBEHAVIOR_H
+#endif  // SRC_MOWINGBEHAVIOR_H

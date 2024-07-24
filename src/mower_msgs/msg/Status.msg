@@ -25,4 +25,3 @@ bool mow_enabled
 ESCStatus left_esc_status
 ESCStatus right_esc_status
 ESCStatus mow_esc_status
-

@@ -3,7 +3,8 @@
 //
 // This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License.
 //
-// Feel free to use the design in your private/educational projects, but don't try to sell the design or products based on it without getting my consent first.
+// Feel free to use the design in your private/educational projects, but don't try to sell the design or products based
+// on it without getting my consent first.
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -20,61 +21,60 @@
 #include <actionlib/client/simple_action_client.h>
 #include <mbf_msgs/ExePathAction.h>
 #include <mbf_msgs/MoveBaseAction.h>
-#include <nav_msgs/Odometry.h>
-#include "Behavior.h"
-#include "IdleBehavior.h"
-#include "DockingBehavior.h"
-#include "ros/ros.h"
-#include <tf2/LinearMath/Transform.h>
-#include "tf2_geometry_msgs/tf2_geometry_msgs.h"
-#include "mower_msgs/Status.h"
 #include <mower_map/GetDockingPointSrv.h>
+#include <nav_msgs/Odometry.h>
+#include <tf2/LinearMath/Transform.h>
 
+#include "Behavior.h"
+#include "DockingBehavior.h"
+#include "IdleBehavior.h"
+#include "mower_msgs/Status.h"
+#include "ros/ros.h"
+#include "tf2_geometry_msgs/tf2_geometry_msgs.h"
 
 class DockingBehavior : public Behavior {
-public:
-    static DockingBehavior INSTANCE;
-private:
-    uint retryCount;
-    bool inApproachMode;
-    geometry_msgs::PoseStamped docking_pose_stamped;
+ public:
+  static DockingBehavior INSTANCE;
 
-    bool approach_docking_point();
+ private:
+  uint retryCount;
+  bool inApproachMode;
+  geometry_msgs::PoseStamped docking_pose_stamped;
 
-    bool dock_straight();
+  bool approach_docking_point();
 
-public:
-    std::string state_name() override;
+  bool dock_straight();
 
-    Behavior *execute() override;
+ public:
+  std::string state_name() override;
 
-    void enter() override;
+  Behavior *execute() override;
 
-    void exit() override;
+  void enter() override;
 
-    void reset() override;
+  void exit() override;
 
-    bool needs_gps() override;
+  void reset() override;
 
-    bool mower_enabled() override;
+  bool needs_gps() override;
 
-    void command_home() override;
+  bool mower_enabled() override;
 
-    void command_start() override;
+  void command_home() override;
 
-    void command_s1() override;
+  void command_start() override;
 
-    void command_s2() override;
+  void command_s1() override;
 
-    bool redirect_joystick() override;
+  void command_s2() override;
 
-    uint8_t get_sub_state() override;
+  bool redirect_joystick() override;
 
-    uint8_t get_state() override;
+  uint8_t get_sub_state() override;
 
-    void handle_action(std::string action) override;
+  uint8_t get_state() override;
+
+  void handle_action(std::string action) override;
 };
 
-
-#endif //SRC_DOCKINGBEHAVIOR_H
-
+#endif  // SRC_DOCKINGBEHAVIOR_H

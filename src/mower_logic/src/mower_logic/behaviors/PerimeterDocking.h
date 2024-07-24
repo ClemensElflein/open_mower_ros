@@ -3,7 +3,8 @@
 //
 // This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License.
 //
-// Feel free to use the design in your private/educational projects, but don't try to sell the design or products based on it without getting my consent first.
+// Feel free to use the design in your private/educational projects, but don't try to sell the design or products based
+// on it without getting my consent first.
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -23,16 +24,17 @@
 #include <actionlib/client/simple_action_client.h>
 #include <mbf_msgs/ExePathAction.h>
 #include <mbf_msgs/MoveBaseAction.h>
-#include <nav_msgs/Odometry.h>
-#include "ros/ros.h"
-#include <tf2/LinearMath/Transform.h>
-#include "tf2_geometry_msgs/tf2_geometry_msgs.h"
-#include "mower_msgs/Status.h"
 #include <mower_map/GetDockingPointSrv.h>
+#include <nav_msgs/Odometry.h>
+#include <tf2/LinearMath/Transform.h>
+
+#include "mower_msgs/Status.h"
+#include "ros/ros.h"
+#include "tf2_geometry_msgs/tf2_geometry_msgs.h"
 */
 
 class PerimeterBase : public Behavior {
-public:
+ public:
   void enter() override;
   void exit() override;
   void reset() override;
@@ -46,14 +48,16 @@ public:
   uint8_t get_sub_state() override;
   uint8_t get_state() override;
   void handle_action(std::string action) override;
-protected:
+
+ protected:
   int setupConnections();
 };
 
 class PerimeterFollowBehavior : public PerimeterBase {
-public:
+ public:
   Behavior *execute() override;
-protected:
+
+ protected:
   /**
    * @brief distance travelled.
    */
@@ -61,34 +65,35 @@ protected:
   /**
    * @brief We arrived and should continue with the returned Behavior.
    */
-  virtual Behavior* arrived()=0;
+  virtual Behavior *arrived() = 0;
 };
 
 class PerimeterDockingBehavior : public PerimeterFollowBehavior {
-private:
+ private:
   int chargeSeen;
-public:
+
+ public:
   static PerimeterDockingBehavior INSTANCE;
   std::string state_name() override;
-protected:
-  Behavior* arrived() override;
+
+ protected:
+  Behavior *arrived() override;
 };
 
 class PerimeterSearchBehavior : public PerimeterBase {
-public:
+ public:
   static PerimeterSearchBehavior INSTANCE;
   /**
    * Is usage configured?
    */
   static int configured(const mower_logic::MowerLogicConfig &config);
 
-
   std::string state_name() override;
   Behavior *execute() override;
 };
 
 class PerimeterUndockingBehavior : public PerimeterBase {
-public:
+ public:
   static PerimeterUndockingBehavior INSTANCE;
   /**
    * Is usage configured?
@@ -100,13 +105,13 @@ public:
 };
 
 class PerimeterMoveToGpsBehavior : public PerimeterFollowBehavior {
-public:
+ public:
   static PerimeterMoveToGpsBehavior INSTANCE;
   std::string state_name() override;
   void enter() override;
-protected:
-  Behavior* arrived() override;
+
+ protected:
+  Behavior *arrived() override;
 };
 
-#endif //SRC_PERIMETER_DOCKING_H
-
+#endif  // SRC_PERIMETER_DOCKING_H
