@@ -640,7 +640,7 @@ MowingBehavior::MowingBehavior() {
     actions.push_back(continue_action);
     actions.push_back(abort_mowing_action);
     actions.push_back(skip_area_action);
-
+    actions.push_back(skip_path_action);
     restore_checkpoint();
 }
 
