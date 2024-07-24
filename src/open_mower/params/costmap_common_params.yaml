@@ -4,4 +4,3 @@ raytrace_range: 4.0
 robot_radius: 0.0
 
 max_obstacle_height: 1.0
-

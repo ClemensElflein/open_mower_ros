@@ -36,7 +36,7 @@
         <param name="motor_hot_temperature" value="$(env OM_MOWING_MOTOR_TEMP_HIGH)"/>
         <param name="motor_cold_temperature" value="$(env OM_MOWING_MOTOR_TEMP_LOW)"/>
     </node>
-    
+
     <node pkg="twist_mux" type="twist_mux" name="twist_mux" output="screen">
         <remap from="cmd_vel_out" to="/cmd_vel"/>
         <rosparam file="$(find open_mower)/params/twist_mux_topics.yaml" command="load"/>
