@@ -45,6 +45,8 @@ jobs:
       # Get the repository's code
       - name: Checkout
         uses: actions/checkout@v4
+      - uses: actions/setup-python@v3
+      - uses: pre-commit/action@v3.0.1
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@v5
