@@ -15,7 +15,7 @@
         <param name="language" value="$(optenv OM_LANGUAGE en)"/>
         <param name="volume" value="$(optenv OM_VOLUME -1)"/>
     </node>
-
+    
     <include file="$(find open_mower)/launch/include/_gps.launch" unless="$(optenv OM_NO_GPS False)">
 
     </include>

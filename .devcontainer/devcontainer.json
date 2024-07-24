@@ -1,4 +1,8 @@
 {
+  "name": "ROS Noetic Development Container",
+  "dockerComposeFile": "../devenv/docker-compose.yaml",
+  "service": "ros",
+  "workspaceFolder": "/workspace",
   "customizations": {
     "vscode": {
       "extensions": [
@@ -9,9 +13,5 @@
       ]
     }
   },
-  "dockerComposeFile": "../devenv/docker-compose.yaml",
-  "name": "ROS Noetic Development Container",
-  "remoteUser": "dev",
-  "service": "ros",
-  "workspaceFolder": "/workspace"
+  "remoteUser": "dev"
 }
