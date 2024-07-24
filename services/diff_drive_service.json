@@ -1,0 +1,19 @@
+{
+  "inputs": [
+    {
+      "id": 0,
+      "name": "Twist",
+      "type": "double[6]"
+    }
+  ],
+  "outputs": [
+    {
+      "id": 0,
+      "name": "TwistOut",
+      "type": "double[6]"
+    }
+  ],
+  "registers": [],
+  "type": "DiffDriveService",
+  "version": 1
+}

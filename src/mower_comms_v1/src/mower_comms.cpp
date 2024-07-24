@@ -431,7 +431,7 @@ void handleLowLevelIMU(struct ll_imu *imu) {
 }
 
 int main(int argc, char **argv) {
-  ros::init(argc, argv, "mower_comms");
+  ros::init(argc, argv, "mower_comms_v1");
 
   sensor_mag_msg.header.seq = 0;
   sensor_imu_msg.header.seq = 0;

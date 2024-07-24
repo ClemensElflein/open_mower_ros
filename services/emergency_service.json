@@ -1,0 +1,30 @@
+{
+  "type": "EchoService",
+  "version": 1,
+  "inputs": [
+    {
+      "id": 0,
+      "name": "Set Emergency",
+      "type": "bool"
+    }
+  ],
+  "outputs": [
+    {
+      "id": 0,
+      "name": "Emergency Active",
+      "type": "bool"
+    },
+    {
+      "id": 1,
+      "name": "Emergency Latch",
+      "type": "bool"
+    },
+    {
+      "id": 2,
+      "name": "Emergency Reason",
+      "type": "char[255]"
+    }
+  ],
+  "registers": [
+  ]
+}
