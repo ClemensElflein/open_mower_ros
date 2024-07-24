@@ -1,0 +1,28 @@
+exclude: '^(config|web)/.+$'
+repos:
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+    -   id: check-yaml
+    -   id: end-of-file-fixer
+    -   id: trailing-whitespace
+    -   id: check-added-large-files
+    -   id: check-case-conflict
+    -   id: check-json
+    -   id: check-executables-have-shebangs
+    -   id: check-shebang-scripts-are-executable
+    -   id: pretty-format-json
+        args: [--autofix]
+    -   id: check-merge-conflict
+    -   id: check-symlinks
+    -   id: check-yaml
+    -   id: destroyed-symlinks
+    -   id: end-of-file-fixer
+    -   id: forbid-new-submodules
+    -   id: mixed-line-ending
+    -   id: trailing-whitespace
+-   repo: https://github.com/pocc/pre-commit-hooks
+    rev: v1.3.5
+    hooks:
+      - id: clang-format
+        args: [--style=Google, -i]
