@@ -12,8 +12,8 @@
             <remap from="/joy" to="/teleop_joy"/>
             <param name="~coalesce_interval" value="0.06"/>
         </node>
-        
+
         <rosparam file="$(find open_mower)/params/gamepads/$(env OM_MOWER_GAMEPAD).yaml" command="load"/>
-        
+
     </group>
 </launch>

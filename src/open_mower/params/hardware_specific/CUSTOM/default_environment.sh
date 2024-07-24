@@ -5,4 +5,3 @@ if [[ -f ~/mower_params/default_environment.sh ]]; then
 else
   echo "No custom default environment file in: ~/mower_params/default_environment.sh"
 fi
-
