@@ -12,17 +12,14 @@ repos:
     -   id: check-executables-have-shebangs
     -   id: check-shebang-scripts-are-executable
     -   id: pretty-format-json
-        args: [--autofix]
+        args: [--autofix, --no-sort-keys]
     -   id: check-merge-conflict
     -   id: check-symlinks
-    -   id: check-yaml
     -   id: destroyed-symlinks
-    -   id: end-of-file-fixer
     -   id: forbid-new-submodules
     -   id: mixed-line-ending
-    -   id: trailing-whitespace
 -   repo: https://github.com/pocc/pre-commit-hooks
     rev: v1.3.5
     hooks:
       - id: clang-format
-        args: [--style=Google, -i]
+        args: [--style=file, -i]

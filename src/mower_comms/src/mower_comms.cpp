@@ -2,12 +2,10 @@
 // Created by Clemens Elflein on 15.03.22.
 // Copyright (c) 2022 Clemens Elflein. All rights reserved.
 //
-// This work is licensed under a Creative Commons
-// Attribution-NonCommercial-ShareAlike 4.0 International License.
+// This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License.
 //
-// Feel free to use the design in your private/educational projects, but don't
-// try to sell the design or products based on it without getting my consent
-// first.
+// Feel free to use the design in your private/educational projects, but don't try to sell the design or products based
+// on it without getting my consent first.
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -93,7 +91,9 @@ sensor_msgs::Imu sensor_imu_msg;
 
 ros::ServiceClient highLevelClient;
 
-bool is_emergency() { return emergency_high_level || emergency_low_level; }
+bool is_emergency() {
+  return emergency_high_level || emergency_low_level;
+}
 
 void publishActuators() {
   speed_mow = target_speed_mow;
@@ -117,23 +117,21 @@ void publishActuators() {
   if (mow_xesc_interface) {
     mow_xesc_interface->setDutyCycle(speed_mow);
   }
-  // We need to invert the speed, because the ESC has the same config as the
-  // left one, so the motor is running in the "wrong" direction
+  // We need to invert the speed, because the ESC has the same config as the left one, so the motor is running in the
+  // "wrong" direction
   left_xesc_interface->setDutyCycle(speed_l);
   right_xesc_interface->setDutyCycle(-speed_r);
 
-  struct ll_heartbeat heartbeat = {
-      .type = PACKET_ID_LL_HEARTBEAT,
-      // If high level has emergency and LL does not know yet, we set it
-      .emergency_requested = (!emergency_low_level && emergency_high_level),
-      .emergency_release_requested = ll_clear_emergency};
+  struct ll_heartbeat heartbeat = {.type = PACKET_ID_LL_HEARTBEAT,
+                                   // If high level has emergency and LL does not know yet, we set it
+                                   .emergency_requested = (!emergency_low_level && emergency_high_level),
+                                   .emergency_release_requested = ll_clear_emergency};
 
   crc.reset();
   crc.process_bytes(&heartbeat, sizeof(struct ll_heartbeat) - 2);
   heartbeat.crc = crc.checksum();
 
-  size_t encoded_size =
-      cobs.encode((uint8_t *)&heartbeat, sizeof(struct ll_heartbeat), out_buf);
+  size_t encoded_size = cobs.encode((uint8_t *)&heartbeat, sizeof(struct ll_heartbeat), out_buf);
   out_buf[encoded_size] = 0;
   encoded_size++;
 
@@ -146,18 +144,13 @@ void publishActuators() {
   }
 }
 
-void convertStatus(xesc_msgs::XescStateStamped &vesc_status,
-                   mower_msgs::ESCStatus &ros_esc_status) {
-  if (vesc_status.state.connection_state !=
-          xesc_msgs::XescState::XESC_CONNECTION_STATE_CONNECTED &&
-      vesc_status.state.connection_state !=
-          xesc_msgs::XescState::
-              XESC_CONNECTION_STATE_CONNECTED_INCOMPATIBLE_FW) {
+void convertStatus(xesc_msgs::XescStateStamped &vesc_status, mower_msgs::ESCStatus &ros_esc_status) {
+  if (vesc_status.state.connection_state != xesc_msgs::XescState::XESC_CONNECTION_STATE_CONNECTED &&
+      vesc_status.state.connection_state != xesc_msgs::XescState::XESC_CONNECTION_STATE_CONNECTED_INCOMPATIBLE_FW) {
     // ESC is disconnected
     ros_esc_status.status = mower_msgs::ESCStatus::ESC_STATUS_DISCONNECTED;
   } else if (vesc_status.state.fault_code) {
-    ROS_ERROR_STREAM_THROTTLE(
-        1, "Motor controller fault code: " << vesc_status.state.fault_code);
+    ROS_ERROR_STREAM_THROTTLE(1, "Motor controller fault code: " << vesc_status.state.fault_code);
     // ESC has a fault
     ros_esc_status.status = mower_msgs::ESCStatus::ESC_STATUS_ERROR;
   } else {
@@ -182,17 +175,13 @@ void publishStatus() {
     status_msg.mower_status = mower_msgs::Status::MOWER_STATUS_INITIALIZING;
   }
 
-  status_msg.raspberry_pi_power =
-      (last_ll_status.status_bitmask & 0b00000010) != 0;
+  status_msg.raspberry_pi_power = (last_ll_status.status_bitmask & 0b00000010) != 0;
   status_msg.gps_power = (last_ll_status.status_bitmask & 0b00000100) != 0;
   status_msg.esc_power = (last_ll_status.status_bitmask & 0b00001000) != 0;
   status_msg.rain_detected = (last_ll_status.status_bitmask & 0b00010000) != 0;
-  status_msg.sound_module_available =
-      (last_ll_status.status_bitmask & 0b00100000) != 0;
-  status_msg.sound_module_busy =
-      (last_ll_status.status_bitmask & 0b01000000) != 0;
-  status_msg.ui_board_available =
-      (last_ll_status.status_bitmask & 0b10000000) != 0;
+  status_msg.sound_module_available = (last_ll_status.status_bitmask & 0b00100000) != 0;
+  status_msg.sound_module_busy = (last_ll_status.status_bitmask & 0b01000000) != 0;
+  status_msg.ui_board_available = (last_ll_status.status_bitmask & 0b10000000) != 0;
   status_msg.mow_enabled = !(target_speed_mow == 0);
 
   for (uint8_t i = 0; i < 5; i++) {
@@ -205,8 +194,7 @@ void publishStatus() {
     // it obviously worked, reset the request
     ll_clear_emergency = false;
   } else {
-    ROS_ERROR_STREAM_THROTTLE(1, "Low Level Emergency. Bitmask was: "
-                                     << (int)last_ll_status.emergency_bitmask);
+    ROS_ERROR_STREAM_THROTTLE(1, "Low Level Emergency. Bitmask was: " << (int)last_ll_status.emergency_bitmask);
   }
 
   // True, if high or low level emergency condition is present
@@ -220,8 +208,7 @@ void publishStatus() {
   if (mow_xesc_interface) {
     mow_xesc_interface->getStatus(mow_status);
   } else {
-    mow_status.state.connection_state =
-        xesc_msgs::XescState::XESC_CONNECTION_STATE_DISCONNECTED;
+    mow_status.state.connection_state = xesc_msgs::XescState::XESC_CONNECTION_STATE_DISCONNECTED;
   }
   left_xesc_interface->getStatus(left_status);
   right_xesc_interface->getStatus(right_status);
@@ -233,15 +220,12 @@ void publishStatus() {
   status_pub.publish(status_msg);
 
   xbot_msgs::WheelTick wheel_tick_msg;
-  wheel_tick_msg.wheel_tick_factor =
-      static_cast<unsigned int>(wheel_ticks_per_m);
+  wheel_tick_msg.wheel_tick_factor = static_cast<unsigned int>(wheel_ticks_per_m);
   wheel_tick_msg.stamp = status_msg.stamp;
   wheel_tick_msg.wheel_ticks_rl = left_status.state.tacho_absolute;
-  wheel_tick_msg.wheel_direction_rl =
-      left_status.state.direction && abs(left_status.state.duty_cycle) > 0;
+  wheel_tick_msg.wheel_direction_rl = left_status.state.direction && abs(left_status.state.duty_cycle) > 0;
   wheel_tick_msg.wheel_ticks_rr = right_status.state.tacho_absolute;
-  wheel_tick_msg.wheel_direction_rr =
-      !right_status.state.direction && abs(right_status.state.duty_cycle) > 0;
+  wheel_tick_msg.wheel_direction_rr = !right_status.state.direction && abs(right_status.state.duty_cycle) > 0;
 
   wheel_tick_pub.publish(wheel_tick_msg);
 }
@@ -252,8 +236,7 @@ void publishLowLevelConfig() {
   struct ll_high_level_config config_pkt;
 
   config_pkt.volume = volume;
-  for (unsigned int i = 0; i < sizeof(config_pkt.language) / sizeof(char);
-       i++) {
+  for (unsigned int i = 0; i < sizeof(config_pkt.language) / sizeof(char); i++) {
     config_pkt.language[i] = language[i];
   }
   // Set config_bitmask flags
@@ -264,18 +247,15 @@ void publishLowLevelConfig() {
   crc.process_bytes(&config_pkt, sizeof(struct ll_high_level_config) - 2);
   config_pkt.crc = crc.checksum();
 
-  size_t encoded_size = cobs.encode(
-      (uint8_t *)&config_pkt, sizeof(struct ll_high_level_config), out_buf);
+  size_t encoded_size = cobs.encode((uint8_t *)&config_pkt, sizeof(struct ll_high_level_config), out_buf);
   out_buf[encoded_size] = 0;
   encoded_size++;
 
   try {
     ROS_INFO_STREAM("Send ll_high_level_config packet 0x"
-                    << std::hex << +config_pkt.type << " with comms_version="
-                    << +config_pkt.comms_version << ", config_bitmask=0b"
-                    << std::bitset<8>(config_pkt.config_bitmask)
-                    << ", volume=" << std::dec << +config_pkt.volume
-                    << ", language='" << config_pkt.language << "'");
+                    << std::hex << +config_pkt.type << " with comms_version=" << +config_pkt.comms_version
+                    << ", config_bitmask=0b" << std::bitset<8>(config_pkt.config_bitmask) << ", volume=" << std::dec
+                    << +config_pkt.volume << ", language='" << config_pkt.language << "'");
     serial_port.write(out_buf, encoded_size);
   } catch (std::exception &e) {
     ROS_ERROR_STREAM("Error writing to serial port");
@@ -287,8 +267,7 @@ void publishActuatorsTimerTask(const ros::TimerEvent &timer_event) {
   publishStatus();
 }
 
-bool setMowEnabled(mower_msgs::MowerControlSrvRequest &req,
-                   mower_msgs::MowerControlSrvResponse &res) {
+bool setMowEnabled(mower_msgs::MowerControlSrvRequest &req, mower_msgs::MowerControlSrvResponse &res) {
   if (req.mow_enabled && !is_emergency()) {
     target_speed_mow = req.mow_direction ? 1 : -1;
   } else {
@@ -298,33 +277,29 @@ bool setMowEnabled(mower_msgs::MowerControlSrvRequest &req,
   return true;
 }
 
-bool setEmergencyStop(mower_msgs::EmergencyStopSrvRequest &req,
-                      mower_msgs::EmergencyStopSrvResponse &res) {
+bool setEmergencyStop(mower_msgs::EmergencyStopSrvRequest &req, mower_msgs::EmergencyStopSrvResponse &res) {
   if (req.emergency) {
     ROS_ERROR_STREAM("Setting emergency!!");
     ll_clear_emergency = false;
   } else {
     ll_clear_emergency = true;
   }
-  // Set the high level emergency instantly. Low level value will be set on next
-  // update.
+  // Set the high level emergency instantly. Low level value will be set on next update.
   emergency_high_level = req.emergency;
   publishActuators();
   return true;
 }
 
 void highLevelStatusReceived(const mower_msgs::HighLevelStatus::ConstPtr &msg) {
-  struct ll_high_level_state hl_state = {
-      .type = PACKET_ID_LL_HIGH_LEVEL_STATE,
-      .current_mode = msg->state,
-      .gps_quality = static_cast<uint8_t>(msg->gps_quality_percent * 100.0)};
+  struct ll_high_level_state hl_state = {.type = PACKET_ID_LL_HIGH_LEVEL_STATE,
+                                         .current_mode = msg->state,
+                                         .gps_quality = static_cast<uint8_t>(msg->gps_quality_percent * 100.0)};
 
   crc.reset();
   crc.process_bytes(&hl_state, sizeof(struct ll_high_level_state) - 2);
   hl_state.crc = crc.checksum();
 
-  size_t encoded_size = cobs.encode(
-      (uint8_t *)&hl_state, sizeof(struct ll_high_level_state), out_buf);
+  size_t encoded_size = cobs.encode((uint8_t *)&hl_state, sizeof(struct ll_high_level_state), out_buf);
   out_buf[encoded_size] = 0;
   encoded_size++;
 
@@ -356,22 +331,18 @@ void velReceived(const geometry_msgs::Twist::ConstPtr &msg) {
 }
 
 void handleLowLevelUIEvent(struct ll_ui_event *ui_event) {
-  ROS_INFO_STREAM("Got UI button with code:" << +ui_event->button_id
-                                             << " and duration: "
-                                             << +ui_event->press_duration);
+  ROS_INFO_STREAM("Got UI button with code:" << +ui_event->button_id << " and duration: " << +ui_event->press_duration);
 
   mower_msgs::HighLevelControlSrv srv;
 
   switch (ui_event->button_id) {
     case 2:
       // Home
-      srv.request.command =
-          mower_msgs::HighLevelControlSrvRequest::COMMAND_HOME;
+      srv.request.command = mower_msgs::HighLevelControlSrvRequest::COMMAND_HOME;
       break;
     case 3:
       // Play
-      srv.request.command =
-          mower_msgs::HighLevelControlSrvRequest::COMMAND_START;
+      srv.request.command = mower_msgs::HighLevelControlSrvRequest::COMMAND_START;
       break;
     case 4:
       // S1
@@ -380,19 +351,16 @@ void handleLowLevelUIEvent(struct ll_ui_event *ui_event) {
     case 5:
       // S2
       if (ui_event->press_duration == 2) {
-        srv.request.command =
-            mower_msgs::HighLevelControlSrvRequest::COMMAND_DELETE_MAPS;
+        srv.request.command = mower_msgs::HighLevelControlSrvRequest::COMMAND_DELETE_MAPS;
       } else {
-        srv.request.command =
-            mower_msgs::HighLevelControlSrvRequest::COMMAND_S2;
+        srv.request.command = mower_msgs::HighLevelControlSrvRequest::COMMAND_S2;
       }
       break;
     case 6:
       // LOCK
       if (ui_event->press_duration == 2) {
         // very long press on lock
-        srv.request.command =
-            mower_msgs::HighLevelControlSrvRequest::COMMAND_RESET_EMERGENCY;
+        srv.request.command = mower_msgs::HighLevelControlSrvRequest::COMMAND_RESET_EMERGENCY;
       }
       break;
     default:
@@ -407,11 +375,9 @@ void handleLowLevelUIEvent(struct ll_ui_event *ui_event) {
 
 void handleLowLevelConfig(struct ll_high_level_config *config_pkt) {
   ROS_INFO_STREAM("Received ll_high_level_config packet 0x"
-                  << std::hex << +config_pkt->type << " with comms_version="
-                  << +config_pkt->comms_version << ", config_bitmask=0b"
-                  << std::bitset<8>(config_pkt->config_bitmask)
-                  << ", volume=" << std::dec << +config_pkt->volume
-                  << ", language='" << config_pkt->language << "'");
+                  << std::hex << +config_pkt->type << " with comms_version=" << +config_pkt->comms_version
+                  << ", config_bitmask=0b" << std::bitset<8>(config_pkt->config_bitmask) << ", volume=" << std::dec
+                  << +config_pkt->volume << ", language='" << config_pkt->language << "'");
 
   // TODO: Handle announced comms_version once required
 
@@ -419,11 +385,8 @@ void handleLowLevelConfig(struct ll_high_level_config *config_pkt) {
 
   // We're not interested in the received volume setting (yet)
 
-  if (config_pkt->type ==
-          PACKET_ID_LL_HIGH_LEVEL_CONFIG_REQ ||  // Config requested
-      config_pkt->config_bitmask &
-          LL_HIGH_LEVEL_CONFIG_BIT_DFPIS5V !=
-              dfp_is_5v) {  // Our DFP_IS_5V setting is leading
+  if (config_pkt->type == PACKET_ID_LL_HIGH_LEVEL_CONFIG_REQ ||                      // Config requested
+      config_pkt->config_bitmask & LL_HIGH_LEVEL_CONFIG_BIT_DFPIS5V != dfp_is_5v) {  // Our DFP_IS_5V setting is leading
     publishLowLevelConfig();
   }
 }
@@ -479,13 +442,11 @@ int main(int argc, char **argv) {
   ros::NodeHandle mowerParamNh("~/mower_xesc");
   ros::NodeHandle rightParamNh("~/right_xesc");
 
-  highLevelClient = n.serviceClient<mower_msgs::HighLevelControlSrv>(
-      "mower_service/high_level_control");
+  highLevelClient = n.serviceClient<mower_msgs::HighLevelControlSrv>("mower_service/high_level_control");
 
   std::string ll_serial_port_name;
   if (!paramNh.getParam("ll_serial_port", ll_serial_port_name)) {
-    ROS_ERROR_STREAM(
-        "Error getting low level serial port parameter. Quitting.");
+    ROS_ERROR_STREAM("Error getting low level serial port parameter. Quitting.");
     return 1;
   }
 
@@ -500,8 +461,7 @@ int main(int argc, char **argv) {
   paramNh.getParam("dfp_is_5v", dfp_is_5v);
   paramNh.getParam("language", language);
   paramNh.getParam("volume", volume);
-  ROS_INFO_STREAM("DFP is set to 5V [boolean]: " << dfp_is_5v << ", language: '"
-                                                 << language
+  ROS_INFO_STREAM("DFP is set to 5V [boolean]: " << dfp_is_5v << ", language: '" << language
                                                  << "', volume: " << volume);
 
   // Setup XESC interfaces
@@ -519,23 +479,17 @@ int main(int argc, char **argv) {
 
   sensor_imu_pub = n.advertise<sensor_msgs::Imu>("imu/data_raw", 1);
   sensor_mag_pub = n.advertise<sensor_msgs::MagneticField>("imu/mag", 1);
-  ros::ServiceServer mow_service =
-      n.advertiseService("mower_service/mow_enabled", setMowEnabled);
-  ros::ServiceServer emergency_service =
-      n.advertiseService("mower_service/emergency", setEmergencyStop);
-  ros::Subscriber cmd_vel_sub = n.subscribe(
-      "cmd_vel", 0, velReceived, ros::TransportHints().tcpNoDelay(true));
-  ros::Subscriber high_level_status_sub =
-      n.subscribe("/mower_logic/current_state", 0, highLevelStatusReceived);
-  ros::Timer publish_timer =
-      n.createTimer(ros::Duration(0.02), publishActuatorsTimerTask);
+  ros::ServiceServer mow_service = n.advertiseService("mower_service/mow_enabled", setMowEnabled);
+  ros::ServiceServer emergency_service = n.advertiseService("mower_service/emergency", setEmergencyStop);
+  ros::Subscriber cmd_vel_sub = n.subscribe("cmd_vel", 0, velReceived, ros::TransportHints().tcpNoDelay(true));
+  ros::Subscriber high_level_status_sub = n.subscribe("/mower_logic/current_state", 0, highLevelStatusReceived);
+  ros::Timer publish_timer = n.createTimer(ros::Duration(0.02), publishActuatorsTimerTask);
 
   size_t buflen = 1000;
   uint8_t buffer[buflen];
   uint8_t buffer_decoded[buflen];
   size_t read = 0;
-  // don't change, we need to wait for arduino to boot before actually sending
-  // stuff
+  // don't change, we need to wait for arduino to boot before actually sending stuff
   ros::Duration retryDelay(5, 0);
   ros::AsyncSpinner spinner(1);
   spinner.start();
@@ -571,9 +525,7 @@ int main(int argc, char **argv) {
     if (read + bytes_read >= buflen) {
       read = 0;
       bytes_read = 0;
-      ROS_ERROR_STREAM(
-          "Prevented buffer overflow. There is a problem with the serial "
-          "comms.");
+      ROS_ERROR_STREAM("Prevented buffer overflow. There is a problem with the serial comms.");
     }
     if (bytes_read) {
       if (buffer[read] == 0) {
@@ -588,12 +540,11 @@ int main(int argc, char **argv) {
         } else {
           // We have at least 1 byte of data, check the CRC
           crc.reset();
-          // We start at the second byte (ignore the type) and process
-          // (data_size- byte for type - 2 bytes for CRC) bytes.
+          // We start at the second byte (ignore the type) and process (data_size- byte for type - 2 bytes for CRC)
+          // bytes.
           crc.process_bytes(buffer_decoded, data_size - 2);
           uint16_t checksum = crc.checksum();
-          uint16_t received_checksum =
-              *(uint16_t *)(buffer_decoded + data_size - 2);
+          uint16_t received_checksum = *(uint16_t *)(buffer_decoded + data_size - 2);
           if (checksum == received_checksum) {
             // Packet checksum is OK, process it
             switch (buffer_decoded[0]) {
@@ -601,44 +552,33 @@ int main(int argc, char **argv) {
                 if (data_size == sizeof(struct ll_status)) {
                   handleLowLevelStatus((struct ll_status *)buffer_decoded);
                 } else {
-                  ROS_INFO_STREAM(
-                      "Low Level Board sent a valid packet with the wrong "
-                      "size. Type was STATUS");
+                  ROS_INFO_STREAM("Low Level Board sent a valid packet with the wrong size. Type was STATUS");
                 }
                 break;
               case PACKET_ID_LL_IMU:
                 if (data_size == sizeof(struct ll_imu)) {
                   handleLowLevelIMU((struct ll_imu *)buffer_decoded);
                 } else {
-                  ROS_INFO_STREAM(
-                      "Low Level Board sent a valid packet with the wrong "
-                      "size. Type was IMU");
+                  ROS_INFO_STREAM("Low Level Board sent a valid packet with the wrong size. Type was IMU");
                 }
                 break;
               case PACKET_ID_LL_UI_EVENT:
                 if (data_size == sizeof(struct ll_ui_event)) {
                   handleLowLevelUIEvent((struct ll_ui_event *)buffer_decoded);
                 } else {
-                  ROS_INFO_STREAM(
-                      "Low Level Board sent a valid packet with the wrong "
-                      "size. Type was UI_EVENT");
+                  ROS_INFO_STREAM("Low Level Board sent a valid packet with the wrong size. Type was UI_EVENT");
                 }
                 break;
               case PACKET_ID_LL_HIGH_LEVEL_CONFIG_REQ:
               case PACKET_ID_LL_HIGH_LEVEL_CONFIG_RSP:
                 if (data_size == sizeof(struct ll_high_level_config)) {
-                  handleLowLevelConfig(
-                      (struct ll_high_level_config *)buffer_decoded);
+                  handleLowLevelConfig((struct ll_high_level_config *)buffer_decoded);
                 } else {
-                  ROS_INFO_STREAM(
-                      "Low Level Board sent a valid packet with the wrong "
-                      "size. Type was CONFIG_* (0x"
-                      << std::hex << buffer_decoded[0] << ")");
+                  ROS_INFO_STREAM("Low Level Board sent a valid packet with the wrong size. Type was CONFIG_* (0x"
+                                  << std::hex << buffer_decoded[0] << ")");
                 }
                 break;
-              default:
-                ROS_INFO_STREAM("Got unknown packet from Low Level Board");
-                break;
+              default: ROS_INFO_STREAM("Got unknown packet from Low Level Board"); break;
             }
           } else {
             ROS_INFO_STREAM("Got invalid checksum from Low Level Board");

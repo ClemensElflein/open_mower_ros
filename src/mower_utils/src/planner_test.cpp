@@ -21,10 +21,8 @@ int main(int argc, char **argv) {
 
   path_pub = n.advertise<nav_msgs::Path>("mower_logic/mowing_path", 100, true);
 
-  pathClient = n.serviceClient<slic3r_coverage_planner::PlanPath>(
-      "slic3r_coverage_planner/plan_path");
-  mapClient = n.serviceClient<mower_map::GetMowingAreaSrv>(
-      "mower_map_service/get_mowing_area");
+  pathClient = n.serviceClient<slic3r_coverage_planner::PlanPath>("slic3r_coverage_planner/plan_path");
+  mapClient = n.serviceClient<mower_map::GetMowingAreaSrv>("mower_map_service/get_mowing_area");
 
   ROS_INFO("Waiting for map server");
   if (!mapClient.waitForExistence(ros::Duration(60.0, 0.0))) {
@@ -45,8 +43,7 @@ int main(int argc, char **argv) {
   pathSrv.request.outline_count = outline_count;
   pathSrv.request.outline = mapSrv.response.area.area;
   pathSrv.request.holes = mapSrv.response.area.obstacles;
-  pathSrv.request.fill_type =
-      slic3r_coverage_planner::PlanPathRequest::FILL_LINEAR;
+  pathSrv.request.fill_type = slic3r_coverage_planner::PlanPathRequest::FILL_LINEAR;
   pathSrv.request.distance = 0.13;
   pathSrv.request.outer_offset = 0.05;
 

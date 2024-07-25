@@ -1,7 +1,6 @@
 //
 // Copyright (c) 2011 Christopher Baker <https://christopherbaker.net>
-// Copyright (c) 2011 Jacques Fortier
-// <https://github.com/jacquesf/COBS-Consistent-Overhead-Byte-Stuffing>
+// Copyright (c) 2011 Jacques Fortier <https://github.com/jacquesf/COBS-Consistent-Overhead-Byte-Stuffing>
 //
 // SPDX-License-Identifier: MIT
 //
@@ -33,8 +32,7 @@ class COBS {
   /// \returns The number of bytes written to the \p encodedBuffer.
   /// \warning The encodedBuffer must have at least getEncodedBufferSize()
   ///          allocated.
-  static size_t encode(const uint8_t* buffer, size_t size,
-                       uint8_t* encodedBuffer) {
+  static size_t encode(const uint8_t* buffer, size_t size, uint8_t* encodedBuffer) {
     size_t read_index = 0;
     size_t write_index = 1;
     size_t code_index = 0;
@@ -69,8 +67,7 @@ class COBS {
   /// \param decodedBuffer The target buffer for the decoded bytes.
   /// \returns The number of bytes written to the \p decodedBuffer.
   /// \warning decodedBuffer must have a minimum capacity of size.
-  static size_t decode(const uint8_t* encodedBuffer, size_t size,
-                       uint8_t* decodedBuffer) {
+  static size_t decode(const uint8_t* encodedBuffer, size_t size, uint8_t* decodedBuffer) {
     if (size == 0) return 0;
 
     size_t read_index = 0;

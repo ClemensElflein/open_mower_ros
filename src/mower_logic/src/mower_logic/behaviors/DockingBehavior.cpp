@@ -1,12 +1,10 @@
 // Created by Clemens Elflein on 2/21/22.
 // Copyright (c) 2022 Clemens Elflein. All rights reserved.
 //
-// This work is licensed under a Creative Commons
-// Attribution-NonCommercial-ShareAlike 4.0 International License.
+// This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License.
 //
-// Feel free to use the design in your private/educational projects, but don't
-// try to sell the design or products based on it without getting my consent
-// first.
+// Feel free to use the design in your private/educational projects, but don't try to sell the design or products based
+// on it without getting my consent first.
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -44,10 +42,8 @@ bool DockingBehavior::approach_docking_point() {
   // Get the approach start point
   {
     geometry_msgs::PoseStamped docking_approach_point = docking_pose_stamped;
-    docking_approach_point.pose.position.x -=
-        cos(yaw) * config.docking_approach_distance;
-    docking_approach_point.pose.position.y -=
-        sin(yaw) * config.docking_approach_distance;
+    docking_approach_point.pose.position.x -= cos(yaw) * config.docking_approach_distance;
+    docking_approach_point.pose.position.y -= sin(yaw) * config.docking_approach_distance;
     mbf_msgs::MoveBaseGoal moveBaseGoal;
     moveBaseGoal.target_pose = docking_approach_point;
     moveBaseGoal.controller = "FTCPlanner";
@@ -64,12 +60,9 @@ bool DockingBehavior::approach_docking_point() {
 
     int dock_point_count = config.docking_approach_distance * 10.0;
     for (int i = 0; i <= dock_point_count; i++) {
-      geometry_msgs::PoseStamped docking_pose_stamped_front =
-          docking_pose_stamped;
-      docking_pose_stamped_front.pose.position.x -=
-          cos(yaw) * ((dock_point_count - i) / 10.0);
-      docking_pose_stamped_front.pose.position.y -=
-          sin(yaw) * ((dock_point_count - i) / 10.0);
+      geometry_msgs::PoseStamped docking_pose_stamped_front = docking_pose_stamped;
+      docking_pose_stamped_front.pose.position.x -= cos(yaw) * ((dock_point_count - i) / 10.0);
+      docking_pose_stamped_front.pose.position.y -= sin(yaw) * ((dock_point_count - i) / 10.0);
       path.poses.push_back(docking_pose_stamped_front);
     }
 
@@ -102,8 +95,7 @@ bool DockingBehavior::dock_straight() {
 
   int dock_point_count = config.docking_distance * 10.0;
   for (int i = 0; i < dock_point_count; i++) {
-    geometry_msgs::PoseStamped docking_pose_stamped_front =
-        docking_pose_stamped;
+    geometry_msgs::PoseStamped docking_pose_stamped_front = docking_pose_stamped;
     docking_pose_stamped_front.pose.position.x += cos(yaw) * (i / 10.0);
     docking_pose_stamped_front.pose.position.y += sin(yaw) * (i / 10.0);
     path.poses.push_back(docking_pose_stamped_front);
@@ -142,8 +134,7 @@ bool DockingBehavior::dock_straight() {
       case actionlib::SimpleClientGoalState::PENDING:
         // currently moving. Cancel as soon as we're in the station
         if (last_status.v_charge > 5.0) {
-          ROS_INFO_STREAM("Got a voltage of " << last_status.v_charge
-                                              << " V. Cancelling docking.");
+          ROS_INFO_STREAM("Got a voltage of " << last_status.v_charge << " V. Cancelling docking.");
           ros::Duration(config.docking_extra_time).sleep();
           mbfClientExePath->cancelGoal();
           stopMoving();
@@ -152,11 +143,8 @@ bool DockingBehavior::dock_straight() {
         }
         break;
       case actionlib::SimpleClientGoalState::SUCCEEDED:
-        // we stopped moving because the path has ended. check, if we have
-        // docked successfully
-        ROS_INFO_STREAM(
-            "Docking stopped, because we reached end pose. Voltage was "
-            << last_status.v_charge << " V.");
+        // we stopped moving because the path has ended. check, if we have docked successfully
+        ROS_INFO_STREAM("Docking stopped, because we reached end pose. Voltage was " << last_status.v_charge << " V.");
         if (last_status.v_charge > 5.0) {
           mbfClientExePath->cancelGoal();
           dockingSuccess = true;
@@ -165,10 +153,7 @@ bool DockingBehavior::dock_straight() {
         waitingForResult = false;
         break;
       default:
-        ROS_WARN_STREAM(
-            "Some error during path execution. Docking failed. status value "
-            "was: "
-            << mbfState.state_);
+        ROS_WARN_STREAM("Some error during path execution. Docking failed. status value was: " << mbfState.state_);
         waitingForResult = false;
         stopMoving();
         break;
@@ -181,7 +166,9 @@ bool DockingBehavior::dock_straight() {
   return dockingSuccess;
 }
 
-std::string DockingBehavior::state_name() { return "DOCKING"; }
+std::string DockingBehavior::state_name() {
+  return "DOCKING";
+}
 
 Behavior *DockingBehavior::execute() {
   // Check if already docked (e.g. carried to base during emergency) and skip
@@ -218,8 +205,7 @@ Behavior *DockingBehavior::execute() {
   inApproachMode = false;
   setGPS(false);
 
-  if (PerimeterSearchBehavior::configured(config))
-    return &PerimeterSearchBehavior::INSTANCE;
+  if (PerimeterSearchBehavior::configured(config)) return &PerimeterSearchBehavior::INSTANCE;
 
   bool docked = dock_straight();
 
@@ -228,8 +214,7 @@ Behavior *DockingBehavior::execute() {
 
     retryCount++;
     if (retryCount <= config.docking_retry_count && !aborted) {
-      ROS_ERROR_STREAM("Retrying docking. Try " << retryCount << " / "
-                                                << config.docking_retry_count);
+      ROS_ERROR_STREAM("Retrying docking. Try " << retryCount << " / " << config.docking_retry_count);
       return &UndockingBehavior::RETRY_INSTANCE;
     }
 
@@ -258,9 +243,12 @@ void DockingBehavior::enter() {
   docking_pose_stamped.header.stamp = ros::Time::now();
 }
 
-void DockingBehavior::exit() {}
+void DockingBehavior::exit() {
+}
 
-void DockingBehavior::reset() { retryCount = 0; }
+void DockingBehavior::reset() {
+  retryCount = 0;
+}
 
 bool DockingBehavior::needs_gps() {
   // we only need GPS if we're in approach mode
@@ -272,19 +260,28 @@ bool DockingBehavior::mower_enabled() {
   return false;
 }
 
-void DockingBehavior::command_home() {}
+void DockingBehavior::command_home() {
+}
 
-void DockingBehavior::command_start() {}
+void DockingBehavior::command_start() {
+}
 
-void DockingBehavior::command_s1() {}
+void DockingBehavior::command_s1() {
+}
 
-void DockingBehavior::command_s2() {}
+void DockingBehavior::command_s2() {
+}
 
-bool DockingBehavior::redirect_joystick() { return false; }
+bool DockingBehavior::redirect_joystick() {
+  return false;
+}
 
-uint8_t DockingBehavior::get_sub_state() { return 1; }
+uint8_t DockingBehavior::get_sub_state() {
+  return 1;
+}
 uint8_t DockingBehavior::get_state() {
   return mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_AUTONOMOUS;
 }
 
-void DockingBehavior::handle_action(std::string action) {}
+void DockingBehavior::handle_action(std::string action) {
+}

@@ -1,12 +1,10 @@
 // Created by Clemens Elflein on 2/21/22.
 // Copyright (c) 2022 Clemens Elflein. All rights reserved.
 //
-// This work is licensed under a Creative Commons
-// Attribution-NonCommercial-ShareAlike 4.0 International License.
+// This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License.
 //
-// Feel free to use the design in your private/educational projects, but don't
-// try to sell the design or products based on it without getting my consent
-// first.
+// Feel free to use the design in your private/educational projects, but don't try to sell the design or products based
+// on it without getting my consent first.
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -34,8 +32,7 @@ enum pauseType { PAUSE_MANUAL = 0b1, PAUSE_EMERGENCY = 0b10 };
 struct sSharedState {
   // True, if the semiautomatic task is still in progress
   bool active_semiautomatic_task;
-  // True, if the user has manually paused the mowing. We should then wait for
-  // the user to continue
+  // True, if the user has manually paused the mowing. We should then wait for the user to continue
   bool semiautomatic_task_paused;
 };
 
@@ -55,7 +52,9 @@ class Behavior {
   std::atomic<bool> isGPSGood;
   std::atomic<uint8_t> sub_state;
 
-  double time_in_state() { return (ros::Time::now() - startTime).toSec(); }
+  double time_in_state() {
+    return (ros::Time::now() - startTime).toSec();
+  }
 
   mower_logic::MowerLogicConfig config;
   std::shared_ptr<sSharedState> shared_state;
@@ -67,11 +66,17 @@ class Behavior {
 
  public:
   virtual std::string state_name() = 0;
-  virtual std::string sub_state_name() { return ""; }
+  virtual std::string sub_state_name() {
+    return "";
+  }
 
-  bool hasGoodGPS() { return isGPSGood; }
+  bool hasGoodGPS() {
+    return isGPSGood;
+  }
 
-  void setGoodGPS(bool isGood) { isGPSGood = isGood; }
+  void setGoodGPS(bool isGood) {
+    isGPSGood = isGood;
+  }
 
   void requestContinue(pauseType reason = pauseType::PAUSE_MANUAL) {
     requested_pause_flag &= ~reason;
@@ -81,8 +86,7 @@ class Behavior {
     requested_pause_flag |= reason;
   }
 
-  void start(mower_logic::MowerLogicConfig &c,
-             std::shared_ptr<sSharedState> s) {
+  void start(mower_logic::MowerLogicConfig &c, std::shared_ptr<sSharedState> s) {
     ROS_INFO_STREAM("");
     ROS_INFO_STREAM("");
     ROS_INFO_STREAM("--------------------------------------");
@@ -100,8 +104,7 @@ class Behavior {
   }
 
   /**
-   * Execute the behavior. This call should block until the behavior is executed
-   * fully.
+   * Execute the behavior. This call should block until the behavior is executed fully.
    * @returns the pointer to the next behavior (can return itself).
    */
   virtual Behavior *execute() = 0;
@@ -128,8 +131,7 @@ class Behavior {
   }
 
   // Return true, if this state needs absolute positioning.
-  // The state will be aborted if GPS is lost and resumed at some later point in
-  // time.
+  // The state will be aborted if GPS is lost and resumed at some later point in time.
   virtual bool needs_gps() = 0;
 
   // return true, if the mower motor should currently be running.

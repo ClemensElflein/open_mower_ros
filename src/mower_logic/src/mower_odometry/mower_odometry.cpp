@@ -1,12 +1,10 @@
 // Created by Clemens Elflein on 3/28/22.
 // Copyright (c) 2022 Clemens Elflein. All rights reserved.
 //
-// This work is licensed under a Creative Commons
-// Attribution-NonCommercial-ShareAlike 4.0 International License.
+// This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License.
 //
-// Feel free to use the design in your private/educational projects, but don't
-// try to sell the design or products based on it without getting my consent
-// first.
+// Feel free to use the design in your private/educational projects, but don't try to sell the design or products based
+// on it without getting my consent first.
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -44,8 +42,7 @@ int gps_outlier_count = 0;
 int valid_gps_samples = 0;
 bool gpsOdometryValid = false;
 bool gpsEnabled = true;
-// If true, we don't use any sensor fusion just copy and paste the F9R result as
-// odometry
+// If true, we don't use any sensor fusion just copy and paste the F9R result as odometry
 bool use_f9r_sensor_fusion = false;
 
 sensor_msgs::Imu lastImu;
@@ -104,23 +101,18 @@ void publishOdometry() {
   odom.twist.twist.linear.y = vy;
   odom.twist.twist.angular.z = vr;
 
-  odom.pose.covariance = {
-      10000.0, 0.0,     0.0, 0.0,     0.0, 0.0, 0.0, 10000.0, 0.0,
-      0.0,     0.0,     0.0, 0.0,     0.0, 0.0, 0.0, 0.0,     0.0,
-      0.0,     0.0,     0.0, 10000.0, 0.0, 0.0, 0.0, 0.0,     0.0,
-      0.0,     10000.0, 0.0, 0.0,     0.0, 0.0, 0.0, 0.0,     0.00001};
+  odom.pose.covariance = {10000.0, 0.0, 0.0, 0.0, 0.0,     0.0, 0.0, 10000.0, 0.0, 0.0,     0.0, 0.0,
+                          0.0,     0.0, 0.0, 0.0, 0.0,     0.0, 0.0, 0.0,     0.0, 10000.0, 0.0, 0.0,
+                          0.0,     0.0, 0.0, 0.0, 10000.0, 0.0, 0.0, 0.0,     0.0, 0.0,     0.0, 0.00001};
 
-  if (gpsOdometryValid && gpsEnabled &&
-      ros::Time::now() - last_gps_odometry_time < ros::Duration(5.0)) {
+  if (gpsOdometryValid && gpsEnabled && ros::Time::now() - last_gps_odometry_time < ros::Duration(5.0)) {
     odom.pose.covariance[0] = last_gps_acc_m * last_gps_acc_m;
     odom.pose.covariance[7] = last_gps_acc_m * last_gps_acc_m;
   }
 
-  odom.twist.covariance = {
-      0.000001, 0.0,     0.0, 0.0,     0.0, 0.0, 0.0, 0.000001, 0.0,
-      0.0,      0.0,     0.0, 0.0,     0.0, 0.0, 0.0, 0.0,      0.0,
-      0.0,      0.0,     0.0, 10000.0, 0.0, 0.0, 0.0, 0.0,      0.0,
-      0.0,      10000.0, 0.0, 0.0,     0.0, 0.0, 0.0, 0.0,      0.000001};
+  odom.twist.covariance = {0.000001, 0.0, 0.0, 0.0, 0.0,     0.0, 0.0, 0.000001, 0.0, 0.0,     0.0, 0.0,
+                           0.0,      0.0, 0.0, 0.0, 0.0,     0.0, 0.0, 0.0,      0.0, 10000.0, 0.0, 0.0,
+                           0.0,      0.0, 0.0, 0.0, 10000.0, 0.0, 0.0, 0.0,      0.0, 0.0,     0.0, 0.000001};
 
   xbot_msgs::AbsolutePose pose;
   pose.header = odom.header;
@@ -161,8 +153,7 @@ void handleGPSUpdate(tf2::Vector3 gps_pos, double gps_accuracy_m) {
     return;
   }
 
-  double time_since_last_gps =
-      (ros::Time::now() - last_gps_odometry_time).toSec();
+  double time_since_last_gps = (ros::Time::now() - last_gps_odometry_time).toSec();
   if (time_since_last_gps > 5.0) {
     ROS_WARN_STREAM("Last GPS was " << time_since_last_gps << " seconds ago.");
     gpsOdometryValid = false;
@@ -181,8 +172,7 @@ void handleGPSUpdate(tf2::Vector3 gps_pos, double gps_accuracy_m) {
   if (distance_to_last_gps < 5.0) {
     // inlier, we treat it normally
 
-    // calculate current base_link position from orientation and distance
-    // parameter
+    // calculate current base_link position from orientation and distance parameter
 
     double base_link_x = gps_pos.x() - config.gps_antenna_offset * cos(r);
     double base_link_y = gps_pos.y() - config.gps_antenna_offset * sin(r);
@@ -196,27 +186,22 @@ void handleGPSUpdate(tf2::Vector3 gps_pos, double gps_accuracy_m) {
     valid_gps_samples++;
     if (!gpsOdometryValid && valid_gps_samples > 10) {
       ROS_INFO_STREAM("GPS data now valid");
-      ROS_INFO_STREAM("First GPS data, moving odometry to "
-                      << base_link_x << ", " << base_link_y);
+      ROS_INFO_STREAM("First GPS data, moving odometry to " << base_link_x << ", " << base_link_y);
       // we don't even have gps yet, set odometry to first estimate
       x = base_link_x;
       y = base_link_y;
       gpsOdometryValid = true;
     } else if (gpsOdometryValid) {
       // gps was valid before, we apply the filter
-      x = x * (1.0 - config.gps_filter_factor) +
-          config.gps_filter_factor * base_link_x;
-      y = y * (1.0 - config.gps_filter_factor) +
-          config.gps_filter_factor * base_link_y;
+      x = x * (1.0 - config.gps_filter_factor) + config.gps_filter_factor * base_link_x;
+      y = y * (1.0 - config.gps_filter_factor) + config.gps_filter_factor * base_link_y;
     }
   } else {
-    ROS_WARN_STREAM(
-        "GPS outlier found. Distance was: " << distance_to_last_gps);
+    ROS_WARN_STREAM("GPS outlier found. Distance was: " << distance_to_last_gps);
     gps_outlier_count++;
     // ~10 sec
     if (gps_outlier_count > 10) {
-      ROS_ERROR_STREAM(
-          "too many outliers, assuming that the current gps value is valid.");
+      ROS_ERROR_STREAM("too many outliers, assuming that the current gps value is valid.");
       last_gps_pos = gps_pos;
       last_gps_acc_m = gps_accuracy_m;
       last_gps_odometry_time = ros::Time::now();
@@ -231,8 +216,7 @@ void handleGPSUpdate(tf2::Vector3 gps_pos, double gps_accuracy_m) {
 void gpsPositionReceived(const xbot_msgs::AbsolutePose::ConstPtr &msg) {
   // drop messages if we don't use the GPS (docking / undocking)
   if (!gpsEnabled) {
-    ROS_INFO_STREAM_THROTTLE(1,
-                             "Dropped GPS Update, because gpsEnable = false");
+    ROS_INFO_STREAM_THROTTLE(1, "Dropped GPS Update, because gpsEnable = false");
     return;
   }
 
@@ -244,17 +228,14 @@ void gpsPositionReceived(const xbot_msgs::AbsolutePose::ConstPtr &msg) {
 
   if (!(msg->flags & xbot_msgs::AbsolutePose::FLAG_GPS_RTK_FIXED) &&
       !(msg->flags & xbot_msgs::AbsolutePose::FLAG_GPS_RTK_FLOAT)) {
-    ROS_INFO_THROTTLE(
-        1,
-        "Dropped GPS update, because it neither has RTK FIXED nor RTK FLOAT");
+    ROS_INFO_THROTTLE(1, "Dropped GPS update, because it neither has RTK FIXED nor RTK FLOAT");
     gpsOdometryValid = false;
     return;
   }
 
   double gps_accuracy_m = msg->position_accuracy;
 
-  tf2::Vector3 gps_pos(msg->pose.pose.position.x, msg->pose.pose.position.y,
-                       0.0);
+  tf2::Vector3 gps_pos(msg->pose.pose.position.x, msg->pose.pose.position.y, 0.0);
 
   handleGPSUpdate(gps_pos, gps_accuracy_m);
 }
@@ -262,8 +243,7 @@ void gpsPositionReceived(const xbot_msgs::AbsolutePose::ConstPtr &msg) {
 void gpsPositionReceivedF9R(const xbot_msgs::AbsolutePose::ConstPtr &msg) {
   // drop messages if we don't use the GPS (docking / undocking)
   if (!gpsEnabled) {
-    ROS_INFO_STREAM_THROTTLE(1,
-                             "Dropped GPS Update, because gpsEnable = false");
+    ROS_INFO_STREAM_THROTTLE(1, "Dropped GPS Update, because gpsEnable = false");
     return;
   }
 
@@ -274,16 +254,14 @@ void gpsPositionReceivedF9R(const xbot_msgs::AbsolutePose::ConstPtr &msg) {
   }
 
   if (!msg->orientation_valid) {
-    ROS_INFO_THROTTLE(
-        1, "Dropped at least one GPS update due to invalid vehicle heading.");
+    ROS_INFO_THROTTLE(1, "Dropped at least one GPS update due to invalid vehicle heading.");
     gpsOdometryValid = false;
     return;
   }
 
   if (!(msg->flags & xbot_msgs::AbsolutePose::FLAG_GPS_RTK_FIXED) &&
       !(msg->flags & xbot_msgs::AbsolutePose::FLAG_GPS_DEAD_RECKONING)) {
-    ROS_INFO_THROTTLE(
-        1, "Dropped GPS update, because it neither has RTK FIXED nor DR");
+    ROS_INFO_THROTTLE(1, "Dropped GPS update, because it neither has RTK FIXED nor DR");
     gpsOdometryValid = false;
     return;
   }
@@ -292,8 +270,8 @@ void gpsPositionReceivedF9R(const xbot_msgs::AbsolutePose::ConstPtr &msg) {
 
   double gps_accuracy_m = msg->position_accuracy;
 
-  // We have "good" GPS according to flags. With dead reckoning, we want to
-  // continue driving even if the accuracy says otherwise.
+  // We have "good" GPS according to flags. With dead reckoning, we want to continue driving even if the accuracy says
+  // otherwise.
   if (gps_accuracy_m > 0.25) {
     gps_accuracy_m = 0.25;
   }
@@ -361,14 +339,12 @@ bool statusReceivedGyro(const mower_msgs::Status::ConstPtr &msg) {
     return false;
   }
 
-  // only do odometry if we don't have GPS yet (F9R not calibrated) or we have
-  // actively disabled it (docking / undocking).
+  // only do odometry if we don't have GPS yet (F9R not calibrated) or we have actively disabled it (docking /
+  // undocking).
   if (gpsEnabled && gpsOdometryValid && use_f9r_sensor_fusion) return true;
 
-  // not sure if -= is the right choice here, but it works for the F9R. The
-  // thing is when plotting with the MPU9250 the sign of
-  // lastImu.angular_velocity.z matches that of the F9R's IMU, so it should be
-  // right.
+  // not sure if -= is the right choice here, but it works for the F9R. The thing is when plotting with the MPU9250 the
+  // sign of lastImu.angular_velocity.z matches that of the F9R's IMU, so it should be right.
   r -= lastImu.angular_velocity.z * dt;
   r = fmod(r, 2.0 * M_PI);
   while (r < 0) {
@@ -402,15 +378,10 @@ void statusReceived(const mower_msgs::Status::ConstPtr &msg) {
 
   dt = (msg->stamp - last_status.stamp).toSec();
 
-  d_wheel_l = (int32_t)(msg->left_esc_status.tacho -
-                        last_status.left_esc_status.tacho) /
-              TICKS_PER_M;
-  d_wheel_r = -(int32_t)(msg->right_esc_status.tacho -
-                         last_status.right_esc_status.tacho) /
-              TICKS_PER_M;
+  d_wheel_l = (int32_t)(msg->left_esc_status.tacho - last_status.left_esc_status.tacho) / TICKS_PER_M;
+  d_wheel_r = -(int32_t)(msg->right_esc_status.tacho - last_status.right_esc_status.tacho) / TICKS_PER_M;
 
-  //    ROS_INFO_STREAM("d_wheel_l = " << d_wheel_l << ", d_wheel_r = " <<
-  //    d_wheel_r);
+  //    ROS_INFO_STREAM("d_wheel_l = " << d_wheel_l << ", d_wheel_r = " << d_wheel_r);
 
   bool success;
   if (!use_f9r_sensor_fusion) {
@@ -431,8 +402,7 @@ void reconfigureCB(mower_logic::MowerOdometryConfig &c, uint32_t level) {
   config = c;
 }
 
-bool setGpsState(mower_msgs::GPSControlSrvRequest &req,
-                 mower_msgs::GPSControlSrvResponse &res) {
+bool setGpsState(mower_msgs::GPSControlSrvRequest &req, mower_msgs::GPSControlSrvResponse &res) {
   gpsEnabled = req.gps_enabled;
   gpsOdometryValid = false;
   ROS_INFO_STREAM("Setting GPS enabled to: " << gpsEnabled);
@@ -445,11 +415,9 @@ int main(int argc, char **argv) {
   ros::NodeHandle n;
   ros::NodeHandle paramNh("~");
 
-  ros::ServiceServer gps_service =
-      n.advertiseService("mower_service/set_gps_state", setGpsState);
+  ros::ServiceServer gps_service = n.advertiseService("mower_service/set_gps_state", setGpsState);
 
-  dynamic_reconfigure::Server<mower_logic::MowerOdometryConfig> reconfig_server(
-      paramNh);
+  dynamic_reconfigure::Server<mower_logic::MowerOdometryConfig> reconfig_server(paramNh);
   reconfig_server.setCallback(reconfigureCB);
 
   tf2_ros::TransformListener tfListener(tfBuffer);
@@ -470,8 +438,7 @@ int main(int argc, char **argv) {
   if (use_f9r_sensor_fusion) {
     ROS_INFO("Odometry is using F9R sensor fusion");
 
-    gps_sub =
-        n.subscribe("xbot_driver_gps/xb_pose", 100, gpsPositionReceivedF9R);
+    gps_sub = n.subscribe("xbot_driver_gps/xb_pose", 100, gpsPositionReceivedF9R);
     status_sub = n.subscribe("mower/status", 100, statusReceived);
     imu_sub = n.subscribe("xbot_driver_gps/imu", 100, imuReceived);
   } else {

@@ -1,12 +1,10 @@
 // Created by Clemens Elflein on 2/21/22.
 // Copyright (c) 2022 Clemens Elflein. All rights reserved.
 //
-// This work is licensed under a Creative Commons
-// Attribution-NonCommercial-ShareAlike 4.0 International License.
+// This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License.
 //
-// Feel free to use the design in your private/educational projects, but don't
-// try to sell the design or products based on it without getting my consent
-// first.
+// Feel free to use the design in your private/educational projects, but don't try to sell the design or products based
+// on it without getting my consent first.
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -32,7 +30,9 @@ extern bool setGPS(bool enabled);
 UndockingBehavior UndockingBehavior::INSTANCE(&MowingBehavior::INSTANCE);
 UndockingBehavior UndockingBehavior::RETRY_INSTANCE(&DockingBehavior::INSTANCE);
 
-std::string UndockingBehavior::state_name() { return "UNDOCKING"; }
+std::string UndockingBehavior::state_name() {
+  return "UNDOCKING";
+}
 
 Behavior *UndockingBehavior::execute() {
   // get robot's current pose from odometry.
@@ -100,18 +100,21 @@ void UndockingBehavior::enter() {
 
   // set the robot's position to the dock if we're actually docked
   if (getStatus().v_charge > 5.0) {
-    ROS_INFO_STREAM(
-        "Currently inside the docking station, we set the robot's pose to the "
-        "docks pose.");
+    ROS_INFO_STREAM("Currently inside the docking station, we set the robot's pose to the docks pose.");
     setRobotPose(docking_pose_stamped.pose);
   }
 }
 
-void UndockingBehavior::exit() {}
+void UndockingBehavior::exit() {
+}
 
-void UndockingBehavior::reset() { gpsRequired = false; }
+void UndockingBehavior::reset() {
+  gpsRequired = false;
+}
 
-bool UndockingBehavior::needs_gps() { return gpsRequired; }
+bool UndockingBehavior::needs_gps() {
+  return gpsRequired;
+}
 
 bool UndockingBehavior::mower_enabled() {
   // No mower during docking
@@ -127,8 +130,7 @@ bool UndockingBehavior::waitForGPS() {
       ROS_INFO("Got good gps, let's go");
       break;
     } else {
-      ROS_INFO_STREAM(
-          "waiting for gps. current accuracy: " << getPose().position_accuracy);
+      ROS_INFO_STREAM("waiting for gps. current accuracy: " << getPose().position_accuracy);
       odom_rate.sleep();
     }
   }
@@ -149,19 +151,28 @@ UndockingBehavior::UndockingBehavior(Behavior *next) {
   this->nextBehavior = next;
 }
 
-void UndockingBehavior::command_home() {}
+void UndockingBehavior::command_home() {
+}
 
-void UndockingBehavior::command_start() {}
+void UndockingBehavior::command_start() {
+}
 
-void UndockingBehavior::command_s1() {}
+void UndockingBehavior::command_s1() {
+}
 
-void UndockingBehavior::command_s2() {}
+void UndockingBehavior::command_s2() {
+}
 
-bool UndockingBehavior::redirect_joystick() { return false; }
+bool UndockingBehavior::redirect_joystick() {
+  return false;
+}
 
-uint8_t UndockingBehavior::get_sub_state() { return 2; }
+uint8_t UndockingBehavior::get_sub_state() {
+  return 2;
+}
 uint8_t UndockingBehavior::get_state() {
   return mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_AUTONOMOUS;
 }
 
-void UndockingBehavior::handle_action(std::string action) {}
+void UndockingBehavior::handle_action(std::string action) {
+}

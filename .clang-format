@@ -1,0 +1,4 @@
+BasedOnStyle: Google
+ColumnLimit: 120
+AllowShortFunctionsOnASingleLine: None
+AllowShortCaseLabelsOnASingleLine: true

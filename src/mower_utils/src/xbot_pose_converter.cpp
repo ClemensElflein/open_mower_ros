@@ -37,8 +37,7 @@ int main(int argc, char **argv) {
 
   ROS_INFO_STREAM("Converting " << topic << " to " << target_topic);
 
-  pose_pub = paramNh.advertise<geometry_msgs::PoseWithCovarianceStamped>(
-      target_topic, 10, false);
+  pose_pub = paramNh.advertise<geometry_msgs::PoseWithCovarianceStamped>(target_topic, 10, false);
 
   ros::Subscriber s = n.subscribe(topic, 0, pose_received);
 

@@ -28,8 +28,7 @@ static ros::ServiceClient perimeterClient;
 static mower_msgs::Perimeter lastPerimeter;
 static int perimeterUpdated = 0;
 static int direction;  // 1 if we approach counter clockwise, -1 for clockwise
-/* Sensitivty of the coils, sign makes calibration*rawSignal positive inside the
- * perimeter */
+/* Sensitivty of the coils, sign makes calibration*rawSignal positive inside the perimeter */
 static double calibrationLeft, calibrationRight, maxCenter;
 static int signCenter;
 
@@ -65,21 +64,20 @@ static int isPerimeterUpdated() {
 }
 
 static float innerSignal() {
-  return direction > 0 ? lastPerimeter.left * calibrationLeft
-                       : lastPerimeter.right * calibrationRight;
+  return direction > 0 ? lastPerimeter.left * calibrationLeft : lastPerimeter.right * calibrationRight;
 }
 
 static float outerSignal() {
-  return direction > 0 ? lastPerimeter.right * calibrationRight
-                       : lastPerimeter.left * calibrationLeft;
+  return direction > 0 ? lastPerimeter.right * calibrationRight : lastPerimeter.left * calibrationLeft;
 }
 
-int PerimeterSearchBehavior::configured(
-    const mower_logic::MowerLogicConfig& config) {
+int PerimeterSearchBehavior::configured(const mower_logic::MowerLogicConfig& config) {
   return config.perimeter_signal != 0;
 }
 
-std::string PerimeterSearchBehavior::state_name() { return "DOCKING"; }
+std::string PerimeterSearchBehavior::state_name() {
+  return "DOCKING";
+}
 
 Behavior* PerimeterSearchBehavior::execute() {
   if (!setupConnections()) return shutdownConnections();
@@ -139,12 +137,13 @@ Behavior* PerimeterSearchBehavior::execute() {
   return &PerimeterDockingBehavior::INSTANCE;
 }
 
-int PerimeterUndockingBehavior::configured(
-    const mower_logic::MowerLogicConfig& config) {
+int PerimeterUndockingBehavior::configured(const mower_logic::MowerLogicConfig& config) {
   return config.perimeter_signal != 0 && config.undock_distance > 1.0;
 }
 
-std::string PerimeterUndockingBehavior::state_name() { return "UNDOCKING"; }
+std::string PerimeterUndockingBehavior::state_name() {
+  return "UNDOCKING";
+}
 
 Behavior* PerimeterUndockingBehavior::execute() {
   if (!setupConnections()) return shutdownConnections();
@@ -217,7 +216,9 @@ Behavior* PerimeterUndockingBehavior::execute() {
   return &PerimeterMoveToGpsBehavior::INSTANCE;
 }
 
-std::string PerimeterDockingBehavior::state_name() { return "DOCKING"; }
+std::string PerimeterDockingBehavior::state_name() {
+  return "DOCKING";
+}
 
 Behavior* PerimeterDockingBehavior::arrived() {
   if (travelled > config.docking_distance) {
@@ -246,8 +247,7 @@ Behavior* PerimeterFollowBehavior::execute() {
   int tries = 0;
   perimeterUpdated = 1;  // Use first measurement
   Behavior* toReturn;
-  double drift =
-      0;  // The angular velocity of the mower, if we want to go strait on.
+  double drift = 0;            // The angular velocity of the mower, if we want to go strait on.
   double averageInterval = 5;  // Average five seconds.
   while (ros::ok() && !(toReturn = arrived())) {
     if (!isPerimeterUpdated()) {
@@ -295,14 +295,12 @@ Behavior* PerimeterFollowBehavior::execute() {
         tries = 0;
       } else {
         if (travelTimeSinceUpdate > 0) {
-          double d0 = -vel.angular.z +
-                      (alpha0 - lastAlpha0) / travelTimeSinceUpdate; /* rad/s */
+          double d0 = -vel.angular.z + (alpha0 - lastAlpha0) / travelTimeSinceUpdate; /* rad/s */
           double f = exp(-travelTimeSinceUpdate / averageInterval);
           drift = drift * f + d0 * (1 - f);
         }
       }
-      vel.angular.z = drift + alpha0 / 2;  // Correct deflection within 2
-                                           // seconds
+      vel.angular.z = drift + alpha0 / 2;  // Correct deflection within 2 seconds
       if (vel.angular.z > ANGULAR_SPEED)
         vel.angular.z = ANGULAR_SPEED;
       else if (vel.angular.z < -ANGULAR_SPEED)
@@ -319,45 +317,58 @@ Behavior* PerimeterFollowBehavior::execute() {
   return toReturn;
 }
 
-void PerimeterBase::enter() { paused = aborted = false; }
+void PerimeterBase::enter() {
+  paused = aborted = false;
+}
 
-void PerimeterBase::exit() {}
+void PerimeterBase::exit() {
+}
 
-void PerimeterBase::reset() {}
+void PerimeterBase::reset() {
+}
 
-uint8_t PerimeterBase::get_sub_state() { return 1; }
+uint8_t PerimeterBase::get_sub_state() {
+  return 1;
+}
 
 uint8_t PerimeterBase::get_state() {
   return mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_AUTONOMOUS;
 }
 
-bool PerimeterBase::needs_gps() { return false; }
+bool PerimeterBase::needs_gps() {
+  return false;
+}
 
 bool PerimeterBase::mower_enabled() {
   // No mower during docking
   return false;
 }
 
-void PerimeterBase::command_home() {}
+void PerimeterBase::command_home() {
+}
 
-void PerimeterBase::command_start() {}
+void PerimeterBase::command_start() {
+}
 
-void PerimeterBase::command_s1() {}
+void PerimeterBase::command_s1() {
+}
 
-void PerimeterBase::command_s2() {}
+void PerimeterBase::command_s2() {
+}
 
-bool PerimeterBase::redirect_joystick() { return false; }
+bool PerimeterBase::redirect_joystick() {
+  return false;
+}
 
-void PerimeterBase::handle_action(std::string action) {}
+void PerimeterBase::handle_action(std::string action) {
+}
 
 /**
  * @return success
  */
 int PerimeterBase::setupConnections() {
-  perimeterSubscriber = n->subscribe("/mower/perimeter", 0, perimeterReceived,
-                                     ros::TransportHints().tcpNoDelay(true));
-  perimeterClient = n->serviceClient<mower_msgs::PerimeterControlSrv>(
-      "/mower_service/perimeter_listen");
+  perimeterSubscriber = n->subscribe("/mower/perimeter", 0, perimeterReceived, ros::TransportHints().tcpNoDelay(true));
+  perimeterClient = n->serviceClient<mower_msgs::PerimeterControlSrv>("/mower_service/perimeter_listen");
   mower_msgs::PerimeterControlSrv p;
   direction = config.perimeter_signal > 0 ? 1 : -1;
   p.request.listenOn = direction * config.perimeter_signal;
@@ -369,11 +380,14 @@ int PerimeterBase::setupConnections() {
   return 0;
 }
 
-void PerimeterMoveToGpsBehavior::enter() { setGPS(true); }
+void PerimeterMoveToGpsBehavior::enter() {
+  setGPS(true);
+}
 
-std::string PerimeterMoveToGpsBehavior::state_name() { return "UNDOCKING"; }
+std::string PerimeterMoveToGpsBehavior::state_name() {
+  return "UNDOCKING";
+}
 
 Behavior* PerimeterMoveToGpsBehavior::arrived() {
-  return travelled >= config.undock_distance - 0.9 ? &MowingBehavior::INSTANCE
-                                                   : NULL;
+  return travelled >= config.undock_distance - 0.9 ? &MowingBehavior::INSTANCE : NULL;
 }

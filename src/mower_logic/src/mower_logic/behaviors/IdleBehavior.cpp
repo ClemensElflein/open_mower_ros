@@ -1,12 +1,10 @@
 // Created by Clemens Elflein on 2/21/22.
 // Copyright (c) 2022 Clemens Elflein. All rights reserved.
 //
-// This work is licensed under a Creative Commons
-// Attribution-NonCommercial-ShareAlike 4.0 International License.
+// This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License.
 //
-// Feel free to use the design in your private/educational projects, but don't
-// try to sell the design or products based on it without getting my consent
-// first.
+// Feel free to use the design in your private/educational projects, but don't try to sell the design or products based
+// on it without getting my consent first.
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -26,14 +24,12 @@ extern void stopBlade();
 extern void setEmergencyMode(bool emergency);
 extern void setGPS(bool enabled);
 extern void setRobotPose(geometry_msgs::Pose &pose);
-extern void registerActions(std::string prefix,
-                            const std::vector<xbot_msgs::ActionInfo> &actions);
+extern void registerActions(std::string prefix, const std::vector<xbot_msgs::ActionInfo> &actions);
 
 extern ros::ServiceClient dockingPointClient;
 extern mower_msgs::Status getStatus();
 extern mower_logic::MowerLogicConfig getConfig();
-extern dynamic_reconfigure::Server<mower_logic::MowerLogicConfig>
-    *reconfigServer;
+extern dynamic_reconfigure::Server<mower_logic::MowerLogicConfig> *reconfigServer;
 
 extern ros::ServiceClient mapClient;
 extern ros::ServiceClient dockingPointClient;
@@ -41,11 +37,12 @@ extern ros::ServiceClient dockingPointClient;
 IdleBehavior IdleBehavior::INSTANCE(false);
 IdleBehavior IdleBehavior::DOCKED_INSTANCE(true);
 
-std::string IdleBehavior::state_name() { return "IDLE"; }
+std::string IdleBehavior::state_name() {
+  return "IDLE";
+}
 
 Behavior *IdleBehavior::execute() {
-  // Check, if we have a configured map. If not, print info and go to area
-  // recorder
+  // Check, if we have a configured map. If not, print info and go to area recorder
   mower_map::GetMowingAreaSrv mapSrv;
   mapSrv.request.index = 0;
   if (!mapClient.call(mapSrv)) {
@@ -53,12 +50,10 @@ Behavior *IdleBehavior::execute() {
     return &AreaRecordingBehavior::INSTANCE;
   }
 
-  // Check, if we have a docking position. If not, print info and go to area
-  // recorder
+  // Check, if we have a docking position. If not, print info and go to area recorder
   mower_map::GetDockingPointSrv get_docking_point_srv;
   if (!dockingPointClient.call(get_docking_point_srv)) {
-    ROS_WARN(
-        "We don't have a docking point configured. Starting Area Recorder!");
+    ROS_WARN("We don't have a docking point configured. Starting Area Recorder!");
     return &AreaRecordingBehavior::INSTANCE;
   }
 
@@ -76,25 +71,18 @@ Behavior *IdleBehavior::execute() {
     const auto last_status = getStatus();
 
     const bool automatic_mode = last_config.automatic_mode == eAutoMode::AUTO;
-    const bool active_semiautomatic_task =
-        last_config.automatic_mode == eAutoMode::SEMIAUTO &&
-        shared_state->active_semiautomatic_task &&
-        !shared_state->semiautomatic_task_paused;
-    const bool mower_ready =
-        last_status.v_battery > last_config.battery_full_voltage &&
-        last_status.mow_esc_status.temperature_motor <
-            last_config.motor_cold_temperature &&
-        !last_config.manual_pause_mowing;
+    const bool active_semiautomatic_task = last_config.automatic_mode == eAutoMode::SEMIAUTO &&
+                                           shared_state->active_semiautomatic_task &&
+                                           !shared_state->semiautomatic_task_paused;
+    const bool mower_ready = last_status.v_battery > last_config.battery_full_voltage &&
+                             last_status.mow_esc_status.temperature_motor < last_config.motor_cold_temperature &&
+                             !last_config.manual_pause_mowing;
 
-    if (manual_start_mowing ||
-        ((automatic_mode || active_semiautomatic_task) && mower_ready)) {
+    if (manual_start_mowing || ((automatic_mode || active_semiautomatic_task) && mower_ready)) {
       // set the robot's position to the dock if we're actually docked
       if (last_status.v_charge > 5.0) {
-        if (PerimeterUndockingBehavior::configured(config))
-          return &PerimeterUndockingBehavior::INSTANCE;
-        ROS_INFO_STREAM(
-            "Currently inside the docking station, we set the robot's pose to "
-            "the docks pose.");
+        if (PerimeterUndockingBehavior::configured(config)) return &PerimeterUndockingBehavior::INSTANCE;
+        ROS_INFO_STREAM("Currently inside the docking station, we set the robot's pose to the docks pose.");
         setRobotPose(docking_pose_stamped.pose);
         return &UndockingBehavior::INSTANCE;
       }
@@ -112,11 +100,8 @@ Behavior *IdleBehavior::execute() {
       return &IdleBehavior::INSTANCE;
     }
 
-    if (last_config.docking_redock && stay_docked &&
-        last_status.v_charge < 5.0) {
-      ROS_WARN(
-          "We docked but seem to have lost contact with the charger.  "
-          "Undocking and trying again!");
+    if (last_config.docking_redock && stay_docked && last_status.v_charge < 5.0) {
+      ROS_WARN("We docked but seem to have lost contact with the charger.  Undocking and trying again!");
       return &UndockingBehavior::RETRY_INSTANCE;
     }
 
@@ -147,11 +132,16 @@ void IdleBehavior::exit() {
   registerActions("mower_logic:idle", actions);
 }
 
-void IdleBehavior::reset() {}
+void IdleBehavior::reset() {
+}
 
-bool IdleBehavior::needs_gps() { return false; }
+bool IdleBehavior::needs_gps() {
+  return false;
+}
 
-bool IdleBehavior::mower_enabled() { return false; }
+bool IdleBehavior::mower_enabled() {
+  return false;
+}
 
 void IdleBehavior::command_home() {
   // IdleBehavior == docked, don't do anything.
@@ -163,13 +153,20 @@ void IdleBehavior::command_start() {
   manual_start_mowing = true;
 }
 
-void IdleBehavior::command_s1() { start_area_recorder = true; }
+void IdleBehavior::command_s1() {
+  start_area_recorder = true;
+}
 
-void IdleBehavior::command_s2() {}
+void IdleBehavior::command_s2() {
+}
 
-bool IdleBehavior::redirect_joystick() { return false; }
+bool IdleBehavior::redirect_joystick() {
+  return false;
+}
 
-uint8_t IdleBehavior::get_sub_state() { return 0; }
+uint8_t IdleBehavior::get_sub_state() {
+  return 0;
+}
 uint8_t IdleBehavior::get_state() {
   return mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_IDLE;
 }
