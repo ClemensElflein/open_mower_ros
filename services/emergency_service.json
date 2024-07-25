@@ -1,23 +1,23 @@
 {
-  "type": "EchoService",
+  "type": "EmergencyService",
   "version": 1,
   "inputs": [
     {
       "id": 0,
       "name": "Set Emergency",
-      "type": "bool"
+      "type": "uint8_t"
     }
   ],
   "outputs": [
     {
       "id": 0,
       "name": "Emergency Active",
-      "type": "bool"
+      "type": "uint8_t"
     },
     {
       "id": 1,
       "name": "Emergency Latch",
-      "type": "bool"
+      "type": "uint8_t"
     },
     {
       "id": 2,
@@ -25,6 +25,5 @@
       "type": "char[255]"
     }
   ],
-  "registers": [
-  ]
+  "registers": []
 }

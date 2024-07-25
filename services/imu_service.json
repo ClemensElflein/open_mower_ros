@@ -1,0 +1,13 @@
+{
+  "type": "IMUService",
+  "version": 1,
+  "inputs": [],
+  "outputs": [
+    {
+      "id": 0,
+      "name": "Axes",
+      "type": "double[9]"
+    }
+  ],
+  "registers": []
+}
