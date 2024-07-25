@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(mower_comms)
+project(mower_comms_v1)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
@@ -21,6 +21,9 @@ find_package(catkin REQUIRED COMPONENTS
 find_package(
         Boost
 )
+
+add_service(EmergencyService ${CMAKE_CURRENT_SOURCE_DIR}/../../services/emergency_service.json)
+add_service(DiffDriveService ${CMAKE_CURRENT_SOURCE_DIR}/../../services/diff_drive_service.json)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -113,7 +116,7 @@ find_package(
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
 #  INCLUDE_DIRS include
-#  LIBRARIES mower_comms
+#  LIBRARIES mower_comms_v1
 #  CATKIN_DEPENDS mower_msgs roscpp serial
 #  DEPENDS system_lib
 )
@@ -131,7 +134,7 @@ include_directories(
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
-#   src/${PROJECT_NAME}/mower_comms.cpp
+#   src/${PROJECT_NAME}/mower_comms_v1.cpp
 # )
 
 ## Add cmake target dependencies of the library
@@ -142,7 +145,7 @@ include_directories(
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-# add_executable(${PROJECT_NAME}_node src/mower_comms_node.cpp)
+# add_executable(${PROJECT_NAME}_node src/mower_comms_v1_node.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -159,14 +162,17 @@ include_directories(
 #   ${catkin_LIBRARIES}
 # )
 
-add_executable(mower_comms
+add_executable(mower_comms_v1
         src/mower_comms.cpp
         src/COBS.h
         src/ll_datatypes.h
         )
 
-add_dependencies(mower_comms ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
-target_link_libraries(mower_comms ${catkin_LIBRARIES})
+add_dependencies(mower_comms_v1 ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
+target_link_libraries(mower_comms_v1 ${catkin_LIBRARIES}
+        EmergencyService
+        DiffDriveService
+)
 
 #############
 ## Install ##
