@@ -17,6 +17,7 @@
 //
 //
 #include <geometry_msgs/Twist.h>
+#include <mower_msgs/Emergency.h>
 #include <mower_msgs/Status.h>
 #include <sensor_msgs/Joy.h>
 #include <serial/serial.h>
@@ -41,6 +42,7 @@
 #include "std_msgs/Empty.h"
 
 ros::Publisher status_pub;
+ros::Publisher emergency_pub;
 ros::Publisher wheel_tick_pub;
 
 ros::Publisher sensor_imu_pub;
@@ -52,6 +54,8 @@ COBS cobs;
 bool emergency_high_level = false;
 // True, if the LL board thinks there should be an emergency
 bool emergency_low_level = false;
+// Bits are set showing which emergency is active
+uint8_t active_low_level_emergency = 0;
 
 // True, if the LL emergency should be cleared in the next request
 bool ll_clear_emergency = false;
@@ -184,12 +188,9 @@ void publishStatus() {
   status_msg.ui_board_available = (last_ll_status.status_bitmask & 0b10000000) != 0;
   status_msg.mow_enabled = !(target_speed_mow == 0);
 
-  for (uint8_t i = 0; i < 5; i++) {
-    status_msg.ultrasonic_ranges[i] = last_ll_status.uss_ranges_m[i];
-  }
-
   // overwrite emergency with the LL value.
   emergency_low_level = last_ll_status.emergency_bitmask > 0;
+  active_low_level_emergency = last_ll_status.emergency_bitmask & 0xFE;
   if (!emergency_low_level) {
     // it obviously worked, reset the request
     ll_clear_emergency = false;
@@ -198,7 +199,12 @@ void publishStatus() {
   }
 
   // True, if high or low level emergency condition is present
-  status_msg.emergency = is_emergency();
+  mower_msgs::Emergency emergency_msg{};
+  emergency_msg.stamp = status_msg.stamp;
+  emergency_msg.active_emergency = active_low_level_emergency > 0;
+  emergency_msg.latched_emergency = is_emergency();
+  emergency_msg.reason = "";
+  emergency_pub.publish(emergency_msg);
 
   status_msg.v_battery = last_ll_status.v_system;
   status_msg.v_charge = last_ll_status.v_charge;
@@ -475,6 +481,7 @@ int main(int argc, char **argv) {
   right_xesc_interface = new xesc_driver::XescDriver(n, rightParamNh);
 
   status_pub = n.advertise<mower_msgs::Status>("mower/status", 1);
+  emergency_pub = n.advertise<mower_msgs::Emergency>("mower/emergency", 1);
   wheel_tick_pub = n.advertise<xbot_msgs::WheelTick>("mower/wheel_ticks", 1);
 
   sensor_imu_pub = n.advertise<sensor_msgs::Imu>("imu/data_raw", 1);

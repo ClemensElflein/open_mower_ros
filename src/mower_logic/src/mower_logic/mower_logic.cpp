@@ -20,6 +20,7 @@
 
 #include <actionlib/client/simple_action_client.h>
 #include <dynamic_reconfigure/server.h>
+#include <mower_msgs/Emergency.h>
 #include <tf2/LinearMath/Transform.h>
 
 #include <atomic>
@@ -75,6 +76,7 @@ ros::Time pose_time(0.0);
 xbot_msgs::AbsolutePose last_pose;
 ros::Time status_time(0.0);
 mower_msgs::Status last_status;
+mower_msgs::Emergency last_emergency;
 
 ros::Time last_good_gps(0.0);
 
@@ -111,6 +113,11 @@ ros::Time getLastGoodGPS() {
 void setLastGoodGPS(ros::Time time) {
   std::lock_guard<std::recursive_mutex> lk{mower_logic_mutex};
   last_good_gps = time;
+}
+
+mower_msgs::Emergency getEmergency() {
+  std::lock_guard<std::recursive_mutex> lk{mower_logic_mutex};
+  return last_emergency;
 }
 
 mower_msgs::Status getStatus() {
@@ -190,6 +197,11 @@ void poseReceived(const xbot_msgs::AbsolutePose::ConstPtr &msg) {
   ROS_INFO("om_mower_logic: pose received with accuracy %f", last_pose.position_accuracy);
 #endif
   pose_time = ros::Time::now();
+}
+
+void emergencyReceived(const mower_msgs::Emergency &msg) {
+  std::lock_guard<std::recursive_mutex> lk{mower_logic_mutex};
+  last_emergency = msg;
 }
 
 void statusReceived(const mower_msgs::Status::ConstPtr &msg) {
@@ -397,13 +409,14 @@ bool isGpsGood() {
 /// @param timer_event
 void checkSafety(const ros::TimerEvent &timer_event) {
   const auto last_status = getStatus();
+  const auto last_emergency = getEmergency();
   const auto last_config = getConfig();
   const auto last_pose = getPose();
   const auto pose_time = getPoseTime();
   const auto status_time = getStatusTime();
   const auto last_good_gps = getLastGoodGPS();
 
-  high_level_status.emergency = last_status.emergency;
+  high_level_status.emergency = last_emergency.latched_emergency;
   high_level_status.is_charging = last_status.v_charge > 10.0;
 
   // Initialize to true, if after all checks it is still true then mower should be enabled.
@@ -411,7 +424,7 @@ void checkSafety(const ros::TimerEvent &timer_event) {
 
   // send to idle if emergency and we're not recording
   if (currentBehavior != nullptr) {
-    if (last_status.emergency) {
+    if (last_emergency.latched_emergency) {
       currentBehavior->requestPause(pauseType::PAUSE_EMERGENCY);
       if (currentBehavior == &AreaRecordingBehavior::INSTANCE || currentBehavior == &IdleBehavior::INSTANCE ||
           currentBehavior == &IdleBehavior::DOCKED_INSTANCE) {
@@ -666,6 +679,8 @@ int main(int argc, char **argv) {
   mbfClientExePath = new actionlib::SimpleActionClient<mbf_msgs::ExePathAction>("/move_base_flex/exe_path");
 
   ros::Subscriber status_sub = n->subscribe("/mower/status", 0, statusReceived, ros::TransportHints().tcpNoDelay(true));
+  ros::Subscriber emergency_sub =
+      n->subscribe("/mower/emergency", 0, emergencyReceived, ros::TransportHints().tcpNoDelay(true));
   ros::Subscriber pose_sub =
       n->subscribe("/xbot_positioning/xb_pose", 0, poseReceived, ros::TransportHints().tcpNoDelay(true));
   ros::Subscriber joy_cmd = n->subscribe("/joy_vel", 0, joyVelReceived, ros::TransportHints().tcpNoDelay(true));
@@ -803,7 +818,7 @@ int main(int argc, char **argv) {
   while ((ros::Time::now() - started).toSec() < 10.0) {
     ROS_INFO_STREAM("Waiting for an emergency status message");
     r.sleep();
-    if (last_status.emergency) {
+    if (last_emergency.latched_emergency) {
       ROS_INFO_STREAM("Got emergency, resetting it");
       setEmergencyMode(false);
       break;

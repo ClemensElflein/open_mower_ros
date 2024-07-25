@@ -13,6 +13,7 @@ add_message_files(
         ESCStatus.msg
         HighLevelStatus.msg
         Perimeter.msg
+		Emergency.msg
 )
 
 add_service_files(
