@@ -1,19 +1,50 @@
 {
+  "type": "DiffDriveService",
+  "version": 1,
   "inputs": [
     {
       "id": 0,
-      "name": "Twist",
+      "name": "Control Twist",
       "type": "double[6]"
     }
   ],
   "outputs": [
     {
       "id": 0,
-      "name": "TwistOut",
+      "name": "Actual Twist",
       "type": "double[6]"
+    },
+    {
+      "id": 1,
+      "name": "Left ESC Temperature",
+      "type": "float"
+    },
+    {
+      "id": 2,
+      "name": "Left ESC Current",
+      "type": "float"
+    },
+    {
+      "id": 3,
+      "name": "Right ESC Temperature",
+      "type": "float"
+    },
+    {
+      "id": 4,
+      "name": "Right ESC Current",
+      "type": "float"
     }
   ],
-  "registers": [],
-  "type": "DiffDriveService",
-  "version": 1
+  "registers": [
+    {
+      "id": 0,
+      "name": "Wheel Ticks Per Meter",
+      "type": "double"
+    },
+    {
+      "id": 1,
+      "name": "Wheel Distance",
+      "type": "double"
+    }
+  ]
 }

@@ -8,15 +8,15 @@ project(mower_comms_v2)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-  mower_msgs
+        mower_msgs
         sensor_msgs
-  roscpp
-  serial
+        roscpp
+        serial
         xesc_driver
         xesc_msgs
         xesc_interface
         xbot_msgs
-#        xbot_framework
+        #        xbot_framework
 )
 
 find_package(
@@ -114,10 +114,10 @@ find_package(
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
-#  LIBRARIES mower_comms_v2
-#  CATKIN_DEPENDS mower_msgs roscpp serial
-#  DEPENDS system_lib
+        #  INCLUDE_DIRS include
+        #  LIBRARIES mower_comms_v2
+        #  CATKIN_DEPENDS mower_msgs roscpp serial
+        #  DEPENDS system_lib
 )
 
 ###########
@@ -127,8 +127,8 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-# include
-  ${catkin_INCLUDE_DIRS}
+        # include
+        ${catkin_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library
@@ -165,11 +165,18 @@ add_executable(mower_comms_v2
         src/mower_comms.cpp
         src/EmergencyServiceInterface.cpp
         src/EmergencyServiceInterface.h
+        src/DiffDriveServiceInterface.cpp
+        src/DiffDriveServiceInterface.h
+        src/MowerServiceInterface.cpp
+        src/MowerServiceInterface.h
+        src/ImuServiceInterface.cpp
+        src/ImuServiceInterface.h
 )
 
-target_add_service_interface(mower_comms_v2 IMUServiceInterface ${CMAKE_CURRENT_SOURCE_DIR}/../../services/imu_service.json)
+target_add_service_interface(mower_comms_v2 ImuServiceInterface ${CMAKE_CURRENT_SOURCE_DIR}/../../services/imu_service.json)
 target_add_service_interface(mower_comms_v2 EmergencyServiceInterface ${CMAKE_CURRENT_SOURCE_DIR}/../../services/emergency_service.json)
 target_add_service_interface(mower_comms_v2 DiffDriveServiceInterface ${CMAKE_CURRENT_SOURCE_DIR}/../../services/diff_drive_service.json)
+target_add_service_interface(mower_comms_v2 MowerServiceInterface ${CMAKE_CURRENT_SOURCE_DIR}/../../services/mower_service.json)
 
 
 add_dependencies(mower_comms_v2 ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})

@@ -9,14 +9,39 @@
 
 #include <EmergencyServiceInterfaceBase.hpp>
 
+namespace sc = std::chrono;
+
 class EmergencyServiceInterface : public EmergencyServiceInterfaceBase {
  public:
-  EmergencyServiceInterface(const ros::NodeHandle &nh, uint16_t service_id, const xbot::serviceif::Context &ctx)
-      : EmergencyServiceInterfaceBase(service_id, ctx), nh(nh) {
+  EmergencyServiceInterface(uint16_t service_id, const xbot::serviceif::Context& ctx, const ros::Publisher& publisher)
+      : EmergencyServiceInterfaceBase(service_id, ctx), publisher(publisher) {
   }
 
+  bool SetEmergency(bool new_value);
+
+ protected:
+  bool OnConfigurationRequested(const std::string& uid) override;
+  void OnEmergencyActiveChanged(const uint8_t& new_value) override;
+  void OnEmergencyLatchChanged(const uint8_t& new_value) override;
+  void OnEmergencyReasonChanged(const char* new_value, uint32_t length) override;
+
  private:
-  const ros::NodeHandle &nh;
+  void OnServiceConnected(const std::string& uid) override;
+  void OnTransactionStart(uint64_t timestamp) override;
+  void OnTransactionEnd() override;
+  void OnServiceDisconnected(const std::string& uid) override;
+
+  void PublishEmergencyState();
+
+  std::recursive_mutex state_mutex_{};
+
+  const ros::Publisher& publisher;
+
+  // keep track of high level emergency
+  bool latched_emergency_ = true;
+  bool active_low_level_emergency_ = true;
+  bool active_high_level_emergency_ = true;
+  std::string latest_emergency_reason_ = "NONE";
 };
 
 #endif  // EMERGENCYSERVICEINTERFACE_H

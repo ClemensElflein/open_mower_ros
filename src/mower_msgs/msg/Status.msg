@@ -20,6 +20,7 @@ float32 charge_current
 bool mow_enabled
 
 # ESC stuff
-ESCStatus left_esc_status
-ESCStatus right_esc_status
-ESCStatus mow_esc_status
+float32 mower_esc_temperature
+float32 mower_esc_current
+float32 mower_motor_temperature
+float32 mower_motor_rpm
