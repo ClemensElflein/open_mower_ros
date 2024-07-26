@@ -128,20 +128,28 @@ namespace ftc_local_planner
             return 0;
         }
         Eigen::Quaternion<double> current_rot(current_control_point.linear());
-
+        double lookahead_distance = 0.0;
         Eigen::Affine3d last_straight_point = current_control_point;
+        Eigen::Affine3d current_point;
         for (uint32_t i = current_index + 1; i < global_plan.size(); i++)
         {
-            tf2::fromMsg(global_plan[i].pose, last_straight_point);
+            tf2::fromMsg(global_plan[i].pose, current_point);
+
             // check, if direction is the same. if so, we add the distance
-            Eigen::Quaternion<double> rot2(last_straight_point.linear());
-            if (abs(rot2.angularDistance(current_rot)) > config.speed_fast_threshold_angle * (M_PI / 180.0))
+            Eigen::Quaternion<double> rot2(current_point.linear());
+
+            if (lookahead_distance > config.speed_fast_threshold ||
+                abs(rot2.angularDistance(current_rot)) > config.speed_fast_threshold_angle * (M_PI / 180.0))
             {
                 break;
             }
+
+            lookahead_distance += (current_point.translation() - last_straight_point.translation()).norm();
+            last_straight_point = current_point;
+
         }
 
-        return (last_straight_point.translation() - current_control_point.translation()).norm();
+        return lookahead_distance;
     }
 
     uint32_t FTCPlanner::computeVelocityCommands(const geometry_msgs::PoseStamped &pose,
