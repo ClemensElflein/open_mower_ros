@@ -16,6 +16,7 @@
 // #define VERBOSE_DEBUG   1
 
 #include <actionlib/client/simple_action_client.h>
+#include <actionlib/server/simple_action_server.h>
 #include <dynamic_reconfigure/server.h>
 #include <mower_logic/PowerConfig.h>
 #include <mower_msgs/ESCStatus.h>
@@ -44,10 +45,10 @@
 #include "mower_msgs/EmergencyStopSrv.h"
 #include "mower_msgs/HighLevelControlSrv.h"
 #include "mower_msgs/HighLevelStatus.h"
+#include "mower_msgs/MowPathsAction.h"
 #include "mower_msgs/MowerControlSrv.h"
 #include "mower_msgs/Status.h"
 #include "ros/ros.h"
-#include "slic3r_coverage_planner/PlanPath.h"
 #include "std_msgs/String.h"
 #include "xbot_msgs/AbsolutePose.h"
 #include "xbot_msgs/ActionRequest.h"
@@ -56,7 +57,7 @@
 #include "xbot_positioning/GPSControlSrv.h"
 #include "xbot_positioning/SetPoseSrv.h"
 
-ros::ServiceClient pathClient, mapClient, dockingPointClient, gpsClient, mowClient, emergencyClient, pathProgressClient,
+ros::ServiceClient mapClient, dockingPointClient, gpsClient, mowClient, emergencyClient, pathProgressClient,
     setNavPointClient, clearNavPointClient, clearMapClient, positioningClient, actionRegistrationClient;
 
 ros::NodeHandle *n;
@@ -95,6 +96,12 @@ double max_v_battery_seen = 0.0;
 ros::Time last_rain_check;
 bool rain_detected = true;
 ros::Time rain_resume;
+
+actionlib::SimpleActionServer<mower_msgs::MowPathsAction> *mowPathsServer;
+std::vector<slic3r_coverage_planner::Path> currentMowingPaths;
+int currentMowingPath = 0;
+int currentMowingPathIndex = 0;
+bool expectMoreGoals = false;
 
 /**
  * Some thread safe methods to get a copy of the logic state
@@ -647,6 +654,30 @@ void buildRootActions() {
   rootActions.push_back(reset_emergency_action);
 }
 
+void acceptGoal() {
+  auto goal = mowPathsServer->acceptNewGoal();
+  if (mowPathsServer->isPreemptRequested()) {
+    mowPathsServer->setPreempted();
+  } else {
+    currentMowingPaths = goal->paths;
+    currentMowingPath = goal->start_path;
+    currentMowingPathIndex = goal->start_point;
+    expectMoreGoals = goal->expect_more_goals;
+  }
+}
+
+void cancelGoal() {
+  mowPathsServer->setPreempted();
+  currentMowingPaths.clear();
+  currentMowingPath = 0;
+  currentMowingPathIndex = 0;
+}
+
+void preemptReceived() {
+  abortExecution();
+  // The preempt request is acknowledged once we have reached idle state again.
+}
+
 int main(int argc, char **argv) {
   buildRootActions();
 
@@ -669,7 +700,6 @@ int main(int argc, char **argv) {
 
   high_level_state_publisher = n->advertise<mower_msgs::HighLevelStatus>("mower_logic/current_state", 100, true);
 
-  pathClient = n->serviceClient<slic3r_coverage_planner::PlanPath>("slic3r_coverage_planner/plan_path");
   mapClient = n->serviceClient<mower_map::GetMowingAreaSrv>("mower_map_service/get_mowing_area");
   clearMapClient = n->serviceClient<mower_map::ClearMapSrv>("mower_map_service/clear_map");
 
@@ -690,6 +720,9 @@ int main(int argc, char **argv) {
 
   mbfClient = new actionlib::SimpleActionClient<mbf_msgs::MoveBaseAction>("/move_base_flex/move_base");
   mbfClientExePath = new actionlib::SimpleActionClient<mbf_msgs::ExePathAction>("/move_base_flex/exe_path");
+  mowPathsServer = new actionlib::SimpleActionServer<mower_msgs::MowPathsAction>(*n, "mower_logic/mow_paths", false);
+  mowPathsServer->registerPreemptCallback(&preemptReceived);
+  mowPathsServer->start();
 
   emergency_state_subscriber.Start(n);
   status_state_subscriber.Start(n);
@@ -736,6 +769,7 @@ int main(int argc, char **argv) {
       delete (reconfigServer);
       delete (mbfClient);
       delete (mbfClientExePath);
+      delete (mowPathsServer);
       return 1;
     }
     r.sleep();
@@ -767,6 +801,7 @@ int main(int argc, char **argv) {
       delete (reconfigServer);
       delete (mbfClient);
       delete (mbfClientExePath);
+      delete (mowPathsServer);
       return 1;
     }
     r.sleep();
@@ -778,25 +813,18 @@ int main(int argc, char **argv) {
     delete (reconfigServer);
     delete (mbfClient);
     delete (mbfClientExePath);
+    delete (mowPathsServer);
 
     return 1;
   }
 
-  ROS_INFO("Waiting for path server");
-  if (!pathClient.waitForExistence(ros::Duration(60.0, 0.0))) {
-    ROS_ERROR("Path service not found.");
-    delete (reconfigServer);
-    delete (mbfClient);
-    delete (mbfClientExePath);
-
-    return 1;
-  }
   ROS_INFO("Waiting for mower service");
   if (!mowClient.waitForExistence(ros::Duration(60.0, 0.0))) {
     ROS_ERROR("Mower service not found.");
     delete (reconfigServer);
     delete (mbfClient);
     delete (mbfClientExePath);
+    delete (mowPathsServer);
 
     return 1;
   }
@@ -807,6 +835,7 @@ int main(int argc, char **argv) {
     delete (reconfigServer);
     delete (mbfClient);
     delete (mbfClientExePath);
+    delete (mowPathsServer);
 
     return 1;
   }
@@ -816,6 +845,7 @@ int main(int argc, char **argv) {
     delete (reconfigServer);
     delete (mbfClient);
     delete (mbfClientExePath);
+    delete (mowPathsServer);
 
     return 1;
   }
@@ -826,6 +856,7 @@ int main(int argc, char **argv) {
     delete (reconfigServer);
     delete (mbfClient);
     delete (mbfClientExePath);
+    delete (mowPathsServer);
     return 2;
   }
   ROS_INFO("Waiting for docking point server");
@@ -834,6 +865,7 @@ int main(int argc, char **argv) {
     delete (reconfigServer);
     delete (mbfClient);
     delete (mbfClientExePath);
+    delete (mowPathsServer);
     return 2;
   }
   ROS_INFO("Waiting for nav point server");
@@ -842,6 +874,7 @@ int main(int argc, char **argv) {
     delete (reconfigServer);
     delete (mbfClient);
     delete (mbfClientExePath);
+    delete (mowPathsServer);
     return 2;
   }
   ROS_INFO("Waiting for clear nav point server");
@@ -850,6 +883,7 @@ int main(int argc, char **argv) {
     delete (reconfigServer);
     delete (mbfClient);
     delete (mbfClientExePath);
+    delete (mowPathsServer);
     return 2;
   }
 
@@ -859,6 +893,7 @@ int main(int argc, char **argv) {
     delete (reconfigServer);
     delete (mbfClient);
     delete (mbfClientExePath);
+    delete (mowPathsServer);
     return 3;
   }
 
@@ -868,6 +903,7 @@ int main(int argc, char **argv) {
     delete (reconfigServer);
     delete (mbfClient);
     delete (mbfClientExePath);
+    delete (mowPathsServer);
     return 3;
   }
 
@@ -896,7 +932,6 @@ int main(int argc, char **argv) {
 
   // initialise the shared state object to be passed into the behaviors
   auto shared_state = std::make_shared<sSharedState>();
-  shared_state->active_semiautomatic_task = false;
 
   // Behavior execution loop
   while (ros::ok()) {
@@ -922,5 +957,6 @@ int main(int argc, char **argv) {
   delete (reconfigServer);
   delete (mbfClient);
   delete (mbfClientExePath);
+  delete (mowPathsServer);
   return 0;
 }

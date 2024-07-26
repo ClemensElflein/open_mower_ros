@@ -94,7 +94,7 @@
         <param name="mower_logic/docking_redock" value="$(optenv OM_DOCKING_REDOCK False)"/>
         <param name="mower_logic/undock_distance" value="$(env OM_UNDOCK_DISTANCE)"/>
         <param name="mower_logic/perimeter_signal" value="$(optenv OM_PERIMETER_SIGNAL)"/>
-        <param name="mower_logic/tool_width" value="$(env OM_TOOL_WIDTH)"/>
+        <param name="tasklist/tool_width" value="$(env OM_TOOL_WIDTH)"/>
         <param name="mower_logic/enable_mower" value="$(env OM_ENABLE_MOWER)"/>
         <param name="ll/services/power/battery_empty_voltage" value="$(env OM_BATTERY_EMPTY_VOLTAGE)"/>
         <param
@@ -108,13 +108,13 @@
                value="$(optenv OM_CHARGE_CRITICAL_HIGH_VOLTAGE -1)"/>
         <param name="ll/services/power/charge_critical_high_current"
                value="$(optenv OM_CHARGE_CRITICAL_HIGH_CURRENT -1)"/>
-        <param name="mower_logic/outline_count" value="$(env OM_OUTLINE_COUNT)"/>
-        <param name="mower_logic/outline_overlap_count" value="$(optenv OM_OUTLINE_OVERLAP_COUNT 0)"/>
-        <param name="mower_logic/outline_offset" value="$(env OM_OUTLINE_OFFSET)"/>
-        <param name="mower_logic/mow_angle_offset" value="$(optenv OM_MOWING_ANGLE_OFFSET 0)"/>
-        <param name="mower_logic/mow_angle_offset_is_absolute"
+        <param name="tasklist/outline_count" value="$(env OM_OUTLINE_COUNT)"/>
+        <param name="tasklist/outline_overlap_count" value="$(optenv OM_OUTLINE_OVERLAP_COUNT 0)"/>
+        <param name="tasklist/outline_offset" value="$(env OM_OUTLINE_OFFSET)"/>
+        <param name="tasklist/mow_angle_offset" value="$(optenv OM_MOWING_ANGLE_OFFSET 0)"/>
+        <param name="tasklist/mow_angle_offset_is_absolute"
                value="$(optenv OM_MOWING_ANGLE_OFFSET_IS_ABSOLUTE False)"/>
-        <param name="mower_logic/mow_angle_increment" value="$(optenv OM_MOWING_ANGLE_INCREMENT 0)"/>
+        <param name="tasklist/mow_angle_increment" value="$(optenv OM_MOWING_ANGLE_INCREMENT 0)"/>
         <param name="mower_logic/motor_hot_temperature" value="$(env OM_MOWING_MOTOR_TEMP_HIGH)"/>
         <param name="mower_logic/motor_cold_temperature" value="$(env OM_MOWING_MOTOR_TEMP_LOW)"/>
         <param name="mower_logic/gps_wait_time" value="$(optenv OM_GPS_WAIT_TIME_SEC 10.0)"/>

@@ -28,20 +28,13 @@ class MowingBehavior : public Behavior {
 
   bool skip_area;
   bool skip_path;
-  bool create_mowing_plan(int area_index);
 
   bool execute_mowing_plan();
 
   // Progress
   bool mowerEnabled = false;
-  std::vector<slic3r_coverage_planner::Path> currentMowingPaths;
 
   ros::Time last_checkpoint;
-  int currentMowingPath;
-  int currentMowingArea;
-  int currentMowingPathIndex;
-  std::string currentMowingPlanDigest;
-  double currentMowingAngleIncrementSum;
 
  public:
   MowingBehavior();
@@ -85,10 +78,6 @@ class MowingBehavior : public Behavior {
   bool handle_action(const std::string &action, const std::string &payload, std::string &response) override;
 
   void update_actions();
-
-  void checkpoint();
-
-  bool restore_checkpoint();
 };
 
 #endif  // SRC_MOWINGBEHAVIOR_H

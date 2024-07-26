@@ -29,8 +29,7 @@ enum eAutoMode { MANUAL = 0, SEMIAUTO = 1, AUTO = 2 };
 enum pauseType { PAUSE_MANUAL = 0b1, PAUSE_EMERGENCY = 0b10 };
 
 struct sSharedState {
-  // True, if the semiautomatic task is still in progress
-  bool active_semiautomatic_task;
+  // TODO: Remove if nothing else uses this concept.
 };
 
 /**

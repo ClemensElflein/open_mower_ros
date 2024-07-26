@@ -12,6 +12,8 @@
 
   <build_depend>message_generation</build_depend>
   <build_depend>xesc_msgs</build_depend>
+  <build_depend>actionlib_msgs</build_depend>
+  <build_depend>slic3r_coverage_planner</build_depend>
 
   <buildtool_depend>catkin</buildtool_depend>
 
