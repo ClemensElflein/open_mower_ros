@@ -126,6 +126,10 @@ catkin_package(
         #  DEPENDS system_lib
 )
 
+# Fetch JSON
+FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.2/json.tar.xz)
+FetchContent_MakeAvailable(json)
+
 ###########
 ## Build ##
 ###########
@@ -193,7 +197,7 @@ target_link_libraries(monitoring ${catkin_LIBRARIES})
 
 add_executable(tasklist src/tasklist/tasklist.cpp)
 add_dependencies(tasklist ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
-target_link_libraries(tasklist ${catkin_LIBRARIES} ${CRYPTOPP_LIBRARIES})
+target_link_libraries(tasklist ${catkin_LIBRARIES} ${CRYPTOPP_LIBRARIES} nlohmann_json::nlohmann_json)
 
 
 #############

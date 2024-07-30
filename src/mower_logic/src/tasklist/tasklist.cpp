@@ -8,11 +8,15 @@
 #include <rosbag/view.h>
 #include <tf2/LinearMath/Vector3.h>
 
+#include <nlohmann/json.hpp>
+
 #include "mower_logic/CheckPoint.h"
 #include "mower_logic/TasklistConfig.h"
 #include "mower_map/GetMowingAreaSrv.h"
 #include "mower_msgs/MowPathsAction.h"
 #include "slic3r_coverage_planner/PlanPath.h"
+
+using json = nlohmann::json;
 
 ros::ServiceClient pathClient, mapClient;
 
@@ -21,18 +25,37 @@ actionlib::SimpleActionClient<mower_msgs::MowPathsAction> *mowPathsClient;
 dynamic_reconfigure::Server<mower_logic::TasklistConfig> *reconfigServer;
 mower_logic::TasklistConfig config;
 
-struct Task {
-  int area_index;
-  int start_path;
-  double angle_offset;
-  bool angle_offset_is_absolute;
-  // TODO: Add more settings.
+struct TaskConfig {
+  int outline_count;
+  int outline_overlap_count;
+  double outline_offset;
+
+  double angle;
+
+  bool skip_area_outline;
+  bool skip_obstacle_outline;
+  bool skip_fill;
 };
 
 double currentMowingAngleIncrementSum = 0;
 std::string currentMowingPlanDigest = "";
 
+template <typename T>
+T resolve_config_value(const char *key, const json &task, const json &area_config, const T fallback) {
+  auto it = task.find(key);
+  if (it != task.end()) {
+    return *it;
+  }
+  it = area_config.find(key);
+  if (it != area_config.end()) {
+    return *it;
+  }
+  return fallback;
+}
+
 double area_base_angle(const mower_map::MapArea &area) {
+  // TODO: Check global config (e.g. +90° for all areas).
+  // TODO: How about running this after recording and persisting it (allow to edit later)?
   auto points = area.area.points;
   if (points.size() >= 2) {
     tf2::Vector3 first(points[0].x, points[0].y, 0);
@@ -48,56 +71,92 @@ double area_base_angle(const mower_map::MapArea &area) {
   return 0;
 }
 
-mower_msgs::MowPathsGoalPtr create_mowing_plan(Task task) {
+TaskConfig determine_task_config(const json &task, const json &area_config, const mower_map::MapArea &area) {
+  TaskConfig tc;
+
+  tc.outline_count = resolve_config_value("outline_count", task, area_config, config.outline_count);
+  tc.outline_overlap_count =
+      resolve_config_value("outline_overlap_count", task, area_config, config.outline_overlap_count);
+  tc.outline_offset = resolve_config_value("outline_offset", task, area_config, config.outline_offset);
+
+  if (task.find("angle") != task.end()) {
+    tc.angle = (double)task["angle"] * (M_PI / 180.0);
+    if (!task.value("angle_is_absolute", false)) {
+      tc.angle += area_base_angle(area);
+    }
+  } else {
+    tc.angle = area_base_angle(area);
+  }
+  // TODO: Normalize angle.
+
+  tc.skip_area_outline = task.value("skip_area_outline", false);
+  tc.skip_obstacle_outline = task.value("skip_obstacle_outline", false);
+  tc.skip_fill = task.value("skip_fill", false);
+
+  return tc;
+}
+
+mower_msgs::MowPathsGoalPtr create_mowing_plan(const json &task) {
   mower_msgs::MowPathsGoalPtr goal(new mower_msgs::MowPathsGoal);
 
-  ROS_INFO_STREAM("MowingBehavior: Creating mowing plan for area: " << task.area_index);
+  const size_t area_index = task["area"];
+  ROS_INFO_STREAM("MowingBehavior: Creating mowing plan for area: " << area_index);
 
   // get the mowing area
   mower_map::GetMowingAreaSrv mapSrv;
-  mapSrv.request.index = task.area_index;
+  mapSrv.request.index = area_index;
   if (!mapClient.call(mapSrv)) {
     ROS_ERROR_STREAM("MowingBehavior: Error loading mowing area");
     return nullptr;
   }
 
-  double angle = area_base_angle(mapSrv.response.area);
+  // FIXME: This should be loaded from somewhere, ideally stored within the map or next to it.
+  const json &area_config = json::parse(R"(
+    {
+      "outline_count": 3
+    }
+  )");
 
-  // add mowing angle offset increment and return into the <-180, 180> range
-  double mow_angle_offset = std::fmod(task.angle_offset + currentMowingAngleIncrementSum + 180, 360);
-  if (mow_angle_offset < 0) mow_angle_offset += 360;
-  mow_angle_offset -= 180;
-  ROS_INFO_STREAM("MowingBehavior: mowing angle offset (deg): " << mow_angle_offset);
-  if (task.angle_offset_is_absolute) {
-    angle = mow_angle_offset * (M_PI / 180.0);
-    ROS_INFO_STREAM("MowingBehavior: Custom mowing angle: " << angle);
-  } else {
-    angle = angle + mow_angle_offset * (M_PI / 180.0);
-    ROS_INFO_STREAM("MowingBehavior: Auto-detected mowing angle + mowing angle offset: " << angle);
-  }
+  const TaskConfig task_config = determine_task_config(task, area_config, mapSrv.response.area);
 
   // calculate coverage
   slic3r_coverage_planner::PlanPath pathSrv;
-  pathSrv.request.angle = angle;
-  pathSrv.request.outline_count = config.outline_count;
-  pathSrv.request.outline_overlap_count = config.outline_overlap_count;
+  pathSrv.request.angle = task_config.angle;
+  pathSrv.request.outline_count = task_config.outline_count;
+  pathSrv.request.outline_overlap_count = task_config.outline_overlap_count;
   pathSrv.request.outline = mapSrv.response.area.area;
   pathSrv.request.holes = mapSrv.response.area.obstacles;
   pathSrv.request.fill_type = slic3r_coverage_planner::PlanPathRequest::FILL_LINEAR;
-  pathSrv.request.outer_offset = config.outline_offset;
+  pathSrv.request.outer_offset = task_config.outline_offset;
   pathSrv.request.distance = config.tool_width;
   if (!pathClient.call(pathSrv)) {
     ROS_ERROR_STREAM("MowingBehavior: Error during coverage planning");
     return nullptr;
   }
 
-  goal->paths = pathSrv.response.paths;
-  goal->start_path = task.start_path;
+  // filter the paths according to task config
+  // TODO: Look into std::remove_if.
+  // TODO: The better way would be to let slic3r know about the config,
+  //       so it can save some work and we don't need to make assumptions.
+  std::vector<slic3r_coverage_planner::Path> paths;
+  for (auto path = pathSrv.response.paths.begin(); path != pathSrv.response.paths.end(); ++path) {
+    if (path->is_outline) {
+      const bool is_area_outline = path == pathSrv.response.paths.begin();
+      if (task_config.skip_area_outline && is_area_outline) continue;
+      if (task_config.skip_obstacle_outline && !is_area_outline) continue;
+    } else {
+      if (task_config.skip_fill) continue;
+    }
+    paths.push_back(*path);
+  }
+
+  goal->paths = paths;
+  goal->start_path = 0;
   goal->start_point = 0;
 
   // Calculate mowing plan digest from the poses
-  // TODO: At this point, we need to load the checkpoint. Or maybe we'll save that as part of the task list, along with
-  // other progress indicators.
+  // TODO: At this point, we need to load the checkpoint. Or maybe we'll save that as part of the task list, along
+  // with other progress indicators.
   // TODO: move to slic3r_coverage_planner
   CryptoPP::SHA256 hash;
   byte digest[CryptoPP::SHA256::DIGESTSIZE];
@@ -128,20 +187,28 @@ mower_msgs::MowPathsGoalPtr create_mowing_plan(Task task) {
 }
 
 bool handle_tasks() {
-  std::vector<Task> tasks;
-  Task t{
-      .area_index = 0,
-      .start_path = 0,
-      .angle_offset = config.mow_angle_offset,
-      .angle_offset_is_absolute = config.mow_angle_offset_is_absolute,
-  };
-  tasks.push_back(t);
-  t.start_path = 1;
-  t.angle_offset += 90;
-  tasks.push_back(t);
+  // FIXME
+  const json &tasklist = json::parse(R"(
+        {
+            "tasks": [
+                {
+                    "area": 0,
+                    "angle": 0,
+                    "angle_is_absolute": true
+                },
+                {
+                    "area": 0,
+                    "angle": 90,
+                    "angle_is_absolute": true
+                    "skip_area_outline": true,
+                    "skip_obstacle_outline": true,
+                },
+            ]
+        }
+    )");
 
-  size_t remaining = tasks.size();
-  for (auto task : tasks) {
+  size_t remaining = tasklist["tasks"].size();
+  for (auto task : tasklist["tasks"]) {
     auto goal = create_mowing_plan(task);
     if (goal == nullptr) {
       ROS_INFO_STREAM("MowingBehavior: Could not create mowing plan, docking");
