@@ -32,6 +32,22 @@ struct Task {
 double currentMowingAngleIncrementSum = 0;
 std::string currentMowingPlanDigest = "";
 
+double area_base_angle(const mower_map::MapArea &area) {
+  auto points = area.area.points;
+  if (points.size() >= 2) {
+    tf2::Vector3 first(points[0].x, points[0].y, 0);
+    for (auto point : points) {
+      tf2::Vector3 second(point.x, point.y, 0);
+      auto diff = second - first;
+      if (diff.length() > 2.0) {
+        // we have found a point that has a distance of > 1 m, calculate the angle
+        return atan2(diff.y(), diff.x());
+      }
+    }
+  }
+  return 0;
+}
+
 mower_msgs::MowPathsGoalPtr create_mowing_plan(Task task) {
   mower_msgs::MowPathsGoalPtr goal(new mower_msgs::MowPathsGoal);
 
@@ -45,22 +61,7 @@ mower_msgs::MowPathsGoalPtr create_mowing_plan(Task task) {
     return nullptr;
   }
 
-  // Area orientation is the same as the first point
-  double angle = 0;
-  auto points = mapSrv.response.area.area.points;
-  if (points.size() >= 2) {
-    tf2::Vector3 first(points[0].x, points[0].y, 0);
-    for (auto point : points) {
-      tf2::Vector3 second(point.x, point.y, 0);
-      auto diff = second - first;
-      if (diff.length() > 2.0) {
-        // we have found a point that has a distance of > 1 m, calculate the angle
-        angle = atan2(diff.y(), diff.x());
-        ROS_INFO_STREAM("MowingBehavior: Detected mow angle: " << angle);
-        break;
-      }
-    }
-  }
+  double angle = area_base_angle(mapSrv.response.area);
 
   // add mowing angle offset increment and return into the <-180, 180> range
   double mow_angle_offset = std::fmod(task.angle_offset + currentMowingAngleIncrementSum + 180, 360);
