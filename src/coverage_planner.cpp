@@ -211,6 +211,112 @@ void traverse_from_right(std::vector<PerimeterGeneratorLoop> &contours, std::vec
     }
 }
 
+slic3r_coverage_planner::Path determinePathForOutline(std_msgs::Header &header, Slic3r::Polygon &outline_poly, Slic3r::Polygons &group, bool isObstacle, Point *areaLastPoint) {
+    slic3r_coverage_planner::Path path;
+    path.is_outline = true;
+    path.path.header = header;
+
+    for (int i = 0; i < group.size(); i++) {
+        auto &poly = group[i];
+
+        // Find an appropriate point to split, this should be close to the last split point,
+        // so that we don't need to traverse a lot.
+        Polyline line;
+        // Cannot use i==0 here, because we might skip a path later ("Skipping single dot")
+        if (path.path.poses.empty()) {
+            // innermost group, split wherever
+            line = poly.split_at_first_point();
+        } else {
+            // Get last point of last group. this is the next inner poly from this point of view
+            const auto &last_pose = path.path.poses.back();
+            // Find the closest point in the current poly and split there
+            double min_distance = INFINITY;
+            int min_split_index = 0;
+            for (int split_index = 0; split_index < poly.points.size(); ++split_index) {
+                const auto &pt = poly.points[split_index];
+                const auto pt_x = unscale(pt.x);
+                const auto pt_y = unscale(pt.y);
+                double distance = sqrt((pt_x - last_pose.pose.position.x) * (pt_x - last_pose.pose.position.x) +
+                                        (pt_y - last_pose.pose.position.y) * (pt_y - last_pose.pose.position.y));
+
+                if (distance < min_distance) {
+                    min_distance = distance;
+                    min_split_index = split_index;
+                }
+            }
+
+            // In order to smooth the transition we skip some points (think spiral movement of the mower).
+            // Check, that the skip did not break the path (cross the outer poly during transition).
+            // If it's fine, use the smoothed path, otherwise use the shortest point to split.
+            int smooth_split_index = (min_split_index + 2) % poly.points.size();
+
+            line = poly.split_at_index(smooth_split_index);
+            const Polygon *next_outer_poly;
+            if (i < group.size() - 1) {
+                next_outer_poly = &group[i + 1];
+            } else {
+                // we are in the outermost line, use outline for collision check
+                next_outer_poly = &outline_poly;
+            }
+            Line connection(line.first_point(),
+                            Point(scale_(last_pose.pose.position.x), scale_(last_pose.pose.position.y)));
+            Point intersection_pt{};
+            if (next_outer_poly->intersection(connection, &intersection_pt)) {
+                // intersection, we need to split at closest point
+                line = poly.split_at_index(min_split_index);
+            }
+        }
+        line.remove_duplicate_points();
+
+
+        auto equally_spaced_points = line.equally_spaced_points(scale_(0.1));
+        if (equally_spaced_points.size() < 2) {
+            ROS_INFO("Skipping single dot");
+            continue;
+        }
+        ROS_INFO_STREAM("Got " << equally_spaced_points.size() << " points");
+
+        Point *lastPoint = nullptr;
+        for (auto &pt: equally_spaced_points) {
+            if (lastPoint == nullptr) {
+                lastPoint = &pt;
+                continue;
+            }
+
+            // calculate pose for "lastPoint" pointing to current point
+
+            // Direction for obstacle needs to be inversed compared to area outline, because we will reverse the point order later.
+            auto dir = isObstacle ? *lastPoint - pt : pt - *lastPoint;
+
+            double orientation = atan2(dir.y, dir.x);
+            tf2::Quaternion q(0.0, 0.0, orientation);
+
+            geometry_msgs::PoseStamped pose;
+            pose.header = header;
+            pose.pose.orientation = tf2::toMsg(q);
+            pose.pose.position.x = unscale(lastPoint->x);
+            pose.pose.position.y = unscale(lastPoint->y);
+            pose.pose.position.z = 0;
+            path.path.poses.push_back(pose);
+            lastPoint = &pt;
+        }
+
+        // finally, we add the final pose for "lastPoint" with the same orientation as the last poe
+        geometry_msgs::PoseStamped pose;
+        pose.header = header;
+        pose.pose.orientation = path.path.poses.back().pose.orientation;
+        pose.pose.position.x = unscale(lastPoint->x);
+        pose.pose.position.y = unscale(lastPoint->y);
+        pose.pose.position.z = 0;
+        path.path.poses.push_back(pose);
+
+        if (areaLastPoint != nullptr) {
+            *areaLastPoint = *lastPoint;
+        }
+    }
+    return path;
+}
+
 bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_planner::PlanPathResponse &res) {
 
     Slic3r::Polygon outline_poly;
@@ -415,105 +521,7 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
 
     Point areaLastPoint;
     for (auto &group: area_outlines) {
-        slic3r_coverage_planner::Path path;
-        path.is_outline = true;
-        path.path.header = header;
-
-        for (int i = 0; i < group.size(); i++) {
-            auto &poly = group[i];
-
-
-            // Find an appropriate point to split, this should be close to the last split point,
-            // so that we don't need to traverse a lot.
-            Polyline line;
-            // Cannot use i==0 here, because we might skip a path later ("Skipping single dot")
-            if (path.path.poses.empty()) {
-                // innermost group, split wherever
-                line = poly.split_at_first_point();
-            } else {
-                // Get last point of last group. this is the next inner poly from this point of view
-                const auto &last_pose = path.path.poses.back();
-                // Find the closest point in the current poly and split there
-                double min_distance = INFINITY;
-                int min_split_index = 0;
-                for (int split_index = 0; split_index < poly.points.size(); ++split_index) {
-                    const auto &pt = poly.points[split_index];
-                    const auto pt_x = unscale(pt.x);
-                    const auto pt_y = unscale(pt.y);
-                    double distance = sqrt((pt_x - last_pose.pose.position.x) * (pt_x - last_pose.pose.position.x) +
-                                           (pt_y - last_pose.pose.position.y) * (pt_y - last_pose.pose.position.y));
-
-                    if (distance < min_distance) {
-                        min_distance = distance;
-                        min_split_index = split_index;
-                    }
-                }
-
-                // In order to smooth the transition we skip some points (think spiral movement of the mower).
-                // Check, that the skip did not break the path (cross the outer poly during transition).
-                // If it's fine, use the smoothed path, otherwise use the shortest point to split.
-                int smooth_split_index = (min_split_index + 2) % poly.points.size();
-
-                line = poly.split_at_index(smooth_split_index);
-                const Polygon *next_outer_poly;
-                if (i < group.size() - 1) {
-                    next_outer_poly = &group[i + 1];
-                } else {
-                    // we are in the outermost line, use outline for collision check
-                    next_outer_poly = &outline_poly;
-                }
-                Line connection(line.first_point(),
-                                Point(scale_(last_pose.pose.position.x), scale_(last_pose.pose.position.y)));
-                Point intersection_pt{};
-                if (next_outer_poly->intersection(connection, &intersection_pt)) {
-                    // intersection, we need to split at closest point
-                    line = poly.split_at_index(min_split_index);
-                }
-            }
-            line.remove_duplicate_points();
-
-
-            auto equally_spaced_points = line.equally_spaced_points(scale_(0.1));
-            if (equally_spaced_points.size() < 2) {
-                ROS_INFO("Skipping single dot");
-                continue;
-            }
-            ROS_INFO_STREAM("Got " << equally_spaced_points.size() << " points");
-
-            Point *lastPoint = nullptr;
-            for (auto &pt: equally_spaced_points) {
-                if (lastPoint == nullptr) {
-                    lastPoint = &pt;
-                    continue;
-                }
-
-                // calculate pose for "lastPoint" pointing to current point
-
-                auto dir = pt - *lastPoint;
-                double orientation = atan2(dir.y, dir.x);
-                tf2::Quaternion q(0.0, 0.0, orientation);
-
-                geometry_msgs::PoseStamped pose;
-                pose.header = header;
-                pose.pose.orientation = tf2::toMsg(q);
-                pose.pose.position.x = unscale(lastPoint->x);
-                pose.pose.position.y = unscale(lastPoint->y);
-                pose.pose.position.z = 0;
-                path.path.poses.push_back(pose);
-                lastPoint = &pt;
-            }
-
-            // finally, we add the final pose for "lastPoint" with the same orientation as the last poe
-            geometry_msgs::PoseStamped pose;
-            pose.header = header;
-            pose.pose.orientation = path.path.poses.back().pose.orientation;
-            pose.pose.position.x = unscale(lastPoint->x);
-            pose.pose.position.y = unscale(lastPoint->y);
-            pose.pose.position.z = 0;
-            path.path.poses.push_back(pose);
-
-            areaLastPoint = *lastPoint;
-        }
+        auto path = determinePathForOutline(header, outline_poly, group, false, &areaLastPoint);
         res.paths.push_back(path);
     }
 
@@ -554,104 +562,8 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
     // this is intentional, because then it's easier to find good traversal points.
     // In order to make the mower approach the obstacle, we will reverse the path later.
     for (auto &group: ordered_obstacle_outlines) {
-        slic3r_coverage_planner::Path path;
-        path.is_outline = true;
-        path.path.header = header;
-        for (int i = 0; i < group.size(); i++) {
-            auto &poly = group[i];
-
-
-            // Find an appropriate point to split, this should be close to the last split point,
-            // so that we don't need to traverse a lot.
-            Polyline line;
-            if (i == 0) {
-                // innermost group, split wherever
-                line = poly.split_at_first_point();
-            } else {
-                // Get last point of last group. this is the next inner poly from this point of view
-                const auto &last_pose = path.path.poses.back();
-                // Find the closest point in the current poly and split there
-                double min_distance = INFINITY;
-                int min_split_index = 0;
-                for (int split_index = 0; split_index < poly.points.size(); ++split_index) {
-                    const auto &pt = poly.points[split_index];
-                    const auto pt_x = unscale(pt.x);
-                    const auto pt_y = unscale(pt.y);
-                    double distance = sqrt((pt_x - last_pose.pose.position.x) * (pt_x - last_pose.pose.position.x) +
-                                           (pt_y - last_pose.pose.position.y) * (pt_y - last_pose.pose.position.y));
-
-                    if (distance < min_distance) {
-                        min_distance = distance;
-                        min_split_index = split_index;
-                    }
-                }
-
-                // In order to smooth the transition we skip some points (think spiral movement of the mower).
-                // Check, that the skip did not break the path (cross the outer poly during transition).
-                // If it's fine, use the smoothed path, otherwise use the shortest point to split.
-                int smooth_split_index = (min_split_index + 2) % poly.points.size();
-
-                line = poly.split_at_index(smooth_split_index);
-                const Polygon *next_outer_poly;
-                if (i < group.size() - 1) {
-                    next_outer_poly = &group[i + 1];
-                } else {
-                    // we are in the outermost line, use outline for collision check
-                    next_outer_poly = &outline_poly;
-                }
-                Line connection(line.first_point(),
-                                Point(scale_(last_pose.pose.position.x), scale_(last_pose.pose.position.y)));
-                Point intersection_pt{};
-                if (next_outer_poly->intersection(connection, &intersection_pt)) {
-                    // intersection, we need to split at closest point
-                    line = poly.split_at_index(min_split_index);
-                }
-            }
-            line.remove_duplicate_points();
-
-
-            auto equally_spaced_points = line.equally_spaced_points(scale_(0.1));
-            if (equally_spaced_points.size() < 2) {
-                ROS_INFO("Skipping single dot");
-                continue;
-            }
-            ROS_INFO_STREAM("Got " << equally_spaced_points.size() << " points");
-
-            Point *lastPoint = nullptr;
-            for (auto &pt: equally_spaced_points) {
-                if (lastPoint == nullptr) {
-                    lastPoint = &pt;
-                    continue;
-                }
-
-                // calculate pose for "lastPoint" pointing to current point
-
-                // Direction needs to be inversed compared to outline, because we will reverse the point order later.
-                auto dir = *lastPoint - pt;
-                double orientation = atan2(dir.y, dir.x);
-                tf2::Quaternion q(0.0, 0.0, orientation);
-
-                geometry_msgs::PoseStamped pose;
-                pose.header = header;
-                pose.pose.orientation = tf2::toMsg(q);
-                pose.pose.position.x = unscale(lastPoint->x);
-                pose.pose.position.y = unscale(lastPoint->y);
-                pose.pose.position.z = 0;
-                path.path.poses.push_back(pose);
-                lastPoint = &pt;
-            }
-
-            // finally, we add the final pose for "lastPoint" with the same orientation as the last poe
-            geometry_msgs::PoseStamped pose;
-            pose.header = header;
-            pose.pose.orientation = path.path.poses.back().pose.orientation;
-            pose.pose.position.x = unscale(lastPoint->x);
-            pose.pose.position.y = unscale(lastPoint->y);
-            pose.pose.position.z = 0;
-            path.path.poses.push_back(pose);
-
-        }
         // Reverse here to make the mower approach the obstacle instead of starting close to the obstacle
+        auto path = determinePathForOutline(header, outline_poly, group, true, nullptr);
         std::reverse(path.path.poses.begin(), path.path.poses.end());
         res.paths.push_back(path);
     }
