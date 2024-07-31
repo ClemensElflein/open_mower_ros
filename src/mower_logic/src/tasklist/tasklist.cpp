@@ -33,7 +33,7 @@ struct TaskConfig {
   double angle;
 
   bool skip_area_outline;
-  bool skip_obstacle_outline;
+  bool skip_obstacle_outlines;
   bool skip_fill;
 };
 
@@ -90,7 +90,7 @@ TaskConfig determine_task_config(const json &task, const json &area_config, cons
   // TODO: Normalize angle.
 
   tc.skip_area_outline = task.value("skip_area_outline", false);
-  tc.skip_obstacle_outline = task.value("skip_obstacle_outline", false);
+  tc.skip_obstacle_outlines = task.value("skip_obstacle_outlines", false);
   tc.skip_fill = task.value("skip_fill", false);
 
   return tc;
@@ -129,28 +129,15 @@ mower_msgs::MowPathsGoalPtr create_mowing_plan(const json &task) {
   pathSrv.request.fill_type = slic3r_coverage_planner::PlanPathRequest::FILL_LINEAR;
   pathSrv.request.outer_offset = task_config.outline_offset;
   pathSrv.request.distance = config.tool_width;
+  pathSrv.request.skip_area_outline = task_config.skip_area_outline;
+  pathSrv.request.skip_obstacle_outlines = task_config.skip_obstacle_outlines;
+  pathSrv.request.skip_fill = task_config.skip_fill;
   if (!pathClient.call(pathSrv)) {
     ROS_ERROR_STREAM("MowingBehavior: Error during coverage planning");
     return nullptr;
   }
 
-  // filter the paths according to task config
-  // TODO: Look into std::remove_if.
-  // TODO: The better way would be to let slic3r know about the config,
-  //       so it can save some work and we don't need to make assumptions.
-  std::vector<slic3r_coverage_planner::Path> paths;
-  for (auto path = pathSrv.response.paths.begin(); path != pathSrv.response.paths.end(); ++path) {
-    if (path->is_outline) {
-      const bool is_area_outline = path == pathSrv.response.paths.begin();
-      if (task_config.skip_area_outline && is_area_outline) continue;
-      if (task_config.skip_obstacle_outline && !is_area_outline) continue;
-    } else {
-      if (task_config.skip_fill) continue;
-    }
-    paths.push_back(*path);
-  }
-
-  goal->paths = paths;
+  goal->paths = pathSrv.response.paths;
   goal->start_path = 0;
   goal->start_point = 0;
 
@@ -199,10 +186,10 @@ bool handle_tasks() {
                 {
                     "area": 0,
                     "angle": 90,
-                    "angle_is_absolute": true
+                    "angle_is_absolute": true,
                     "skip_area_outline": true,
-                    "skip_obstacle_outline": true,
-                },
+                    "skip_obstacle_outlines": true
+                }
             ]
         }
     )");
