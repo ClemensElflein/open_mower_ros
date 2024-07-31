@@ -173,6 +173,28 @@ mower_msgs::MowPathsGoalPtr create_mowing_plan(const json &task) {
   return std::move(goal);
 }
 
+json create_default_tasklist() {
+  json tasklist = {
+      {"tasks", json::array()},
+  };
+
+  // Since there is no way to determine the number of mowing areas,
+  // we have to request areas until we get an error.
+  for (size_t i = 0;; i++) {
+    mower_map::GetMowingAreaSrv mapSrv;
+    mapSrv.request.index = i;
+    if (!mapClient.call(mapSrv)) {
+      break;
+    }
+    tasklist["tasks"].push_back(json({
+        {"title", "area " + std::to_string(i)},
+        {"area", i},
+    }));
+  }
+
+  return std::move(tasklist);
+}
+
 bool handle_tasks() {
   // FIXME
   const json &tasklist = json::parse(R"(
