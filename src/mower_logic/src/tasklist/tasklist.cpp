@@ -216,23 +216,26 @@ bool handle_tasks() {
         }
     )");
 
-  size_t remaining = tasklist["tasks"].size();
-  for (auto task : tasklist["tasks"]) {
-    auto goal = create_mowing_plan(task);
-    if (goal == nullptr) {
-      ROS_INFO_STREAM("MowingBehavior: Could not create mowing plan, docking");
-      // Start again from first area next time.
-      // reset();
-      // We cannot create a plan, so we're probably done. Go to docking station
-      return false;
-    }
+  const bool repeat = true;
+  while (repeat) {
+    size_t remaining = tasklist["tasks"].size();
+    for (auto task : tasklist["tasks"]) {
+      auto goal = create_mowing_plan(task);
+      if (goal == nullptr) {
+        ROS_INFO_STREAM("MowingBehavior: Could not create mowing plan, docking");
+        // Start again from first area next time.
+        // reset();
+        // We cannot create a plan, so we're probably done. Go to docking station
+        return false;
+      }
 
-    // We have a plan, execute it
-    goal->expect_more_goals = --remaining > 0;
-    ROS_INFO_STREAM("MowingBehavior: Executing mowing plan");
-    auto result = mowPathsClient->sendGoalAndWait(*goal);
-    if (result != actionlib::SimpleClientGoalState::SUCCEEDED) {
-      return false;
+      // We have a plan, execute it
+      goal->expect_more_goals = --remaining > 0 || repeat;
+      ROS_INFO_STREAM("MowingBehavior: Executing mowing plan");
+      auto result = mowPathsClient->sendGoalAndWait(*goal);
+      if (result != actionlib::SimpleClientGoalState::SUCCEEDED) {
+        return false;
+      }
     }
   }
   return true;
