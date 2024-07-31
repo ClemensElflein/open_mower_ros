@@ -455,54 +455,59 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
             }
         }
 
-        traverse_from_right(contours[0], area_outlines);
-        for (auto &hole: holes) {
-            traverse_from_left(hole, obstacle_outlines);
+        if (!req.skip_area_outline) {
+            traverse_from_right(contours[0], area_outlines);
         }
 
-        for (auto &obstacle_group: obstacle_outlines) {
-            for (auto &poly: obstacle_group) {
-                std::reverse(poly.points.begin(), poly.points.end());
+        if (!req.skip_obstacle_outlines) {
+            for (auto &hole: holes) {
+                traverse_from_left(hole, obstacle_outlines);
+            }
+            for (auto &obstacle_group: obstacle_outlines) {
+                for (auto &poly: obstacle_group) {
+                    std::reverse(poly.points.begin(), poly.points.end());
+                }
             }
         }
     }
 
 
-    ExPolygons expp = union_ex(inner);
+    if (!req.skip_fill) {
+        ExPolygons expp = union_ex(inner);
 
 
-    // Go through the innermost poly and create the fill path using a Fill object
-    for (auto &poly: expp) {
-        Slic3r::Surface surface(Slic3r::SurfaceType::stBottom, poly);
+        // Go through the innermost poly and create the fill path using a Fill object
+        for (auto &poly: expp) {
+            Slic3r::Surface surface(Slic3r::SurfaceType::stBottom, poly);
 
+            Slic3r::Fill *fill;
+            if (req.fill_type == slic3r_coverage_planner::PlanPathRequest::FILL_LINEAR) {
+                fill = new Slic3r::FillRectilinear();
+            } else {
+                fill = new Slic3r::FillConcentric();
+            }
+            fill->link_max_length = scale_(1.0);
+            fill->angle = req.angle;
+            fill->z = scale_(1.0);
+            fill->endpoints_overlap = 0;
+            fill->density = 1.0;
+            fill->dont_connect = false;
+            fill->dont_adjust = true;
+            fill->min_spacing = req.distance;
+            fill->complete = false;
+            fill->link_max_length = 0;
 
-        Slic3r::Fill *fill;
-        if (req.fill_type == slic3r_coverage_planner::PlanPathRequest::FILL_LINEAR) {
-            fill = new Slic3r::FillRectilinear();
-        } else {
-            fill = new Slic3r::FillConcentric();
-        }
-        fill->link_max_length = scale_(1.0);
-        fill->angle = req.angle;
-        fill->z = scale_(1.0);
-        fill->endpoints_overlap = 0;
-        fill->density = 1.0;
-        fill->dont_connect = false;
-        fill->dont_adjust = true;
-        fill->min_spacing = req.distance;
-        fill->complete = false;
-        fill->link_max_length = 0;
+            ROS_INFO_STREAM("Starting Fill. Poly size:" << surface.expolygon.contour.points.size());
 
-        ROS_INFO_STREAM("Starting Fill. Poly size:" << surface.expolygon.contour.points.size());
+            Slic3r::Polylines lines = fill->fill_surface(surface);
+            append_to(fill_lines, lines);
+            delete fill;
+            fill = nullptr;
 
-        Slic3r::Polylines lines = fill->fill_surface(surface);
-        append_to(fill_lines, lines);
-        delete fill;
-        fill = nullptr;
-
-        ROS_INFO_STREAM("Fill Complete. Polyline count: " << lines.size());
-        for (int i = 0; i < lines.size(); i++) {
-            ROS_INFO_STREAM("Polyline " << i << " has point count: " << lines[i].points.size());
+            ROS_INFO_STREAM("Fill Complete. Polyline count: " << lines.size());
+            for (int i = 0; i < lines.size(); i++) {
+                ROS_INFO_STREAM("Polyline " << i << " has point count: " << lines[i].points.size());
+            }
         }
     }
 
@@ -573,55 +578,57 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
         }
     }
 
-    for (int i = 0; i < fill_lines.size(); i++) {
-        auto &line = fill_lines[i];
-        slic3r_coverage_planner::Path path;
-        path.is_outline = false;
-        path.path.header = header;
+    if (!req.skip_fill) {
+        for (int i = 0; i < fill_lines.size(); i++) {
+            auto &line = fill_lines[i];
+            slic3r_coverage_planner::Path path;
+            path.is_outline = false;
+            path.path.header = header;
 
-        line.remove_duplicate_points();
+            line.remove_duplicate_points();
 
 
-        auto equally_spaced_points = line.equally_spaced_points(scale_(0.1));
-        if (equally_spaced_points.size() < 2) {
-            ROS_INFO("Skipping single dot");
-            continue;
-        }
-        ROS_INFO_STREAM("Got " << equally_spaced_points.size() << " points");
-
-        Point *lastPoint = nullptr;
-        for (auto &pt: equally_spaced_points) {
-            if (lastPoint == nullptr) {
-                lastPoint = &pt;
+            auto equally_spaced_points = line.equally_spaced_points(scale_(0.1));
+            if (equally_spaced_points.size() < 2) {
+                ROS_INFO("Skipping single dot");
                 continue;
             }
+            ROS_INFO_STREAM("Got " << equally_spaced_points.size() << " points");
 
-            // calculate pose for "lastPoint" pointing to current point
+            Point *lastPoint = nullptr;
+            for (auto &pt: equally_spaced_points) {
+                if (lastPoint == nullptr) {
+                    lastPoint = &pt;
+                    continue;
+                }
 
-            auto dir = pt - *lastPoint;
-            double orientation = atan2(dir.y, dir.x);
-            tf2::Quaternion q(0.0, 0.0, orientation);
+                // calculate pose for "lastPoint" pointing to current point
 
+                auto dir = pt - *lastPoint;
+                double orientation = atan2(dir.y, dir.x);
+                tf2::Quaternion q(0.0, 0.0, orientation);
+
+                geometry_msgs::PoseStamped pose;
+                pose.header = header;
+                pose.pose.orientation = tf2::toMsg(q);
+                pose.pose.position.x = unscale(lastPoint->x);
+                pose.pose.position.y = unscale(lastPoint->y);
+                pose.pose.position.z = 0;
+                path.path.poses.push_back(pose);
+                lastPoint = &pt;
+            }
+
+            // finally, we add the final pose for "lastPoint" with the same orientation as the last pose
             geometry_msgs::PoseStamped pose;
             pose.header = header;
-            pose.pose.orientation = tf2::toMsg(q);
+            pose.pose.orientation = path.path.poses.back().pose.orientation;
             pose.pose.position.x = unscale(lastPoint->x);
             pose.pose.position.y = unscale(lastPoint->y);
             pose.pose.position.z = 0;
             path.path.poses.push_back(pose);
-            lastPoint = &pt;
+
+            res.paths.push_back(path);
         }
-
-        // finally, we add the final pose for "lastPoint" with the same orientation as the last pose
-        geometry_msgs::PoseStamped pose;
-        pose.header = header;
-        pose.pose.orientation = path.path.poses.back().pose.orientation;
-        pose.pose.position.x = unscale(lastPoint->x);
-        pose.pose.position.y = unscale(lastPoint->y);
-        pose.pose.position.z = 0;
-        path.path.poses.push_back(pose);
-
-        res.paths.push_back(path);
     }
 
     if (visualize_plan) {
