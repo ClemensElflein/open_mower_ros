@@ -15,6 +15,8 @@
 #include "mower_map/GetMowingAreaSrv.h"
 #include "mower_msgs/MowPathsAction.h"
 #include "slic3r_coverage_planner/PlanPath.h"
+#include "xbot_msgs/ActionRequest.h"
+#include "xbot_msgs/ActionResponse.h"
 
 using json = nlohmann::json;
 
@@ -24,6 +26,8 @@ actionlib::SimpleActionClient<mower_msgs::MowPathsAction> *mowPathsClient;
 
 dynamic_reconfigure::Server<mower_logic::TasklistConfig> *reconfigServer;
 mower_logic::TasklistConfig config;
+
+ros::Publisher action_response_pub;
 
 struct TaskConfig {
   int outline_count;
@@ -303,6 +307,26 @@ void reconfigureCB(mower_logic::TasklistConfig &c, uint32_t level) {
   config = c;
 }
 
+void action_received(const xbot_msgs::ActionRequest::ConstPtr &request) {
+  xbot_msgs::ActionResponse response;
+  response.action_id = request->action_id;
+  response.request_id = request->request_id;
+
+  if (request->action_id == "tasklist/set_tasklist") {
+    try {
+      json j = json::parse(request->payload);
+      ROS_INFO_STREAM("New tasklist: " << j.dump());
+    } catch (const json::parse_error &e) {
+      ROS_ERROR_STREAM("Could not parse JSON in set_tasklist:" << e.what());
+      return;
+    }
+  } else {
+    return;
+  }
+
+  action_response_pub.publish(response);
+}
+
 int main(int argc, char **argv) {
   ros::init(argc, argv, "mower_logic");
 
@@ -314,6 +338,9 @@ int main(int argc, char **argv) {
 
   pathClient = n.serviceClient<slic3r_coverage_planner::PlanPath>("slic3r_coverage_planner/plan_path");
   mapClient = n.serviceClient<mower_map::GetMowingAreaSrv>("mower_map_service/get_mowing_area");
+
+  ros::Subscriber action = n.subscribe("xbot/action", 0, action_received, ros::TransportHints().tcpNoDelay(true));
+  action_response_pub = n.advertise<xbot_msgs::ActionResponse>("xbot/action_response", 100);
 
   ROS_INFO("Waiting for path server");
   if (!pathClient.waitForExistence(ros::Duration(60.0, 0.0))) {
@@ -333,7 +360,7 @@ int main(int argc, char **argv) {
     return 2;
   }
 
-  handle_tasks();
+  // handle_tasks();
   ros::spin();
 
   return 0;
