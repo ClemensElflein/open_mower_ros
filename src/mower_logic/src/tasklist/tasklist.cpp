@@ -342,6 +342,9 @@ int main(int argc, char **argv) {
   ros::Subscriber action = n.subscribe("xbot/action", 0, action_received, ros::TransportHints().tcpNoDelay(true));
   action_response_pub = n.advertise<xbot_msgs::ActionResponse>("xbot/action_response", 100);
 
+  ros::AsyncSpinner spinner(1);
+  spinner.start();
+
   ROS_INFO("Waiting for path server");
   if (!pathClient.waitForExistence(ros::Duration(60.0, 0.0))) {
     ROS_ERROR("Path service not found.");
@@ -360,7 +363,7 @@ int main(int argc, char **argv) {
     return 2;
   }
 
-  // handle_tasks();
+  handle_tasks();
   ros::spin();
 
   return 0;
