@@ -29,6 +29,7 @@
 #include "ros/ros.h"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.h"
 #include "xbot_msgs/AbsolutePose.h"
+#include "xbot_msgs/ActionInfo.h"
 
 class UndockingBehavior : public Behavior {
  public:
@@ -38,6 +39,8 @@ class UndockingBehavior : public Behavior {
   UndockingBehavior(Behavior* nextBehavior);
 
  private:
+  std::vector<xbot_msgs::ActionInfo> actions;
+
   Behavior* nextBehavior;
   geometry_msgs::PoseStamped docking_pose_stamped;
   bool gpsRequired;
@@ -45,6 +48,8 @@ class UndockingBehavior : public Behavior {
   bool waitForGPS();
 
  public:
+  UndockingBehavior();
+
   std::string state_name() override;
 
   Behavior* execute() override;

@@ -30,7 +30,19 @@ extern mower_msgs::Power getPower();
 extern void stopMoving();
 extern bool setGPS(bool enabled);
 
+extern void registerActions(std::string prefix, const std::vector<xbot_msgs::ActionInfo> &actions);
+
 DockingBehavior DockingBehavior::INSTANCE;
+
+DockingBehavior::DockingBehavior() {
+  xbot_msgs::ActionInfo abort_docking_action;
+  abort_docking_action.action_id = "abort_docking";
+  abort_docking_action.enabled = true;
+  abort_docking_action.action_name = "Stop Docking";
+
+  actions.clear();
+  actions.push_back(abort_docking_action);
+}
 
 bool DockingBehavior::approach_docking_point() {
   ROS_INFO_STREAM("Calculating approach path");
@@ -50,9 +62,27 @@ bool DockingBehavior::approach_docking_point() {
     mbf_msgs::MoveBaseGoal moveBaseGoal;
     moveBaseGoal.target_pose = docking_approach_point;
     moveBaseGoal.controller = "FTCPlanner";
-    auto result = mbfClient->sendGoalAndWait(moveBaseGoal);
-    if (result.state_ != result.SUCCEEDED) {
-      return false;
+
+    mbfClient->sendGoal(moveBaseGoal);
+
+    ros::Rate r(10);
+    bool waitingForResult = true;
+
+    while (waitingForResult) {
+      r.sleep();
+      if (aborted) {
+        ROS_INFO_STREAM("Docking aborted.");
+        mbfClientExePath->cancelGoal();
+        stopMoving();
+        return false;
+      }
+
+      switch (mbfClientExePath->getState().state_) {
+        case actionlib::SimpleClientGoalState::ACTIVE:
+        case actionlib::SimpleClientGoalState::PENDING: break;
+        case actionlib::SimpleClientGoalState::SUCCEEDED: waitingForResult = false; break;
+        default: return false;
+      }
     }
   }
 
@@ -76,9 +106,26 @@ bool DockingBehavior::approach_docking_point() {
     exePathGoal.controller = "FTCPlanner";
     ROS_INFO_STREAM("Executing Docking Approach");
 
-    auto approachResult = mbfClientExePath->sendGoalAndWait(exePathGoal);
-    if (approachResult.state_ != approachResult.SUCCEEDED) {
-      return false;
+    mbfClientExePath->sendGoal(exePathGoal);
+
+    ros::Rate r(10);
+    bool waitingForResult = true;
+
+    while (waitingForResult) {
+      r.sleep();
+      if (aborted) {
+        ROS_INFO_STREAM("Docking aborted.");
+        mbfClientExePath->cancelGoal();
+        stopMoving();
+        return false;
+      }
+
+      switch (mbfClientExePath->getState().state_) {
+        case actionlib::SimpleClientGoalState::ACTIVE:
+        case actionlib::SimpleClientGoalState::PENDING: break;
+        case actionlib::SimpleClientGoalState::SUCCEEDED: waitingForResult = false; break;
+        default: return false;
+      }
     }
   }
 
@@ -183,11 +230,23 @@ Behavior *DockingBehavior::execute() {
   }
 
   while (!isGPSGood) {
+    if (aborted) {
+      ROS_INFO_STREAM("Docking aborted.");
+      stopMoving();
+      return &IdleBehavior::INSTANCE;
+    }
+
     ROS_WARN_STREAM("Waiting for good GPS");
     ros::Duration(1.0).sleep();
   }
 
   bool approachSuccess = approach_docking_point();
+
+  if (aborted) {
+    ROS_INFO_STREAM("Docking aborted.");
+    stopMoving();
+    return &IdleBehavior::INSTANCE;
+  }
 
   if (!approachSuccess) {
     ROS_ERROR("Error during docking approach.");
@@ -212,6 +271,12 @@ Behavior *DockingBehavior::execute() {
   if (PerimeterSearchBehavior::configured(config)) return &PerimeterSearchBehavior::INSTANCE;
 
   bool docked = dock_straight();
+
+  if (aborted) {
+    ROS_INFO_STREAM("Docking aborted.");
+    stopMoving();
+    return &IdleBehavior::INSTANCE;
+  }
 
   if (!docked) {
     ROS_ERROR("Error during docking.");
@@ -245,9 +310,18 @@ void DockingBehavior::enter() {
   docking_pose_stamped.pose = get_docking_point_srv.response.docking_pose;
   docking_pose_stamped.header.frame_id = "map";
   docking_pose_stamped.header.stamp = ros::Time::now();
+
+  for (auto &a : actions) {
+    a.enabled = true;
+  }
+  registerActions("mower_logic:docking", actions);
 }
 
 void DockingBehavior::exit() {
+  for (auto &a : actions) {
+    a.enabled = false;
+  }
+  registerActions("mower_logic:docking", actions);
 }
 
 void DockingBehavior::reset() {
@@ -268,6 +342,7 @@ void DockingBehavior::command_home() {
 }
 
 void DockingBehavior::command_start() {
+  this->abort();
 }
 
 void DockingBehavior::command_s1() {
@@ -289,4 +364,8 @@ uint8_t DockingBehavior::get_state() {
 }
 
 void DockingBehavior::handle_action(std::string action) {
+  if (action == "mower_logic:docking/abort_docking") {
+    ROS_INFO_STREAM("Got abort docking command");
+    command_start();
+  }
 }
