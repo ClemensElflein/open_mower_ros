@@ -63,26 +63,9 @@ bool DockingBehavior::approach_docking_point() {
     moveBaseGoal.target_pose = docking_approach_point;
     moveBaseGoal.controller = "FTCPlanner";
 
-    mbfClient->sendGoal(moveBaseGoal);
-
-    ros::Rate r(10);
-    bool waitingForResult = true;
-
-    while (waitingForResult) {
-      r.sleep();
-      if (aborted) {
-        ROS_INFO_STREAM("Docking aborted.");
-        mbfClientExePath->cancelGoal();
-        stopMoving();
-        return false;
-      }
-
-      switch (mbfClientExePath->getState().state_) {
-        case actionlib::SimpleClientGoalState::ACTIVE:
-        case actionlib::SimpleClientGoalState::PENDING: break;
-        case actionlib::SimpleClientGoalState::SUCCEEDED: waitingForResult = false; break;
-        default: return false;
-      }
+    auto result = waitForResultOrAborted(mbfClient, moveBaseGoal);
+    if (aborted || result.state_ != actionlib::SimpleClientGoalState::SUCCEEDED) {
+      return false;
     }
   }
 
@@ -106,26 +89,9 @@ bool DockingBehavior::approach_docking_point() {
     exePathGoal.controller = "FTCPlanner";
     ROS_INFO_STREAM("Executing Docking Approach");
 
-    mbfClientExePath->sendGoal(exePathGoal);
-
-    ros::Rate r(10);
-    bool waitingForResult = true;
-
-    while (waitingForResult) {
-      r.sleep();
-      if (aborted) {
-        ROS_INFO_STREAM("Docking aborted.");
-        mbfClientExePath->cancelGoal();
-        stopMoving();
-        return false;
-      }
-
-      switch (mbfClientExePath->getState().state_) {
-        case actionlib::SimpleClientGoalState::ACTIVE:
-        case actionlib::SimpleClientGoalState::PENDING: break;
-        case actionlib::SimpleClientGoalState::SUCCEEDED: waitingForResult = false; break;
-        default: return false;
-      }
+    auto approachResult = waitForResultOrAborted(mbfClientExePath, exePathGoal);
+    if (aborted || approachResult != actionlib::SimpleClientGoalState::SUCCEEDED) {
+      return false;
     }
   }
 

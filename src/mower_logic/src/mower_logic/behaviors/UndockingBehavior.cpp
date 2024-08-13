@@ -38,13 +38,13 @@ UndockingBehavior UndockingBehavior::INSTANCE(&MowingBehavior::INSTANCE);
 UndockingBehavior UndockingBehavior::RETRY_INSTANCE(&DockingBehavior::INSTANCE);
 
 UndockingBehavior::UndockingBehavior() {
-  xbot_msgs::ActionInfo abort_docking_action;
-  abort_docking_action.action_id = "abort_undocking";
-  abort_docking_action.enabled = true;
-  abort_docking_action.action_name = "Stop Undocking";
+  xbot_msgs::ActionInfo abort_undocking_action;
+  abort_undocking_action.action_id = "abort_undocking";
+  abort_undocking_action.enabled = true;
+  abort_undocking_action.action_name = "Stop Undocking";
 
   actions.clear();
-  actions.push_back(abort_docking_action);
+  actions.push_back(abort_undocking_action);
 }
 
 std::string UndockingBehavior::state_name() {
@@ -116,31 +116,15 @@ Behavior *UndockingBehavior::execute() {
   exePathGoal.tolerance_from_action = true;
   exePathGoal.controller = "DockingFTCPlanner";
 
-  mbfClientExePath->sendGoal(exePathGoal);
+  auto result = waitForResultOrAborted(mbfClientExePath, exePathGoal);
 
-  ros::Rate r(10);
-  bool waitingForResult = true;
-  bool success = false;
-
-  while (waitingForResult) {
-    r.sleep();
-    if (aborted) {
-      ROS_INFO_STREAM("Undocking aborted.");
-      mbfClientExePath->cancelGoal();
-      stopMoving();
-      return &IdleBehavior::INSTANCE;
-    }
-
-    switch (mbfClientExePath->getState().state_) {
-      case actionlib::SimpleClientGoalState::ACTIVE:
-      case actionlib::SimpleClientGoalState::PENDING: break;
-      case actionlib::SimpleClientGoalState::SUCCEEDED:
-        waitingForResult = false;
-        success = true;
-        break;
-      default: waitingForResult = false; break;
-    }
+  if (aborted) {
+    ROS_INFO_STREAM("Undocking aborted.");
+    stopMoving();
+    return &IdleBehavior::INSTANCE;
   }
+
+  bool success = result.state_ == actionlib::SimpleClientGoalState::SUCCEEDED;
 
   // stop the bot for now
   stopMoving();
