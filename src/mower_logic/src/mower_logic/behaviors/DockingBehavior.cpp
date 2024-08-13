@@ -61,7 +61,7 @@ bool DockingBehavior::approach_docking_point() {
     moveBaseGoal.controller = "FTCPlanner";
 
     auto result = sendGoalAndWaitUnlessAborted(mbfClient, moveBaseGoal);
-    if (aborted || result.state_ != actionlib::SimpleClientGoalState::SUCCEEDED) {
+    if (aborted || result.state_ != result.SUCCEEDED) {
       return false;
     }
   }
@@ -87,7 +87,7 @@ bool DockingBehavior::approach_docking_point() {
     ROS_INFO_STREAM("Executing Docking Approach");
 
     auto approachResult = sendGoalAndWaitUnlessAborted(mbfClientExePath, exePathGoal);
-    if (aborted || approachResult.state_ != actionlib::SimpleClientGoalState::SUCCEEDED) {
+    if (aborted || approachResult.state_ != approachResult.SUCCEEDED) {
       return false;
     }
   }
