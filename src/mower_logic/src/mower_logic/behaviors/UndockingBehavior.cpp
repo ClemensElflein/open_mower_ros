@@ -116,7 +116,7 @@ Behavior *UndockingBehavior::execute() {
   exePathGoal.tolerance_from_action = true;
   exePathGoal.controller = "DockingFTCPlanner";
 
-  auto result = waitForResultOrAborted(mbfClientExePath, exePathGoal);
+  auto result = sendGoalAndWaitUnlessAborted(mbfClientExePath, exePathGoal);
 
   if (aborted) {
     ROS_INFO_STREAM("Undocking aborted.");

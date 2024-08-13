@@ -107,7 +107,7 @@ class Behavior {
   }
 
   template <typename ActionSpec>
-  actionlib::SimpleClientGoalState waitForResultOrAborted(
+  actionlib::SimpleClientGoalState sendGoalAndWaitUnlessAborted(
       actionlib::SimpleActionClient<ActionSpec>* client, const typename ActionSpec::_action_goal_type::_goal_type& goal,
       double poll_rate = 10) {
     ros::Rate rate(poll_rate);
@@ -115,18 +115,16 @@ class Behavior {
 
     while (true) {
       rate.sleep();
+
+      auto state = client->getState();
       if (aborted) {
         client->cancelGoal();
-        return client->getState();
+        return state;
       }
-
-      switch (client->getState().state_) {
-        case actionlib::SimpleClientGoalState::ACTIVE:
-        case actionlib::SimpleClientGoalState::PENDING: break;
-        default: return client->getState();
+      if (state.isDone()) {
+        return state;
       }
     }
-    return client->getState();
   }
 
   /**
