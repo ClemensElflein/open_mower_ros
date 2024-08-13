@@ -297,6 +297,11 @@ slic3r_coverage_planner::Path determinePathForOutline(std_msgs::Header &header, 
         }
     }
 
+    if (is_first_point) {
+        // there wasn't any usable point, so return the empty path
+        return path;
+    }
+
     // finally, we add the final pose for "lastPoint" with the same orientation as the last pose
     geometry_msgs::PoseStamped pose;
     pose.header = header;
@@ -518,7 +523,9 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
     Point areaLastPoint;
     for (auto &group: area_outlines) {
         auto path = determinePathForOutline(header, outline_poly, group, false, &areaLastPoint);
-        res.paths.push_back(path);
+        if (!path.path.poses.empty()) {
+            res.paths.push_back(path);
+        }
     }
 
     // The order for 3d printing seems to be to sweep across the X and then up the Y axis
@@ -560,8 +567,10 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
     for (auto &group: ordered_obstacle_outlines) {
         // Reverse here to make the mower approach the obstacle instead of starting close to the obstacle
         auto path = determinePathForOutline(header, outline_poly, group, true, nullptr);
-        std::reverse(path.path.poses.begin(), path.path.poses.end());
-        res.paths.push_back(path);
+        if (!path.path.poses.empty()) {
+            std::reverse(path.path.poses.begin(), path.path.poses.end());
+            res.paths.push_back(path);
+        }
     }
 
     for (int i = 0; i < fill_lines.size(); i++) {
