@@ -1,4 +1,4 @@
-# DEPRECATION NOTICE: 
+# DEPRECATION NOTICE:
 # This configuration file will be deprecated soon and will be replaced by a user interface.
 # If you decide to make changes to this file, mirror them in the mower_config.schema.json file as well.
 
@@ -108,6 +108,11 @@ export OM_GPS_PROTOCOL=UBX
 # Consider this option unstable, since I don't have the F9R anymore, so I'm not able to test this.
 # IF YOU DONT KNOW WHAT THIS IS, SET IT TO FALSE
 export OM_USE_F9R_SENSOR_FUSION=False
+
+# Instead of communicating with the serial port socket directly, GPS data can be read from a TCP port.
+# export OM_GPS_DEVICE_TYPE="tcp"
+# export OM_GPS_TCP_HOSTNAME="127.0.0.1"
+# export OM_GPS_TCP_PORT="2102"
 
 
 ################################
