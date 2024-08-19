@@ -163,6 +163,7 @@
         },
         "advanced": {
           "type": "boolean",
+          "default": false,
           "description": "Show advanced GPS settings"
         }
       },
@@ -188,15 +189,16 @@
                 "description": "Protocol used by your GPS board. For u-blox devices use UBX, otherwise NMEA.",
                 "x-environment-variable": "OM_GPS_PROTOCOL"
               },
-              "OM_GPS_PORT": {
+              "OM_GPS_DEVICE_TYPE": {
+                "title": "Device Type",
                 "type": "string",
-                "description": "Port for GPS board. Keep empty for default values.",
-                "x-environment-variable": "OM_GPS_PORT"
-              },
-              "OM_GPS_BAUDRATE": {
-                "type": "string",
-                "description": "Baud rate for GPS board.",
-                "x-environment-variable": "OM_GPS_BAUDRATE"
+                "enum": [
+                  "serial",
+                  "tcp"
+                ],
+                "default": "serial",
+                "description": "Whether communicate with the serial port directly or via TCP port.",
+                "x-environment-variable": "OM_GPS_DEVICE_TYPE"
               },
               "OM_USE_F9R_SENSOR_FUSION": {
                 "type": "boolean",
@@ -211,7 +213,52 @@
                 "description": "True, to use Relative Positioning. If you are unsure keep at false.",
                 "x-environment-variable": "OM_USE_RELATIVE_POSITION"
               }
-            }
+            },
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "OM_GPS_DEVICE_TYPE": {
+                      "const": "serial"
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "OM_GPS_PORT": {
+                      "title": "Port",
+                      "type": "string",
+                      "description": "Port for GPS board (/dev/...). Keep empty for default values.",
+                      "x-environment-variable": "OM_GPS_PORT"
+                    },
+                    "OM_GPS_BAUDRATE": {
+                      "title": "Baud rate",
+                      "type": "string",
+                      "description": "Baud rate for GPS board.",
+                      "x-environment-variable": "OM_GPS_BAUDRATE"
+                    }
+                  }
+                },
+                "else": {
+                  "properties": {
+                    "OM_GPS_TCP_HOSTNAME": {
+                      "title": "Hostname",
+                      "type": "string",
+                      "default": "127.0.0.1",
+                      "description": "Hostname to read GPS data from via TCP.",
+                      "x-environment-variable": "OM_GPS_TCP_HOSTNAME"
+                    },
+                    "OM_GPS_TCP_PORT": {
+                      "title": "Port",
+                      "type": "number",
+                      "default": 2102,
+                      "description": "Port to read GPS data from via TCP.",
+                      "x-environment-variable": "OM_GPS_TCP_PORT"
+                    }
+                  }
+                }
+              }
+            ]
           }
         }
       ]
