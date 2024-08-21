@@ -158,6 +158,7 @@ void convertStatus(xesc_msgs::XescStateStamped &vesc_status, mower_msgs::ESCStat
     ros_esc_status.status = mower_msgs::ESCStatus::ESC_STATUS_OK;
   }
   ros_esc_status.tacho = vesc_status.state.tacho;
+  ros_esc_status.rpm = vesc_status.state.rpm;
   ros_esc_status.current = vesc_status.state.current_input;
   ros_esc_status.temperature_motor = vesc_status.state.temperature_motor;
   ros_esc_status.temperature_pcb = vesc_status.state.temperature_pcb;
