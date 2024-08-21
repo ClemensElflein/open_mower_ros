@@ -8,6 +8,8 @@
 #include <rosbag/view.h>
 #include <tf2/LinearMath/Vector3.h>
 
+#include <condition_variable>
+#include <mutex>
 #include <nlohmann/json.hpp>
 
 #include "mower_logic/CheckPoint.h"
@@ -29,6 +31,11 @@ mower_logic::TasklistConfig config;
 
 ros::Publisher action_response_pub;
 
+struct Task {
+  json params;
+  bool is_last;
+};
+
 struct TaskConfig {
   int outline_count;
   int outline_overlap_count;
@@ -43,6 +50,20 @@ struct TaskConfig {
 
 double currentMowingAngleIncrementSum = 0;
 std::string currentMowingPlanDigest = "";
+
+std::mutex mtx;
+std::condition_variable cv;
+json current_tasklist;
+size_t next_task_idx = 0;
+
+void change_tasklist(std::function<void()> cb, bool cancel_current_task = true) {
+  std::lock_guard<std::mutex> lk(mtx);
+  if (cancel_current_task) {
+    mowPathsClient->cancelAllGoals();
+  }
+  cb();
+  cv.notify_all();
+}
 
 template <typename T>
 T resolve_config_value(const char *key, const json &task, const json &area_config, const T fallback) {
@@ -196,53 +217,48 @@ json create_default_tasklist() {
     }));
   }
 
-  return std::move(tasklist);
+  return tasklist;
 }
 
-bool handle_tasks() {
-  // FIXME
-  const json &tasklist = json::parse(R"(
-        {
-            "tasks": [
-                {
-                    "area": 0,
-                    "angle": 0,
-                    "angle_is_absolute": true
-                },
-                {
-                    "area": 0,
-                    "angle": 90,
-                    "angle_is_absolute": true,
-                    "skip_area_outline": true,
-                    "skip_obstacle_outlines": true
-                }
-            ]
-        }
-    )");
+Task get_next_task() {
+  std::unique_lock<std::mutex> lk(mtx);
+  while (ros::ok()) {
+    const auto &tasks = current_tasklist["tasks"];
+    if (next_task_idx < tasks.size()) {
+      Task task = {
+          .params = tasks[next_task_idx],
+          .is_last = current_tasklist.value("repeat", false) || next_task_idx == tasks.size() - 1,
+      };
+      next_task_idx++;
+      return task;
+    }
+    cv.wait_for(lk, std::chrono::seconds(1));
+  }
+  return Task();
+}
 
-  const bool repeat = true;
-  while (repeat) {
-    size_t remaining = tasklist["tasks"].size();
-    for (auto task : tasklist["tasks"]) {
-      auto goal = create_mowing_plan(task);
-      if (goal == nullptr) {
-        ROS_INFO_STREAM("MowingBehavior: Could not create mowing plan, docking");
-        // Start again from first area next time.
-        // reset();
-        // We cannot create a plan, so we're probably done. Go to docking station
-        return false;
-      }
+void handle_tasks() {
+  while (ros::ok()) {
+    auto task = get_next_task();
+    if (!ros::ok()) {
+      return;
+    }
 
-      // We have a plan, execute it
-      goal->expect_more_goals = --remaining > 0 || repeat;
-      ROS_INFO_STREAM("MowingBehavior: Executing mowing plan");
-      auto result = mowPathsClient->sendGoalAndWait(*goal);
-      if (result != actionlib::SimpleClientGoalState::SUCCEEDED) {
-        return false;
-      }
+    auto goal = create_mowing_plan(task.params);
+    if (goal == nullptr) {
+      ROS_ERROR_STREAM("Could not create mowing plan");
+      continue;
+    }
+
+    // We have a plan, execute it
+    goal->expect_more_goals = !task.is_last;
+    ROS_INFO_STREAM("MowingBehavior: Executing mowing plan");
+    auto result = mowPathsClient->sendGoalAndWait(*goal);
+    if (result != actionlib::SimpleClientGoalState::SUCCEEDED) {
+      ROS_ERROR_STREAM("Task finished with state " << result.toString());
+      continue;
     }
   }
-  return true;
 }
 
 /* // FIXME
@@ -314,12 +330,29 @@ void action_received(const xbot_msgs::ActionRequest::ConstPtr &request) {
 
   if (request->action_id == "tasklist/set_tasklist") {
     try {
-      json j = json::parse(request->payload);
-      ROS_INFO_STREAM("New tasklist: " << j.dump());
+      auto new_tasklist = json::parse(request->payload);
+      ROS_INFO_STREAM("New tasklist: " << new_tasklist.dump());
+      change_tasklist([new_tasklist] {
+        current_tasklist = new_tasklist;
+        next_task_idx = 0;
+      });
     } catch (const json::parse_error &e) {
       ROS_ERROR_STREAM("Could not parse JSON in set_tasklist:" << e.what());
       return;
     }
+  } else if (request->action_id == "tasklist/set_default_tasklist") {
+    auto new_tasklist = create_default_tasklist();
+    ROS_INFO_STREAM("New (default) tasklist: " << new_tasklist.dump());
+    change_tasklist([new_tasklist] {
+      current_tasklist = new_tasklist;
+      next_task_idx = 0;
+    });
+  } else if (request->action_id == "tasklist/restart") {
+    change_tasklist([] { next_task_idx = 0; });
+  } else if (request->action_id == "tasklist/next_task") {
+    change_tasklist([] { next_task_idx++; });
+  } else if (request->action_id == "tasklist/enable_repeat") {
+    change_tasklist([] { current_tasklist["repeat"] = true; }, false);
   } else {
     return;
   }
@@ -364,7 +397,5 @@ int main(int argc, char **argv) {
   }
 
   handle_tasks();
-  ros::spin();
-
   return 0;
 }

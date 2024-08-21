@@ -91,7 +91,7 @@ Behavior *IdleBehavior::execute() {
     const bool start_mowing_when_ready = last_config.automatic_mode != eAutoMode::MANUAL;
     const bool paused = last_config.manual_pause_mowing;
 
-    if (mowPathsServer->isPreemptRequested()) {
+    if (mowPathsServer->isPreemptRequested() && mowPathsServer->isActive()) {
       cancelGoal();
     }
 
