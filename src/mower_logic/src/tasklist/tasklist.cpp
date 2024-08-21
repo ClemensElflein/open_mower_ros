@@ -227,9 +227,16 @@ Task get_next_task() {
     if (next_task_idx < tasks.size()) {
       Task task = {
           .params = tasks[next_task_idx],
-          .is_last = current_tasklist.value("repeat", false) || next_task_idx == tasks.size() - 1,
+          .is_last = false,
       };
       next_task_idx++;
+      if (next_task_idx == tasks.size()) {
+        if (current_tasklist.value("repeat", false)) {
+          next_task_idx = 0;
+        } else {
+          task.is_last = true;
+        }
+      }
       return task;
     }
     cv.wait_for(lk, std::chrono::seconds(1));
