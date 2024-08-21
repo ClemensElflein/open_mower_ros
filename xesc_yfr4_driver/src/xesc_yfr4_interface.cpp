@@ -135,9 +135,10 @@ void XescYFR4Interface::handle_packet(XescYFR4StatusPacket *packet) {
         status_.temperature_pcb = packet->temperature_pcb;
         status_.current_input = packet->current_input;
         status_.duty_cycle = packet->duty_cycle;
+        status_.direction = packet->direction;
         status_.tacho = packet->tacho;
         status_.tacho_absolute = packet->tacho_absolute;
-        status_.direction = packet->direction;
+        status_.rpm = packet->rpm;
         status_.fault_code = packet->fault_code;
 
         // If unconfigured, send settings
