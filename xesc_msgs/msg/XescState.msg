@@ -27,5 +27,5 @@ float64 duty_cycle           # duty cycle (0 to 1)
 uint8   direction            # current direction
 uint32  tacho                # wheel ticks
 uint32  tacho_absolute       # wheel ticks absolute
-uint16  rpm                  # revolutions per minute (of the axis/shaft)
+int16   rpm                  # revolutions per minute (of the axis/shaft)
 uint32  fault_code
