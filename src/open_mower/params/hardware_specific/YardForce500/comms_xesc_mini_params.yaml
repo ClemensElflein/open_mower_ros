@@ -1,9 +1,12 @@
 left_xesc:
   xesc_type: "xesc_mini"
   serial_port: "/dev/ttyAMA4"
+  motor_pole_pairs: 4  # Just needed for eRPM to RPM calculation
 right_xesc:
   xesc_type: "xesc_mini"
   serial_port: "/dev/ttyAMA2"
+  motor_pole_pairs: 4  # Just needed for eRPM to RPM calculation
 mower_xesc:
   xesc_type: "xesc_mini"
   serial_port: "/dev/ttyAMA3"
+  motor_pole_pairs: 4  # Just needed for eRPM to RPM calculation
