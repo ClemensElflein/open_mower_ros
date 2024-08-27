@@ -365,7 +365,7 @@ bool MowingBehavior::execute_mowing_plan() {
           }
           if (previous_path) {
             previous_path = false;
-            if(currentMowingPath > 0){
+            if (currentMowingPath > 0) {
               currentMowingPath--;
             }
             currentMowingPathIndex = 0;
@@ -488,7 +488,7 @@ bool MowingBehavior::execute_mowing_plan() {
           }
           if (previous_path) {
             previous_path = false;
-            if(currentMowingPath > 0){
+            if (currentMowingPath > 0) {
               currentMowingPath--;
             }
             currentMowingPathIndex = 0;
