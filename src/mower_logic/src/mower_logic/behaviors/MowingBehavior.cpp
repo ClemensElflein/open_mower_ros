@@ -648,7 +648,7 @@ MowingBehavior::MowingBehavior() {
   skip_path_action.action_name = "Skip Path";
 
   xbot_msgs::ActionInfo previous_path_action;
-  previous_path_action.action_id = "pervious_path";
+  previous_path_action.action_id = "previous_path";
   previous_path_action.enabled = false;
   previous_path_action.action_name = "Previous Path";
 
