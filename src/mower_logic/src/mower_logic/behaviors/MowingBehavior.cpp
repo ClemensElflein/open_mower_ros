@@ -88,6 +88,7 @@ void MowingBehavior::enter() {
   skip_area = false;
   skip_path = false;
   previous_path = false;
+  restart_path = false;
   paused = aborted = false;
 
   for (auto &a : actions) {
@@ -371,6 +372,11 @@ bool MowingBehavior::execute_mowing_plan() {
             currentMowingPathIndex = 0;
             return false;
           }
+          if (restart_path) {
+            restart_path = false;
+            currentMowingPathIndex = 0;
+            return false;
+          }
           if (aborted) {
             ROS_INFO_STREAM("MowingBehavior: (FIRST POINT) ABORT was requested - stopping path execution.");
             mbfClientExePath->cancelAllGoals();
@@ -491,6 +497,11 @@ bool MowingBehavior::execute_mowing_plan() {
             if (currentMowingPath > 0) {
               currentMowingPath--;
             }
+            currentMowingPathIndex = 0;
+            return false;
+          }
+          if (restart_path) {
+            restart_path = false;
             currentMowingPathIndex = 0;
             return false;
           }
@@ -652,6 +663,11 @@ MowingBehavior::MowingBehavior() {
   previous_path_action.enabled = false;
   previous_path_action.action_name = "Previous Path";
 
+  xbot_msgs::ActionInfo restart_path_action;
+  restart_path_action.action_id = "restart_path";
+  restart_path_action.enabled = false;
+  restart_path_action.action_name = "Restart Path";
+
   actions.clear();
   actions.push_back(pause_action);
   actions.push_back(continue_action);
@@ -659,6 +675,7 @@ MowingBehavior::MowingBehavior() {
   actions.push_back(skip_area_action);
   actions.push_back(skip_path_action);
   actions.push_back(previous_path_action);
+  actions.push_back(restart_path_action);
   restore_checkpoint();
 }
 
@@ -681,6 +698,10 @@ void MowingBehavior::handle_action(std::string action) {
   } else if (action == "mower_logic:mowing/previous_path") {
     ROS_INFO_STREAM("got previous_path command");
     previous_path = true;
+  }
+  } else if (action == "mower_logic:mowing/restart_path") {
+    ROS_INFO_STREAM("got restart_path command");
+    restart_path = true;
   }
   update_actions();
 }
