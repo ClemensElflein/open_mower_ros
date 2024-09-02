@@ -59,6 +59,10 @@ xbot_msgs::SensorInfo si_mow_motor_current;
 ros::Publisher si_mow_motor_current_pub;
 ros::Publisher mow_motor_current_data_pub;
 
+xbot_msgs::SensorInfo si_mow_motor_rpm;
+ros::Publisher si_mow_motor_rpm_pub;
+ros::Publisher mow_motor_rpm_data_pub;
+
 xbot_msgs::SensorInfo si_gps_accuracy;
 ros::Publisher si_gps_accuracy_pub;
 ros::Publisher gps_accuracy_data_pub;
@@ -99,6 +103,9 @@ void status(const mower_msgs::Status::ConstPtr &msg) {
 
   sensor_data.data = msg->mow_esc_status.current;
   mow_motor_current_data_pub.publish(sensor_data);
+
+  sensor_data.data = msg->mow_esc_status.rpm;
+  mow_motor_rpm_data_pub.publish(sensor_data);
 }
 
 void high_level_status(const mower_msgs::HighLevelStatus::ConstPtr &msg) {
@@ -216,6 +223,17 @@ void registerSensors() {
   mow_motor_current_data_pub = n->advertise<xbot_msgs::SensorDataDouble>(
       "xbot_monitoring/sensors/" + si_mow_motor_current.sensor_id + "/data", 10);
   si_mow_motor_current_pub.publish(si_mow_motor_current);
+
+  si_mow_motor_rpm.sensor_id = "om_mow_motor_rpm";
+  si_mow_motor_rpm.sensor_name = "Mow Motor Revolutions";
+  si_mow_motor_rpm.value_type = xbot_msgs::SensorInfo::TYPE_DOUBLE;
+  si_mow_motor_rpm.value_description = xbot_msgs::SensorInfo::VALUE_DESCRIPTION_RPM;
+  si_mow_motor_rpm.unit = "rpm";
+  si_mow_motor_rpm_pub = n->advertise<xbot_msgs::SensorInfo>(
+      "xbot_monitoring/sensors/" + si_mow_motor_rpm.sensor_id + "/info", 1, true);
+  mow_motor_rpm_data_pub = n->advertise<xbot_msgs::SensorDataDouble>(
+      "xbot_monitoring/sensors/" + si_mow_motor_rpm.sensor_id + "/data", 10);
+  si_mow_motor_rpm_pub.publish(si_mow_motor_rpm);
 
   si_gps_accuracy.sensor_id = "om_gps_accuracy";
   si_gps_accuracy.sensor_name = "GPS Accuracy";
