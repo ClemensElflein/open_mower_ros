@@ -114,33 +114,45 @@ void pose_received(const xbot_msgs::AbsolutePose::ConstPtr &msg) {
 }
 
 void set_sensor_limits(Sensor &sensor) {
-    // At the moment we process only those with a params parameter path
-    if(!strlen(sensor.param_path.c_str())) {
-        return;
-    }
-    switch (sensor.value_desc) {
-      case xbot_msgs::SensorInfo::VALUE_DESCRIPTION_CURRENT:
+  switch (sensor.value_desc) {
+    case xbot_msgs::SensorInfo::VALUE_DESCRIPTION_VOLTAGE:
+      if (sensor.si.sensor_id == "om_v_battery") {
+        sensor.si.max_value = paramNh->param("battery_full_voltage", 0.0f);
+        sensor.si.min_value = paramNh->param("battery_empty_voltage", 0.0f);
+        sensor.si.lower_critical_value = paramNh->param("battery_critical_voltage", 0.0f);
+        sensor.si.upper_critical_value = 29.0f;  // Taken from OpenMower FW
+      } else if (sensor.si.sensor_id == "om_v_charge") {
+        sensor.si.upper_critical_value = 30.0f;  // Taken from OpenMower FW
+      }
+      break;
+    case xbot_msgs::SensorInfo::VALUE_DESCRIPTION_CURRENT:
+      if (sensor.si.sensor_id.find("_motor_") != std::string::npos) {
         sensor.si.max_value = paramNh->param(sensor.param_path + "/motor_current_limit", 0.0f);
-        break;
-      case xbot_msgs::SensorInfo::VALUE_DESCRIPTION_TEMPERATURE:
-        if (sensor.si.sensor_id.find("_motor_") != std::string::npos)
-          sensor.si.max_value = paramNh->param(sensor.param_path + "/max_motor_temp", 0);
-        else // i.e. _esc_
-          sensor.si.max_value = paramNh->param(sensor.param_path + "/max_pcb_temp", 0);
-        break;
-      case xbot_msgs::SensorInfo::VALUE_DESCRIPTION_RPM:
-        sensor.si.min_value = paramNh->param(sensor.param_path + "/min_motor_rpm", 0);
-        sensor.si.max_value = paramNh->param(sensor.param_path + "/max_motor_rpm", 0);
-        sensor.si.lower_critical_value = paramNh->param(sensor.param_path + "/min_motor_rpm_critical", 0);
-        break;
-    }
-    // Set has* sensor infos
-    if (sensor.si.min_value || sensor.si.max_value)
-        sensor.si.has_min_max = true;
-    if (sensor.si.lower_critical_value)
-        sensor.si.has_critical_low = true;
-    if (sensor.si.upper_critical_value)
-        sensor.si.has_critical_high = true;
+      } else if (sensor.si.sensor_id == "om_charge_current") {
+        sensor.si.upper_critical_value = 1.5f;  // Taken from OpenMower FW
+      }
+
+      break;
+    case xbot_msgs::SensorInfo::VALUE_DESCRIPTION_TEMPERATURE:
+      if (sensor.si.sensor_id.find("_motor_") != std::string::npos) {
+        // mower_config settings have precedence before xesc param file
+        sensor.si.max_value =
+            paramNh->param("motor_hot_temperature", paramNh->param(sensor.param_path + "/max_motor_temp", 0.0f));
+        sensor.si.min_value =
+            paramNh->param("motor_cold_temperature", paramNh->param(sensor.param_path + "/min_motor_temp", 0.0f));
+      } else  // i.e. _esc_
+        sensor.si.max_value = paramNh->param(sensor.param_path + "/max_pcb_temp", 0);
+      break;
+    case xbot_msgs::SensorInfo::VALUE_DESCRIPTION_RPM:
+      sensor.si.min_value = paramNh->param(sensor.param_path + "/min_motor_rpm", 0);
+      sensor.si.max_value = paramNh->param(sensor.param_path + "/max_motor_rpm", 0);
+      sensor.si.lower_critical_value = paramNh->param(sensor.param_path + "/min_motor_rpm_critical", 0);
+      break;
+  }
+  // Set has* sensor infos
+  if (sensor.si.min_value || sensor.si.max_value) sensor.si.has_min_max = true;
+  if (sensor.si.lower_critical_value) sensor.si.has_critical_low = true;
+  if (sensor.si.upper_critical_value) sensor.si.has_critical_high = true;
 }
 
 void registerSensors() {
