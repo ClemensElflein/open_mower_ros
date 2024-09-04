@@ -730,7 +730,6 @@ void MowingBehavior::handle_action(std::string action) {
   } else if (action == "mower_logic:mowing/restart_path") {
     ROS_INFO_STREAM("got restart_path command");
     restart_path = true;
-  }
   } else if (action == "mower_logic:mowing/restart_path_segment") {
     ROS_INFO_STREAM("got restart_path_segment command");
     restart_path_segment = true;
