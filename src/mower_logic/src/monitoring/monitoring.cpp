@@ -27,50 +27,37 @@
 ros::Publisher state_pub;
 xbot_msgs::RobotState state;
 
-xbot_msgs::SensorInfo si_v_charge;
-ros::Publisher si_v_charge_pub;
-ros::Publisher v_charge_data_pub;
-
-xbot_msgs::SensorInfo si_v_battery;
-ros::Publisher si_v_battery_pub;
-ros::Publisher v_battery_data_pub;
-
-xbot_msgs::SensorInfo si_charge_current;
-ros::Publisher si_charge_current_pub;
-ros::Publisher charge_current_data_pub;
-
-xbot_msgs::SensorInfo si_left_esc_temp;
-ros::Publisher si_left_esc_temp_pub;
-ros::Publisher left_esc_temp_data_pub;
-
-xbot_msgs::SensorInfo si_right_esc_temp;
-ros::Publisher si_right_esc_temp_pub;
-ros::Publisher right_esc_temp_data_pub;
-
-xbot_msgs::SensorInfo si_mow_esc_temp;
-ros::Publisher si_mow_esc_temp_pub;
-ros::Publisher mow_esc_temp_data_pub;
-
-xbot_msgs::SensorInfo si_mow_motor_temp;
-ros::Publisher si_mow_motor_temp_pub;
-ros::Publisher mow_motor_temp_data_pub;
-
-xbot_msgs::SensorInfo si_mow_motor_current;
-ros::Publisher si_mow_motor_current_pub;
-ros::Publisher mow_motor_current_data_pub;
-
-xbot_msgs::SensorInfo si_mow_motor_rpm;
-ros::Publisher si_mow_motor_rpm_pub;
-ros::Publisher mow_motor_rpm_data_pub;
-
-xbot_msgs::SensorInfo si_gps_accuracy;
-ros::Publisher si_gps_accuracy_pub;
-ros::Publisher gps_accuracy_data_pub;
+// Sensor struct which hold all sensor relevant data
+struct Sensor {
+  std::string name;  // Speaking name, used in sensor widget
+  std::string unit;  // Unit like A, V, ...
+  uint8_t value_type;
+  uint8_t value_desc;
+  std::string param_path = "";  // Path to parameters
+  xbot_msgs::SensorInfo si;     // SensorInfo Msg
+  ros::Publisher si_pub;        // SensorInfo publisher
+  ros::Publisher data_pub;      // Sensor-data publisher
+};
+// Place all sensors into a map, keyed by sensor.id
+std::map<std::string, Sensor> sensors{
+    {"om_v_charge", {"V Charge", "V", xbot_msgs::SensorInfo::TYPE_DOUBLE, xbot_msgs::SensorInfo::VALUE_DESCRIPTION_VOLTAGE}},
+    {"om_v_battery", {"V Battery", "V", xbot_msgs::SensorInfo::TYPE_DOUBLE, xbot_msgs::SensorInfo::VALUE_DESCRIPTION_VOLTAGE}},
+    {"om_charge_current", {"Charge Current", "A", xbot_msgs::SensorInfo::TYPE_DOUBLE, xbot_msgs::SensorInfo::VALUE_DESCRIPTION_CURRENT}},
+    {"om_left_esc_temp", {"Left ESC Temp", "deg.C", xbot_msgs::SensorInfo::TYPE_DOUBLE, xbot_msgs::SensorInfo::VALUE_DESCRIPTION_TEMPERATURE, "left_xesc"}},
+    {"om_right_esc_temp", {"Right ESC Temp", "deg.C", xbot_msgs::SensorInfo::TYPE_DOUBLE, xbot_msgs::SensorInfo::VALUE_DESCRIPTION_TEMPERATURE, "right_xesc"}},
+    {"om_mow_esc_temp", {"Mow ESC Temp", "deg.C", xbot_msgs::SensorInfo::TYPE_DOUBLE, xbot_msgs::SensorInfo::VALUE_DESCRIPTION_TEMPERATURE, "mower_xesc"}},
+    {"om_mow_motor_temp", {"Mow Motor Temp", "deg.C", xbot_msgs::SensorInfo::TYPE_DOUBLE, xbot_msgs::SensorInfo::VALUE_DESCRIPTION_TEMPERATURE, "mower_xesc"}},
+    {"om_mow_motor_current", {"Mow Motor Current", "A", xbot_msgs::SensorInfo::TYPE_DOUBLE, xbot_msgs::SensorInfo::VALUE_DESCRIPTION_CURRENT, "mower_xesc"}},
+    {"om_mow_motor_rpm", {"Mow Motor Revolutions", "rpm", xbot_msgs::SensorInfo::TYPE_DOUBLE, xbot_msgs::SensorInfo::VALUE_DESCRIPTION_RPM, "mower_xesc"}},
+    {"om_gps_accuracy", {"GPS Accuracy", "m", xbot_msgs::SensorInfo::TYPE_DOUBLE, xbot_msgs::SensorInfo::VALUE_DESCRIPTION_DISTANCE}},
+};
 
 ros::NodeHandle *n;
 
 ros::Time last_status_update(0);
 ros::Time last_pose_update(0);
+
+ros::NodeHandle *paramNh;
 
 void status(const mower_msgs::Status::ConstPtr &msg) {
   // Rate limit to 2Hz
@@ -80,32 +67,22 @@ void status(const mower_msgs::Status::ConstPtr &msg) {
   xbot_msgs::SensorDataDouble sensor_data;
   sensor_data.stamp = msg->stamp;
 
-  sensor_data.data = msg->v_charge;
-  v_charge_data_pub.publish(sensor_data);
-
-  sensor_data.data = msg->v_battery;
-  v_battery_data_pub.publish(sensor_data);
-
-  sensor_data.data = msg->charge_current;
-  charge_current_data_pub.publish(sensor_data);
-
-  sensor_data.data = msg->left_esc_status.temperature_pcb;
-  left_esc_temp_data_pub.publish(sensor_data);
-
-  sensor_data.data = msg->right_esc_status.temperature_pcb;
-  right_esc_temp_data_pub.publish(sensor_data);
-
-  sensor_data.data = msg->mow_esc_status.temperature_pcb;
-  mow_esc_temp_data_pub.publish(sensor_data);
-
-  sensor_data.data = msg->mow_esc_status.temperature_motor;
-  mow_motor_temp_data_pub.publish(sensor_data);
-
-  sensor_data.data = msg->mow_esc_status.current;
-  mow_motor_current_data_pub.publish(sensor_data);
-
-  sensor_data.data = msg->mow_esc_status.rpm;
-  mow_motor_rpm_data_pub.publish(sensor_data);
+  const std::map<std::string, float> sensor_values{
+      {"om_v_charge", msg->v_charge},
+      {"om_v_battery", msg->v_battery},
+      {"om_charge_current", msg->charge_current},
+      {"om_left_esc_temp", msg->left_esc_status.temperature_pcb},
+      {"om_right_esc_temp", msg->right_esc_status.temperature_pcb},
+      {"om_mow_esc_temp", msg->mow_esc_status.temperature_pcb},
+      {"om_mow_motor_temp", msg->mow_esc_status.temperature_motor},
+      {"om_mow_motor_current", msg->mow_esc_status.current},
+      {"om_mow_motor_rpm", msg->mow_esc_status.rpm},
+  };
+  for (auto &sensor_value : sensor_values) {
+    Sensor sensor = sensors.at(sensor_value.first);
+    sensor_data.data = sensor_value.second;
+    sensor.data_pub.publish(sensor_data);
+  }
 }
 
 void high_level_status(const mower_msgs::HighLevelStatus::ConstPtr &msg) {
@@ -132,125 +109,65 @@ void pose_received(const xbot_msgs::AbsolutePose::ConstPtr &msg) {
   xbot_msgs::SensorDataDouble sensor_data;
   sensor_data.stamp = msg->header.stamp;
   sensor_data.data = msg->position_accuracy;
-  gps_accuracy_data_pub.publish(sensor_data);
+  auto sensor = sensors.at("om_gps_accuracy");
+  sensor.data_pub.publish(sensor_data);
+}
+
+void set_sensor_limits(Sensor &sensor) {
+    // At the moment we process only those with a params parameter path
+    if(!strlen(sensor.param_path.c_str())) {
+        return;
+    }
+    switch (sensor.value_desc) {
+      case xbot_msgs::SensorInfo::VALUE_DESCRIPTION_CURRENT:
+        sensor.si.max_value = paramNh->param(sensor.param_path + "/motor_current_limit", 0.0f);
+        break;
+      case xbot_msgs::SensorInfo::VALUE_DESCRIPTION_TEMPERATURE:
+        if (sensor.si.sensor_id.find("_motor_") != std::string::npos)
+          sensor.si.max_value = paramNh->param(sensor.param_path + "/max_motor_temp", 0);
+        else // i.e. _esc_
+          sensor.si.max_value = paramNh->param(sensor.param_path + "/max_pcb_temp", 0);
+        break;
+      case xbot_msgs::SensorInfo::VALUE_DESCRIPTION_RPM:
+        sensor.si.min_value = paramNh->param(sensor.param_path + "/min_motor_rpm", 0);
+        sensor.si.max_value = paramNh->param(sensor.param_path + "/max_motor_rpm", 0);
+        sensor.si.lower_critical_value = paramNh->param(sensor.param_path + "/min_motor_rpm_critical", 0);
+        break;
+    }
+    // Set has* sensor infos
+    if (sensor.si.min_value || sensor.si.max_value)
+        sensor.si.has_min_max = true;
+    if (sensor.si.lower_critical_value)
+        sensor.si.has_critical_low = true;
+    if (sensor.si.upper_critical_value)
+        sensor.si.has_critical_high = true;
 }
 
 void registerSensors() {
-  si_v_charge.sensor_id = "om_v_charge";
-  si_v_charge.sensor_name = "V Charge";
-  si_v_charge.value_type = xbot_msgs::SensorInfo::TYPE_DOUBLE;
-  si_v_charge.value_description = xbot_msgs::SensorInfo::VALUE_DESCRIPTION_VOLTAGE;
-  si_v_charge.unit = "V";
-  si_v_charge_pub =
-      n->advertise<xbot_msgs::SensorInfo>("xbot_monitoring/sensors/" + si_v_charge.sensor_id + "/info", 1, true);
-  v_charge_data_pub =
-      n->advertise<xbot_msgs::SensorDataDouble>("xbot_monitoring/sensors/" + si_v_charge.sensor_id + "/data", 10);
-  si_v_charge_pub.publish(si_v_charge);
+  for (auto &sensor : sensors) {
+    sensor.second.si.sensor_id = sensor.first;
+    sensor.second.si.sensor_name = sensor.second.name;
 
-  si_v_battery.sensor_id = "om_v_battery";
-  si_v_battery.sensor_name = "V Battery";
-  si_v_battery.value_type = xbot_msgs::SensorInfo::TYPE_DOUBLE;
-  si_v_battery.value_description = xbot_msgs::SensorInfo::VALUE_DESCRIPTION_VOLTAGE;
-  si_v_battery.unit = "V";
-  si_v_battery_pub =
-      n->advertise<xbot_msgs::SensorInfo>("xbot_monitoring/sensors/" + si_v_battery.sensor_id + "/info", 1, true);
-  v_battery_data_pub =
-      n->advertise<xbot_msgs::SensorDataDouble>("xbot_monitoring/sensors/" + si_v_battery.sensor_id + "/data", 10);
-  si_v_battery_pub.publish(si_v_battery);
+    sensor.second.si.unit = sensor.second.unit;
+    sensor.second.si.value_type = sensor.second.value_type;
+    sensor.second.si.value_description = sensor.second.value_desc;
 
-  si_charge_current.sensor_id = "om_charge_current";
-  si_charge_current.sensor_name = "Charge Current";
-  si_charge_current.value_type = xbot_msgs::SensorInfo::TYPE_DOUBLE;
-  si_charge_current.value_description = xbot_msgs::SensorInfo::VALUE_DESCRIPTION_CURRENT;
-  si_charge_current.unit = "A";
-  si_charge_current_pub =
-      n->advertise<xbot_msgs::SensorInfo>("xbot_monitoring/sensors/" + si_charge_current.sensor_id + "/info", 1, true);
-  charge_current_data_pub =
-      n->advertise<xbot_msgs::SensorDataDouble>("xbot_monitoring/sensors/" + si_charge_current.sensor_id + "/data", 10);
-  si_charge_current_pub.publish(si_charge_current);
+    // Set sensor threshold values
+    set_sensor_limits(sensor.second);
 
-  si_left_esc_temp.sensor_id = "om_left_esc_temp";
-  si_left_esc_temp.sensor_name = "Left ESC Temp";
-  si_left_esc_temp.value_type = xbot_msgs::SensorInfo::TYPE_DOUBLE;
-  si_left_esc_temp.value_description = xbot_msgs::SensorInfo::VALUE_DESCRIPTION_TEMPERATURE;
-  si_left_esc_temp.unit = "deg.C";
-  si_left_esc_temp_pub =
-      n->advertise<xbot_msgs::SensorInfo>("xbot_monitoring/sensors/" + si_left_esc_temp.sensor_id + "/info", 1, true);
-  left_esc_temp_data_pub =
-      n->advertise<xbot_msgs::SensorDataDouble>("xbot_monitoring/sensors/" + si_left_esc_temp.sensor_id + "/data", 10);
-  si_left_esc_temp_pub.publish(si_left_esc_temp);
-
-  si_right_esc_temp.sensor_id = "om_right_esc_temp";
-  si_right_esc_temp.sensor_name = "Right ESC Temp";
-  si_right_esc_temp.value_type = xbot_msgs::SensorInfo::TYPE_DOUBLE;
-  si_right_esc_temp.value_description = xbot_msgs::SensorInfo::VALUE_DESCRIPTION_TEMPERATURE;
-  si_right_esc_temp.unit = "deg.C";
-  si_right_esc_temp_pub =
-      n->advertise<xbot_msgs::SensorInfo>("xbot_monitoring/sensors/" + si_right_esc_temp.sensor_id + "/info", 1, true);
-  right_esc_temp_data_pub =
-      n->advertise<xbot_msgs::SensorDataDouble>("xbot_monitoring/sensors/" + si_right_esc_temp.sensor_id + "/data", 10);
-  si_right_esc_temp_pub.publish(si_right_esc_temp);
-
-  si_mow_esc_temp.sensor_id = "om_mow_esc_temp";
-  si_mow_esc_temp.sensor_name = "Mow ESC Temp";
-  si_mow_esc_temp.value_type = xbot_msgs::SensorInfo::TYPE_DOUBLE;
-  si_mow_esc_temp.value_description = xbot_msgs::SensorInfo::VALUE_DESCRIPTION_TEMPERATURE;
-  si_mow_esc_temp.unit = "deg.C";
-  si_mow_esc_temp_pub =
-      n->advertise<xbot_msgs::SensorInfo>("xbot_monitoring/sensors/" + si_mow_esc_temp.sensor_id + "/info", 1, true);
-  mow_esc_temp_data_pub =
-      n->advertise<xbot_msgs::SensorDataDouble>("xbot_monitoring/sensors/" + si_mow_esc_temp.sensor_id + "/data", 10);
-  si_mow_esc_temp_pub.publish(si_mow_esc_temp);
-
-  si_mow_motor_temp.sensor_id = "om_mow_motor_temp";
-  si_mow_motor_temp.sensor_name = "Mow Motor Temp";
-  si_mow_motor_temp.value_type = xbot_msgs::SensorInfo::TYPE_DOUBLE;
-  si_mow_motor_temp.value_description = xbot_msgs::SensorInfo::VALUE_DESCRIPTION_TEMPERATURE;
-  si_mow_motor_temp.unit = "deg.C";
-  si_mow_motor_temp_pub =
-      n->advertise<xbot_msgs::SensorInfo>("xbot_monitoring/sensors/" + si_mow_motor_temp.sensor_id + "/info", 1, true);
-  mow_motor_temp_data_pub =
-      n->advertise<xbot_msgs::SensorDataDouble>("xbot_monitoring/sensors/" + si_mow_motor_temp.sensor_id + "/data", 10);
-  si_mow_motor_temp_pub.publish(si_mow_motor_temp);
-
-  si_mow_motor_current.sensor_id = "om_mow_motor_current";
-  si_mow_motor_current.sensor_name = "Mow Motor Current";
-  si_mow_motor_current.value_type = xbot_msgs::SensorInfo::TYPE_DOUBLE;
-  si_mow_motor_current.value_description = xbot_msgs::SensorInfo::VALUE_DESCRIPTION_CURRENT;
-  si_mow_motor_current.unit = "A";
-  si_mow_motor_current_pub = n->advertise<xbot_msgs::SensorInfo>(
-      "xbot_monitoring/sensors/" + si_mow_motor_current.sensor_id + "/info", 1, true);
-  mow_motor_current_data_pub = n->advertise<xbot_msgs::SensorDataDouble>(
-      "xbot_monitoring/sensors/" + si_mow_motor_current.sensor_id + "/data", 10);
-  si_mow_motor_current_pub.publish(si_mow_motor_current);
-
-  si_mow_motor_rpm.sensor_id = "om_mow_motor_rpm";
-  si_mow_motor_rpm.sensor_name = "Mow Motor Revolutions";
-  si_mow_motor_rpm.value_type = xbot_msgs::SensorInfo::TYPE_DOUBLE;
-  si_mow_motor_rpm.value_description = xbot_msgs::SensorInfo::VALUE_DESCRIPTION_RPM;
-  si_mow_motor_rpm.unit = "rpm";
-  si_mow_motor_rpm_pub = n->advertise<xbot_msgs::SensorInfo>(
-      "xbot_monitoring/sensors/" + si_mow_motor_rpm.sensor_id + "/info", 1, true);
-  mow_motor_rpm_data_pub = n->advertise<xbot_msgs::SensorDataDouble>(
-      "xbot_monitoring/sensors/" + si_mow_motor_rpm.sensor_id + "/data", 10);
-  si_mow_motor_rpm_pub.publish(si_mow_motor_rpm);
-
-  si_gps_accuracy.sensor_id = "om_gps_accuracy";
-  si_gps_accuracy.sensor_name = "GPS Accuracy";
-  si_gps_accuracy.value_type = xbot_msgs::SensorInfo::TYPE_DOUBLE;
-  si_gps_accuracy.value_description = xbot_msgs::SensorInfo::VALUE_DESCRIPTION_DISTANCE;
-  si_gps_accuracy.unit = "m";
-  si_gps_accuracy_pub =
-      n->advertise<xbot_msgs::SensorInfo>("xbot_monitoring/sensors/" + si_gps_accuracy.sensor_id + "/info", 1, true);
-  gps_accuracy_data_pub =
-      n->advertise<xbot_msgs::SensorDataDouble>("xbot_monitoring/sensors/" + si_gps_accuracy.sensor_id + "/data", 10);
-  si_gps_accuracy_pub.publish(si_gps_accuracy);
+    sensor.second.si_pub =
+        n->advertise<xbot_msgs::SensorInfo>("xbot_monitoring/sensors/" + sensor.first + "/info", 1, true);
+    sensor.second.data_pub =
+        n->advertise<xbot_msgs::SensorDataDouble>("xbot_monitoring/sensors/" + sensor.first + "/data", 10);
+    sensor.second.si_pub.publish(sensor.second.si);
+          }
 }
 
 int main(int argc, char **argv) {
   ros::init(argc, argv, "monitoring");
 
   n = new ros::NodeHandle();
+  paramNh = new ros::NodeHandle("~");
 
   registerSensors();
 
