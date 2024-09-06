@@ -122,6 +122,8 @@ void set_sensor_limits(Sensor &sensor) {
         sensor.si.lower_critical_value = paramNh->param("battery_critical_voltage", 0.0f);
         sensor.si.upper_critical_value = 29.0f;  // Taken from OpenMower FW
       } else if (sensor.si.sensor_id == "om_v_charge") {
+        sensor.si.min_value = 24.0f;             // Mnimum voltage for before deep-discharge
+        sensor.si.max_value = 29.2f;             // Optimal charge voltage
         sensor.si.upper_critical_value = 30.0f;  // Taken from OpenMower FW
       }
       break;
