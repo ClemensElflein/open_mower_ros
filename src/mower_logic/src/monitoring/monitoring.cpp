@@ -131,6 +131,7 @@ void set_sensor_limits(Sensor &sensor) {
       if (sensor.si.sensor_id.find("_motor_") != std::string::npos) {
         sensor.si.max_value = paramNh->param(sensor.param_path + "/motor_current_limit", 0.0f);
       } else if (sensor.si.sensor_id == "om_charge_current") {
+        sensor.si.max_value = 1.0f;             // Taken from the docs
         sensor.si.upper_critical_value = 1.5f;  // Taken from OpenMower FW
       }
 
