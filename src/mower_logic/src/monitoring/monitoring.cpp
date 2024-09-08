@@ -16,6 +16,10 @@
 //
 //
 
+//#include <dynamic_reconfigure/server.h>
+#include <dynamic_reconfigure/client.h>
+
+#include "mower_logic/MowerLogicConfig.h"
 #include "mower_msgs/HighLevelStatus.h"
 #include "mower_msgs/Status.h"
 #include "ros/ros.h"
@@ -26,6 +30,15 @@
 
 ros::Publisher state_pub;
 xbot_msgs::RobotState state;
+
+ros::NodeHandle *n;
+
+ros::Time last_status_update(0);
+ros::Time last_pose_update(0);
+
+ros::NodeHandle *paramNh;
+
+mower_logic::MowerLogicConfig last_config;
 
 // Sensor struct which hold all sensor relevant data
 struct Sensor {
@@ -52,17 +65,13 @@ std::map<std::string, Sensor> sensors{
     {"om_gps_accuracy", {"GPS Accuracy", "m", xbot_msgs::SensorInfo::TYPE_DOUBLE, xbot_msgs::SensorInfo::VALUE_DESCRIPTION_DISTANCE}},
 };
 
-ros::NodeHandle *n;
-
-ros::Time last_status_update(0);
-ros::Time last_pose_update(0);
-
-ros::NodeHandle *paramNh;
 
 void status(const mower_msgs::Status::ConstPtr &msg) {
   // Rate limit to 2Hz
   if ((msg->stamp - last_status_update).toSec() < 0.5) return;
   last_status_update = msg->stamp;
+
+  // TODO: Check last_config if changed
 
   xbot_msgs::SensorDataDouble sensor_data;
   sensor_data.stamp = msg->stamp;
@@ -117,9 +126,9 @@ void set_sensor_limits(Sensor &sensor) {
   switch (sensor.value_desc) {
     case xbot_msgs::SensorInfo::VALUE_DESCRIPTION_VOLTAGE:
       if (sensor.si.sensor_id == "om_v_battery") {
-        sensor.si.max_value = paramNh->param("battery_full_voltage", 0.0f);
-        sensor.si.min_value = paramNh->param("battery_empty_voltage", 0.0f);
-        sensor.si.lower_critical_value = paramNh->param("battery_critical_voltage", 0.0f);
+        //sensor.si.max_value = last_config.battery_full_voltage;
+        //sensor.si.min_value = last_config.battery_empty_voltage;
+        //sensor.si.lower_critical_value = last_config.battery_critical_voltage;
         sensor.si.upper_critical_value = 29.0f;  // Taken from OpenMower FW
       } else if (sensor.si.sensor_id == "om_v_charge") {
         sensor.si.min_value = 24.0f;             // Mnimum voltage for before deep-discharge
@@ -129,7 +138,7 @@ void set_sensor_limits(Sensor &sensor) {
       break;
     case xbot_msgs::SensorInfo::VALUE_DESCRIPTION_CURRENT:
       if (sensor.si.sensor_id.find("_motor_") != std::string::npos) {
-        sensor.si.max_value = paramNh->param(sensor.param_path + "/motor_current_limit", 0.0f);
+        sensor.si.upper_critical_value = paramNh->param(sensor.param_path + "/motor_current_limit", 0.0f);
       } else if (sensor.si.sensor_id == "om_charge_current") {
         sensor.si.max_value = 1.0f;             // Taken from the docs
         sensor.si.upper_critical_value = 1.5f;  // Taken from OpenMower FW
@@ -178,11 +187,26 @@ void registerSensors() {
           }
 }
 
+void configurationCallback(const mower_logic::MowerLogicConfig &config) {
+  ROS_INFO("Reconfiguration happened: %f", config.battery_empty_voltage);
+  last_config = config;
+}
+
 int main(int argc, char **argv) {
   ros::init(argc, argv, "monitoring");
 
   n = new ros::NodeHandle();
   paramNh = new ros::NodeHandle("~");
+
+  dynamic_reconfigure::Client<mower_logic::MowerLogicConfig> *client;
+  client = new dynamic_reconfigure::Client<mower_logic::MowerLogicConfig>("/mower_logic");
+  last_config = mower_logic::MowerLogicConfig::__getDefault__();
+  ROS_DEBUG_STREAM("dynamic_reconfigure::Client default battery_empty_voltage=" << last_config.battery_empty_voltage);
+  if (!client->getCurrentConfiguration(last_config, ros::Duration(10.0))) {
+    ROS_WARN_STREAM("dynamic_reconfigure::Client timed out!");
+  } else {
+    ROS_DEBUG_STREAM("dynamic_reconfigure::Client battery_empty_voltage=" << last_config.battery_empty_voltage);
+  }
 
   registerSensors();
 
