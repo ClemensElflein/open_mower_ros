@@ -11,7 +11,6 @@ find_package(catkin REQUIRED COMPONENTS
         mower_msgs
         sensor_msgs
         roscpp
-        serial
         xesc_driver
         xesc_msgs
         xesc_interface
