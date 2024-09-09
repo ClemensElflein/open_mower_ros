@@ -1,6 +1,4 @@
 {
-  "type": "MowerService",
-  "version": 1,
   "inputs": [
     {
       "id": 0,
@@ -16,59 +14,36 @@
     },
     {
       "id": 1,
-      "name": "Raspberry Pi Power",
-      "type": "uint8_t"
-    },
-    {
-      "id": 2,
-      "name": "GPS Power",
-      "type": "uint8_t"
-    },
-    {
-      "id": 3,
-      "name": "ESC Power",
-      "type": "uint8_t"
-    },
-    {
-      "id": 4,
       "name": "Rain Detected",
       "type": "uint8_t"
     },
     {
-      "id": 5,
-      "name": "Charge Voltage",
-      "type": "float"
-    },
-    {
-      "id": 6,
-      "name": "Battery Voltage",
-      "type": "float"
-    },
-    {
-      "id": 7,
+      "id": 2,
       "name": "Mower Running",
       "type": "uint8_t"
     },
     {
-      "id": 8,
+      "id": 3,
       "name": "Mower ESC Temperature",
       "type": "float"
     },
     {
-      "id": 9,
+      "id": 4,
       "name": "Mower Motor Temperature",
       "type": "float"
     },
     {
-      "id": 10,
+      "id": 5,
       "name": "Mower Motor Current",
       "type": "float"
     },
     {
-      "id": 11,
+      "id": 6,
       "name": "Mower Motor RPM",
       "type": "float"
     }
   ],
-  "registers": []
+  "registers": [],
+  "type": "MowerService",
+  "version": 1
 }

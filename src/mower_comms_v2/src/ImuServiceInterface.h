@@ -8,7 +8,7 @@
 #include <ros/publisher.h>
 #include <sensor_msgs/Imu.h>
 
-#include <IMUServiceInterfaceBase.hpp>
+#include <ImuServiceInterfaceBase.hpp>
 
 class ImuServiceInterface : public IMUServiceInterfaceBase {
  public:

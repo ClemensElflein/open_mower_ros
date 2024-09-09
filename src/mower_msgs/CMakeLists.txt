@@ -13,7 +13,9 @@ add_message_files(
         ESCStatus.msg
         HighLevelStatus.msg
         Perimeter.msg
-		Emergency.msg
+        Emergency.msg
+        Power.msg
+        DockingSensor.msg
 )
 
 add_service_files(
@@ -22,7 +24,7 @@ add_service_files(
         GPSControlSrv.srv
         MowerControlSrv.srv
         HighLevelControlSrv.srv
-	PerimeterControlSrv.srv
+        PerimeterControlSrv.srv
 )
 
 ## Generate added messages and services with any dependencies listed here

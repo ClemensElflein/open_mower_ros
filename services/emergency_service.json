@@ -1,6 +1,4 @@
 {
-  "type": "EmergencyService",
-  "version": 1,
   "inputs": [
     {
       "id": 0,
@@ -25,5 +23,7 @@
       "type": "char[255]"
     }
   ],
-  "registers": []
+  "registers": [],
+  "type": "EmergencyService",
+  "version": 1
 }

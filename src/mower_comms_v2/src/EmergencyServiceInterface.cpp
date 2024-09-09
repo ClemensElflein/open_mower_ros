@@ -23,6 +23,9 @@ bool EmergencyServiceInterface::SetEmergency(bool new_value) {
   PublishEmergencyState();
   return true;
 }
+void EmergencyServiceInterface::Heartbeat() {
+  SendSetEmergency(latched_emergency_);
+}
 
 bool EmergencyServiceInterface::OnConfigurationRequested(const std::string& uid) {
   // No config needed
@@ -35,8 +38,11 @@ void EmergencyServiceInterface::OnEmergencyActiveChanged(const uint8_t& new_valu
 
 void EmergencyServiceInterface::OnEmergencyLatchChanged(const uint8_t& new_value) {
   std::unique_lock<std::recursive_mutex> lk{state_mutex_};
-  if (!new_value && !active_high_level_emergency_) {
-    // Only clear latch, if we don't have a high level emergency going on
+  if (new_value) {
+    // If there is a new emergency, we set it also in the high level
+    latched_emergency_ = true;
+  } else if (!active_high_level_emergency_) {
+    // Only clear high level latch, if we don't have a high level emergency going on
     latched_emergency_ = false;
   }
 }

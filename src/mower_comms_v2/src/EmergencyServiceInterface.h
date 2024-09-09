@@ -18,6 +18,7 @@ class EmergencyServiceInterface : public EmergencyServiceInterfaceBase {
   }
 
   bool SetEmergency(bool new_value);
+  void Heartbeat();
 
  protected:
   bool OnConfigurationRequested(const std::string& uid) override;

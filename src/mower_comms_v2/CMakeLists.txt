@@ -171,12 +171,21 @@ add_executable(mower_comms_v2
         src/MowerServiceInterface.h
         src/ImuServiceInterface.cpp
         src/ImuServiceInterface.h
+        src/LidarServiceInterface.cpp
+        src/LidarServiceInterface.h
+        src/PowerServiceInterface.cpp
+        src/PowerServiceInterface.h
+        src/DockingSensorServiceInterface.cpp
+        src/DockingSensorServiceInterface.h
 )
 
 target_add_service_interface(mower_comms_v2 ImuServiceInterface ${CMAKE_CURRENT_SOURCE_DIR}/../../services/imu_service.json)
 target_add_service_interface(mower_comms_v2 EmergencyServiceInterface ${CMAKE_CURRENT_SOURCE_DIR}/../../services/emergency_service.json)
 target_add_service_interface(mower_comms_v2 DiffDriveServiceInterface ${CMAKE_CURRENT_SOURCE_DIR}/../../services/diff_drive_service.json)
 target_add_service_interface(mower_comms_v2 MowerServiceInterface ${CMAKE_CURRENT_SOURCE_DIR}/../../services/mower_service.json)
+target_add_service_interface(mower_comms_v2 LidarServiceInterface ${CMAKE_CURRENT_SOURCE_DIR}/../../services/lidar_service.json)
+target_add_service_interface(mower_comms_v2 PowerServiceInterface ${CMAKE_CURRENT_SOURCE_DIR}/../../services/power_service.json)
+target_add_service_interface(mower_comms_v2 DockingSensorServiceInterface ${CMAKE_CURRENT_SOURCE_DIR}/../../services/docking_sensor_service.json)
 
 
 add_dependencies(mower_comms_v2 ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})

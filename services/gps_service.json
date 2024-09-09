@@ -1,0 +1,65 @@
+{
+  "inputs": [
+    {
+      "id": 0,
+      "name": "RTCM",
+      "type": "uint8_t[255]"
+    }
+  ],
+  "outputs": [
+    {
+      "id": 0,
+      "name": "PositionXYZ",
+      "type": "double[3]"
+    },
+    {
+      "id": 1,
+      "name": "PositionAccuracy",
+      "type": "double"
+    },
+    {
+      "id": 2,
+      "name": "FixType",
+      "type": "char[10]"
+    },
+    {
+      "id": 3,
+      "name": "MotionVectorENU",
+      "type": "double[3]"
+    },
+    {
+      "id": 4,
+      "name": "MotionHeadingAndAccuracy",
+      "type": "double[2]"
+    },
+    {
+      "id": 5,
+      "name": "VehicleHeadingAndAccuracy",
+      "type": "double[3]"
+    },
+    {
+      "id": 6,
+      "name": "NMEA",
+      "type": "char[128]"
+    }
+  ],
+  "registers": [
+    {
+      "id": 0,
+      "name": "Baudrate",
+      "type": "uint32_t"
+    },
+    {
+      "id": 1,
+      "name": "Protocol",
+      "type": "char[10]"
+    },
+    {
+      "id": 2,
+      "name": "DatumLatLonHeight",
+      "type": "double[3]"
+    }
+  ],
+  "type": "GpsService",
+  "version": 1
+}

@@ -1,6 +1,4 @@
 {
-  "type": "DiffDriveService",
-  "version": 1,
   "inputs": [
     {
       "id": 0,
@@ -46,5 +44,7 @@
       "name": "Wheel Distance",
       "type": "double"
     }
-  ]
+  ],
+  "type": "DiffDriveService",
+  "version": 1
 }

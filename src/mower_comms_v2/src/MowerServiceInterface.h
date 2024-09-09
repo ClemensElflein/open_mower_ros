@@ -13,20 +13,16 @@
 class MowerServiceInterface : public MowerServiceInterfaceBase {
  public:
   MowerServiceInterface(uint16_t service_id, const xbot::serviceif::Context& ctx,
-                        const ros::Publisher& status_poblisher)
-      : MowerServiceInterfaceBase(service_id, ctx), status_poblisher_(status_poblisher) {
+                        const ros::Publisher& status_publisher)
+      : MowerServiceInterfaceBase(service_id, ctx), status_publisher_(status_publisher) {
   }
 
   bool OnConfigurationRequested(const std::string& uid) override;
+  void SetMowerEnabled(bool enabled);
 
  protected:
   void OnMowerStatusChanged(const uint8_t& new_value) override;
-  void OnRaspberryPiPowerChanged(const uint8_t& new_value) override;
-  void OnGPSPowerChanged(const uint8_t& new_value) override;
-  void OnESCPowerChanged(const uint8_t& new_value) override;
   void OnRainDetectedChanged(const uint8_t& new_value) override;
-  void OnChargeVoltageChanged(const float& new_value) override;
-  void OnBatteryVoltageChanged(const float& new_value) override;
   void OnMowerRunningChanged(const uint8_t& new_value) override;
   void OnMowerESCTemperatureChanged(const float& new_value) override;
   void OnMowerMotorTemperatureChanged(const float& new_value) override;
@@ -38,8 +34,10 @@ class MowerServiceInterface : public MowerServiceInterfaceBase {
   void OnTransactionStart(uint64_t timestamp) override;
   void OnTransactionEnd() override;
   void OnServiceDisconnected(const std::string& uid) override;
+
+ private:
   mower_msgs::Status status_msg_{};
-  const ros::Publisher& status_poblisher_;
+  const ros::Publisher& status_publisher_;
 };
 
 #endif  // MOWERSERVICEINTERFACE_H

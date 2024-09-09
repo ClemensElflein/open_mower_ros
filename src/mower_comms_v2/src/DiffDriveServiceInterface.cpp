@@ -16,6 +16,7 @@ bool DiffDriveServiceInterface::OnConfigurationRequested(const std::string& uid)
 }
 
 void DiffDriveServiceInterface::SendTwist(const geometry_msgs::TwistConstPtr& msg) {
+  // Convert from ROS and publish
   double data[6]{};
   data[0] = msg->linear.x;
   data[1] = msg->linear.y;
@@ -25,19 +26,11 @@ void DiffDriveServiceInterface::SendTwist(const geometry_msgs::TwistConstPtr& ms
   data[5] = msg->angular.z;
   SendControlTwist(data, 6);
 }
-void DiffDriveServiceInterface::GetEscInfo(bool& left_error, float& left_esc_temperature, float& left_esc_current,
-                                           bool& right_error, float& right_esc_temperature, float& right_esc_current) {
-  std::unique_lock<std::mutex> lk{state_mutex_};
-  left_error = left_esc_state_.error;
-  left_esc_temperature = left_esc_state_.temperature;
-  left_esc_current = left_esc_state_.current;
-  right_error = right_esc_state_.error;
-  right_esc_temperature = right_esc_state_.temperature;
-  right_esc_current = right_esc_state_.current;
-}
+
 void DiffDriveServiceInterface::OnActualTwistChanged(const double* new_value, uint32_t length) {
   // 3 linear, 3 angular
   if (length == 6) {
+    // Convert to ROS and publish
     geometry_msgs::TwistStamped twist;
     twist.header.frame_id = "base_link";
     twist.header.stamp = ros::Time::now();
@@ -58,7 +51,7 @@ void DiffDriveServiceInterface::OnLeftESCCurrentChanged(const float& new_value) 
 }
 void DiffDriveServiceInterface::OnRightESCTemperatureChanged(const float& new_value) {
   std::unique_lock<std::mutex> lk{state_mutex_};
-  right_esc_state_.temperature = new_value;
+  right_esc_state_.temperature_pcb = new_value;
 }
 void DiffDriveServiceInterface::OnRightESCCurrentChanged(const float& new_value) {
   std::unique_lock<std::mutex> lk{state_mutex_};
@@ -66,19 +59,24 @@ void DiffDriveServiceInterface::OnRightESCCurrentChanged(const float& new_value)
 }
 void DiffDriveServiceInterface::OnLeftESCTemperatureChanged(const float& new_value) {
   std::unique_lock<std::mutex> lk{state_mutex_};
-  left_esc_state_.temperature = new_value;
+  left_esc_state_.temperature_pcb = new_value;
 }
 void DiffDriveServiceInterface::OnServiceConnected(const std::string& uid) {
   std::unique_lock<std::mutex> lk{state_mutex_};
-  left_esc_state_.error = false;
-  right_esc_state_.error = false;
+  left_esc_state_.status = mower_msgs::ESCStatus::ESC_STATUS_OK;
+  right_esc_state_.status = mower_msgs::ESCStatus::ESC_STATUS_OK;
 }
 void DiffDriveServiceInterface::OnTransactionStart(uint64_t timestamp) {
 }
-void DiffDriveServiceInterface::OnTransactionEnd() {
-}
+
 void DiffDriveServiceInterface::OnServiceDisconnected(const std::string& uid) {
   std::unique_lock<std::mutex> lk{state_mutex_};
-  left_esc_state_.error = true;
-  right_esc_state_.error = true;
+  left_esc_state_.status = mower_msgs::ESCStatus::ESC_STATUS_DISCONNECTED;
+  right_esc_state_.status = mower_msgs::ESCStatus::ESC_STATUS_DISCONNECTED;
+}
+
+void DiffDriveServiceInterface::OnTransactionEnd() {
+  // Publish values to ROS
+  left_esc_status_publisher_.publish(left_esc_state_);
+  right_esc_status_publisher_.publish(right_esc_state_);
 }

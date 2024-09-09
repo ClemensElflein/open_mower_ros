@@ -1,6 +1,4 @@
 {
-  "type": "IMUService",
-  "version": 1,
   "inputs": [],
   "outputs": [
     {
@@ -9,5 +7,7 @@
       "type": "double[9]"
     }
   ],
-  "registers": []
+  "registers": [],
+  "type": "IMUService",
+  "version": 1
 }

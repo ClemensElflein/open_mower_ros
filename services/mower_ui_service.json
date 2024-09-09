@@ -1,6 +1,4 @@
 {
-  "type": "MowerUiService",
-  "version": 1,
   "inputs": [
     {
       "id": 0,
@@ -56,5 +54,7 @@
       "name": "Wheel Distance",
       "type": "double"
     }
-  ]
+  ],
+  "type": "MowerUiService",
+  "version": 1
 }

@@ -6,6 +6,8 @@
 #define DIFFDRIVESERVICEINTERFACE_H
 
 #include <geometry_msgs/Twist.h>
+#include <mower_msgs/ESCStatus.h>
+#include <mower_msgs/EmergencyStopSrv.h>
 #include <ros/ros.h>
 
 #include <DiffDriveServiceInterfaceBase.hpp>
@@ -13,9 +15,14 @@
 class DiffDriveServiceInterface : public DiffDriveServiceInterfaceBase {
  public:
   DiffDriveServiceInterface(uint16_t service_id, const xbot::serviceif::Context& ctx,
-                            const ros::Publisher& actual_twist_publisher, double ticks_per_meter, double wheel_distance)
+                            const ros::Publisher& actual_twist_publisher,
+                            const ros::Publisher& left_esc_status_publisher,
+                            const ros::Publisher& right_esc_status_publisher, double ticks_per_meter,
+                            double wheel_distance)
       : DiffDriveServiceInterfaceBase(service_id, ctx),
         actual_twist_publisher_(actual_twist_publisher),
+        left_esc_status_publisher_(left_esc_status_publisher),
+        right_esc_status_publisher_(right_esc_status_publisher),
         wheel_distance_(wheel_distance),
         ticks_per_meter_(ticks_per_meter) {
   }
@@ -27,8 +34,6 @@ class DiffDriveServiceInterface : public DiffDriveServiceInterfaceBase {
    * @param msg The ROS message
    */
   void SendTwist(const geometry_msgs::TwistConstPtr& msg);
-  void GetEscInfo(bool& left_error, float& left_esc_temperature, float& left_esc_current, bool& right_error,
-                  float& right_esc_temperature, float& right_esc_current);
 
  protected:
   /**
@@ -55,15 +60,14 @@ class DiffDriveServiceInterface : public DiffDriveServiceInterfaceBase {
 
  public:
   const ros::Publisher& actual_twist_publisher_;
+  const ros::Publisher& left_esc_status_publisher_;
+  const ros::Publisher& right_esc_status_publisher_;
   double wheel_distance_;
   double ticks_per_meter_;
 
   // Store the latest ESC state
-  struct ESCState {
-    bool error = true;
-    float temperature = 0.0;
-    float current = 0.0;
-  } left_esc_state_{}, right_esc_state_{};
+  mower_msgs::ESCStatus left_esc_state_{};
+  mower_msgs::ESCStatus right_esc_state_{};
 };
 
 #endif  // DIFFDRIVESERVICEINTERFACE_H
