@@ -38,7 +38,8 @@ ros::Time last_pose_update(0);
 
 ros::NodeHandle *paramNh;
 
-mower_logic::MowerLogicConfig last_config;
+dynamic_reconfigure::Client<mower_logic::MowerLogicConfig> *reconfigClient;
+mower_logic::MowerLogicConfig mower_logic_config;
 
 // Sensor struct which hold all sensor relevant data
 struct Sensor {
@@ -71,11 +72,10 @@ void status(const mower_msgs::Status::ConstPtr &msg) {
   if ((msg->stamp - last_status_update).toSec() < 0.5) return;
   last_status_update = msg->stamp;
 
-  // TODO: Check last_config if changed
-
   xbot_msgs::SensorDataDouble sensor_data;
   sensor_data.stamp = msg->stamp;
 
+  // FIXME: Isn't there a nice way to place the sensor msg-> position/field also in the main sensors map? (to get rid of this additional const map)
   const std::map<std::string, float> sensor_values{
       {"om_v_charge", msg->v_charge},
       {"om_v_battery", msg->v_battery},
@@ -122,15 +122,20 @@ void pose_received(const xbot_msgs::AbsolutePose::ConstPtr &msg) {
   sensor.data_pub.publish(sensor_data);
 }
 
+/**
+ * Set sensor limits, dependent on sensor type.
+ * Determine limits by config settings or param file.
+ */
 void set_sensor_limits(Sensor &sensor) {
   switch (sensor.value_desc) {
     case xbot_msgs::SensorInfo::VALUE_DESCRIPTION_VOLTAGE:
       if (sensor.si.sensor_id == "om_v_battery") {
-        //sensor.si.max_value = last_config.battery_full_voltage;
-        //sensor.si.min_value = last_config.battery_empty_voltage;
-        //sensor.si.lower_critical_value = last_config.battery_critical_voltage;
-        sensor.si.upper_critical_value = 29.0f;  // Taken from OpenMower FW
+        sensor.si.lower_critical_value = mower_logic_config.battery_critical_voltage;
+        sensor.si.min_value = mower_logic_config.battery_empty_voltage;
+        sensor.si.max_value = mower_logic_config.battery_full_voltage;
+        sensor.si.upper_critical_value = mower_logic_config.battery_critical_high_voltage;
       } else if (sensor.si.sensor_id == "om_v_charge") {
+        // FIXME: Shall these better go to mower_logic's dyn-reconfigure?
         sensor.si.min_value = 24.0f;             // Mnimum voltage for before deep-discharge
         sensor.si.max_value = 29.2f;             // Optimal charge voltage
         sensor.si.upper_critical_value = 30.0f;  // Taken from OpenMower FW
@@ -140,18 +145,16 @@ void set_sensor_limits(Sensor &sensor) {
       if (sensor.si.sensor_id.find("_motor_") != std::string::npos) {
         sensor.si.upper_critical_value = paramNh->param(sensor.param_path + "/motor_current_limit", 0.0f);
       } else if (sensor.si.sensor_id == "om_charge_current") {
+        // FIXME: Shall these better go to mower_logic's dyn-reconfigure?
         sensor.si.max_value = 1.0f;             // Taken from the docs
         sensor.si.upper_critical_value = 1.5f;  // Taken from OpenMower FW
       }
-
       break;
     case xbot_msgs::SensorInfo::VALUE_DESCRIPTION_TEMPERATURE:
       if (sensor.si.sensor_id.find("_motor_") != std::string::npos) {
         // mower_config settings have precedence before xesc param file
-        sensor.si.max_value =
-            paramNh->param("motor_hot_temperature", paramNh->param(sensor.param_path + "/max_motor_temp", 0.0f));
-        sensor.si.min_value =
-            paramNh->param("motor_cold_temperature", paramNh->param(sensor.param_path + "/min_motor_temp", 0.0f));
+        sensor.si.max_value = (mower_logic_config.motor_hot_temperature ? mower_logic_config.motor_hot_temperature : paramNh->param(sensor.param_path + "/max_motor_temp", 0.0f));
+        sensor.si.min_value = (mower_logic_config.motor_cold_temperature ? mower_logic_config.motor_cold_temperature : paramNh->param(sensor.param_path + "/min_motor_temp", 0.0f));
       } else  // i.e. _esc_
         sensor.si.max_value = paramNh->param(sensor.param_path + "/max_pcb_temp", 0);
       break;
@@ -162,7 +165,13 @@ void set_sensor_limits(Sensor &sensor) {
       break;
   }
   // Set has* sensor infos
-  if (sensor.si.min_value || sensor.si.max_value) sensor.si.has_min_max = true;
+  // FIXME: "has_min_max" is somehow confusing/misstakeable.
+  // From the logic point of view, has_min_max should only be set if it has min as well as max limits,
+  // but then it's somehow useless because i.e. for temperatures, we don't have a reasonable min value.
+  // At least it doesn't make much sense to show i.e. a gauge from -15 to 80°C.
+  // If has_min_max get set if min OR max is set, then it's useless again, because then we need to check
+  // min as well as max for a limit value.
+  if (sensor.si.min_value && sensor.si.max_value) sensor.si.has_min_max = true;
   if (sensor.si.lower_critical_value) sensor.si.has_critical_low = true;
   if (sensor.si.upper_critical_value) sensor.si.has_critical_high = true;
 }
@@ -184,12 +193,19 @@ void registerSensors() {
     sensor.second.data_pub =
         n->advertise<xbot_msgs::SensorDataDouble>("xbot_monitoring/sensors/" + sensor.first + "/data", 10);
     sensor.second.si_pub.publish(sensor.second.si);
-          }
+  }
 }
 
-void configurationCallback(const mower_logic::MowerLogicConfig &config) {
-  ROS_INFO("Reconfiguration happened: %f", config.battery_empty_voltage);
-  last_config = config;
+void reconfigCB(const mower_logic::MowerLogicConfig &config) {
+  ROS_INFO_STREAM("Monitoring received new mower_logic config");
+  mower_logic_config = config;
+
+  // Set and publish new sensor limits
+  for (auto &sensor : sensors) {
+    set_sensor_limits(sensor.second);
+    // FIXME: xbot_monitoring need to be adapted to re-read sensors/*/info
+    sensor.second.si_pub.publish(sensor.second.si);
+  }
 }
 
 int main(int argc, char **argv) {
@@ -198,16 +214,10 @@ int main(int argc, char **argv) {
   n = new ros::NodeHandle();
   paramNh = new ros::NodeHandle("~");
 
-  dynamic_reconfigure::Client<mower_logic::MowerLogicConfig> *client;
-  client = new dynamic_reconfigure::Client<mower_logic::MowerLogicConfig>("/mower_logic");
-  last_config = mower_logic::MowerLogicConfig::__getDefault__();
-  ROS_DEBUG_STREAM("dynamic_reconfigure::Client default battery_empty_voltage=" << last_config.battery_empty_voltage);
-  if (!client->getCurrentConfiguration(last_config, ros::Duration(10.0))) {
-    ROS_WARN_STREAM("dynamic_reconfigure::Client timed out!");
-  } else {
-    ROS_DEBUG_STREAM("dynamic_reconfigure::Client battery_empty_voltage=" << last_config.battery_empty_voltage);
-  }
-
+  reconfigClient = new dynamic_reconfigure::Client<mower_logic::MowerLogicConfig>("/mower_logic");
+  reconfigClient->setConfigurationCallback(reconfigCB);
+  mower_logic_config = mower_logic::MowerLogicConfig::__getDefault__();
+  
   registerSensors();
 
   ros::Subscriber pose_sub = n->subscribe("xbot_positioning/xb_pose", 10, pose_received);

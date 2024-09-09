@@ -9,7 +9,7 @@
 
     <arg name="battery_empty_voltage" value="$(env OM_BATTERY_EMPTY_VOLTAGE)" />
     <arg name="battery_critical_voltage" value="$(optenv OM_BATTERY_CRITICAL_VOLTAGE)" />
-    <!-- <arg name="battery_critical_high_voltage" value="$(optenv OM_BATTERY_CRITICAL_HIGH_VOLTAGE)" /> -->
+    <arg name="battery_critical_high_voltage" value="$(optenv OM_BATTERY_CRITICAL_HIGH_VOLTAGE)" />
 
     <node pkg="mower_map" type="mower_map_service" name="map_service" output="screen"/>
     <node pkg="mower_logic" type="mower_logic" name="mower_logic" output="screen">
@@ -68,10 +68,5 @@
 
     <node pkg="mower_logic" type="monitoring" name="monitoring" output="screen" respawn="true" respawn_delay="10">
         <rosparam unless="$(eval env('OM_MOWER')=='CUSTOM')" file="$(find open_mower)/params/hardware_specific/$(env OM_MOWER)/comms_$(env OM_MOWER_ESC_TYPE)_params.yaml"/>
-        <param name="battery_empty_voltage" value="$(arg battery_empty_voltage)"/>
-        <param name="battery_critical_voltage" value="$(eval battery_empty_voltage if battery_critical_voltage=='' else battery_critical_voltage)"/>
-        <param name="battery_full_voltage" value="$(env OM_BATTERY_FULL_VOLTAGE)"/>
-        <param name="motor_hot_temperature" value="$(env OM_MOWING_MOTOR_TEMP_HIGH)"/>
-        <param name="motor_cold_temperature" value="$(env OM_MOWING_MOTOR_TEMP_LOW)"/>
     </node>
 </launch>
