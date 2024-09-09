@@ -8,6 +8,6 @@
     }
   ],
   "registers": [],
-  "type": "IMUService",
+  "type": "ImuService",
   "version": 1
 }

@@ -8,10 +8,10 @@ project(mower_comms_v1)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-  mower_msgs
+        mower_msgs
         sensor_msgs
-  roscpp
-  serial
+        roscpp
+        serial
         xesc_driver
         xesc_msgs
         xesc_interface
@@ -115,10 +115,10 @@ add_service(DiffDriveService ${CMAKE_CURRENT_SOURCE_DIR}/../../services/diff_dri
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
-#  LIBRARIES mower_comms_v1
-#  CATKIN_DEPENDS mower_msgs roscpp serial
-#  DEPENDS system_lib
+        #  INCLUDE_DIRS include
+        #  LIBRARIES mower_comms_v1
+        #  CATKIN_DEPENDS mower_msgs roscpp serial
+        #  DEPENDS system_lib
 )
 
 ###########
@@ -128,8 +128,8 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-# include
-  ${catkin_INCLUDE_DIRS}
+        # include
+        ${catkin_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library
@@ -166,7 +166,7 @@ add_executable(mower_comms_v1
         src/mower_comms.cpp
         src/COBS.h
         src/ll_datatypes.h
-        )
+)
 
 add_dependencies(mower_comms_v1 ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
 target_link_libraries(mower_comms_v1 ${catkin_LIBRARIES}

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0.2)
+cmake_minimum_required(VERSION 3.16 FATAL_ERROR)
 project(mower_comms_v2)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
@@ -11,11 +11,8 @@ find_package(catkin REQUIRED COMPONENTS
         mower_msgs
         sensor_msgs
         roscpp
-        xesc_driver
         xesc_msgs
-        xesc_interface
         xbot_msgs
-        #        xbot_framework
 )
 
 find_package(

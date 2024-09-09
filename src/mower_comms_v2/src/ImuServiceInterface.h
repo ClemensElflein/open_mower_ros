@@ -10,10 +10,10 @@
 
 #include <ImuServiceInterfaceBase.hpp>
 
-class ImuServiceInterface : public IMUServiceInterfaceBase {
+class ImuServiceInterface : public ImuServiceInterfaceBase {
  public:
   ImuServiceInterface(uint16_t service_id, const xbot::serviceif::Context& ctx, const ros::Publisher& imu_publisher)
-      : IMUServiceInterfaceBase(service_id, ctx), imu_publisher_(imu_publisher) {
+      : ImuServiceInterfaceBase(service_id, ctx), imu_publisher_(imu_publisher) {
   }
   bool OnConfigurationRequested(const std::string& uid) override;
 
