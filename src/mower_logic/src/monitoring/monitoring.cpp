@@ -45,27 +45,45 @@ mower_logic::MowerLogicConfig mower_logic_config;
 struct Sensor {
   std::string name;  // Speaking name, used in sensor widget
   std::string unit;  // Unit like A, V, ...
-  uint8_t value_type;
   uint8_t value_desc;
+  std::function<double(const mower_msgs::Status::ConstPtr &)> getStatusSensorValue = nullptr;
   std::string param_path = "";  // Path to parameters
   xbot_msgs::SensorInfo si;     // SensorInfo Msg
   ros::Publisher si_pub;        // SensorInfo publisher
   ros::Publisher data_pub;      // Sensor-data publisher
 };
-// Place all sensors into a map, keyed by sensor.id
+// Place all sensor definitions in a key=sensor.id map
 std::map<std::string, Sensor> sensors{
-    {"om_v_charge", {"V Charge", "V", xbot_msgs::SensorInfo::TYPE_DOUBLE, xbot_msgs::SensorInfo::VALUE_DESCRIPTION_VOLTAGE}},
-    {"om_v_battery", {"V Battery", "V", xbot_msgs::SensorInfo::TYPE_DOUBLE, xbot_msgs::SensorInfo::VALUE_DESCRIPTION_VOLTAGE}},
-    {"om_charge_current", {"Charge Current", "A", xbot_msgs::SensorInfo::TYPE_DOUBLE, xbot_msgs::SensorInfo::VALUE_DESCRIPTION_CURRENT}},
-    {"om_left_esc_temp", {"Left ESC Temp", "deg.C", xbot_msgs::SensorInfo::TYPE_DOUBLE, xbot_msgs::SensorInfo::VALUE_DESCRIPTION_TEMPERATURE, "left_xesc"}},
-    {"om_right_esc_temp", {"Right ESC Temp", "deg.C", xbot_msgs::SensorInfo::TYPE_DOUBLE, xbot_msgs::SensorInfo::VALUE_DESCRIPTION_TEMPERATURE, "right_xesc"}},
-    {"om_mow_esc_temp", {"Mow ESC Temp", "deg.C", xbot_msgs::SensorInfo::TYPE_DOUBLE, xbot_msgs::SensorInfo::VALUE_DESCRIPTION_TEMPERATURE, "mower_xesc"}},
-    {"om_mow_motor_temp", {"Mow Motor Temp", "deg.C", xbot_msgs::SensorInfo::TYPE_DOUBLE, xbot_msgs::SensorInfo::VALUE_DESCRIPTION_TEMPERATURE, "mower_xesc"}},
-    {"om_mow_motor_current", {"Mow Motor Current", "A", xbot_msgs::SensorInfo::TYPE_DOUBLE, xbot_msgs::SensorInfo::VALUE_DESCRIPTION_CURRENT, "mower_xesc"}},
-    {"om_mow_motor_rpm", {"Mow Motor Revolutions", "rpm", xbot_msgs::SensorInfo::TYPE_DOUBLE, xbot_msgs::SensorInfo::VALUE_DESCRIPTION_RPM, "mower_xesc"}},
-    {"om_gps_accuracy", {"GPS Accuracy", "m", xbot_msgs::SensorInfo::TYPE_DOUBLE, xbot_msgs::SensorInfo::VALUE_DESCRIPTION_DISTANCE}},
+    {"om_v_charge",
+     {"V Charge", "V", xbot_msgs::SensorInfo::VALUE_DESCRIPTION_VOLTAGE,
+      [](const mower_msgs::Status::ConstPtr &msg) -> double { return msg->v_charge; }}},
+    {"om_v_battery",
+     {"V Battery", "V", xbot_msgs::SensorInfo::VALUE_DESCRIPTION_VOLTAGE,
+      [](const mower_msgs::Status::ConstPtr &msg) -> double { return msg->v_battery; }}},
+    {"om_charge_current",
+     {"Charge Current", "A", xbot_msgs::SensorInfo::VALUE_DESCRIPTION_CURRENT,
+      [](const mower_msgs::Status::ConstPtr &msg) -> double { return msg->charge_current; }}},
+    {"om_left_esc_temp",
+     {"Left ESC Temp", "deg.C", xbot_msgs::SensorInfo::VALUE_DESCRIPTION_TEMPERATURE,
+      [](const mower_msgs::Status::ConstPtr &msg) -> double { return msg->left_esc_status.temperature_pcb; }, "left_xesc"}},
+    {"om_right_esc_temp",
+     {"Right ESC Temp", "deg.C", xbot_msgs::SensorInfo::VALUE_DESCRIPTION_TEMPERATURE,
+      [](const mower_msgs::Status::ConstPtr &msg) -> double { return msg->right_esc_status.temperature_pcb; }, "right_xesc"}},
+    {"om_mow_esc_temp",
+     {"Mow ESC Temp", "deg.C", xbot_msgs::SensorInfo::VALUE_DESCRIPTION_TEMPERATURE,
+      [](const mower_msgs::Status::ConstPtr &msg) -> double { return msg->mow_esc_status.temperature_pcb; }, "mower_xesc"}},
+    {"om_mow_motor_temp",
+     {"Mow Motor Temp", "deg.C", xbot_msgs::SensorInfo::VALUE_DESCRIPTION_TEMPERATURE,
+     [](const mower_msgs::Status::ConstPtr &msg) -> double { return msg->mow_esc_status.temperature_motor; }, "mower_xesc"}},
+    {"om_mow_motor_current",
+     {"Mow Motor Current", "A", xbot_msgs::SensorInfo::VALUE_DESCRIPTION_CURRENT,
+      [](const mower_msgs::Status::ConstPtr &msg) -> double { return msg->mow_esc_status.current; }, "mower_xesc"}},
+    {"om_mow_motor_rpm",
+     {"Mow Motor Revolutions", "rpm", xbot_msgs::SensorInfo::VALUE_DESCRIPTION_RPM,
+      [](const mower_msgs::Status::ConstPtr &msg) -> double { return msg->mow_esc_status.rpm; }, "mower_xesc"}},
+    {"om_gps_accuracy",
+     {"GPS Accuracy", "m", xbot_msgs::SensorInfo::VALUE_DESCRIPTION_DISTANCE}},
 };
-
 
 void status(const mower_msgs::Status::ConstPtr &msg) {
   // Rate limit to 2Hz
@@ -75,22 +93,11 @@ void status(const mower_msgs::Status::ConstPtr &msg) {
   xbot_msgs::SensorDataDouble sensor_data;
   sensor_data.stamp = msg->stamp;
 
-  // FIXME: Isn't there a nice way to place the sensor msg-> position/field also in the main sensors map? (to get rid of this additional const map)
-  const std::map<std::string, float> sensor_values{
-      {"om_v_charge", msg->v_charge},
-      {"om_v_battery", msg->v_battery},
-      {"om_charge_current", msg->charge_current},
-      {"om_left_esc_temp", msg->left_esc_status.temperature_pcb},
-      {"om_right_esc_temp", msg->right_esc_status.temperature_pcb},
-      {"om_mow_esc_temp", msg->mow_esc_status.temperature_pcb},
-      {"om_mow_motor_temp", msg->mow_esc_status.temperature_motor},
-      {"om_mow_motor_current", msg->mow_esc_status.current},
-      {"om_mow_motor_rpm", msg->mow_esc_status.rpm},
-  };
-  for (auto &sensor_value : sensor_values) {
-    Sensor sensor = sensors.at(sensor_value.first);
-    sensor_data.data = sensor_value.second;
-    sensor.data_pub.publish(sensor_data);
+  for (auto &sensor : sensors) {
+    if (sensor.second.getStatusSensorValue != nullptr) {
+      sensor_data.data = sensor.second.getStatusSensorValue(msg);
+      sensor.second.data_pub.publish(sensor_data);
+    }
   }
 }
 
@@ -118,8 +125,11 @@ void pose_received(const xbot_msgs::AbsolutePose::ConstPtr &msg) {
   xbot_msgs::SensorDataDouble sensor_data;
   sensor_data.stamp = msg->header.stamp;
   sensor_data.data = msg->position_accuracy;
-  auto sensor = sensors.at("om_gps_accuracy");
-  sensor.data_pub.publish(sensor_data);
+
+  auto sensor_it = sensors.find("om_gps_accuracy");
+  if (sensor_it != std::end(sensors)) {
+    sensor_it->second.data_pub.publish(sensor_data);
+  }
 }
 
 /**
@@ -182,7 +192,7 @@ void registerSensors() {
     sensor.second.si.sensor_name = sensor.second.name;
 
     sensor.second.si.unit = sensor.second.unit;
-    sensor.second.si.value_type = sensor.second.value_type;
+    sensor.second.si.value_type = xbot_msgs::SensorInfo::TYPE_DOUBLE;
     sensor.second.si.value_description = sensor.second.value_desc;
 
     // Set sensor threshold values
