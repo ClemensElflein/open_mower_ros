@@ -214,9 +214,8 @@ int main(int argc, char **argv) {
   n = new ros::NodeHandle();
   paramNh = new ros::NodeHandle("~");
 
-  reconfigClient = new dynamic_reconfigure::Client<mower_logic::MowerLogicConfig>("/mower_logic");
-  reconfigClient->setConfigurationCallback(reconfigCB);
   mower_logic_config = mower_logic::MowerLogicConfig::__getDefault__();
+  reconfigClient = new dynamic_reconfigure::Client<mower_logic::MowerLogicConfig>("/mower_logic", reconfigCB);
   
   registerSensors();
 
