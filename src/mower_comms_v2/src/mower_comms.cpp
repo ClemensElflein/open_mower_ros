@@ -91,9 +91,12 @@ int main(int argc, char **argv) {
   double wheel_ticks_per_m = 0.0;
   double wheel_distance_m = 0.0;
 
+  std::string bind_ip = "0.0.0.0";
+  paramNh.getParam("bind_ip", bind_ip);
   paramNh.getParam("wheel_ticks_per_m", wheel_ticks_per_m);
   paramNh.getParam("wheel_distance_m", wheel_distance_m);
 
+  ROS_INFO_STREAM("Bind IP (Robot Internal): " << bind_ip);
   ROS_INFO_STREAM("Wheel ticks [1/m]: " << wheel_ticks_per_m);
   ROS_INFO_STREAM("Wheel distance [m]: " << wheel_distance_m);
 
@@ -112,7 +115,7 @@ int main(int argc, char **argv) {
   // ros::Subscriber high_level_status_sub = n.subscribe("/mower_logic/current_state", 0, highLevelStatusReceived);
   ros::Timer publish_timer = n.createTimer(ros::Duration(0.5), sendEmergencyHeartbeatTimerTask);
 
-  ctx = xbot::serviceif::Start();
+  ctx = xbot::serviceif::Start(true, bind_ip);
 
   emergency_service = std::make_unique<EmergencyServiceInterface>(1, ctx, emergency_pub);
   diff_drive_service = std::make_unique<DiffDriveServiceInterface>(
