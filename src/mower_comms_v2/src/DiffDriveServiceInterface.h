@@ -46,6 +46,7 @@ class DiffDriveServiceInterface : public DiffDriveServiceInterfaceBase {
   void OnLeftESCCurrentChanged(const float& new_value) override;
   void OnRightESCTemperatureChanged(const float& new_value) override;
   void OnRightESCCurrentChanged(const float& new_value) override;
+  void OnWheelTicksChanged(const uint32_t* new_value, uint32_t length) override;
 
  private:
   void OnServiceConnected(const std::string& uid) override;

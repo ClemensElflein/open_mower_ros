@@ -104,7 +104,7 @@ int main(int argc, char **argv) {
   status_left_esc_pub = n.advertise<mower_msgs::ESCStatus>("ll/diff_drive/left_esc_status", 1);
   status_right_esc_pub = n.advertise<mower_msgs::ESCStatus>("ll/diff_drive/right_esc_status", 1);
   emergency_pub = n.advertise<mower_msgs::Emergency>("ll/emergency", 1);
-  actual_twist_pub = n.advertise<geometry_msgs::TwistStamped>("ll/measured_twist", 1);
+  actual_twist_pub = n.advertise<geometry_msgs::TwistStamped>("ll/diff_drive/measured_twist", 1);
   sensor_imu_pub = n.advertise<sensor_msgs::Imu>("ll/imu/data_raw", 1);
   sensor_dock_pub = n.advertise<mower_msgs::DockingSensor>("ll/dock_sensor", 1);
   sensor_lidar_pub = n.advertise<sensor_msgs::LaserScan>("ll/lidar", 1);
