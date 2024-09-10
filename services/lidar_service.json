@@ -42,6 +42,11 @@
       "id": 7,
       "name": "Intensities",
       "type": "float[100]"
+    },
+    {
+      "id": 8,
+      "name": "NewScan",
+      "type": "uint8_t"
     }
   ],
   "registers": []
