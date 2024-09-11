@@ -17,6 +17,8 @@
 //
 #include "UndockingBehavior.h"
 
+#include "tf2_eigen/tf2_eigen.h"
+
 extern ros::ServiceClient dockingPointClient;
 extern actionlib::SimpleActionClient<mbf_msgs::ExePathAction> *mbfClientExePath;
 extern xbot_msgs::AbsolutePose getPose();
@@ -35,6 +37,8 @@ std::string UndockingBehavior::state_name() {
 }
 
 Behavior *UndockingBehavior::execute() {
+  static double next_undock_angle = 0.0;
+
   // get robot's current pose from odometry.
   xbot_msgs::AbsolutePose pose = getPose();
   tf2::Quaternion quat;
@@ -47,15 +51,40 @@ Behavior *UndockingBehavior::execute() {
 
   nav_msgs::Path path;
 
+  geometry_msgs::PoseStamped docking_pose_stamped_front;
+  docking_pose_stamped_front.pose = pose.pose.pose;
+  docking_pose_stamped_front.header = pose.header;
+
   int undock_point_count = config.undock_distance * 10.0;
   for (int i = 0; i < undock_point_count; i++) {
-    geometry_msgs::PoseStamped docking_pose_stamped_front;
-    docking_pose_stamped_front.pose = pose.pose.pose;
-    docking_pose_stamped_front.header = pose.header;
-    docking_pose_stamped_front.pose.position.x -= cos(yaw) * (i / 10.0);
-    docking_pose_stamped_front.pose.position.y -= sin(yaw) * (i / 10.0);
+    docking_pose_stamped_front.pose.position.x -= cos(yaw) * 0.1;
+    docking_pose_stamped_front.pose.position.y -= sin(yaw) * 0.1;
     path.poses.push_back(docking_pose_stamped_front);
   }
+
+  double angle;
+  if (config.undock_fixed_angle)
+    angle = config.undock_angle * (M_PI + M_PI) / 360.0;
+  else
+    angle = next_undock_angle;
+
+  undock_point_count = config.undock_angled_distance * 10.0;
+  for (int i = 0; i < undock_point_count; i++) {
+    double orientation;
+    if (config.undock_use_curve)
+      orientation = yaw + ((i + 1) * angle / undock_point_count);
+    else
+      orientation = yaw + angle;
+    docking_pose_stamped_front.pose.position.x -= cos(orientation) * 0.1;
+    docking_pose_stamped_front.pose.position.y -= sin(orientation) * 0.1;
+    tf2::Quaternion q(0.0, 0.0, orientation);
+    docking_pose_stamped_front.pose.orientation = tf2::toMsg(q);
+    path.poses.push_back(docking_pose_stamped_front);
+  }
+
+  next_undock_angle = angle + (abs(config.undock_angle) * (M_PI + M_PI) / 360.0) / 5.0;
+  if (next_undock_angle > abs(config.undock_angle) * (M_PI + M_PI) / 360.0)
+    next_undock_angle = -abs(config.undock_angle) * (M_PI + M_PI) / 360.0;
 
   exePathGoal.path = path;
   exePathGoal.angle_tolerance = 1.0 * (M_PI / 180.0);

@@ -15,6 +15,7 @@
     <node pkg="mower_logic" type="mower_logic" name="mower_logic" output="screen">
         <param name="automatic_mode" value="$(optenv OM_AUTOMATIC_MODE 0)"/>
         <param name="docking_distance" value="$(env OM_DOCKING_DISTANCE)"/>
+        <param name="docking_approach_distance" value="$(env OM_DOCKING_APPROACH_DISTANCE)"/>
         <param name="docking_extra_time" value="$(optenv OM_DOCKING_EXTRA_TIME 0)"/>
         <param name="docking_retry_count" value="$(optenv OM_DOCKING_RETRY_COUNT 4)"/>
         <param name="docking_redock" value="$(optenv OM_DOCKING_REDOCK False)"/>
@@ -41,6 +42,10 @@
         <param name="rain_mode" value="$(optenv OM_RAIN_MODE 0)"/>
         <param name="rain_delay_minutes" value="$(optenv OM_RAIN_DELAY_MINUTES 30)"/>
         <param name="rain_check_seconds" value="$(optenv OM_RAIN_CHECK_SECONDS 20)"/>
+        <param name="undock_angled_distance" value="$(optenv OM_UNDOCK_ANGLED_DISTANCE 0.0)"/>
+        <param name="undock_angle" value="$(optenv OM_UNDOCK_ANGLE 0.0)"/>
+        <param name="undock_fixed_angle" value="$(optenv OM_UNDOCK_FIXED_ANGLE True)"/>
+        <param name="undock_use_curve" value="$(optenv OM_UNDOCK_USE_CURVE True)"/>
     </node>
     <node pkg="slic3r_coverage_planner" type="slic3r_coverage_planner" name="slic3r_coverage_planner" output="screen"/>
 
