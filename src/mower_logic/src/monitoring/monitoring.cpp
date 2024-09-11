@@ -16,7 +16,6 @@
 //
 //
 
-//#include <dynamic_reconfigure/server.h>
 #include <dynamic_reconfigure/client.h>
 
 #include "mower_logic/MowerLogicConfig.h"
@@ -58,31 +57,16 @@ struct SensorConfig {
 };
 // Place all sensors in a key=sensor.id -> SensorConfig map
 std::map<std::string, SensorConfig> sensor_configs{
-    {"om_v_charge",
-     {"V Charge", "V", SensorInfo::VALUE_DESCRIPTION_VOLTAGE, [](StatusPtr msg) { return msg->v_charge; }}},
-    {"om_v_battery",
-     {"V Battery", "V", SensorInfo::VALUE_DESCRIPTION_VOLTAGE, [](StatusPtr msg) { return msg->v_battery; }}},
-    {"om_charge_current",
-     {"Charge Current", "A", SensorInfo::VALUE_DESCRIPTION_CURRENT, [](StatusPtr msg) { return msg->charge_current; }}},
-    {"om_left_esc_temp",
-     {"Left ESC Temp", "deg.C", SensorInfo::VALUE_DESCRIPTION_TEMPERATURE,
-      [](StatusPtr msg) { return msg->left_esc_status.temperature_pcb; }, "left_xesc"}},
-    {"om_right_esc_temp",
-     {"Right ESC Temp", "deg.C", SensorInfo::VALUE_DESCRIPTION_TEMPERATURE,
-      [](StatusPtr msg) { return msg->right_esc_status.temperature_pcb; }, "right_xesc"}},
-    {"om_mow_esc_temp",
-     {"Mow ESC Temp", "deg.C", SensorInfo::VALUE_DESCRIPTION_TEMPERATURE,
-      [](StatusPtr msg) { return msg->mow_esc_status.temperature_pcb; }, "mower_xesc"}},
-    {"om_mow_motor_temp",
-     {"Mow Motor Temp", "deg.C", SensorInfo::VALUE_DESCRIPTION_TEMPERATURE,
-      [](StatusPtr msg) { return msg->mow_esc_status.temperature_motor; }, "mower_xesc"}},
-    {"om_mow_motor_current",
-     {"Mow Motor Current", "A", SensorInfo::VALUE_DESCRIPTION_CURRENT,
-      [](StatusPtr msg) { return msg->mow_esc_status.current; }, "mower_xesc"}},
-    {"om_mow_motor_rpm",
-     {"Mow Motor Revolutions", "rpm", SensorInfo::VALUE_DESCRIPTION_RPM,
-      [](StatusPtr msg) { return msg->mow_esc_status.rpm; }, "mower_xesc"}},
-    {"om_gps_accuracy", {"GPS Accuracy", "m", SensorInfo::VALUE_DESCRIPTION_DISTANCE}},
+  {"om_v_charge", {"V Charge", "V", SensorInfo::VALUE_DESCRIPTION_VOLTAGE, [](StatusPtr msg) { return msg->v_charge; }}},
+  {"om_v_battery", {"V Battery", "V", SensorInfo::VALUE_DESCRIPTION_VOLTAGE, [](StatusPtr msg) { return msg->v_battery; }}},
+  {"om_charge_current", {"Charge Current", "A", SensorInfo::VALUE_DESCRIPTION_CURRENT, [](StatusPtr msg) { return msg->charge_current; }}},
+  {"om_left_esc_temp", {"Left ESC Temp", "deg.C", SensorInfo::VALUE_DESCRIPTION_TEMPERATURE, [](StatusPtr msg) { return msg->left_esc_status.temperature_pcb; }, "left_xesc"}},
+  {"om_right_esc_temp", {"Right ESC Temp", "deg.C", SensorInfo::VALUE_DESCRIPTION_TEMPERATURE, [](StatusPtr msg) { return msg->right_esc_status.temperature_pcb; }, "right_xesc"}},
+  {"om_mow_esc_temp", {"Mow ESC Temp", "deg.C", SensorInfo::VALUE_DESCRIPTION_TEMPERATURE, [](StatusPtr msg) { return msg->mow_esc_status.temperature_pcb; }, "mower_xesc"}},
+  {"om_mow_motor_temp", {"Mow Motor Temp", "deg.C", SensorInfo::VALUE_DESCRIPTION_TEMPERATURE, [](StatusPtr msg) { return msg->mow_esc_status.temperature_motor; }, "mower_xesc"}},
+  {"om_mow_motor_current", {"Mow Motor Current", "A", SensorInfo::VALUE_DESCRIPTION_CURRENT, [](StatusPtr msg) { return msg->mow_esc_status.current; }, "mower_xesc"}},
+  {"om_mow_motor_rpm", {"Mow Motor Revolutions", "rpm", SensorInfo::VALUE_DESCRIPTION_RPM, [](StatusPtr msg) { return msg->mow_esc_status.rpm; }, "mower_xesc"}},
+  {"om_gps_accuracy", {"GPS Accuracy", "m", SensorInfo::VALUE_DESCRIPTION_DISTANCE}},
 };
 
 void status(StatusPtr &msg) {
