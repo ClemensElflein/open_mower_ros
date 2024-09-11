@@ -41,7 +41,7 @@ class LidarServiceInterface : public LidarServiceInterfaceBase {
 
  private:
   const ros::Publisher &lidar_publisher_;
-  std::vector<float> ranges;
+  std::deque<float> ranges;
   float max_m = 0;
   float min_m = 999;
   float scan_time = 0;

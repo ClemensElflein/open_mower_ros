@@ -134,9 +134,7 @@ int main(int argc, char **argv) {
   power_service->Start();
   docking_sensor_service->Start();
 
-  while (ctx.io->OK() && ros::ok()) {
-    ros::spinOnce();
-  }
+  ros::spin();
 
   return 0;
 }
