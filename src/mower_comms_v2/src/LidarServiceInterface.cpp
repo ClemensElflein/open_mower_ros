@@ -61,43 +61,55 @@ void LidarServiceInterface::OnTransactionEnd() {
       }
     }
 
-    // SLAM node wants a constant amount of points, otherwise it rejects the laser scan....
-    // our laser theoretically gives 400 pts, but sometimes its +- a few, so yea..
-    while (laser_scan_msg_.ranges.size() > 400) laser_scan_msg_.ranges.pop_back();
-    while (laser_scan_msg_.ranges.size() < 400) {
-      laser_scan_msg_.ranges.push_back(0);
-    }
-
     // Send the gathered data
+    const auto now = ros::Time::now();
     if (!laser_scan_msg_.ranges.empty()) {
-      laser_scan_msg_.header.frame_id = "base_link";
-      laser_scan_msg_.header.seq++;
-      laser_scan_msg_.header.stamp = ros::Time::now();
-      laser_scan_msg_.range_min = 0.0;
-      laser_scan_msg_.range_max = 20.0;
-      laser_scan_msg_.angle_increment =
-          fmodf(laser_scan_msg_.angle_max - laser_scan_msg_.angle_min + 2.0 * M_PI, 2.0 * M_PI) /
-          laser_scan_msg_.ranges.size();
+      if (last_full_scan_time_.is_zero()) {
+        last_full_scan_time_ = now;
+      } else {
+        {
+          // some SLAM algorithm want a constant amount of points, otherwise it rejects the laser scan....
+          // our laser theoretically gives 400 pts, but sometimes its +- a few, so yea..
+          while (laser_scan_msg_.ranges.size() > 400) {
+            laser_scan_msg_.ranges.pop_back();
+          }
+          while (laser_scan_msg_.ranges.size() < 400) {
+            laser_scan_msg_.ranges.push_back(0);
+          }
+        }
 
-      // our laser scanner is clockwise, so we need to flip some stuff.
-      // TODO: make this configurable
-      const auto tmp = laser_scan_msg_.angle_max;
-      laser_scan_msg_.angle_max = 360.0 - laser_scan_msg_.angle_min;
-      laser_scan_msg_.angle_min = 360.0 - tmp;
-      std::reverse(laser_scan_msg_.ranges.begin(), laser_scan_msg_.ranges.end());
-      // END: flippening
+        laser_scan_msg_.header.frame_id = "lidar";
+        laser_scan_msg_.header.seq++;
+        laser_scan_msg_.range_min = 0.0;
+        laser_scan_msg_.range_max = 20.0;
+        laser_scan_msg_.scan_time = (now - last_full_scan_time_).toSec();
+        laser_scan_msg_.time_increment = laser_scan_msg_.scan_time / laser_scan_msg_.ranges.size();
 
-      lidar_publisher_.publish(laser_scan_msg_);
+        laser_scan_msg_.angle_increment =
+            fmodf(laser_scan_msg_.angle_max - laser_scan_msg_.angle_min + 2.0 * M_PI, 2.0 * M_PI) /
+            laser_scan_msg_.ranges.size();
+
+        // our laser scanner does sometimes report weird start/end angles, so we set min-max angles manually
+        // TODO: either fix, or make configurable
+        laser_scan_msg_.angle_max = 2.0 * M_PI - M_PI / 800;
+        laser_scan_msg_.angle_min = 0;
+        // END: fix
+
+        last_full_scan_time_ = now;
+
+        // TODO: copy needed?
+        sensor_msgs::LaserScan copy{laser_scan_msg_};
+        lidar_publisher_.publish(copy);
+      }
     }
     new_scan = false;
 
     // Set the data from the last transaction as a start
+    laser_scan_msg_.header.stamp = now - ros::Duration().fromNSec(time_offset_micros * 1000);
     laser_scan_msg_.angle_min = angle_min;
     laser_scan_msg_.angle_max = angle_max;
     laser_scan_msg_.ranges.clear();
     laser_scan_msg_.ranges.insert(laser_scan_msg_.ranges.end(), ranges.begin(), ranges.end());
-    laser_scan_msg_.time_increment = time_increment;
-    laser_scan_msg_.scan_time = scan_time;
     laser_scan_msg_.range_max = max_m;
     laser_scan_msg_.range_min = min_m;
   } else {
@@ -111,4 +123,8 @@ void LidarServiceInterface::OnTransactionEnd() {
       laser_scan_msg_.ranges.insert(laser_scan_msg_.ranges.end(), ranges.begin(), ranges.end());
     }
   }
+}
+
+void LidarServiceInterface::OnTransactionStart(uint64_t timestamp) {
+  time_offset_micros = timestamp;
 }

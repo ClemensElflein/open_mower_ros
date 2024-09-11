@@ -39,7 +39,8 @@ class LidarServiceInterface : public LidarServiceInterfaceBase {
  private:
   void OnTransactionEnd() override;
 
- private:
+  void OnTransactionStart(uint64_t timestamp) override;
+
   const ros::Publisher &lidar_publisher_;
   std::deque<float> ranges;
   float max_m = 0;
@@ -49,6 +50,8 @@ class LidarServiceInterface : public LidarServiceInterfaceBase {
   float angle_min = 0;
   float angle_max = 0;
   bool new_scan = false;
+  uint64_t time_offset_micros = 0;
+  ros::Time last_full_scan_time_{0};
 
   sensor_msgs::LaserScan laser_scan_msg_{};
 };
