@@ -65,7 +65,7 @@ Behavior *UndockingBehavior::execute() {
 
   double angle;
   if (config.undock_fixed_angle) {
-    angle = config.undock_angle * (M_PI + M_PI) / 360.0;
+    angle = config.undock_angle * M_PI / 180.0;
     ROS_INFO_STREAM("Fixed angle undock: " << config.undock_angle);
   } else {
     // seed based on first undock time rather than boot so should be ok even without RTC
@@ -83,11 +83,8 @@ Behavior *UndockingBehavior::execute() {
   undock_point_count = 10;
   incremental_distance = config.undock_angled_distance / undock_point_count;
   for (int i = 0; i < undock_point_count; i++) {
-    double orientation;
-    if (config.undock_use_curve)
-      orientation = yaw + ((i + 1) * angle / undock_point_count);
-    else
-      orientation = yaw + angle;
+    double orientation = yaw + angle * (config.undock_use_curve ? ((i + 1) / undock_point_count) : 1);
+
     docking_pose_stamped_front.pose.position.x -= cos(orientation) * incremental_distance;
     docking_pose_stamped_front.pose.position.y -= sin(orientation) * incremental_distance;
 
