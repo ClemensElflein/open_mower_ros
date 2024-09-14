@@ -77,7 +77,9 @@ Behavior *UndockingBehavior::execute() {
       orientation = yaw + angle;
     docking_pose_stamped_front.pose.position.x -= cos(orientation) * 0.1;
     docking_pose_stamped_front.pose.position.y -= sin(orientation) * 0.1;
-    tf2::Quaternion q(0.0, 0.0, orientation);
+
+    tf2::Quaternion q;
+    q.setRPY(0.0, 0.0, orientation);
     docking_pose_stamped_front.pose.orientation = tf2::toMsg(q);
     path.poses.push_back(docking_pose_stamped_front);
   }
