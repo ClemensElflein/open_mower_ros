@@ -37,7 +37,7 @@ std::string UndockingBehavior::state_name() {
 }
 
 Behavior *UndockingBehavior::execute() {
-  static double next_undock_angle = 0.0;
+  static bool seedRqd = true;
 
   // get robot's current pose from odometry.
   xbot_msgs::AbsolutePose pose = getPose();
@@ -63,10 +63,21 @@ Behavior *UndockingBehavior::execute() {
   }
 
   double angle;
-  if (config.undock_fixed_angle)
+  if (config.undock_fixed_angle) {
     angle = config.undock_angle * (M_PI + M_PI) / 360.0;
-  else
-    angle = next_undock_angle;
+    ROS_INFO_STREAM("Fixed angle undock: " << config.undock_angle);
+  } else {
+    // seed based on first undock time rather than boot so should be ok even without RTC
+    if (seedRqd) {
+      srand(ros::Time::now().toSec());
+      ROS_INFO_STREAM("Random angle undock: Seeded rand()");
+      seedRqd = false;
+    }
+    double ranNum = (((((double)rand()) / RAND_MAX) - 0.5) * 2.0);
+    double ranAngle = abs(config.undock_angle) * ranNum;
+    ROS_INFO_STREAM("Random angle undock: " << ranAngle);
+    angle = ranAngle * (M_PI + M_PI) / 360.0;
+  }
 
   undock_point_count = config.undock_angled_distance * 10.0;
   for (int i = 0; i < undock_point_count; i++) {
@@ -83,10 +94,6 @@ Behavior *UndockingBehavior::execute() {
     docking_pose_stamped_front.pose.orientation = tf2::toMsg(q);
     path.poses.push_back(docking_pose_stamped_front);
   }
-
-  next_undock_angle = angle + (abs(config.undock_angle) * (M_PI + M_PI) / 360.0) / 5.0;
-  if (next_undock_angle > abs(config.undock_angle) * (M_PI + M_PI) / 360.0)
-    next_undock_angle = -abs(config.undock_angle) * (M_PI + M_PI) / 360.0;
 
   exePathGoal.path = path;
   exePathGoal.angle_tolerance = 1.0 * (M_PI / 180.0);
