@@ -55,10 +55,11 @@ Behavior *UndockingBehavior::execute() {
   docking_pose_stamped_front.pose = pose.pose.pose;
   docking_pose_stamped_front.header = pose.header;
 
-  int undock_point_count = config.undock_distance * 10.0;
+  int undock_point_count = 10;
+  double incremental_distance = config.undock_distance / undock_point_count;
   for (int i = 0; i < undock_point_count; i++) {
-    docking_pose_stamped_front.pose.position.x -= cos(yaw) * 0.1;
-    docking_pose_stamped_front.pose.position.y -= sin(yaw) * 0.1;
+    docking_pose_stamped_front.pose.position.x -= cos(yaw) * incremental_distance;
+    docking_pose_stamped_front.pose.position.y -= sin(yaw) * incremental_distance;
     path.poses.push_back(docking_pose_stamped_front);
   }
 
@@ -79,15 +80,16 @@ Behavior *UndockingBehavior::execute() {
     angle = ranAngle * (M_PI + M_PI) / 360.0;
   }
 
-  undock_point_count = config.undock_angled_distance * 10.0;
+  undock_point_count = 10;
+  incremental_distance = config.undock_angled_distance / undock_point_count;
   for (int i = 0; i < undock_point_count; i++) {
     double orientation;
     if (config.undock_use_curve)
       orientation = yaw + ((i + 1) * angle / undock_point_count);
     else
       orientation = yaw + angle;
-    docking_pose_stamped_front.pose.position.x -= cos(orientation) * 0.1;
-    docking_pose_stamped_front.pose.position.y -= sin(orientation) * 0.1;
+    docking_pose_stamped_front.pose.position.x -= cos(orientation) * incremental_distance;
+    docking_pose_stamped_front.pose.position.y -= sin(orientation) * incremental_distance;
 
     tf2::Quaternion q;
     q.setRPY(0.0, 0.0, orientation);
