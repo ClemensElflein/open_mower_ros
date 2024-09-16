@@ -74,10 +74,10 @@ Behavior *UndockingBehavior::execute() {
       ROS_INFO_STREAM("Random angle undock: Seeded rand()");
       rng_seeding_required = false;
     }
-    double ranNum = (((((double)rand()) / RAND_MAX) - 0.5) * 2.0);
-    double ranAngle = abs(config.undock_angle) * ranNum;
-    ROS_INFO_STREAM("Random angle undock: " << ranAngle);
-    angle = ranAngle * (M_PI + M_PI) / 360.0;
+    double random_number = ((double)rand() / RAND_MAX) * 2.0 - 1.0;
+    double random_angle_deg = abs(config.undock_angle) * random_number;
+    ROS_INFO_STREAM("Random angle undock: " << random_angle_deg);
+    angle = random_angle_deg * M_PI / 180.0;
   }
 
   const int angled_undock_point_count = 10;
