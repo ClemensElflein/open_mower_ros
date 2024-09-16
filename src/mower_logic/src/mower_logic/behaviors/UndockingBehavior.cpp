@@ -83,7 +83,7 @@ Behavior *UndockingBehavior::execute() {
   const int angled_undock_point_count = 10;
   incremental_distance = config.undock_angled_distance / angled_undock_point_count;
   for (int i = 0; i < angled_undock_point_count; i++) {
-    double orientation = yaw + angle * (config.undock_use_curve ? ((i + 1) / angled_undock_point_count) : 1);
+    double orientation = yaw + angle * (config.undock_use_curve ? ((i + 1.0) / angled_undock_point_count) : 1);
 
     docking_pose_stamped_front.pose.position.x -= cos(orientation) * incremental_distance;
     docking_pose_stamped_front.pose.position.y -= sin(orientation) * incremental_distance;
