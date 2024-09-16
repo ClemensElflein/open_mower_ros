@@ -37,7 +37,7 @@ std::string UndockingBehavior::state_name() {
 }
 
 Behavior *UndockingBehavior::execute() {
-  static bool seedRqd = true;
+  static bool rng_seeding_required = true;
 
   // get robot's current pose from odometry.
   xbot_msgs::AbsolutePose pose = getPose();
@@ -69,10 +69,10 @@ Behavior *UndockingBehavior::execute() {
     ROS_INFO_STREAM("Fixed angle undock: " << config.undock_angle);
   } else {
     // seed based on first undock time rather than boot so should be ok even without RTC
-    if (seedRqd) {
+    if (rng_seeding_required) {
       srand(ros::Time::now().toSec());
       ROS_INFO_STREAM("Random angle undock: Seeded rand()");
-      seedRqd = false;
+      rng_seeding_required = false;
     }
     double ranNum = (((((double)rand()) / RAND_MAX) - 0.5) * 2.0);
     double ranAngle = abs(config.undock_angle) * ranNum;
