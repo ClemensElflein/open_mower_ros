@@ -12,6 +12,7 @@
 #include <mutex>
 #include <nlohmann/json.hpp>
 
+#include "../../include/utils.h"
 #include "mower_logic/CheckPoint.h"
 #include "mower_logic/TasklistConfig.h"
 #include "mower_map/GetMowingAreaSrv.h"
@@ -19,10 +20,11 @@
 #include "slic3r_coverage_planner/PlanPath.h"
 #include "xbot_msgs/ActionRequest.h"
 #include "xbot_msgs/ActionResponse.h"
+#include "xbot_msgs/RegisterActionsSrv.h"
 
 using json = nlohmann::json;
 
-ros::ServiceClient pathClient, mapClient;
+ros::ServiceClient pathClient, mapClient, actionRegistrationClient;
 
 actionlib::SimpleActionClient<mower_msgs::MowPathsAction> *mowPathsClient;
 
@@ -30,6 +32,10 @@ dynamic_reconfigure::Server<mower_logic::TasklistConfig> *reconfigServer;
 mower_logic::TasklistConfig config;
 
 ros::Publisher action_response_pub;
+
+auto action_skip_area = xbot_msgs::create_action("mower_logic:mowing/skip_area", "Skip Area", true);
+auto action_skip_path = xbot_msgs::create_action("mower_logic:mowing/skip_path", "Skip Path");
+std::vector<xbot_msgs::ActionInfo> actions = {action_skip_area, action_skip_path};
 
 struct Task {
   json params;
@@ -356,8 +362,11 @@ void action_received(const xbot_msgs::ActionRequest::ConstPtr &request) {
     });
   } else if (request->action_id == "tasklist/restart") {
     change_tasklist([] { next_task_idx = 0; });
-  } else if (request->action_id == "tasklist/next_task") {
-    change_tasklist([] { next_task_idx++; });
+  } else if (request->action_id == "tasklist/next_task" || request->action_id == action_skip_area.action_id) {
+    // TODO: This is a bit nasty. We might need to differentiate whether a task was intentionally cancelled or aborted.
+    mowPathsClient->cancelAllGoals();
+  } else if (request->action_id == action_skip_path.action_id) {
+    // TODO: Implement skipping a path.
   } else if (request->action_id == "tasklist/enable_repeat") {
     change_tasklist([] { current_tasklist["repeat"] = true; }, false);
   } else {
@@ -365,6 +374,23 @@ void action_received(const xbot_msgs::ActionRequest::ConstPtr &request) {
   }
 
   action_response_pub.publish(response);
+}
+
+void registerActions(std::string prefix, const std::vector<xbot_msgs::ActionInfo> &actions) {
+  xbot_msgs::RegisterActionsSrv srv;
+  srv.request.node_prefix = prefix;
+  srv.request.actions = actions;
+
+  ros::Rate retry_delay(1);
+  actionRegistrationClient.waitForExistence(ros::Duration(10));
+  for (int i = 0; i < 10; i++) {
+    if (actionRegistrationClient.call(srv)) {
+      ROS_INFO_STREAM("successfully registered actions for " << prefix);
+      break;
+    }
+    ROS_ERROR_STREAM("Error registering actions for " << prefix << ". Retrying.");
+    retry_delay.sleep();
+  }
 }
 
 int main(int argc, char **argv) {
@@ -378,6 +404,8 @@ int main(int argc, char **argv) {
 
   pathClient = n.serviceClient<slic3r_coverage_planner::PlanPath>("slic3r_coverage_planner/plan_path");
   mapClient = n.serviceClient<mower_map::GetMowingAreaSrv>("mower_map_service/get_mowing_area");
+  actionRegistrationClient = n.serviceClient<xbot_msgs::RegisterActionsSrv>("xbot/register_actions");
+  registerActions("tasklist", actions);
 
   ros::Subscriber action = n.subscribe("xbot/action", 0, action_received, ros::TransportHints().tcpNoDelay(true));
   action_response_pub = n.advertise<xbot_msgs::ActionResponse>("xbot/action_response", 100);

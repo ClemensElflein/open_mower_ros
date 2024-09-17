@@ -26,9 +26,6 @@ class MowingBehavior : public Behavior {
  private:
   std::vector<xbot_msgs::ActionInfo> actions;
 
-  bool skip_area;
-  bool skip_path;
-
   bool execute_mowing_plan();
 
   // Progress

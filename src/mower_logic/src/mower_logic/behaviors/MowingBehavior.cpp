@@ -74,8 +74,6 @@ Behavior *MowingBehavior::execute() {
 }
 
 void MowingBehavior::enter() {
-  skip_area = false;
-  skip_path = false;
   paused = aborted = false;
 
   for (auto &a : actions) {
@@ -236,23 +234,6 @@ bool MowingBehavior::execute_mowing_plan() {
             current_status.state_ == actionlib::SimpleClientGoalState::PENDING) {
           // path is being executed, everything seems fine.
           // check if we should pause or abort mowing
-          /* // FIXME
-          if (skip_area) {
-            ROS_INFO_STREAM("MowingBehavior: (FIRST POINT) SKIP AREA was requested.");
-            // remove all paths in current area and return true
-            mowerEnabled = false;
-            mbfClientExePath->cancelAllGoals();
-            currentMowingPaths.clear();
-            skip_area = false;
-            return true;
-          }
-          if (skip_path) {
-            skip_path = false;
-            currentMowingPath++;
-            currentMowingPathIndex = 0;
-            return false;
-          }
-          */
           if (aborted) {
             ROS_INFO_STREAM("MowingBehavior: (FIRST POINT) ABORT was requested - stopping path execution.");
             mbfClientExePath->cancelAllGoals();
@@ -354,22 +335,6 @@ bool MowingBehavior::execute_mowing_plan() {
             current_status.state_ == actionlib::SimpleClientGoalState::PENDING) {
           // path is being executed, everything seems fine.
           // check if we should pause or abort mowing
-          /* // FIXME
-          if (skip_area) {
-            ROS_INFO_STREAM("MowingBehavior: (MOW) SKIP AREA was requested.");
-            // remove all paths in current area and return true
-            mowerEnabled = false;
-            currentMowingPaths.clear();
-            skip_area = false;
-            return true;
-          }
-          if (skip_path) {
-            skip_path = false;
-            currentMowingPath++;
-            currentMowingPathIndex = 0;
-            return false;
-          }
-          */
           if (aborted) {
             ROS_INFO_STREAM("MowingBehavior: (MOW) ABORT was requested - stopping path execution.");
             mbfClientExePath->cancelAllGoals();
@@ -486,7 +451,7 @@ void MowingBehavior::command_s1() {
 }
 
 void MowingBehavior::command_s2() {
-  skip_area = true;
+  // TODO: Trigger skip_area action.
 }
 
 bool MowingBehavior::redirect_joystick() {
@@ -530,22 +495,10 @@ MowingBehavior::MowingBehavior() {
   abort_mowing_action.enabled = false;
   abort_mowing_action.action_name = "Stop Mowing";
 
-  xbot_msgs::ActionInfo skip_area_action;
-  skip_area_action.action_id = "mower_logic:mowing/skip_area";
-  skip_area_action.enabled = false;
-  skip_area_action.action_name = "Skip Area";
-
-  xbot_msgs::ActionInfo skip_path_action;
-  skip_path_action.action_id = "mower_logic:mowing/skip_path";
-  skip_path_action.enabled = false;
-  skip_path_action.action_name = "Skip Path";
-
   actions.clear();
   actions.push_back(pause_action);
   actions.push_back(continue_action);
   actions.push_back(abort_mowing_action);
-  actions.push_back(skip_area_action);
-  actions.push_back(skip_path_action);
   // restore_checkpoint();
 }
 
@@ -559,12 +512,6 @@ bool MowingBehavior::handle_action(const std::string &action, const std::string 
   } else if (action == "mower_logic:mowing/abort_mowing") {
     ROS_INFO_STREAM("got abort mowing command");
     command_home();
-  } else if (action == "mower_logic:mowing/skip_area") {
-    ROS_INFO_STREAM("got skip_area command");
-    skip_area = true;
-  } else if (action == "mower_logic:mowing/skip_path") {
-    ROS_INFO_STREAM("got skip_path command");
-    skip_path = true;
   } else {
     return false;
   }
