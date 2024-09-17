@@ -516,27 +516,27 @@ int16_t MowingBehavior::get_current_path_index() {
 MowingBehavior::MowingBehavior() {
   last_checkpoint = ros::Time(0.0);
   xbot_msgs::ActionInfo pause_action;
-  pause_action.action_id = "pause";
+  pause_action.action_id = "mower_logic:mowing/pause";
   pause_action.enabled = false;
   pause_action.action_name = "Pause Mowing";
 
   xbot_msgs::ActionInfo continue_action;
-  continue_action.action_id = "continue";
+  continue_action.action_id = "mower_logic:mowing/continue";
   continue_action.enabled = false;
   continue_action.action_name = "Continue Mowing";
 
   xbot_msgs::ActionInfo abort_mowing_action;
-  abort_mowing_action.action_id = "abort_mowing";
+  abort_mowing_action.action_id = "mower_logic:mowing/abort_mowing";
   abort_mowing_action.enabled = false;
   abort_mowing_action.action_name = "Stop Mowing";
 
   xbot_msgs::ActionInfo skip_area_action;
-  skip_area_action.action_id = "skip_area";
+  skip_area_action.action_id = "mower_logic:mowing/skip_area";
   skip_area_action.enabled = false;
   skip_area_action.action_name = "Skip Area";
 
   xbot_msgs::ActionInfo skip_path_action;
-  skip_path_action.action_id = "skip_path";
+  skip_path_action.action_id = "mower_logic:mowing/skip_path";
   skip_path_action.enabled = false;
   skip_path_action.action_name = "Skip Path";
 

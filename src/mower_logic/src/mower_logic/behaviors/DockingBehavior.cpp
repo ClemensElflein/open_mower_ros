@@ -33,7 +33,7 @@ DockingBehavior DockingBehavior::INSTANCE;
 
 DockingBehavior::DockingBehavior() {
   xbot_msgs::ActionInfo abort_docking_action;
-  abort_docking_action.action_id = "abort_docking";
+  abort_docking_action.action_id = "mower_logic:docking/abort_docking";
   abort_docking_action.enabled = true;
   abort_docking_action.action_name = "Stop Docking";
 

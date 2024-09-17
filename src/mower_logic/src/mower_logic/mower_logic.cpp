@@ -648,7 +648,7 @@ void joyVelReceived(const geometry_msgs::Twist::ConstPtr &joy_vel) {
 
 void buildRootActions() {
   xbot_msgs::ActionInfo reset_emergency_action;
-  reset_emergency_action.action_id = "reset_emergency";
+  reset_emergency_action.action_id = "mower_logic/reset_emergency";
   reset_emergency_action.enabled = true;
   reset_emergency_action.action_name = "Reset Emergency";
   rootActions.push_back(reset_emergency_action);

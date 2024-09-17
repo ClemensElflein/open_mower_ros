@@ -202,12 +202,12 @@ IdleBehavior::IdleBehavior(bool stayDocked) {
   this->stay_docked = stayDocked;
 
   xbot_msgs::ActionInfo start_mowing_action;
-  start_mowing_action.action_id = "start_mowing";
+  start_mowing_action.action_id = "mower_logic:idle/start_mowing";
   start_mowing_action.enabled = false;
   start_mowing_action.action_name = "Start Mowing";
 
   xbot_msgs::ActionInfo start_area_recording_action;
-  start_area_recording_action.action_id = "start_area_recording";
+  start_area_recording_action.action_id = "mower_logic:idle/start_area_recording";
   start_area_recording_action.enabled = false;
   start_area_recording_action.action_name = "Start Area Recording";
 

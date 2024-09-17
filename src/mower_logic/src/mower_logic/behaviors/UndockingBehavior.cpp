@@ -36,7 +36,7 @@ UndockingBehavior UndockingBehavior::RETRY_INSTANCE(&DockingBehavior::INSTANCE);
 
 UndockingBehavior::UndockingBehavior() {
   xbot_msgs::ActionInfo abort_undocking_action;
-  abort_undocking_action.action_id = "abort_undocking";
+  abort_undocking_action.action_id = "mower_logic:undocking/abort_undocking";
   abort_undocking_action.enabled = true;
   abort_undocking_action.action_name = "Stop Undocking";
 
