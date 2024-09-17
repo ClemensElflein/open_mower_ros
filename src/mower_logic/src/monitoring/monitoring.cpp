@@ -47,11 +47,12 @@ struct SensorConfig {
   std::string name;  // Speaking name, used in sensor widget
   std::string unit;  // Unit like A, V, ...
   uint8_t value_desc;
-  std::function<double(StatusPtr)> getStatusSensorValue = nullptr;
-  std::string param_path = "";  // Path to parameters
-  xbot_msgs::SensorInfo si;     // SensorInfo Msg
-  ros::Publisher si_pub;        // SensorInfo publisher
-  ros::Publisher data_pub;      // Sensor-data publisher
+  std::function<double(StatusPtr)> getStatusSensorValueCB = nullptr;
+  std::string param_path = "";              // Path to parameters
+  std::function<bool()> existCB = nullptr;  // nullptr = no callback for exist check = enabled
+  xbot_msgs::SensorInfo si;                 // SensorInfo Msg
+  ros::Publisher si_pub;                    // SensorInfo publisher
+  ros::Publisher data_pub;                  // Sensor-data publisher
 };
 // Place all sensors in a key=sensor.id -> SensorConfig map
 // clang-format off
@@ -62,7 +63,7 @@ std::map<std::string, SensorConfig> sensor_configs{
   {"om_left_esc_temp", {"Left ESC Temp", "deg.C", xbot_msgs::SensorInfo::VALUE_DESCRIPTION_TEMPERATURE, [](StatusPtr msg) { return msg->left_esc_status.temperature_pcb; }, "left_xesc"}},
   {"om_right_esc_temp", {"Right ESC Temp", "deg.C", xbot_msgs::SensorInfo::VALUE_DESCRIPTION_TEMPERATURE, [](StatusPtr msg) { return msg->right_esc_status.temperature_pcb; }, "right_xesc"}},
   {"om_mow_esc_temp", {"Mow ESC Temp", "deg.C", xbot_msgs::SensorInfo::VALUE_DESCRIPTION_TEMPERATURE, [](StatusPtr msg) { return msg->mow_esc_status.temperature_pcb; }, "mower_xesc"}},
-  {"om_mow_motor_temp", {"Mow Motor Temp", "deg.C", xbot_msgs::SensorInfo::VALUE_DESCRIPTION_TEMPERATURE, [](StatusPtr msg) { return msg->mow_esc_status.temperature_motor; }, "mower_xesc"}},
+  {"om_mow_motor_temp", {"Mow Motor Temp", "deg.C", xbot_msgs::SensorInfo::VALUE_DESCRIPTION_TEMPERATURE, [](StatusPtr msg) { return msg->mow_esc_status.temperature_motor; }, "mower_xesc", [](){ return paramNh->param("mower_xesc/has_motor_temp", true); }}},
   {"om_mow_motor_current", {"Mow Motor Current", "A", xbot_msgs::SensorInfo::VALUE_DESCRIPTION_CURRENT, [](StatusPtr msg) { return msg->mow_esc_status.current; }, "mower_xesc"}},
   {"om_mow_motor_rpm", {"Mow Motor Revolutions", "rpm", xbot_msgs::SensorInfo::VALUE_DESCRIPTION_RPM, [](StatusPtr msg) { return msg->mow_esc_status.rpm; }, "mower_xesc"}},
   {"om_gps_accuracy", {"GPS Accuracy", "m", xbot_msgs::SensorInfo::VALUE_DESCRIPTION_DISTANCE}},
@@ -78,8 +79,11 @@ void status(StatusPtr &msg) {
   sensor_data.stamp = msg->stamp;
 
   for (auto &sc_pair : sensor_configs) {
-    if (sc_pair.second.getStatusSensorValue != nullptr) {
-      sensor_data.data = sc_pair.second.getStatusSensorValue(msg);
+    // Skip if sensor doesn't exists
+    if (sc_pair.second.existCB != nullptr && !sc_pair.second.existCB()) continue;
+
+    if (sc_pair.second.getStatusSensorValueCB != nullptr) {
+      sensor_data.data = sc_pair.second.getStatusSensorValueCB(msg);
       sc_pair.second.data_pub.publish(sensor_data);
     }
   }
@@ -176,6 +180,11 @@ void set_sensor_limits(SensorConfig &sensor_config) {
 
 void registerSensors() {
   for (auto &sc_pair : sensor_configs) {
+    if (sc_pair.second.existCB != nullptr && !sc_pair.second.existCB()) {
+      ROS_INFO_STREAM("Skipped monitoring of sensor " << sc_pair.first);
+      continue;
+    }
+
     sc_pair.second.si.sensor_id = sc_pair.first;
     sc_pair.second.si.sensor_name = sc_pair.second.name;
 
@@ -200,6 +209,9 @@ void reconfigCB(const mower_logic::MowerLogicConfig &config) {
 
   // Set and publish new sensor limits
   for (auto &sc_pair : sensor_configs) {
+    // Skip if sensor doesn't exists
+    if (sc_pair.second.existCB != nullptr && !sc_pair.second.existCB()) continue;
+
     set_sensor_limits(sc_pair.second);
     // FIXME: xbot_monitoring need to be adapted to re-read sensors/*/info
     sc_pair.second.si_pub.publish(sc_pair.second.si);
