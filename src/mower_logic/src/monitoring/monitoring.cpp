@@ -48,24 +48,35 @@ struct SensorConfig {
   std::string unit;  // Unit like A, V, ...
   uint8_t value_desc;
   std::function<double(StatusPtr)> getStatusSensorValueCB = nullptr;
+  std::function<void(SensorConfig &sensor_config)> setSensorLimitsCB = nullptr;
   std::string param_path = "";              // Path to parameters
   std::function<bool()> existCB = nullptr;  // nullptr = no callback for exist check = enabled
   xbot_msgs::SensorInfo si;                 // SensorInfo Msg
   ros::Publisher si_pub;                    // SensorInfo publisher
   ros::Publisher data_pub;                  // Sensor-data publisher
 };
+
+// Forward declare set_*_limits callback functions
+void set_limits_battery_v(SensorConfig &sensor_config);
+void set_limits_charge_current(SensorConfig &sensor_config);
+void set_limits_charge_v(SensorConfig &sensor_config);
+void set_limits_esc_temp(SensorConfig &sensor_config);
+void set_limits_mow_motor_current(SensorConfig &sensor_config);
+void set_limits_mow_motor_rpm(SensorConfig &sensor_config);
+void set_limits_mow_motor_temp(SensorConfig &sensor_config);
+
 // Place all sensors in a key=sensor.id -> SensorConfig map
 // clang-format off
 std::map<std::string, SensorConfig> sensor_configs{
-  {"om_v_charge", {"V Charge", "V", xbot_msgs::SensorInfo::VALUE_DESCRIPTION_VOLTAGE, [](StatusPtr msg) { return msg->v_charge; }}},
-  {"om_v_battery", {"V Battery", "V", xbot_msgs::SensorInfo::VALUE_DESCRIPTION_VOLTAGE, [](StatusPtr msg) { return msg->v_battery; }}},
-  {"om_charge_current", {"Charge Current", "A", xbot_msgs::SensorInfo::VALUE_DESCRIPTION_CURRENT, [](StatusPtr msg) { return msg->charge_current; }}},
-  {"om_left_esc_temp", {"Left ESC Temp", "deg.C", xbot_msgs::SensorInfo::VALUE_DESCRIPTION_TEMPERATURE, [](StatusPtr msg) { return msg->left_esc_status.temperature_pcb; }, "left_xesc"}},
-  {"om_right_esc_temp", {"Right ESC Temp", "deg.C", xbot_msgs::SensorInfo::VALUE_DESCRIPTION_TEMPERATURE, [](StatusPtr msg) { return msg->right_esc_status.temperature_pcb; }, "right_xesc"}},
-  {"om_mow_esc_temp", {"Mow ESC Temp", "deg.C", xbot_msgs::SensorInfo::VALUE_DESCRIPTION_TEMPERATURE, [](StatusPtr msg) { return msg->mow_esc_status.temperature_pcb; }, "mower_xesc"}},
-  {"om_mow_motor_temp", {"Mow Motor Temp", "deg.C", xbot_msgs::SensorInfo::VALUE_DESCRIPTION_TEMPERATURE, [](StatusPtr msg) { return msg->mow_esc_status.temperature_motor; }, "mower_xesc", [](){ return paramNh->param("mower_xesc/has_motor_temp", true); }}},
-  {"om_mow_motor_current", {"Mow Motor Current", "A", xbot_msgs::SensorInfo::VALUE_DESCRIPTION_CURRENT, [](StatusPtr msg) { return msg->mow_esc_status.current; }, "mower_xesc"}},
-  {"om_mow_motor_rpm", {"Mow Motor Revolutions", "rpm", xbot_msgs::SensorInfo::VALUE_DESCRIPTION_RPM, [](StatusPtr msg) { return msg->mow_esc_status.rpm; }, "mower_xesc"}},
+  {"om_v_charge", {"V Charge", "V", xbot_msgs::SensorInfo::VALUE_DESCRIPTION_VOLTAGE, [](StatusPtr msg) { return msg->v_charge; }, &set_limits_charge_v}},
+  {"om_v_battery", {"V Battery", "V", xbot_msgs::SensorInfo::VALUE_DESCRIPTION_VOLTAGE, [](StatusPtr msg) { return msg->v_battery; }, &set_limits_battery_v}},
+  {"om_charge_current", {"Charge Current", "A", xbot_msgs::SensorInfo::VALUE_DESCRIPTION_CURRENT, [](StatusPtr msg) { return msg->charge_current; }, &set_limits_charge_current}},
+  {"om_left_esc_temp", {"Left ESC Temp", "deg.C", xbot_msgs::SensorInfo::VALUE_DESCRIPTION_TEMPERATURE, [](StatusPtr msg) { return msg->left_esc_status.temperature_pcb; }, &set_limits_esc_temp, "left_xesc"}},
+  {"om_right_esc_temp", {"Right ESC Temp", "deg.C", xbot_msgs::SensorInfo::VALUE_DESCRIPTION_TEMPERATURE, [](StatusPtr msg) { return msg->right_esc_status.temperature_pcb; }, &set_limits_esc_temp, "right_xesc"}},
+  {"om_mow_esc_temp", {"Mow ESC Temp", "deg.C", xbot_msgs::SensorInfo::VALUE_DESCRIPTION_TEMPERATURE, [](StatusPtr msg) { return msg->mow_esc_status.temperature_pcb; }, &set_limits_esc_temp, "mower_xesc"}},
+  {"om_mow_motor_temp", {"Mow Motor Temp", "deg.C", xbot_msgs::SensorInfo::VALUE_DESCRIPTION_TEMPERATURE, [](StatusPtr msg) { return msg->mow_esc_status.temperature_motor; }, &set_limits_mow_motor_temp, "mower_xesc", [](){ return paramNh->param("mower_xesc/has_motor_temp", true); }}},
+  {"om_mow_motor_current", {"Mow Motor Current", "A", xbot_msgs::SensorInfo::VALUE_DESCRIPTION_CURRENT, [](StatusPtr msg) { return msg->mow_esc_status.current; }, &set_limits_mow_motor_current, "mower_xesc"}},
+  {"om_mow_motor_rpm", {"Mow Motor Revolutions", "rpm", xbot_msgs::SensorInfo::VALUE_DESCRIPTION_RPM, [](StatusPtr msg) { return msg->mow_esc_status.rpm; }, &set_limits_mow_motor_rpm, "mower_xesc"}},
   {"om_gps_accuracy", {"GPS Accuracy", "m", xbot_msgs::SensorInfo::VALUE_DESCRIPTION_DISTANCE}},
 };
 // clang-format on
@@ -80,9 +91,9 @@ void status(StatusPtr &msg) {
 
   for (auto &sc_pair : sensor_configs) {
     // Skip if sensor doesn't exists
-    if (sc_pair.second.existCB != nullptr && !sc_pair.second.existCB()) continue;
+    if (sc_pair.second.existCB && !sc_pair.second.existCB()) continue;
 
-    if (sc_pair.second.getStatusSensorValueCB != nullptr) {
+    if (sc_pair.second.getStatusSensorValueCB) {
       sensor_data.data = sc_pair.second.getStatusSensorValueCB(msg);
       sc_pair.second.data_pub.publish(sensor_data);
     }
@@ -120,52 +131,7 @@ void pose_received(const xbot_msgs::AbsolutePose::ConstPtr &msg) {
   }
 }
 
-/**
- * Set sensor limits, dependent on sensor type.
- * Determine limits by config settings or param file.
- */
-void set_sensor_limits(SensorConfig &sensor_config) {
-  switch (sensor_config.value_desc) {
-    case xbot_msgs::SensorInfo::VALUE_DESCRIPTION_VOLTAGE:
-      if (sensor_config.si.sensor_id == "om_v_battery") {
-        sensor_config.si.lower_critical_value = mower_logic_config.battery_critical_voltage;
-        sensor_config.si.min_value = mower_logic_config.battery_empty_voltage;
-        sensor_config.si.max_value = mower_logic_config.battery_full_voltage;
-        sensor_config.si.upper_critical_value = mower_logic_config.battery_critical_high_voltage;
-      } else if (sensor_config.si.sensor_id == "om_v_charge") {
-        // FIXME: Shall these better go to mower_logic's dyn-reconfigure (or an own dyn-reconfigure server)?
-        sensor_config.si.min_value = 24.0f;             // Mnimum voltage for before deep-discharge
-        sensor_config.si.max_value = 29.2f;             // Optimal charge voltage
-        sensor_config.si.upper_critical_value = 30.0f;  // Taken from OpenMower FW
-      }
-      break;
-    case xbot_msgs::SensorInfo::VALUE_DESCRIPTION_CURRENT:
-      if (sensor_config.si.sensor_id.find("_motor_") != std::string::npos) {
-        sensor_config.si.upper_critical_value = paramNh->param(sensor_config.param_path + "/motor_current_limit", 0.0f);
-      } else if (sensor_config.si.sensor_id == "om_charge_current") {
-        // FIXME: Shall these better go to mower_logic's dyn-reconfigure (or an own dyn-reconfigure server)?
-        sensor_config.si.max_value = 1.0f;             // Taken from the docs
-        sensor_config.si.upper_critical_value = 1.5f;  // Taken from OpenMower FW
-      }
-      break;
-    case xbot_msgs::SensorInfo::VALUE_DESCRIPTION_TEMPERATURE:
-      if (sensor_config.si.sensor_id.find("_motor_") != std::string::npos) {
-        // mower_config settings have precedence before xesc param file
-        sensor_config.si.max_value = (mower_logic_config.motor_hot_temperature
-                                          ? mower_logic_config.motor_hot_temperature
-                                          : paramNh->param(sensor_config.param_path + "/max_motor_temp", 0.0f));
-        sensor_config.si.min_value = (mower_logic_config.motor_cold_temperature
-                                          ? mower_logic_config.motor_cold_temperature
-                                          : paramNh->param(sensor_config.param_path + "/min_motor_temp", 0.0f));
-      } else  // i.e. _esc_
-        sensor_config.si.max_value = paramNh->param(sensor_config.param_path + "/max_pcb_temp", 0);
-      break;
-    case xbot_msgs::SensorInfo::VALUE_DESCRIPTION_RPM:
-      sensor_config.si.min_value = paramNh->param(sensor_config.param_path + "/min_motor_rpm", 0);
-      sensor_config.si.max_value = paramNh->param(sensor_config.param_path + "/max_motor_rpm", 0);
-      sensor_config.si.lower_critical_value = paramNh->param(sensor_config.param_path + "/min_motor_rpm_critical", 0);
-      break;
-  }
+void set_si_has_props(SensorConfig &sensor_config) {
   // Set has* sensor infos
   // FIXME: "has_min_max" is somehow confusing/misstakeable.
   // From the logic point of view, has_min_max should only be set if it has min as well as max limits,
@@ -178,9 +144,61 @@ void set_sensor_limits(SensorConfig &sensor_config) {
   if (sensor_config.si.upper_critical_value) sensor_config.si.has_critical_high = true;
 }
 
+void set_limits_battery_v(SensorConfig &sensor_config) {
+  sensor_config.si.lower_critical_value = mower_logic_config.battery_critical_voltage;
+  sensor_config.si.min_value = mower_logic_config.battery_empty_voltage;
+  sensor_config.si.max_value = mower_logic_config.battery_full_voltage;
+  sensor_config.si.upper_critical_value = mower_logic_config.battery_critical_high_voltage;
+  set_si_has_props(sensor_config);
+}
+
+void set_limits_charge_v(SensorConfig &sensor_config) {
+  // FIXME: Shall these better go to mower_logic's dyn-reconfigure (or an own dyn-reconfigure server)?
+  sensor_config.si.min_value = 24.0f;             // Mnimum voltage for before deep-discharge
+  sensor_config.si.max_value = 29.2f;             // Optimal charge voltage
+  sensor_config.si.upper_critical_value = 30.0f;  // Taken from OpenMower FW
+  set_si_has_props(sensor_config);
+}
+
+void set_limits_charge_current(SensorConfig &sensor_config) {
+  // FIXME: Shall these better go to mower_logic's dyn-reconfigure (or an own dyn-reconfigure server)?
+  sensor_config.si.max_value = 1.0f;             // Taken from the docs
+  sensor_config.si.upper_critical_value = 1.5f;  // Taken from OpenMower FW
+  set_si_has_props(sensor_config);
+}
+
+void set_limits_esc_temp(SensorConfig &sensor_config) {
+  sensor_config.si.max_value = paramNh->param(sensor_config.param_path + "/max_pcb_temp", 0);
+  set_si_has_props(sensor_config);
+}
+
+void set_limits_mow_motor_current(SensorConfig &sensor_config) {
+  sensor_config.si.upper_critical_value = paramNh->param(sensor_config.param_path + "/motor_current_limit", 0.0f);
+  set_si_has_props(sensor_config);
+}
+
+void set_limits_mow_motor_rpm(SensorConfig &sensor_config) {
+  // Use YF-C500 mow motor for default values
+  sensor_config.si.lower_critical_value = paramNh->param(sensor_config.param_path + "/min_motor_rpm_critical", 2300);
+  sensor_config.si.min_value = paramNh->param(sensor_config.param_path + "/min_motor_rpm", 2800);
+  sensor_config.si.max_value = paramNh->param(sensor_config.param_path + "/max_motor_rpm", 3800);
+  set_si_has_props(sensor_config);
+}
+
+void set_limits_mow_motor_temp(SensorConfig &sensor_config) {
+  // mower_config settings have precedence before xesc param file because user editable
+  sensor_config.si.max_value =
+      (mower_logic_config.motor_hot_temperature ? mower_logic_config.motor_hot_temperature
+                                                : paramNh->param(sensor_config.param_path + "/max_motor_temp", 0.0f));
+  sensor_config.si.min_value =
+      (mower_logic_config.motor_cold_temperature ? mower_logic_config.motor_cold_temperature
+                                                 : paramNh->param(sensor_config.param_path + "/min_motor_temp", 0.0f));
+  set_si_has_props(sensor_config);
+}
+
 void registerSensors() {
   for (auto &sc_pair : sensor_configs) {
-    if (sc_pair.second.existCB != nullptr && !sc_pair.second.existCB()) {
+    if (sc_pair.second.existCB && !sc_pair.second.existCB()) {
       ROS_INFO_STREAM("Skipped monitoring of sensor " << sc_pair.first);
       continue;
     }
@@ -193,7 +211,7 @@ void registerSensors() {
     sc_pair.second.si.value_description = sc_pair.second.value_desc;
 
     // Set sensor threshold values
-    set_sensor_limits(sc_pair.second);
+    if (sc_pair.second.setSensorLimitsCB) sc_pair.second.setSensorLimitsCB(sc_pair.second);
 
     sc_pair.second.si_pub =
         n->advertise<xbot_msgs::SensorInfo>("xbot_monitoring/sensors/" + sc_pair.first + "/info", 1, true);
@@ -207,14 +225,7 @@ void reconfigCB(const mower_logic::MowerLogicConfig &config) {
   ROS_INFO_STREAM("Monitoring received new mower_logic config");
   mower_logic_config = config;
 
-  // Set and publish new sensor limits
-  for (auto &sc_pair : sensor_configs) {
-    // Skip if sensor doesn't exists
-    if (sc_pair.second.existCB != nullptr && !sc_pair.second.existCB()) continue;
-
-    set_sensor_limits(sc_pair.second);
-    sc_pair.second.si_pub.publish(sc_pair.second.si);
-  }
+  registerSensors();
 }
 
 int main(int argc, char **argv) {
