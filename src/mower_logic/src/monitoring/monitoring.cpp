@@ -213,7 +213,6 @@ void reconfigCB(const mower_logic::MowerLogicConfig &config) {
     if (sc_pair.second.existCB != nullptr && !sc_pair.second.existCB()) continue;
 
     set_sensor_limits(sc_pair.second);
-    // FIXME: xbot_monitoring need to be adapted to re-read sensors/*/info
     sc_pair.second.si_pub.publish(sc_pair.second.si);
   }
 }
@@ -222,7 +221,7 @@ int main(int argc, char **argv) {
   ros::init(argc, argv, "monitoring");
 
   n = new ros::NodeHandle();
-  paramNh = new ros::NodeHandle("~");
+  paramNh = new ros::NodeHandle("/mower_comms");
 
   mower_logic_config = mower_logic::MowerLogicConfig::__getDefault__();
   reconfigClient = new dynamic_reconfigure::Client<mower_logic::MowerLogicConfig>("/mower_logic", reconfigCB);

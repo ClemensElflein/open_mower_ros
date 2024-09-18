@@ -57,9 +57,7 @@
         <remap from="/xbot_remote/cmd_vel" to="/joy_vel"/>
     </node>
 
-    <node pkg="mower_logic" type="monitoring" name="monitoring" output="log" respawn="true" respawn_delay="10">
-        <rosparam unless="$(eval env('OM_MOWER')=='CUSTOM')" file="$(find open_mower)/params/hardware_specific/$(env OM_MOWER)/comms_$(env OM_MOWER_ESC_TYPE)_params.yaml"/>
-    </node>
+    <node pkg="mower_logic" type="monitoring" name="monitoring" output="log" respawn="true" respawn_delay="10"/>
 
     <node pkg="xbot_monitoring" type="heatmap_generator" name="heatmap_generator" output="screen" respawn="true" respawn_delay="10" unless="$(eval optenv('OM_HEATMAP_SENSOR_IDS', 'UNSET') == 'UNSET')">
         <param name="sensor_ids" value="$(optenv OM_HEATMAP_SENSOR_IDS)" />
