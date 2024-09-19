@@ -56,7 +56,7 @@ struct SensorConfig {
   ros::Publisher data_pub;                  // Sensor-data publisher
 };
 
-// Forward declare set_*_limits callback functions
+// Forward declare set_limits_* callback functions
 void set_limits_battery_v(SensorConfig &sensor_config);
 void set_limits_charge_current(SensorConfig &sensor_config);
 void set_limits_charge_v(SensorConfig &sensor_config);
@@ -131,25 +131,11 @@ void pose_received(const xbot_msgs::AbsolutePose::ConstPtr &msg) {
   }
 }
 
-void set_si_has_props(SensorConfig &sensor_config) {
-  // Set has* sensor infos
-  // FIXME: "has_min_max" is somehow confusing/misstakeable.
-  // From the logic point of view, has_min_max should only be set if it has min as well as max limits,
-  // but then it's somehow useless because i.e. for temperatures, we don't have a reasonable min value.
-  // At least it doesn't make much sense to show i.e. a gauge from -15 to 80°C.
-  // If has_min_max get set if min OR max is set, then it's useless again, because then we need to check
-  // min as well as max for a limit value.
-  if (sensor_config.si.min_value && sensor_config.si.max_value) sensor_config.si.has_min_max = true;
-  if (sensor_config.si.lower_critical_value) sensor_config.si.has_critical_low = true;
-  if (sensor_config.si.upper_critical_value) sensor_config.si.has_critical_high = true;
-}
-
 void set_limits_battery_v(SensorConfig &sensor_config) {
   sensor_config.si.lower_critical_value = mower_logic_config.battery_critical_voltage;
   sensor_config.si.min_value = mower_logic_config.battery_empty_voltage;
   sensor_config.si.max_value = mower_logic_config.battery_full_voltage;
   sensor_config.si.upper_critical_value = mower_logic_config.battery_critical_high_voltage;
-  set_si_has_props(sensor_config);
 }
 
 void set_limits_charge_v(SensorConfig &sensor_config) {
@@ -157,24 +143,20 @@ void set_limits_charge_v(SensorConfig &sensor_config) {
   sensor_config.si.min_value = 24.0f;             // Mnimum voltage for before deep-discharge
   sensor_config.si.max_value = 29.2f;             // Optimal charge voltage
   sensor_config.si.upper_critical_value = 30.0f;  // Taken from OpenMower FW
-  set_si_has_props(sensor_config);
 }
 
 void set_limits_charge_current(SensorConfig &sensor_config) {
   // FIXME: Shall these better go to mower_logic's dyn-reconfigure (or an own dyn-reconfigure server)?
   sensor_config.si.max_value = 1.0f;             // Taken from the docs
   sensor_config.si.upper_critical_value = 1.5f;  // Taken from OpenMower FW
-  set_si_has_props(sensor_config);
 }
 
 void set_limits_esc_temp(SensorConfig &sensor_config) {
   sensor_config.si.max_value = paramNh->param(sensor_config.param_path + "/max_pcb_temp", 0);
-  set_si_has_props(sensor_config);
 }
 
 void set_limits_mow_motor_current(SensorConfig &sensor_config) {
   sensor_config.si.upper_critical_value = paramNh->param(sensor_config.param_path + "/motor_current_limit", 0.0f);
-  set_si_has_props(sensor_config);
 }
 
 void set_limits_mow_motor_rpm(SensorConfig &sensor_config) {
@@ -182,18 +164,14 @@ void set_limits_mow_motor_rpm(SensorConfig &sensor_config) {
   sensor_config.si.lower_critical_value = paramNh->param(sensor_config.param_path + "/min_motor_rpm_critical", 2300);
   sensor_config.si.min_value = paramNh->param(sensor_config.param_path + "/min_motor_rpm", 2800);
   sensor_config.si.max_value = paramNh->param(sensor_config.param_path + "/max_motor_rpm", 3800);
-  set_si_has_props(sensor_config);
 }
 
 void set_limits_mow_motor_temp(SensorConfig &sensor_config) {
   // mower_config settings have precedence before xesc param file because user editable
   sensor_config.si.max_value =
-      (mower_logic_config.motor_hot_temperature ? mower_logic_config.motor_hot_temperature
-                                                : paramNh->param(sensor_config.param_path + "/max_motor_temp", 0.0f));
+      (mower_logic_config.motor_hot_temperature ?: paramNh->param(sensor_config.param_path + "/max_motor_temp", 0.0f));
   sensor_config.si.min_value =
-      (mower_logic_config.motor_cold_temperature ? mower_logic_config.motor_cold_temperature
-                                                 : paramNh->param(sensor_config.param_path + "/min_motor_temp", 0.0f));
-  set_si_has_props(sensor_config);
+      (mower_logic_config.motor_cold_temperature ?: paramNh->param(sensor_config.param_path + "/min_motor_temp", 0.0f));
 }
 
 void registerSensors() {
@@ -212,6 +190,19 @@ void registerSensors() {
 
     // Set sensor threshold values
     if (sc_pair.second.setSensorLimitsCB) sc_pair.second.setSensorLimitsCB(sc_pair.second);
+
+    // Set has* sensor infos
+    // FIXME: "has_min_max" is somehow confusing/misstakeable.
+    // From the logic point of view, has_min_max should only be set if it has min as well as max limits,
+    // but then it's somehow useless because i.e. for temperatures, we don't have a reasonable min value.
+    // At least it doesn't make much sense to show i.e. a gauge from -15 to 80°C.
+    // If has_min_max get set if min OR max is set, then it's useless again, because then we need to check
+    // min as well as max for a limit value.
+    // In my opinion, we can drop all has_* settings (except has_motor_temp) and let decide the view logic how to handle
+    // the limits
+    if (sc_pair.second.si.min_value && sc_pair.second.si.max_value) sc_pair.second.si.has_min_max = true;
+    if (sc_pair.second.si.lower_critical_value) sc_pair.second.si.has_critical_low = true;
+    if (sc_pair.second.si.upper_critical_value) sc_pair.second.si.has_critical_high = true;
 
     sc_pair.second.si_pub =
         n->advertise<xbot_msgs::SensorInfo>("xbot_monitoring/sensors/" + sc_pair.first + "/info", 1, true);
