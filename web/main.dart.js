@@ -91389,7 +91389,7 @@ m=l.b
 l=A.dl(l.y)
 l.gln().gyD()
 l.gln().b=B.t
-return new A.Pe(s,new A.a8N(B.Wf,p,240,B.FY,null,o),A.lE(A.b([n,new A.Pg(m,B.lB,null),l],t.p)),null)}}
+return new A.Pe(Math.abs(s),new A.a8N(B.Wf,p,240,B.FY,null,o),A.lE(A.b([n,new A.Pg(m,B.lB,null),l],t.p)),null)}}
 A.r1.prototype={
 N(a){var s,r,q,p=null,o="N/A",n=this.c,m=n.y
 switch(m.toUpperCase()){case"RPM":n=new A.Om(B.MD,p,p,p,p,p,p,p,p,p,p,p,p,p,p,A.b([new A.Q1(n,p)],t.p),p,p,p,p,p,p,p,A.iE(B.X),p,p)
