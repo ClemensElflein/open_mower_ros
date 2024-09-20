@@ -57,18 +57,18 @@ struct TaskConfig {
 double currentMowingAngleIncrementSum = 0;
 std::string currentMowingPlanDigest = "";
 
-std::mutex mtx;
-std::condition_variable cv;
+std::mutex mtx_tasklist;
+std::condition_variable cv_tasklist_or_idx_changed;
 json current_tasklist;
 size_t next_task_idx = 0;
 
 void change_tasklist(std::function<void()> cb, bool cancel_current_task = true) {
-  std::lock_guard<std::mutex> lk(mtx);
+  std::lock_guard<std::mutex> lk(mtx_tasklist);
   if (cancel_current_task) {
     mowPathsClient->cancelAllGoals();
   }
   cb();
-  cv.notify_all();
+  cv_tasklist_or_idx_changed.notify_all();
 }
 
 template <typename T>
@@ -227,7 +227,7 @@ json create_default_tasklist() {
 }
 
 Task get_next_task() {
-  std::unique_lock<std::mutex> lk(mtx);
+  std::unique_lock<std::mutex> lk(mtx_tasklist);
   while (ros::ok()) {
     const auto &tasks = current_tasklist["tasks"];
     if (next_task_idx < tasks.size()) {
@@ -245,7 +245,7 @@ Task get_next_task() {
       }
       return task;
     }
-    cv.wait_for(lk, std::chrono::seconds(1));
+    cv_tasklist_or_idx_changed.wait_for(lk, std::chrono::seconds(1));
   }
   return Task();
 }
@@ -363,7 +363,8 @@ void action_received(const xbot_msgs::ActionRequest::ConstPtr &request) {
   } else if (request->action_id == "tasklist/restart") {
     change_tasklist([] { next_task_idx = 0; });
   } else if (request->action_id == "tasklist/next_task" || request->action_id == action_skip_area.action_id) {
-    // TODO: This is a bit nasty. We might need to differentiate whether a task was intentionally cancelled or aborted.
+    // TODO: This is a bit nasty. We might need to differentiate whether a task was intentionally cancelled or
+    // aborted.
     mowPathsClient->cancelAllGoals();
   } else if (request->action_id == action_skip_path.action_id) {
     // TODO: Implement skipping a path.
