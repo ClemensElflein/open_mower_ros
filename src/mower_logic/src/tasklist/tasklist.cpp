@@ -26,7 +26,8 @@ using json = nlohmann::json;
 
 ros::ServiceClient pathClient, mapClient, actionRegistrationClient;
 
-actionlib::SimpleActionClient<mower_msgs::MowPathsAction> *mowPathsClient;
+typedef actionlib::SimpleActionClient<mower_msgs::MowPathsAction> MowPathsClient;
+MowPathsClient *mowPathsClient;
 
 dynamic_reconfigure::Server<mower_logic::TasklistConfig> *reconfigServer;
 mower_logic::TasklistConfig config;
@@ -59,6 +60,7 @@ std::string currentMowingPlanDigest = "";
 
 std::mutex mtx_tasklist;
 std::condition_variable cv_tasklist_or_idx_changed;
+std::condition_variable cv_save_progress;
 json current_tasklist;
 size_t next_task_idx = 0;
 
@@ -69,6 +71,7 @@ void change_tasklist(std::function<void()> cb, bool cancel_current_task = true) 
   }
   cb();
   cv_tasklist_or_idx_changed.notify_all();
+  cv_save_progress.notify_all();
 }
 
 template <typename T>
@@ -226,6 +229,22 @@ json create_default_tasklist() {
   return tasklist;
 }
 
+void *progress_saver_thread(void *context) {
+  std::unique_lock<std::mutex> lock(mtx_tasklist);
+  size_t last_hash = 0;
+  while (true) {
+    size_t hash = std::hash<json>{}(current_tasklist);
+    if (hash != last_hash) {
+      std::ofstream o("tasklist.json");
+      o << std::setw(4) << current_tasklist << std::endl;
+      last_hash = hash;
+    }
+
+    // Wait until we get a signal or 30 seconds have passed.
+    cv_save_progress.wait_for(lock, std::chrono::seconds(30));
+  }
+}
+
 Task get_next_task() {
   std::unique_lock<std::mutex> lk(mtx_tasklist);
   while (ros::ok()) {
@@ -243,6 +262,12 @@ Task get_next_task() {
           task.is_last = true;
         }
       }
+      if (task.is_last) {
+        current_tasklist["progress"]["next_task_idx"] = nullptr;
+      } else {
+        current_tasklist["progress"]["next_task_idx"] = next_task_idx;
+      }
+      cv_tasklist_or_idx_changed.notify_all();
       return task;
     }
     cv_tasklist_or_idx_changed.wait_for(lk, std::chrono::seconds(1));
@@ -250,9 +275,23 @@ Task get_next_task() {
   return Task();
 }
 
+void feedbackCb(const mower_msgs::MowPathsFeedbackConstPtr &feedback) {
+  std::unique_lock<std::mutex> lock(mtx_tasklist);
+  bool significant_update = current_tasklist["progress"]["current_path"] != feedback->current_path;
+  current_tasklist["progress"]["current_path"] = feedback->current_path;
+  current_tasklist["progress"]["current_point"] = feedback->current_point;
+  if (significant_update) {
+    cv_save_progress.notify_all();
+  }
+}
+
 void handle_tasks() {
   while (ros::ok()) {
     auto task = get_next_task();
+    current_tasklist["progress"]["current_path"] = 0;
+    current_tasklist["progress"]["current_point"] = 0;
+    cv_save_progress.notify_all();
+
     if (!ros::ok()) {
       return;
     }
@@ -266,7 +305,12 @@ void handle_tasks() {
     // We have a plan, execute it
     goal->expect_more_goals = !task.is_last;
     ROS_INFO_STREAM("MowingBehavior: Executing mowing plan");
-    auto result = mowPathsClient->sendGoalAndWait(*goal);
+    mowPathsClient->sendGoal(*goal,
+                             MowPathsClient::SimpleDoneCallback(),    // empty
+                             MowPathsClient::SimpleActiveCallback(),  // empty
+                             feedbackCb);
+    mowPathsClient->waitForResult();
+    auto result = mowPathsClient->getState();
     if (result != actionlib::SimpleClientGoalState::SUCCEEDED) {
       ROS_ERROR_STREAM("Task finished with state " << result.toString());
       continue;
@@ -336,6 +380,14 @@ void reconfigureCB(mower_logic::TasklistConfig &c, uint32_t level) {
   config = c;
 }
 
+void add_default_progress(json &j) {
+  j.emplace("progress", json::object());
+  auto &progress = j["progress"];
+  progress.emplace("current_path", 0);
+  progress.emplace("current_point", 0);
+  progress.emplace("next_task_idx", 0);
+}
+
 void action_received(const xbot_msgs::ActionRequest::ConstPtr &request) {
   xbot_msgs::ActionResponse response;
   response.action_id = request->action_id;
@@ -344,6 +396,7 @@ void action_received(const xbot_msgs::ActionRequest::ConstPtr &request) {
   if (request->action_id == "tasklist/set_tasklist") {
     try {
       auto new_tasklist = json::parse(request->payload);
+      add_default_progress(new_tasklist);
       ROS_INFO_STREAM("New tasklist: " << new_tasklist.dump());
       change_tasklist([new_tasklist] {
         current_tasklist = new_tasklist;
@@ -355,6 +408,7 @@ void action_received(const xbot_msgs::ActionRequest::ConstPtr &request) {
     }
   } else if (request->action_id == "tasklist/set_default_tasklist") {
     auto new_tasklist = create_default_tasklist();
+    add_default_progress(new_tasklist);
     ROS_INFO_STREAM("New (default) tasklist: " << new_tasklist.dump());
     change_tasklist([new_tasklist] {
       current_tasklist = new_tasklist;
@@ -397,11 +451,19 @@ void registerActions(std::string prefix, const std::vector<xbot_msgs::ActionInfo
 int main(int argc, char **argv) {
   ros::init(argc, argv, "mower_logic");
 
+  current_tasklist = {
+      {"tasks", json::array()},
+  };
+  add_default_progress(current_tasklist);
+
   ros::NodeHandle n;
   ros::NodeHandle paramNh("~");
 
   dynamic_reconfigure::Server<mower_logic::TasklistConfig> reconfig_server(paramNh);
   reconfig_server.setCallback(reconfigureCB);
+
+  pthread_t progress_saver_thread_handle;
+  pthread_create(&progress_saver_thread_handle, nullptr, &progress_saver_thread, nullptr);
 
   pathClient = n.serviceClient<slic3r_coverage_planner::PlanPath>("slic3r_coverage_planner/plan_path");
   mapClient = n.serviceClient<mower_map::GetMowingAreaSrv>("mower_map_service/get_mowing_area");
@@ -426,7 +488,7 @@ int main(int argc, char **argv) {
     return 2;
   }
 
-  mowPathsClient = new actionlib::SimpleActionClient<mower_msgs::MowPathsAction>("mower_logic/mow_paths");
+  mowPathsClient = new MowPathsClient("mower_logic/mow_paths");
   if (!mowPathsClient->waitForServer(ros::Duration(60.0, 0.0))) {
     ROS_ERROR("Mow paths action server not found.");
     return 2;
