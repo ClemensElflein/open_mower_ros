@@ -74,8 +74,10 @@ add_dependencies(ftc_local_planner ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_
 add_dependencies(ftc_local_planner ftc_local_planner_gencfg)
 add_dependencies(ftc_local_planner ftc_local_planner_generate_messages_cpp)
 
+add_library(backward_forward_recovery src/backward_forward_recovery.cpp)
+target_link_libraries(backward_forward_recovery ${catkin_LIBRARIES})
 
-install(TARGETS ftc_local_planner
+install(TARGETS ftc_local_planner backward_forward_recovery
        ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
        LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
        )
