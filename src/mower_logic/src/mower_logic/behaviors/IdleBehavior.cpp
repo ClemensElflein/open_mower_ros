@@ -29,6 +29,7 @@ extern void registerActions(std::string prefix, const std::vector<xbot_msgs::Act
 extern ros::ServiceClient dockingPointClient;
 extern mower_msgs::Status getStatus();
 extern mower_logic::MowerLogicConfig getConfig();
+extern void setConfig(mower_logic::MowerLogicConfig);
 extern dynamic_reconfigure::Server<mower_logic::MowerLogicConfig> *reconfigServer;
 
 extern ros::ServiceClient mapClient;
@@ -71,9 +72,8 @@ Behavior *IdleBehavior::execute() {
     const auto last_status = getStatus();
 
     const bool automatic_mode = last_config.automatic_mode == eAutoMode::AUTO;
-    const bool active_semiautomatic_task = last_config.automatic_mode == eAutoMode::SEMIAUTO &&
-                                           shared_state->active_semiautomatic_task &&
-                                           !shared_state->semiautomatic_task_paused;
+    const bool active_semiautomatic_task =
+        last_config.automatic_mode == eAutoMode::SEMIAUTO && shared_state->active_semiautomatic_task;
     const bool mower_ready = last_status.v_battery > last_config.battery_full_voltage &&
                              last_status.mow_esc_status.temperature_motor < last_config.motor_cold_temperature &&
                              !last_config.manual_pause_mowing;
@@ -149,7 +149,10 @@ void IdleBehavior::command_home() {
 
 void IdleBehavior::command_start() {
   // We got start, so we can reset the last manual pause
-  shared_state->semiautomatic_task_paused = false;
+  auto config = getConfig();
+  config.manual_pause_mowing = false;
+  setConfig(config);
+
   manual_start_mowing = true;
 }
 
