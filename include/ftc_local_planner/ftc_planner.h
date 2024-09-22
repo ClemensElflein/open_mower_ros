@@ -4,7 +4,7 @@
 
 #include <ros/ros.h>
 #include "ftc_local_planner/PlannerGetProgress.h"
-#include "ftc_local_planner/recovery_behaviors.h"
+#include "ftc_local_planner/oscillation_detector.h"
 
 #include <nav_msgs/Odometry.h>
 #include <nav_msgs/Path.h>

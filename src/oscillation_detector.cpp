@@ -36,7 +36,7 @@
  * Author: Christoph Rösmann
  *********************************************************************/
 
-#include <ftc_local_planner/recovery_behaviors.h>
+#include <ftc_local_planner/oscillation_detector.h>
 #include <functional>
 
 namespace ftc_local_planner

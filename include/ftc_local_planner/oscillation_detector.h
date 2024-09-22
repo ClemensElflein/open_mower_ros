@@ -36,8 +36,8 @@
  * Author: Christoph Rösmann
  *********************************************************************/
 
-#ifndef RECOVERY_BEHAVIORS_H__
-#define RECOVERY_BEHAVIORS_H__
+#ifndef OSCILLATION_DETECTOR_H__
+#define OSCILLATION_DETECTOR_H__
 
 
 #include <boost/circular_buffer.hpp>
@@ -132,6 +132,6 @@ private:
 };
 
 
-} // namespace teb_local_planner
+} // namespace ftc_local_planner
 
-#endif /* RECOVERY_BEHAVIORS_H__ */
+#endif /* OSCILLATION_DETECTOR_H__ */

@@ -68,7 +68,7 @@ catkin_package(
 
 add_library(ftc_local_planner 
 	    src/ftc_planner.cpp
-        src/recovery_behaviors.cpp)
+        src/oscillation_detector.cpp)
 target_link_libraries(ftc_local_planner ${catkin_LIBRARIES})
 add_dependencies(ftc_local_planner ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
 add_dependencies(ftc_local_planner ftc_local_planner_gencfg)
