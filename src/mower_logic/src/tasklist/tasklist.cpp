@@ -275,16 +275,22 @@ Task get_next_task() {
         // Repeat mode is enabled, so wrap around.
         next_task_idx = 0;
       } else {
-        // Unset the entry and restart the loop, which will take care of waiting for changes.
+        // Unset the progress and restart the loop, which will take care of waiting for new tasks.
         *current_task_idx = nullptr;
+        *current_path = nullptr;
+        *current_point = nullptr;
         cv_tasklist_or_idx_changed.notify_all();
+        cv_save_progress.notify_all();
         continue;
       }
     }
 
     // Looks like we have a valid task, so save that.
     *current_task_idx = next_task_idx;
+    *current_path = 0;
+    *current_point = 0;
     cv_tasklist_or_idx_changed.notify_all();
+    cv_save_progress.notify_all();
 
     // Now load the parameters.
     Task task = {
@@ -312,10 +318,6 @@ void feedbackCb(const mower_msgs::MowPathsFeedbackConstPtr &feedback) {
 void handle_tasks() {
   while (ros::ok()) {
     auto task = get_next_task();
-    current_tasklist["progress"]["current_path"] = 0;
-    current_tasklist["progress"]["current_point"] = 0;
-    cv_save_progress.notify_all();
-
     if (!ros::ok()) {
       return;
     }
@@ -404,12 +406,13 @@ void reconfigureCB(mower_logic::TasklistConfig &c, uint32_t level) {
   config = c;
 }
 
-void add_default_progress(json &j) {
+void add_progress_variables(json &j) {
+  // Ensure all JSON values exist.
   j.emplace("progress", json::object());
   auto &progress = j["progress"];
-  progress.emplace("current_path", 0);
-  progress.emplace("current_point", 0);
-  progress.emplace("current_task", 0);
+  progress.emplace("current_task", nullptr);
+  progress.emplace("current_path", nullptr);
+  progress.emplace("current_point", nullptr);
 
   // Update the pointers.
   current_task_idx = &progress["current_task"];
@@ -425,7 +428,7 @@ void action_received(const xbot_msgs::ActionRequest::ConstPtr &request) {
   if (request->action_id == "tasklist/set_tasklist") {
     try {
       auto new_tasklist = json::parse(request->payload);
-      add_default_progress(new_tasklist);
+      add_progress_variables(new_tasklist);
       ROS_INFO_STREAM("New tasklist: " << new_tasklist.dump());
       change_tasklist([new_tasklist] {
         current_tasklist = new_tasklist;
@@ -437,7 +440,7 @@ void action_received(const xbot_msgs::ActionRequest::ConstPtr &request) {
     }
   } else if (request->action_id == "tasklist/set_default_tasklist") {
     auto new_tasklist = create_default_tasklist();
-    add_default_progress(new_tasklist);
+    add_progress_variables(new_tasklist);
     ROS_INFO_STREAM("New (default) tasklist: " << new_tasklist.dump());
     change_tasklist([new_tasklist] {
       current_tasklist = new_tasklist;
@@ -484,7 +487,7 @@ int main(int argc, char **argv) {
   current_tasklist = {
       {"tasks", json::array()},
   };
-  add_default_progress(current_tasklist);
+  add_progress_variables(current_tasklist);
 
   ros::NodeHandle n;
   ros::NodeHandle paramNh("~");
