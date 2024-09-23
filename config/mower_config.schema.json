@@ -401,6 +401,32 @@
           "description": "Set to true to record your session for debugging. Recordings will be stored in $HOME. Only enable for testing, otherwise your SD card will get full soon.",
           "x-environment-variable": "OM_ENABLE_RECORDING_ALL"
         },
+        "OM_RAIN_MODE": {
+          "type": "string",
+          "enum": [
+            "Ignore",
+            "Dock",
+            "Dock Until Dry",
+            "Pause Automatic Mode"
+          ],
+          "default": "Ignore",
+          "title": "Rain Mode",
+          "description": "Behaviour when rain detected",
+          "x-environment-variable": "OM_RAIN_MODE",
+          "x-remap-values": {
+            "Ignore": 0,
+            "Dock": 1,
+            "Dock Until Dry": 2,
+            "Pause Automatic Mowing": 3
+          }
+        },
+        "OM_RAIN_DELAY_MINUTES": {
+          "type": "number",
+          "default": 30,
+          "title": "Rain delay minutes",
+          "description": "How long to wait after rain to resume mowing when mode is \"Dock Until Dry\"",
+          "x-environment-variable": "OM_RAIN_DELAY_MINUTES"
+        },
         "advanced": {
           "type": "boolean",
           "description": "Show advanced Mower Logic settings"

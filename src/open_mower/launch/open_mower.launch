@@ -37,6 +37,9 @@
         <param name="motor_cold_temperature" value="$(env OM_MOWING_MOTOR_TEMP_LOW)"/>
         <param name="gps_wait_time" value="$(optenv OM_GPS_WAIT_TIME_SEC 10.0)"/>
         <param name="gps_timeout" value="$(optenv OM_GPS_TIMEOUT_SEC 10.0)"/>
+        <param name="rain_mode" value="$(optenv OM_RAIN_MODE 0)"/>
+        <param name="rain_delay_minutes" value="$(optenv OM_RAIN_DELAY_MINUTES 30)"/>
+        <param name="rain_check_seconds" value="$(optenv OM_RAIN_CHECK_SECONDS 20)"/>
     </node>
     <node pkg="slic3r_coverage_planner" type="slic3r_coverage_planner" name="slic3r_coverage_planner" output="screen"/>
 
