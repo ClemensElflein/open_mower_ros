@@ -1,5 +1,5 @@
 # Get a base image
-FROM docker.io/ros:noetic-ros-base-focal as base
+FROM docker.io/ros:noetic-ros-base-focal AS base
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install required packages
@@ -20,7 +20,7 @@ COPY --link ./docker/assets/nginx.conf /etc/nginx/conf.d/default.conf
 RUN rosdep update --rosdistro $ROS_DISTRO
 
 # First stage: Pull the git and all submodules, other stages depend on it
-FROM base as fetch
+FROM base AS fetch
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -33,7 +33,7 @@ RUN git submodule update --init --recursive
 
 # Get slic3r_coverage_planner and build that. We will pull the finished install folder from this.
 # This stage should cache most of the time, that's why it's not derived from the fetch stage, but copies stuff instead.
-FROM base as slic3r
+FROM base AS slic3r
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -53,7 +53,7 @@ RUN bash -c "source /opt/ros/$ROS_DISTRO/setup.bash && source /opt/slic3r_covera
 # If the package list is the same as last time, the apt install step is cached as well which saves a lot of time.
 # Since the list gets sorted, it will be the same each time and the cache will know that by file checksum in the COPY command.
 # We can't use this stage as base for the next, because this stage is run every time and would therefore invalidate the cache of the next stage.
-FROM fetch as dependencies
+FROM fetch AS dependencies
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -67,7 +67,7 @@ RUN apt-get update && \
 
 
 # We can't derive this from "dependencies" because "dependencies" will be rebuilt every time, but apt install should only be done if needed
-FROM base as assemble
+FROM base AS assemble
 
 ENV DEBIAN_FRONTEND=noninteractive
 
