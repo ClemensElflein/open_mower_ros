@@ -62,6 +62,7 @@ std::mutex mtx_tasklist;
 std::condition_variable cv_tasklist_or_idx_changed;
 std::condition_variable cv_save_progress;
 json current_tasklist;
+json *current_task_idx, *current_path, *current_point;
 const int RTI_NONE = -1;
 const int RTI_RELATIVE = -2;
 int requested_task_idx = RTI_NONE;
@@ -251,21 +252,19 @@ void *progress_saver_thread(void *context) {
 Task get_next_task() {
   std::unique_lock<std::mutex> lk(mtx_tasklist);
   while (ros::ok()) {
-    json &current_task_idx = current_tasklist["progress"]["current_task"];
-
     // Find out which tasks to start next. Prefer explicitly requested task.
     int next_task_idx = requested_task_idx;
     requested_task_idx = RTI_NONE;
     if (next_task_idx < 0) {
-      if (current_task_idx.is_null()) {
+      if (current_task_idx->is_null()) {
         // We had reached the end of the tasklist, so all we can do is wait for new commands.
         // Wake up once per second to check whether we should shut down.
         cv_tasklist_or_idx_changed.wait_for(lk, std::chrono::seconds(1));
         continue;
       } else if (next_task_idx == RTI_RELATIVE) {
-        next_task_idx = (int)current_task_idx + requested_task_idx_relative;
+        next_task_idx = (int)*current_task_idx + requested_task_idx_relative;
       } else {
-        next_task_idx = (int)current_task_idx + 1;
+        next_task_idx = (int)*current_task_idx + 1;
       }
     }
 
@@ -277,14 +276,14 @@ Task get_next_task() {
         next_task_idx = 0;
       } else {
         // Unset the entry and restart the loop, which will take care of waiting for changes.
-        current_task_idx = nullptr;
+        *current_task_idx = nullptr;
         cv_tasklist_or_idx_changed.notify_all();
         continue;
       }
     }
 
     // Looks like we have a valid task, so save that.
-    current_task_idx = next_task_idx;
+    *current_task_idx = next_task_idx;
     cv_tasklist_or_idx_changed.notify_all();
 
     // Now load the parameters.
@@ -302,9 +301,9 @@ Task get_next_task() {
 
 void feedbackCb(const mower_msgs::MowPathsFeedbackConstPtr &feedback) {
   std::unique_lock<std::mutex> lock(mtx_tasklist);
-  bool significant_update = current_tasklist["progress"]["current_path"] != feedback->current_path;
-  current_tasklist["progress"]["current_path"] = feedback->current_path;
-  current_tasklist["progress"]["current_point"] = feedback->current_point;
+  bool significant_update = *current_path != feedback->current_path;
+  *current_path = feedback->current_path;
+  *current_point = feedback->current_point;
   if (significant_update) {
     cv_save_progress.notify_all();
   }
@@ -411,6 +410,11 @@ void add_default_progress(json &j) {
   progress.emplace("current_path", 0);
   progress.emplace("current_point", 0);
   progress.emplace("current_task", 0);
+
+  // Update the pointers.
+  current_task_idx = &progress["current_task"];
+  current_path = &progress["current_path"];
+  current_point = &progress["current_point"];
 }
 
 void action_received(const xbot_msgs::ActionRequest::ConstPtr &request) {
