@@ -85,7 +85,7 @@ class MowingBehavior : public Behavior {
 
   int16_t get_current_path_index();
 
-  void handle_action(std::string action) override;
+  bool handle_action(const std::string &action, const std::string &payload, std::string &response) override;
 
   void update_actions();
 
