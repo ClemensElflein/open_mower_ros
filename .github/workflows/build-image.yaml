@@ -45,7 +45,7 @@ jobs:
       # Get the repository's code
       - name: Checkout
         uses: actions/checkout@v4
-      - uses: actions/setup-python@v3
+      - uses: actions/setup-python@v5
       - uses: pre-commit/action@v3.0.1
       - name: Docker meta
         id: meta
@@ -80,7 +80,7 @@ jobs:
 
       - name: Build and push
         id: build-and-push
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: ./docker/Dockerfile
