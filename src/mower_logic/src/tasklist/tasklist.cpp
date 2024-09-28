@@ -179,6 +179,27 @@ TaskConfig determine_task_config(const json &task, const json &area_config, cons
   return tc;
 }
 
+// TODO: Maybe move to slic3r_coverage_planner.
+std::string hash_paths(std::vector<slic3r_coverage_planner::Path> &paths) {
+  // Calculate the hash over all poses of all paths.
+  CryptoPP::SHA256 hash;
+  for (const auto &path : paths) {
+    for (const auto &pose_stamped : path.path.poses) {
+      hash.Update(reinterpret_cast<const byte *>(&pose_stamped.pose), sizeof(geometry_msgs::Pose));
+    }
+  }
+  byte digest[CryptoPP::SHA256::DIGESTSIZE];
+  hash.Final((byte *)&digest[0]);
+
+  // Encode the hash as hex characters and return it.
+  CryptoPP::HexEncoder encoder;
+  std::string result = "";
+  encoder.Attach(new CryptoPP::StringSink(result));
+  encoder.Put(digest, sizeof(digest));
+  encoder.MessageEnd();
+  return result;
+}
+
 mower_msgs::MowPathsGoalPtr create_mowing_plan(const json &task) {
   mower_msgs::MowPathsGoalPtr goal(new mower_msgs::MowPathsGoal);
 
@@ -223,24 +244,8 @@ mower_msgs::MowPathsGoalPtr create_mowing_plan(const json &task) {
   goal->paths = pathSrv.response.paths;
 
   // Calculate mowing plan digest from the poses
-  // TODO: At this point, we need to load the checkpoint. Or maybe we'll save that as part of the task list, along
-  // with other progress indicators.
-  // TODO: move to slic3r_coverage_planner
-  CryptoPP::SHA256 hash;
-  byte digest[CryptoPP::SHA256::DIGESTSIZE];
-  for (const auto &path : goal->paths) {
-    for (const auto &pose_stamped : path.path.poses) {
-      hash.Update(reinterpret_cast<const byte *>(&pose_stamped.pose), sizeof(geometry_msgs::Pose));
-    }
-  }
-  hash.Final((byte *)&digest[0]);
-  CryptoPP::HexEncoder encoder;
-  std::string mowingPlanDigest = "";
-  encoder.Attach(new CryptoPP::StringSink(mowingPlanDigest));
-  encoder.Put(digest, sizeof(digest));
-  encoder.MessageEnd();
-
   // Proceed to checkpoint?
+  std::string mowingPlanDigest = hash_paths(pathSrv.response.paths);
   if (mowingPlanDigest == currentMowingPlanDigest) {
     ROS_INFO_STREAM("MowingBehavior: Advancing to checkpoint, path: " << goal->start_path
                                                                       << " index: " << goal->start_point);
