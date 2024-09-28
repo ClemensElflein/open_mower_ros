@@ -40,6 +40,8 @@ std::vector<xbot_msgs::ActionInfo> actions = {action_skip_area, action_skip_path
 
 struct Task {
   json params;
+  int start_path;
+  int start_point;
   bool is_last;
 };
 
@@ -219,8 +221,6 @@ mower_msgs::MowPathsGoalPtr create_mowing_plan(const json &task) {
   }
 
   goal->paths = pathSrv.response.paths;
-  goal->start_path = 0;
-  goal->start_point = 0;
 
   // Calculate mowing plan digest from the poses
   // TODO: At this point, we need to load the checkpoint. Or maybe we'll save that as part of the task list, along
@@ -338,6 +338,8 @@ Task get_next_task() {
     // Now load the parameters.
     Task task = {
         .params = tasks[next_task.idx],
+        .start_path = next_task.path,
+        .start_point = next_task.point,
         .is_last = false,
     };
     if (next_task.idx + 1 == tasks.size() && !current_tasklist.value("repeat", false)) {
@@ -366,6 +368,8 @@ void handle_tasks() {
     }
 
     auto goal = create_mowing_plan(task.params);
+    goal->start_path = task.start_path;
+    goal->start_point = task.start_point;
     if (goal == nullptr) {
       ROS_ERROR_STREAM("Could not create mowing plan");
       continue;
