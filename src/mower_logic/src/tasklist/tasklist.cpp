@@ -200,9 +200,7 @@ std::string hash_paths(std::vector<slic3r_coverage_planner::Path> &paths) {
   return result;
 }
 
-mower_msgs::MowPathsGoalPtr create_mowing_plan(const json &task) {
-  mower_msgs::MowPathsGoalPtr goal(new mower_msgs::MowPathsGoal);
-
+bool create_mowing_plan(const json &task, std::vector<slic3r_coverage_planner::Path> &paths) {
   const size_t area_index = task["area"];
   ROS_INFO_STREAM("MowingBehavior: Creating mowing plan for area: " << area_index);
 
@@ -211,7 +209,7 @@ mower_msgs::MowPathsGoalPtr create_mowing_plan(const json &task) {
   mapSrv.request.index = area_index;
   if (!mapClient.call(mapSrv)) {
     ROS_ERROR_STREAM("MowingBehavior: Error loading mowing area");
-    return nullptr;
+    return false;
   }
 
   // FIXME: This should be loaded from somewhere, ideally stored within the map or next to it.
@@ -238,11 +236,13 @@ mower_msgs::MowPathsGoalPtr create_mowing_plan(const json &task) {
   pathSrv.request.skip_fill = task_config.skip_fill;
   if (!pathClient.call(pathSrv)) {
     ROS_ERROR_STREAM("MowingBehavior: Error during coverage planning");
-    return nullptr;
+    return false;
   }
 
-  goal->paths = pathSrv.response.paths;
+  paths = pathSrv.response.paths;
+  return true;
 
+  /*
   // Calculate mowing plan digest from the poses
   // Proceed to checkpoint?
   std::string mowingPlanDigest = hash_paths(pathSrv.response.paths);
@@ -255,8 +255,7 @@ mower_msgs::MowPathsGoalPtr create_mowing_plan(const json &task) {
     // Plan has changed so must restart the area
     currentMowingPlanDigest = mowingPlanDigest;
   }
-
-  return std::move(goal);
+  */
 }
 
 json create_default_tasklist() {
@@ -366,24 +365,25 @@ void feedbackCb(const mower_msgs::MowPathsFeedbackConstPtr &feedback) {
 }
 
 void handle_tasks() {
+  mower_msgs::MowPathsGoal goal;
   while (ros::ok()) {
     auto task = get_next_task();
     if (!ros::ok()) {
       return;
     }
 
-    auto goal = create_mowing_plan(task.params);
-    goal->start_path = task.start_path;
-    goal->start_point = task.start_point;
-    if (goal == nullptr) {
+    // Assume that we can use the requested start path/point, unless we decide otherwise below.
+    goal.start_path = task.start_path;
+    goal.start_point = task.start_point;
+    if (!create_mowing_plan(task.params, goal.paths)) {
       ROS_ERROR_STREAM("Could not create mowing plan");
       continue;
     }
 
     // We have a plan, execute it
-    goal->expect_more_goals = !task.is_last;
+    goal.expect_more_goals = !task.is_last;
     ROS_INFO_STREAM("MowingBehavior: Executing mowing plan");
-    mowPathsClient->sendGoal(*goal,
+    mowPathsClient->sendGoal(goal,
                              MowPathsClient::SimpleDoneCallback(),    // empty
                              MowPathsClient::SimpleActiveCallback(),  // empty
                              feedbackCb);
