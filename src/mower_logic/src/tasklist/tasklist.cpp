@@ -40,6 +40,7 @@ std::vector<xbot_msgs::ActionInfo> actions = {action_skip_area, action_skip_path
 
 struct Task {
   json params;
+  bool reuse_mowing_plan;
   int start_path;
   int start_point;
   bool is_last;
@@ -69,6 +70,7 @@ json *current_task_idx, *current_path, *current_point;
 // This keeps track of which task to start next. Methods expect to be called with mtx_tasklist held.
 struct RequestedTask {
   bool modified = false;
+  bool reuse_mowing_plan;
   int idx;
   int path;
   int point;
@@ -82,6 +84,7 @@ struct RequestedTask {
     this->path = path;
     this->point = point;
     modified = true;
+    reuse_mowing_plan = false;
   }
 
   bool set_to_current_position() {
@@ -90,6 +93,7 @@ struct RequestedTask {
     this->path = *current_path;
     this->point = *current_point;
     modified = true;
+    reuse_mowing_plan = true;
     return true;
   }
 
@@ -98,6 +102,7 @@ struct RequestedTask {
     this->idx += relative;
     this->path = 0;
     this->point = 0;
+    reuse_mowing_plan = false;
   }
 
   void modify_path(int relative) {
@@ -342,6 +347,7 @@ Task get_next_task() {
     // Now load the parameters.
     Task task = {
         .params = tasks[next_task.idx],
+        .reuse_mowing_plan = next_task.reuse_mowing_plan,
         .start_path = next_task.path,
         .start_point = next_task.point,
         .is_last = false,
@@ -375,9 +381,11 @@ void handle_tasks() {
     // Assume that we can use the requested start path/point, unless we decide otherwise below.
     goal.start_path = task.start_path;
     goal.start_point = task.start_point;
-    if (!create_mowing_plan(task.params, goal.paths)) {
-      ROS_ERROR_STREAM("Could not create mowing plan");
-      continue;
+    if (!task.reuse_mowing_plan) {
+      if (!create_mowing_plan(task.params, goal.paths)) {
+        ROS_ERROR_STREAM("Could not create mowing plan");
+        continue;
+      }
     }
 
     // We have a plan, execute it
