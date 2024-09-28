@@ -63,10 +63,53 @@ std::condition_variable cv_tasklist_or_idx_changed;
 std::condition_variable cv_save_progress;
 json current_tasklist;
 json *current_task_idx, *current_path, *current_point;
-const int RTI_NONE = -1;
-const int RTI_RELATIVE = -2;
-int requested_task_idx = RTI_NONE;
-int requested_task_idx_relative = 0;
+
+// This keeps track of which task to start next. Methods expect to be called with mtx_tasklist held.
+struct RequestedTask {
+  bool modified = false;
+  int idx;
+  int path;
+  int point;
+
+  void reset() {
+    modified = false;
+  }
+
+  void set(int idx, int path = 0, int point = 0) {
+    this->idx = idx;
+    this->path = path;
+    this->point = point;
+    modified = true;
+  }
+
+  bool set_to_current_position() {
+    if (current_task_idx->is_null()) return false;
+    this->idx = *current_task_idx;
+    this->path = *current_path;
+    this->point = *current_point;
+    modified = true;
+    return true;
+  }
+
+  void modify(int relative) {
+    if (!modified && !set_to_current_position()) return;
+    this->idx += relative;
+    this->path = 0;
+    this->point = 0;
+  }
+
+  void modify_path(int relative) {
+    if (!modified && !set_to_current_position()) return;
+    this->path += relative;
+    this->point = 0;
+  }
+
+  void modify_point(int relative) {
+    if (!modified && !set_to_current_position()) return;
+    this->point += relative;
+  }
+};
+RequestedTask requested_task;
 
 void change_tasklist(std::function<void()> cb, bool cancel_current_task = true) {
   std::lock_guard<std::mutex> lk(mtx_tasklist);
@@ -253,27 +296,27 @@ Task get_next_task() {
   std::unique_lock<std::mutex> lk(mtx_tasklist);
   while (ros::ok()) {
     // Find out which tasks to start next. Prefer explicitly requested task.
-    int next_task_idx = requested_task_idx;
-    requested_task_idx = RTI_NONE;
-    if (next_task_idx < 0) {
+    auto next_task = requested_task;
+    if (requested_task.modified) {
+      requested_task.reset();
+    } else {
       if (current_task_idx->is_null()) {
         // We had reached the end of the tasklist, so all we can do is wait for new commands.
         // Wake up once per second to check whether we should shut down.
         cv_tasklist_or_idx_changed.wait_for(lk, std::chrono::seconds(1));
         continue;
-      } else if (next_task_idx == RTI_RELATIVE) {
-        next_task_idx = (int)*current_task_idx + requested_task_idx_relative;
       } else {
-        next_task_idx = (int)*current_task_idx + 1;
+        // By default, just go to the next task.
+        next_task.set((int)*current_task_idx + 1);
       }
     }
 
     // Check whether we're past the last tasklist item.
     const auto &tasks = current_tasklist["tasks"];
-    if (next_task_idx >= tasks.size()) {
+    if (next_task.idx >= tasks.size()) {
       if (current_tasklist.value("repeat", false)) {
         // Repeat mode is enabled, so wrap around.
-        next_task_idx = 0;
+        next_task.set(0);
       } else {
         // Unset the progress and restart the loop, which will take care of waiting for new tasks.
         *current_task_idx = nullptr;
@@ -286,18 +329,18 @@ Task get_next_task() {
     }
 
     // Looks like we have a valid task, so save that.
-    *current_task_idx = next_task_idx;
-    *current_path = 0;
-    *current_point = 0;
+    *current_task_idx = next_task.idx;
+    *current_path = next_task.path;
+    *current_point = next_task.point;
     cv_tasklist_or_idx_changed.notify_all();
     cv_save_progress.notify_all();
 
     // Now load the parameters.
     Task task = {
-        .params = tasks[next_task_idx],
+        .params = tasks[next_task.idx],
         .is_last = false,
     };
-    if (next_task_idx + 1 == tasks.size() && !current_tasklist.value("repeat", false)) {
+    if (next_task.idx + 1 == tasks.size() && !current_tasklist.value("repeat", false)) {
       task.is_last = true;
     }
     return task;
@@ -432,7 +475,7 @@ void action_received(const xbot_msgs::ActionRequest::ConstPtr &request) {
       ROS_INFO_STREAM("New tasklist: " << new_tasklist.dump());
       change_tasklist([new_tasklist] {
         current_tasklist = new_tasklist;
-        requested_task_idx = 0;
+        requested_task.set(0);
       });
     } catch (const json::parse_error &e) {
       ROS_ERROR_STREAM("Could not parse JSON in set_tasklist:" << e.what());
@@ -444,17 +487,14 @@ void action_received(const xbot_msgs::ActionRequest::ConstPtr &request) {
     ROS_INFO_STREAM("New (default) tasklist: " << new_tasklist.dump());
     change_tasklist([new_tasklist] {
       current_tasklist = new_tasklist;
-      requested_task_idx = 0;
+      requested_task.set(0);
     });
   } else if (request->action_id == "tasklist/restart") {
-    change_tasklist([] { requested_task_idx = 0; });
+    change_tasklist([] { requested_task.set(0); });
   } else if (request->action_id == "tasklist/next_task" || request->action_id == action_skip_area.action_id) {
-    change_tasklist([] {
-      requested_task_idx = RTI_RELATIVE;
-      requested_task_idx_relative = 1;
-    });
+    change_tasklist([] { requested_task.modify(+1); });
   } else if (request->action_id == action_skip_path.action_id) {
-    // TODO: Implement skipping a path.
+    change_tasklist([] { requested_task.modify_path(+1); });
   } else if (request->action_id == "tasklist/enable_repeat") {
     change_tasklist([] { current_tasklist["repeat"] = true; }, false);
   } else {
