@@ -10,6 +10,7 @@ uint8 VALUE_DESCRIPTION_VOLTAGE=4
 uint8 VALUE_DESCRIPTION_CURRENT=5
 uint8 VALUE_DESCRIPTION_PERCENT=6
 uint8 VALUE_DESCRIPTION_DISTANCE=7
+uint8 VALUE_DESCRIPTION_RPM=8
 
 # Some flags to describe the GPS fix better
 uint16 FLAG_GPS_RTK=1                   # True, if there are corrections applied
