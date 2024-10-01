@@ -13,6 +13,6 @@ mower_xesc:
   serial_port: "/dev/ttyAMA3"
   motor_pole_pairs: 4  # Just needed for eRPM to RPM calculation
   has_motor_temp: true
-  min_motor_rpm_critical: 2000
-  min_motor_rpm: 2500
+  min_motor_rpm_critical: 3000
+  min_motor_rpm: 3200
   max_motor_rpm: 3500
