@@ -46,6 +46,16 @@ namespace vesc_driver {
             throw ros::InvalidParameterException("VESC communication port parameter required.");
         }
 
+        // get motor pole pairs, just needed for eRPM to RPM calculation
+        if (!private_nh.getParam("motor_pole_pairs", pole_pairs)) {
+            ROS_WARN("VESC config misses motor_pole_pairs parameter. Assuming 4.");
+            pole_pairs = 4;
+        }
+        if(pole_pairs == 0) {
+            ROS_WARN("VESC config has wrong motor_pole_pairs value %i. Forced to 1.", pole_pairs);
+            pole_pairs = 1;
+        }
+
         vesc_.start(port);
     }
 
@@ -75,6 +85,7 @@ namespace vesc_driver {
         state_msg.state.fault_code = vesc_status.fault_code;
         state_msg.state.tacho_absolute = vesc_status.tacho_absolute;
         state_msg.state.direction = vesc_status.direction;
+        state_msg.state.rpm = vesc_status.speed_erpm / pole_pairs;
     }
 
     void VescDriver::getStatusBlocking(xesc_msgs::XescStateStamped &state_msg) {
@@ -93,6 +104,7 @@ namespace vesc_driver {
         state_msg.state.fault_code = vesc_status.fault_code;
         state_msg.state.tacho_absolute = vesc_status.tacho_absolute;
         state_msg.state.direction = vesc_status.direction;
+        state_msg.state.rpm = vesc_status.speed_erpm / pole_pairs;
     }
 
     void VescDriver::setDutyCycle(float duty_cycle) {

@@ -36,9 +36,10 @@ namespace xesc_yfr4_driver {
         double temperature_pcb;     // temperature of printed circuit board (degrees Celsius)
         double current_input;       // input current (ampere)
         double duty_cycle;          // duty cycle (0 to 1)
+        bool direction;             // direction CW/CCW
         uint32_t tacho;
         uint32_t tacho_absolute;    // wheel ticks absolute
-        bool direction;             // direction CW/CCW
+        uint16_t rpm;               // revolutions per minute (of the axis/shaft)
         int32_t fault_code;
     };
 

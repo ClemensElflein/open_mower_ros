@@ -85,8 +85,10 @@ private:
   CommandLimit duty_cycle_limit_;
 
   VescStatusStruct vesc_status = {0};
+
+  int pole_pairs;
 };
 
-}  // namespace xesc_2040_driver
+}  // namespace vesc_driver
 
 #endif  // VESC_DRIVER_VESC_DRIVER_H_
