@@ -288,6 +288,10 @@ void publish_sensor_metadata() {
                 info["value_description"] = "PERCENT";
                 break;
             }
+            case xbot_msgs::SensorInfo::VALUE_DESCRIPTION_RPM: {
+                info["value_description"] = "REVOLUTIONS";
+                break;
+            }
             default: {
                 info["value_description"] = "UNKNOWN";
                 break;
@@ -600,35 +604,39 @@ int main(int argc, char **argv) {
         ros::master::V_TopicInfo topics;
         ros::master::getTopics(topics);
         std::for_each(topics.begin(), topics.end(), [&](const ros::master::TopicInfo &item) {
-            if (boost::regex_match(item.name, topic_regex)) {
-                if (active_subscribers.count(item.name) == 0 && found_sensors.count(item.name) == 0) {
-                    ROS_INFO_STREAM("found new sensor topic " << item.name);
-                    active_subscribers[item.name] = n->subscribe<xbot_msgs::SensorInfo>(item.name, 1,
-                                                                                        [topic = item.name](
-                                                                                                const xbot_msgs::SensorInfo::ConstPtr &msg) {
-                                                                                            ROS_INFO_STREAM(
-                                                                                                    "got sensor info for sensor on topic "
-                                                                                                            << msg->sensor_name
-                                                                                                            << " on topic "
-                                                                                                            << topic);
-                                                                                            {
-                                                                                                std::unique_lock<std::mutex> lk(
-                                                                                                        mqtt_callback_mutex);
+            
+            if (!boost::regex_match(item.name, topic_regex) || active_subscribers.count(item.name) != 0)
+                return;
 
-                                                                                                // Save the sensor info
-                                                                                                found_sensors[topic] = *msg;
-                                                                                            }
-                                                                                            // Stop subscribing to infos
-                                                                                            active_subscribers.erase(
-                                                                                                    topic);
-                                                                                            // Subscribe for data
-                                                                                            subscribe_to_sensor(
-                                                                                                    topic);
-                                                                                            // republish sensor info
-                                                                                            publish_sensor_metadata();
-                                                                                        });
+            ROS_INFO_STREAM("Found new sensor topic " << item.name);
+            active_subscribers[item.name] = n->subscribe<xbot_msgs::SensorInfo>(
+                item.name, 1, [topic = item.name](const xbot_msgs::SensorInfo::ConstPtr &msg) {
+                    ROS_INFO_STREAM("Got sensor info for sensor on topic " << msg->sensor_name << " on topic " << topic);
+                    auto exist = found_sensors.count(topic);
+
+                    // Sensor already known and sensor-info equals?
+                    if(exist != 0 && found_sensors[topic] == *msg)
+                        return;
+                    
+                    {
+                        // Sensor is new or sensor-info differ from the buffered one
+                        std::unique_lock<std::mutex> lk(mqtt_callback_mutex);
+                        found_sensors[topic] = *msg;  // Save the (new|changed) sensor info
+                    }
+
+                    // Let the info subscription alive for dynamic threshold changes
+                    //active_subscribers.erase(topic);  // Stop subscribing to infos
+
+                    if (exist == 0) {
+                        subscribe_to_sensor(topic);  // Subscribe for data
+                    }
+
+                    // Republish (new|changed) sensor info
+                    // NOTE: If a sensor name or id changes, the related data topic wouldn't change!
+                    //       But do we dynamically change a sensor name or id?
+                    publish_sensor_metadata();
                 }
-            }
+            );
         });
         sensor_check_rate.sleep();
     }
