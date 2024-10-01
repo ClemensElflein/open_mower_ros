@@ -161,9 +161,8 @@ void set_limits_mow_motor_current(SensorConfig &sensor_config) {
 
 void set_limits_mow_motor_rpm(SensorConfig &sensor_config) {
   // Use the labeled YF-C500 mow motor value (3800 rpm) for default threshold estimations...
-  sensor_config.si.lower_critical_value =
-      paramNh->param(sensor_config.param_path + "/min_motor_rpm_critical", 3300);                  // Max.(rated) -500
-  sensor_config.si.min_value = paramNh->param(sensor_config.param_path + "/min_motor_rpm", 3500);  // Max.(rated) -300
+  sensor_config.si.lower_critical_value = paramNh->param(sensor_config.param_path + "/min_motor_rpm_critical", 2300);
+  sensor_config.si.min_value = paramNh->param(sensor_config.param_path + "/min_motor_rpm", 2800);
   sensor_config.si.max_value = paramNh->param(sensor_config.param_path + "/max_motor_rpm", 3800);
 }
 

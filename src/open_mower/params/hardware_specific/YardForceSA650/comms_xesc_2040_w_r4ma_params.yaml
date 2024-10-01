@@ -41,6 +41,6 @@ mower_xesc:
   motor_current_limit: 1.2
   min_pcb_temp: 0
   max_pcb_temp: 70
-  min_motor_rpm_critical: 3000
-  min_motor_rpm: 3200
+  min_motor_rpm_critical: 2000
+  min_motor_rpm: 2500
   max_motor_rpm: 3500

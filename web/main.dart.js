@@ -91419,10 +91419,10 @@ $S:533}
 A.Q2.prototype={
 N(a){var s,r,q,p,o,n={},m=this.c,l=m.b,k=Math.abs(l)
 if(m.r){l=m.f
-s=l}else s=3300
+s=l}else s=2300
 l=m.c
 if(l>0)r=l
-else r=3500
+else r=2800
 l=$.aLw()
 q=m.a
 p=q
