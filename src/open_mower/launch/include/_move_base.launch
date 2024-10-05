@@ -12,9 +12,4 @@
     <rosparam file="$(find open_mower)/params/global_planner_params.yaml" command="load" />
   </node>
 
-  <node name="move_base_legacy_relay" pkg="mbf_costmap_nav" type="move_base_legacy_relay.py">
-    <param name="base_local_planner" value="FTCPlanner" />
-    <param name="base_global_planner" value="GlobalPlanner" />
-  </node>
-
 </launch>
