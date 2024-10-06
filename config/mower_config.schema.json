@@ -274,6 +274,13 @@
           "description": "Distance in [m] to drive forward after docking.",
           "x-environment-variable": "OM_DOCKING_DISTANCE"
         },
+        "OM_DOCKING_APPROACH_DISTANCE": {
+          "type": "number",
+          "default": 1.5,
+          "title": "Docking Approach Distance",
+          "description": "Distance in [m] from the docking point to start docking.",
+          "x-environment-variable": "OM_DOCKING_APPROACH_DISTANCE"
+        },
         "OM_DOCKING_EXTRA_TIME": {
           "type": "number",
           "default": 0.0,
@@ -300,6 +307,34 @@
           "default": 2.0,
           "description": "Distance in [m] to drive for undocking.",
           "x-environment-variable": "OM_UNDOCK_DISTANCE"
+        },
+        "OM_UNDOCK_ANGLED_DISTANCE": {
+          "type": "number",
+          "title": "Undock Angled Distance",
+          "default": 0.0,
+          "description": "Distance in [m] to continue driving at an angle for undocking.",
+          "x-environment-variable": "OM_UNDOCK_ANGLED_DISTANCE"
+        },
+        "OM_UNDOCK_ANGLE": {
+          "type": "number",
+          "title": "Undock Angle",
+          "default": 0.0,
+          "description": "Angle in degrees for second stage undocking.",
+          "x-environment-variable": "OM_UNDOCK_ANGLE"
+        },
+        "OM_UNDOCK_FIXED_ANGLE": {
+          "type": "boolean",
+          "title": "Undock Fixed Angle",
+          "default": true,
+          "description": "True to fix the undock angle, false to vary it.",
+          "x-environment-variable": "OM_UNDOCK_FIXED_ANGLE"
+        },
+        "OM_UNDOCK_USE_CURVE": {
+          "type": "boolean",
+          "title": "Undock Use Curve",
+          "default": true,
+          "description": "True to use a curved second stage, false for a straight second stage.",
+          "x-environment-variable": "OM_UNDOCK_USE_CURVE"
         },
         "OM_OUTLINE_COUNT": {
           "type": "number",
