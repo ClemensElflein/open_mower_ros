@@ -118,6 +118,9 @@ export OM_USE_F9R_SENSOR_FUSION=False
 ################################
 ##    Mower Logic Settings    ##
 ################################
+# Docking starts at this distance from the dock point
+export OM_DOCKING_APPROACH_DISTANCE=1.5
+
 # The distance to drive forward AFTER reaching the second docking point
 export OM_DOCKING_DISTANCE=1.0
 
@@ -130,8 +133,23 @@ export OM_DOCKING_RETRY_COUNT=4
 # Whether to attempt redocking if the voltage is no longer detected after docking.
 export OM_DOCKING_REDOCK=False
 
-# The distance to drive for undocking. This needs to be large enough for the robot to have GPS reception
+# The first stage distance to drive for undocking. As a minimum it needs to clear the dock.
+# If the additional angled move isn't used then this needs to be large enough for the robot to have GPS reception.
 export OM_UNDOCK_DISTANCE=2.0
+
+# The additional second stage distance to drive at an angle for undocking. This needs to be large enough for the robot to have GPS reception.
+# Note - this section may still be driven without gps so don't expect high positional accuracy.
+export OM_UNDOCK_ANGLED_DISTANCE=0.0
+
+# The angle at which to drive for the additional distance (neg values are to the left of the dock, pos to the right).
+export OM_UNDOCK_ANGLE=0.0
+
+# If true will allways use the angle specified.
+# If false will vary the undocking angle between +abs(OM_UNDOCK_ANGLE) to -abs(OM_UNDOCK_ANGLE) on subsequent undocks to reduce grass wear.
+export OM_UNDOCK_FIXED_ANGLE=True
+
+# If true will use a curved second stage undock move, if false will use a straight undock move.
+export OM_UNDOCK_USE_CURVE=True
 
 # Uncomment, if you want to use the perimeter sensor of your Mowgli-type mower
 # for docking. Set it to 1 or 2 dependig on the signal selected on the docking
