@@ -89,6 +89,8 @@ class AreaRecordingBehavior : public Behavior {
   bool auto_point_collecting = true;
   bool collect_point = false;
 
+  bool manual_mowing = false;
+
   visualization_msgs::MarkerArray markers;
   visualization_msgs::Marker marker;
 
