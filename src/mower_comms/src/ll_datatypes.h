@@ -111,24 +111,66 @@ struct ll_high_level_state {
 } __attribute__((packed));
 #pragma pack(pop)
 
-#define LL_HIGH_LEVEL_CONFIG_MAX_COMMS_VERSION 1  // Max. comms packet version supported by this open_mower_ros
-#define LL_HIGH_LEVEL_CONFIG_BIT_DFPIS5V 1 << 0   // Enable full sound via mower_config env var "OM_DFP_IS_5V"
-#define LL_HIGH_LEVEL_CONFIG_BIT_EMERGENCY_INVERSE \
-  1 << 1  // Sample, for possible future usage, i.e. for SA-Type emergency
+#define LL_HIGH_LEVEL_CONFIG_BIT_DFPIS5V (1 << 0)            // Enable full sound via mower_config env var "OM_DFP_IS_5V"
+#define LL_HIGH_LEVEL_CONFIG_BIT_BACKGROUND_SOUNDS (1 << 1)  // Enable background sounds
+
+#define LL_HIGH_LEVEL_CONFIG_BIT_HL_IS_LEADING \
+  ((LL_HIGH_LEVEL_CONFIG_BIT_DFPIS5V) |        \
+   (LL_HIGH_LEVEL_CONFIG_BIT_BACKGROUND_SOUNDS))  // Config bits where HL is leading
 
 typedef char iso639_1[2];  // Two char ISO 639-1 language code
 
+enum class HallMode : unsigned int {
+  OFF = 0,
+  LIFT_TILT,  // Wheel lifted and wheels tilted functionality
+  STOP,       // Stop mower
+  PAUSE,      // Pause the mower (not yet implemented in ROS)
+  UNDEFINED   // This is used by foreign side to inform that it doesn't has a configuration for this sensor
+};
+
+// FIXME: Decide later which is more comfortable, activeLow = 0 | 1
+enum class HallLevel : unsigned int {
+  ACTIVE_LOW = 0,  // If Hall-Sensor (or button) is active/triggered we've this level on our GPIO
+  ACTIVE_HIGH
+};
+
+#pragma pack(push, 1)
+struct HallConfig {
+  HallConfig() : mode(HallMode::UNDEFINED), level(HallLevel::ACTIVE_LOW) {};
+
+  HallMode mode : 3;
+  HallLevel level : 1;
+} __attribute__((packed));
+#pragma pack(pop)
+
+#define MAX_HALL_INPUTS 10  // How much Hall-inputs we do support. 4 * OM + 6 * Stock-CoverUI
+
+// LL/HL config packet, bi-directional, flexible-length, with defaults for YF-C500.
 #pragma pack(push, 1)
 struct ll_high_level_config {
-  uint8_t type = PACKET_ID_LL_HIGH_LEVEL_CONFIG_RSP;               // By default, respond only (for now)
-  uint8_t comms_version = LL_HIGH_LEVEL_CONFIG_MAX_COMMS_VERSION;  // Increasing comms packet-version number for packet
-                                                                   // compatibility (n > 0)
-  uint8_t config_bitmask = 0;                                      // See LL_HIGH_LEVEL_CONFIG_BIT_*
-  int8_t volume;        // Volume (0-100%) feedback (if directly changed via CoverUI). -1 = don't change
-  iso639_1 language;    // ISO 639-1 (2-char) language code (en, de, ...)
-  uint16_t spare1 = 0;  // Spare for future use
-  uint16_t spare2 = 0;  // Spare for future use
-  uint16_t crc;
+  // ATTENTION: This is a flexible length struct. It is allowed to grow independently to HL without loosing
+  // compatibility, but never change or restructure already published member, except you really know their consequences.
+
+  // uint8_t type; Just for illustration. Get set later in wire buffer with type PACKET_ID_LL_HIGH_LEVEL_CONFIG_*
+
+  // clang-format off
+  uint8_t config_bitmask = 0;                // See LL_HIGH_LEVEL_CONFIG_BIT_*
+  uint16_t rain_threshold = 0xffff;          // If (stock CoverUI) rain value < rain_threshold then it rains
+  float v_charge_cutoff = NAN;               // Protective max. charging voltage before charging get switched off (NAN = unknown)
+  float i_charge_cutoff = NAN;               // Protective max. charging current before charging get switched off (NAN = unknown)
+  float v_battery_cutoff = NAN;              // Protective max. battery voltage before charging get switched off (NAN = unknown)
+  float v_battery_empty = NAN;               // Empty battery voltage used for % calc of capacity (NAN = unknown)
+  float v_battery_full = NAN;                // Full battery voltage used for % calc of capacity (NAN = unknown)
+  uint16_t lift_period = 0xffff;             // Period (ms) for both wheels to be lifted in order to count as emergency (0 = disable, 0xFFFF = unknown)
+  uint16_t tilt_period = 0xffff;             // Period (ms) for a single wheel to be lifted in order to count as emergency (0 = disable, 0xFFFF = unknown)
+  float shutdown_esc_max_pitch = 15.0f;      // Do not shutdown ESCs if absolute pitch angle is greater than this (to be implemented)
+  iso639_1 language = {'e', 'n'};            // ISO 639-1 (2-char) language code (en, de, ...)
+  uint8_t volume = 0xff;                     // Volume (0-100%) feedback (if directly changed i.e. via CoverUI) (0xff = do not change)
+  HallConfig hall_configs[MAX_HALL_INPUTS];  // Set all to UNDEFINED
+  // INFO: Before adding a new member here: Decide if and how much hall_configs spares do we like to have
+
+  // uint16_t crc;  Just for illustration, that it get appended, but later within the wire buffer
+  // clang-format on
 } __attribute__((packed));
 #pragma pack(pop)
 

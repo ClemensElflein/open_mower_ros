@@ -23,6 +23,7 @@
 #include <xbot_msgs/WheelTick.h>
 #include <xesc_driver/xesc_driver.h>
 #include <xesc_msgs/XescStateStamped.h>
+#include <algorithm>
 
 #include <bitset>
 
@@ -66,9 +67,9 @@ float speed_l = 0, speed_r = 0, speed_mow = 0, target_speed_mow = 0;
 double wheel_ticks_per_m = 0.0;
 double wheel_distance_m = 0.0;
 
-bool dfp_is_5v = false;       // DFP is set to 5V Vcc
-std::string language = "en";  // ISO-639-1 (2 char) language code
-int volume = -1;              // -1 = don't change, 0-100 = volume (%)
+// LL/HL configuration
+struct ll_high_level_config llhl_config;
+int volume = 0xff;  // 0-100 = volume (%), all other values = don't change volume
 
 // Serial port and buffer for the low level connection
 serial::Serial serial_port;
@@ -231,38 +232,6 @@ void publishStatus() {
   wheel_tick_pub.publish(wheel_tick_msg);
 }
 
-void publishLowLevelConfig() {
-  if (!serial_port.isOpen() || !allow_send) return;
-
-  struct ll_high_level_config config_pkt;
-
-  config_pkt.volume = volume;
-  for (unsigned int i = 0; i < sizeof(config_pkt.language) / sizeof(char); i++) {
-    config_pkt.language[i] = language[i];
-  }
-  // Set config_bitmask flags
-  (dfp_is_5v) ? config_pkt.config_bitmask |= LL_HIGH_LEVEL_CONFIG_BIT_DFPIS5V
-              : config_pkt.config_bitmask &= ~LL_HIGH_LEVEL_CONFIG_BIT_DFPIS5V;
-
-  crc.reset();
-  crc.process_bytes(&config_pkt, sizeof(struct ll_high_level_config) - 2);
-  config_pkt.crc = crc.checksum();
-
-  size_t encoded_size = cobs.encode((uint8_t *)&config_pkt, sizeof(struct ll_high_level_config), out_buf);
-  out_buf[encoded_size] = 0;
-  encoded_size++;
-
-  try {
-    ROS_INFO_STREAM("Send ll_high_level_config packet 0x"
-                    << std::hex << +config_pkt.type << " with comms_version=" << +config_pkt.comms_version
-                    << ", config_bitmask=0b" << std::bitset<8>(config_pkt.config_bitmask) << ", volume=" << std::dec
-                    << +config_pkt.volume << ", language='" << config_pkt.language << "'");
-    serial_port.write(out_buf, encoded_size);
-  } catch (std::exception &e) {
-    ROS_ERROR_STREAM("Error writing to serial port");
-  }
-}
-
 void publishActuatorsTimerTask(const ros::TimerEvent &timer_event) {
   publishActuators();
   publishStatus();
@@ -374,22 +343,76 @@ void handleLowLevelUIEvent(struct ll_ui_event *ui_event) {
   }
 }
 
-void handleLowLevelConfig(struct ll_high_level_config *config_pkt) {
-  ROS_INFO_STREAM("Received ll_high_level_config packet 0x"
-                  << std::hex << +config_pkt->type << " with comms_version=" << +config_pkt->comms_version
-                  << ", config_bitmask=0b" << std::bitset<8>(config_pkt->config_bitmask) << ", volume=" << std::dec
-                  << +config_pkt->volume << ", language='" << config_pkt->language << "'");
+void publishLowLevelConfig() {
+  if (!serial_port.isOpen() || !allow_send) return;
 
-  // TODO: Handle announced comms_version once required
+  // Prepare the pkt
+  size_t size = sizeof(struct ll_high_level_config) + 3;  // +1 type, +2 crc
+  uint8_t buf[size];
+  // We only "response". No "request" required. LL is currently the active side
+  buf[0] = PACKET_ID_LL_HIGH_LEVEL_CONFIG_RSP;
 
-  // We're not interested in the received langauge setting (yet)
+  // Copy our live config into the message (behind type)
+  memcpy(&buf[1], &llhl_config, sizeof(struct ll_high_level_config));
 
-  // We're not interested in the received volume setting (yet)
+  // Member access to buffer
+  struct ll_high_level_config *buf_config = (struct ll_high_level_config *)&buf[1];
 
-  if (config_pkt->type == PACKET_ID_LL_HIGH_LEVEL_CONFIG_REQ ||                      // Config requested
-      config_pkt->config_bitmask & LL_HIGH_LEVEL_CONFIG_BIT_DFPIS5V != dfp_is_5v) {  // Our DFP_IS_5V setting is leading
-    publishLowLevelConfig();
+  // HL is leading
+  (volume >= 0 && volume <= 100) ? buf_config->volume = volume : buf_config->volume = 0xff;
+
+  // CRC
+  crc.reset();
+  crc.process_bytes(buf, sizeof(struct ll_high_level_config) + 1);  // + type
+  buf[size - 1] = (crc.checksum() >> 8) & 0xFF;
+  buf[size - 2] = crc.checksum() & 0xFF;
+
+  // COBS
+  size_t encoded_size = cobs.encode(buf, size, out_buf);
+  out_buf[encoded_size] = 0;
+  encoded_size++;
+
+  // Send
+  try {
+    ROS_INFO_STREAM("Send ll_high_level_config packet 0x"
+                    << std::hex << +buf[0] << ", config_bitmask=0b" << std::bitset<8>(buf_config->config_bitmask)
+                    << ", volume=" << std::dec << +buf_config->volume << ", language='" << buf_config->language[0]
+                    << buf_config->language[1] << "', v_charge_cutoff=" << buf_config->v_charge_cutoff
+                    << ", lift_period=" << buf_config->lift_period);
+
+    serial_port.write(out_buf, encoded_size);
+  } catch (std::exception &e) {
+    ROS_ERROR_STREAM("Error writing to serial port");
   }
+}
+
+void handleLowLevelConfig(uint8_t *buffer, size_t size) {
+  // This is a flexible length packet where the size may vary when ll_high_level_config struct got enhanced only on one
+  // side. If payload size is larger than our struct size, ensure that we only copy those we know of = our struct size.
+  // If payload size is smaller than our struct size, copy only the payload we got, but ensure that the unsent member(s)
+  // have reasonable defaults.
+  size_t payload_size = std::min(sizeof(ll_high_level_config), size - 3);  // exclude type & crc
+
+  // Use a temporary config for easier struct member acces, and copy our live config, which has reasonable defaults
+  auto ll_config = llhl_config;
+
+  // Copy payload to temporary config
+  memcpy(&ll_config, buffer + 1, payload_size);
+
+  ROS_INFO_STREAM("Received ll_high_level_config packet 0x"
+                  << std::hex << +*buffer << ", config_bitmask=0b" << std::bitset<8>(ll_config.config_bitmask)
+                  << ", volume=" << std::dec << +ll_config.volume << ", language='" << ll_config.language[0]
+                  << ll_config.language[1] << "', v_charge_cutoff=" << ll_config.v_charge_cutoff
+                  << ", lift_period=" << ll_config.lift_period);
+
+  // Overwrite HL leading values
+  ll_config.config_bitmask = (ll_config.config_bitmask & ~LL_HIGH_LEVEL_CONFIG_BIT_HL_IS_LEADING) |
+                               (llhl_config.config_bitmask & LL_HIGH_LEVEL_CONFIG_BIT_HL_IS_LEADING);
+ 
+  llhl_config = ll_config;
+
+  if (*buffer == PACKET_ID_LL_HIGH_LEVEL_CONFIG_REQ) // Config requested
+    publishLowLevelConfig();
 }
 
 void handleLowLevelStatus(struct ll_status *status) {
@@ -459,9 +482,24 @@ int main(int argc, char **argv) {
 
   speed_l = speed_r = speed_mow = target_speed_mow = 0;
 
+  // Handle if DFP is set to 5V
+  bool dfp_is_5v = false;
   paramNh.getParam("dfp_is_5v", dfp_is_5v);
-  paramNh.getParam("language", language);
-  paramNh.getParam("volume", volume);
+  dfp_is_5v ? llhl_config.config_bitmask |= LL_HIGH_LEVEL_CONFIG_BIT_DFPIS5V
+            : llhl_config.config_bitmask &= ~LL_HIGH_LEVEL_CONFIG_BIT_DFPIS5V;
+
+  // Handle ISO-639-1 (2 char) language code
+  std::string language;
+  if (paramNh.getParam("language", language)) {
+    strncpy(llhl_config.language, language.c_str(), 2);
+  }
+
+  // Handle volumes
+  // Remark: We've a couple of user outside who have the old '-1' instead of '0xff' config outside
+  if (paramNh.getParam("volume", volume) && volume >= 0 && volume <= 100) {
+    llhl_config.volume = volume;
+  }
+
   ROS_INFO_STREAM("DFP is set to 5V [boolean]: " << dfp_is_5v << ", language: '" << language
                                                  << "', volume: " << volume);
 
@@ -572,12 +610,7 @@ int main(int argc, char **argv) {
                 break;
               case PACKET_ID_LL_HIGH_LEVEL_CONFIG_REQ:
               case PACKET_ID_LL_HIGH_LEVEL_CONFIG_RSP:
-                if (data_size == sizeof(struct ll_high_level_config)) {
-                  handleLowLevelConfig((struct ll_high_level_config *)buffer_decoded);
-                } else {
-                  ROS_INFO_STREAM("Low Level Board sent a valid packet with the wrong size. Type was CONFIG_* (0x"
-                                  << std::hex << buffer_decoded[0] << ")");
-                }
+                handleLowLevelConfig(buffer_decoded, data_size);
                 break;
               default: ROS_INFO_STREAM("Got unknown packet from Low Level Board"); break;
             }
