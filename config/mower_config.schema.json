@@ -278,7 +278,7 @@
           "type": "number",
           "default": 1.5,
           "title": "Docking Approach Distance",
-          "description": "Distance in [m] from the docking point to start docking.",
+          "description": "Distance in [m] from the docking point to start docking. Has to be at least the length from the dock to your nav- or mow-area, otherwise docking will fail!",
           "x-environment-variable": "OM_DOCKING_APPROACH_DISTANCE"
         },
         "OM_DOCKING_EXTRA_TIME": {
