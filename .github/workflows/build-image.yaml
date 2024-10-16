@@ -31,7 +31,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         docker_build_arch: [ linux/arm64 , linux/amd64 ]
