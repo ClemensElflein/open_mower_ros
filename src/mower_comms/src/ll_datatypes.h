@@ -111,12 +111,13 @@ struct ll_high_level_state {
 } __attribute__((packed));
 #pragma pack(pop)
 
-#define LL_HIGH_LEVEL_CONFIG_BIT_DFPIS5V (1 << 0)            // Enable full sound via mower_config env var "OM_DFP_IS_5V"
-#define LL_HIGH_LEVEL_CONFIG_BIT_BACKGROUND_SOUNDS (1 << 1)  // Enable background sounds
+#define LL_HIGH_LEVEL_CONFIG_BIT_DFPIS5V (1 << 0)  // Enable full sound via mower_config env var "OM_DFP_IS_5V"
+#define LL_HIGH_LEVEL_CONFIG_BIT_BACKGROUND_SOUNDS (1 << 1)        // Enable background sounds
+#define LL_HIGH_LEVEL_CONFIG_BIT_IGNORE_CHARGING_CURRENT (1 << 2)  // Ignore charging current
 
-#define LL_HIGH_LEVEL_CONFIG_BIT_HL_IS_LEADING \
-  ((LL_HIGH_LEVEL_CONFIG_BIT_DFPIS5V) |        \
-   (LL_HIGH_LEVEL_CONFIG_BIT_BACKGROUND_SOUNDS))  // Config bits where HL is leading
+#define LL_HIGH_LEVEL_CONFIG_BIT_HL_IS_LEADING                                     \
+  (LL_HIGH_LEVEL_CONFIG_BIT_DFPIS5V | LL_HIGH_LEVEL_CONFIG_BIT_BACKGROUND_SOUNDS | \
+   LL_HIGH_LEVEL_CONFIG_BIT_IGNORE_CHARGING_CURRENT)
 
 typedef char iso639_1[2];  // Two char ISO 639-1 language code
 
@@ -145,7 +146,7 @@ struct HallConfig {
 
 #define MAX_HALL_INPUTS 10  // How much Hall-inputs we do support. 4 * OM + 6 * Stock-CoverUI
 
-// LL/HL config packet, bi-directional, flexible-length, with defaults for YF-C500.
+// LL/HL config packet, bi-directional, flexible-length
 #pragma pack(push, 1)
 struct ll_high_level_config {
   // ATTENTION: This is a flexible length struct. It is allowed to grow independently to HL without loosing
@@ -156,20 +157,20 @@ struct ll_high_level_config {
   // clang-format off
   uint8_t config_bitmask = 0;                // See LL_HIGH_LEVEL_CONFIG_BIT_*
   uint16_t rain_threshold = 0xffff;          // If (stock CoverUI) rain value < rain_threshold then it rains
-  float v_charge_cutoff = NAN;               // Protective max. charging voltage before charging get switched off (NAN = unknown)
-  float i_charge_cutoff = NAN;               // Protective max. charging current before charging get switched off (NAN = unknown)
-  float v_battery_cutoff = NAN;              // Protective max. battery voltage before charging get switched off (NAN = unknown)
-  float v_battery_empty = NAN;               // Empty battery voltage used for % calc of capacity (NAN = unknown)
-  float v_battery_full = NAN;                // Full battery voltage used for % calc of capacity (NAN = unknown)
+  float v_charge_cutoff = -1;                // Protective max. charging voltage before charging get switched off (-1 = unknown)
+  float i_charge_cutoff = -1;                // Protective max. charging current before charging get switched off (-1 = unknown)
+  float v_battery_cutoff = -1;               // Protective max. battery voltage before charging get switched off (-1 = unknown)
+  float v_battery_empty = -1;                // Empty battery voltage used for % calc of capacity (-1 = unknown)
+  float v_battery_full = -1;                 // Full battery voltage used for % calc of capacity (-1 = unknown)
   uint16_t lift_period = 0xffff;             // Period (ms) for both wheels to be lifted in order to count as emergency (0 = disable, 0xFFFF = unknown)
   uint16_t tilt_period = 0xffff;             // Period (ms) for a single wheel to be lifted in order to count as emergency (0 = disable, 0xFFFF = unknown)
-  float shutdown_esc_max_pitch = 15.0f;      // Do not shutdown ESCs if absolute pitch angle is greater than this (to be implemented)
+  float shutdown_esc_max_pitch = -1;         // Do not shutdown ESCs if absolute pitch angle is greater than this (-1 = unknown) (to be implemented)
   iso639_1 language = {'e', 'n'};            // ISO 639-1 (2-char) language code (en, de, ...)
   uint8_t volume = 0xff;                     // Volume (0-100%) feedback (if directly changed i.e. via CoverUI) (0xff = do not change)
   HallConfig hall_configs[MAX_HALL_INPUTS];  // Set all to UNDEFINED
   // INFO: Before adding a new member here: Decide if and how much hall_configs spares do we like to have
 
-  // uint16_t crc;  Just for illustration, that it get appended, but later within the wire buffer
+  // uint16_t crc;  Just for illustration, that it get appended later within the wire buffer
   // clang-format on
 } __attribute__((packed));
 #pragma pack(pop)
