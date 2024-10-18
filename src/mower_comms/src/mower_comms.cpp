@@ -16,6 +16,7 @@
 // SOFTWARE.
 //
 //
+#include <dynamic_reconfigure/client.h>
 #include <geometry_msgs/Twist.h>
 #include <mower_msgs/Status.h>
 #include <sensor_msgs/Joy.h>
@@ -24,11 +25,13 @@
 #include <xesc_driver/xesc_driver.h>
 #include <xesc_msgs/XescStateStamped.h>
 
+#include <algorithm>
 #include <bitset>
 
 #include "COBS.h"
 #include "boost/crc.hpp"
 #include "ll_datatypes.h"
+#include "mower_logic/MowerLogicConfig.h"
 #include "mower_msgs/EmergencyStopSrv.h"
 #include "mower_msgs/HighLevelControlSrv.h"
 #include "mower_msgs/HighLevelStatus.h"
@@ -66,9 +69,20 @@ float speed_l = 0, speed_r = 0, speed_mow = 0, target_speed_mow = 0;
 double wheel_ticks_per_m = 0.0;
 double wheel_distance_m = 0.0;
 
-bool dfp_is_5v = false;       // DFP is set to 5V Vcc
-std::string language = "en";  // ISO-639-1 (2 char) language code
-int volume = -1;              // -1 = don't change, 0-100 = volume (%)
+// LL, HL configuration
+struct ll_high_level_config hl_config;  // HL leading as well as individual config settings
+struct ll_high_level_config ll_config;  // LL response with probably adjusted config values due to hardware limits
+
+// Stupid enum for easier reading when tracking a config request-response phase
+enum class ConfigPacketTrackStatus {
+  DIRTY,  // Config got dirty since last sent
+  REQ,    // New request|response phase
+  CHECK,  // Wait for response or do a new request if timed out
+  RSP     // Response received (all done)
+};
+
+dynamic_reconfigure::Client<mower_logic::MowerLogicConfig> *reconfigClient;
+mower_logic::MowerLogicConfig mower_logic_config;
 
 // Serial port and buffer for the low level connection
 serial::Serial serial_port;
@@ -231,41 +245,86 @@ void publishStatus() {
   wheel_tick_pub.publish(wheel_tick_msg);
 }
 
-void publishLowLevelConfig() {
+void publishLowLevelConfig(const uint8_t pkt_type) {
   if (!serial_port.isOpen() || !allow_send) return;
 
-  struct ll_high_level_config config_pkt;
+  // Prepare the pkt
+  size_t size = sizeof(struct ll_high_level_config) + 3;  // +1 type, +2 crc
+  uint8_t buf[size];
 
-  config_pkt.volume = volume;
-  for (unsigned int i = 0; i < sizeof(config_pkt.language) / sizeof(char); i++) {
-    config_pkt.language[i] = language[i];
-  }
-  // Set config_bitmask flags
-  (dfp_is_5v) ? config_pkt.config_bitmask |= LL_HIGH_LEVEL_CONFIG_BIT_DFPIS5V
-              : config_pkt.config_bitmask &= ~LL_HIGH_LEVEL_CONFIG_BIT_DFPIS5V;
+  // Send config and request a config answer
+  buf[0] = pkt_type;
 
+  // Copy our live config into the message (behind type)
+  memcpy(&buf[1], &hl_config, sizeof(struct ll_high_level_config));
+
+  // Member access to buffer
+  struct ll_high_level_config *buf_config = (struct ll_high_level_config *)&buf[1];
+
+  // CRC
   crc.reset();
-  crc.process_bytes(&config_pkt, sizeof(struct ll_high_level_config) - 2);
-  config_pkt.crc = crc.checksum();
+  crc.process_bytes(buf, sizeof(struct ll_high_level_config) + 1);  // + type
+  buf[size - 1] = (crc.checksum() >> 8) & 0xFF;
+  buf[size - 2] = crc.checksum() & 0xFF;
 
-  size_t encoded_size = cobs.encode((uint8_t *)&config_pkt, sizeof(struct ll_high_level_config), out_buf);
+  // COBS
+  size_t encoded_size = cobs.encode(buf, size, out_buf);
   out_buf[encoded_size] = 0;
   encoded_size++;
 
+  // Send
   try {
     ROS_INFO_STREAM("Send ll_high_level_config packet 0x"
-                    << std::hex << +config_pkt.type << " with comms_version=" << +config_pkt.comms_version
-                    << ", config_bitmask=0b" << std::bitset<8>(config_pkt.config_bitmask) << ", volume=" << std::dec
-                    << +config_pkt.volume << ", language='" << config_pkt.language << "'");
+                    << std::hex << +buf[0] << ", config_bitmask=0b" << std::bitset<8>(buf_config->config_bitmask)
+                    << ", volume=" << std::dec << +buf_config->volume << ", language='" << buf_config->language[0]
+                    << buf_config->language[1] << "', v_charge_cutoff=" << buf_config->v_charge_cutoff
+                    << ", i_charge_cutoff=" << buf_config->i_charge_cutoff
+                    << ", lift_period=" << buf_config->lift_period);
+
     serial_port.write(out_buf, encoded_size);
   } catch (std::exception &e) {
     ROS_ERROR_STREAM("Error writing to serial port");
   }
 }
 
+/**
+ * @brief trackConfigPacket is a simple function for easier config- request/response packet tracking,
+ * and (needs to be) get called regulary from timer (CHECK), or
+ * individual if a request got sent and the response need to be tracked, or
+ * config became dirty due to dynamic reconfigure.
+ * @param ConfigPacketTrackStatus
+ */
+void trackConfigPacket(const ConfigPacketTrackStatus t_status = ConfigPacketTrackStatus::CHECK) {
+  static ros::Time last_config_req_(0.0);  // Time when last config request was sent
+  static unsigned int tries_left_ = 0;     // Remaining request tries before giving up
+
+  switch (t_status) {
+    case ConfigPacketTrackStatus::DIRTY:
+      tries_left_ = 4;
+      // Don't send request immediately, why not wait for the next cycle?
+      break;
+    case ConfigPacketTrackStatus::REQ:
+      last_config_req_ = ros::Time::now();
+      tries_left_ = 4;
+      break;
+    case ConfigPacketTrackStatus::CHECK:
+      if (!tries_left_) break;
+      if (ros::Time::now() - last_config_req_ < ros::Duration(0.5)) break;  // Not yet timed out
+      publishLowLevelConfig(PACKET_ID_LL_HIGH_LEVEL_CONFIG_REQ);
+      last_config_req_ = ros::Time::now();
+      tries_left_--;
+      ROS_WARN_STREAM_COND(!tries_left_, "Didn't received a config packet from LowLevel. Is your LowLevel firmware up-to-date?");
+      break;
+    case ConfigPacketTrackStatus::RSP:
+      tries_left_ = 0;  // Disable further request
+      break;
+  }
+}
+
 void publishActuatorsTimerTask(const ros::TimerEvent &timer_event) {
   publishActuators();
   publishStatus();
+  trackConfigPacket();
 }
 
 bool setMowEnabled(mower_msgs::MowerControlSrvRequest &req, mower_msgs::MowerControlSrvResponse &res) {
@@ -374,27 +433,126 @@ void handleLowLevelUIEvent(struct ll_ui_event *ui_event) {
   }
 }
 
-void handleLowLevelConfig(struct ll_high_level_config *config_pkt) {
-  ROS_INFO_STREAM("Received ll_high_level_config packet 0x"
-                  << std::hex << +config_pkt->type << " with comms_version=" << +config_pkt->comms_version
-                  << ", config_bitmask=0b" << std::bitset<8>(config_pkt->config_bitmask) << ", volume=" << std::dec
-                  << +config_pkt->volume << ", language='" << config_pkt->language << "'");
-
-  // TODO: Handle announced comms_version once required
-
-  // We're not interested in the received langauge setting (yet)
-
-  // We're not interested in the received volume setting (yet)
-
-  if (config_pkt->type == PACKET_ID_LL_HIGH_LEVEL_CONFIG_REQ ||                      // Config requested
-      config_pkt->config_bitmask & LL_HIGH_LEVEL_CONFIG_BIT_DFPIS5V != dfp_is_5v) {  // Our DFP_IS_5V setting is leading
-    publishLowLevelConfig();
+// FIXME: This would throw "error: cannot bind packed field". Simlar when build via pointer =
+// "-Waddress-of-packed-member". Haven't been clever enough (now) to work around, thus implemented
+// getCurrentOrChanged<T>()
+/*template <typename T>
+bool applyIfDefined(T s, T &d) {
+  if (s >= 0 && s != d) {
+    d = s;
+    return true;
   }
+  return false;
+}*/
+
+/**
+ * @brief getCurrentOrChanged is only a shorthand wrapper and checks if the new (req)ested value is a defined value and
+ * not "unknown/undefined", as well if it differ from the (cur)rent active one
+ * @param req is the new requested value, which also might be of kind unknown/undefined
+ * @param cur is the current live value
+ * @param changed, reference to a boolean used as "changed" indicator
+ * @return the (cur)rent value as long as the (req)uest is unknown/undefined or doesn't differ to the current one,
+ * otherwise it return the (req)uested one and set reference of (changed) to true
+ */
+template <typename T>
+T getCurrentOrChanged(const T req, const T cur, bool &changed) {
+  if (req < 0) return cur;  // undefined config value
+  if (req == cur) return cur;
+  changed = true;
+  return req;
+}
+
+/**
+ * @brief manageDynReconfConfigValues manages config values after receive via dynamic reconfiguration
+ * @details On receive of a dynamic reconfigable parameter, buffer it to our current hl_config state,
+ * and check if LL need to be informed about the change.
+ */
+void manageDynReconfConfigValues() {
+  bool dirty = false;
+
+  // FIXME1: Try with boost::pfr::for_each_field_with_name and a configName-to-mower_logic_member_ptr_Map if
+  // I couldn't get those single lines into a more clean loop?
+
+  // FIXME2: Loved to do it this way, which would look much more clear and compact, but see my comment in function
+  // definition
+  // dirty |= applyIfDefined<float>(mower_logic_config.charge_critical_high_voltage, hl_config.v_charge_cutoff);
+
+  hl_config.v_charge_cutoff =
+      getCurrentOrChanged<float>(mower_logic_config.charge_critical_high_voltage, hl_config.v_charge_cutoff, dirty);
+  hl_config.i_charge_cutoff =
+      getCurrentOrChanged<float>(mower_logic_config.charge_critical_high_current, hl_config.i_charge_cutoff, dirty);
+
+  // FIXME: Remaining values and halls
+
+  if (!dirty) return;
+  trackConfigPacket(ConfigPacketTrackStatus::DIRTY);
+}
+
+/**
+ * @brief manageLowLevelConfigValues manages config values after receive of a config packet from LL (LL->HL response)
+ * @details On receive of a LL config response, buffer it to mower_logic's dynamic reconfigure object and check if
+ * dynamic reconfigure need to be send the new config.
+ */
+void manageLowLevelConfigValues() {
+  bool dirty = false;
+
+  // FIXME1: Try with boost::pfr::for_each_field_with_name and a configName-to-mower_logic_member_ptr_Map if
+  // I couldn't get those single lines into a more clean loop?
+
+  // FIXME2: Loved to do it this way, which would look much more clear and compact, but see my comment in function
+  // definition
+  // dirty |= applyIfDefined<float>(mower_logic_config.charge_critical_high_voltage, hl_config.v_charge_cutoff);
+
+  mower_logic_config.charge_critical_high_voltage =
+      getCurrentOrChanged<float>(ll_config.v_charge_cutoff, mower_logic_config.charge_critical_high_voltage, dirty);
+  mower_logic_config.charge_critical_high_current =
+      getCurrentOrChanged<float>(ll_config.i_charge_cutoff, mower_logic_config.charge_critical_high_current, dirty);
+
+  // FIXME: Remaining values and halls
+
+  if (!dirty) return;
+  reconfigClient->setConfiguration(mower_logic_config);
+}
+
+/**
+ * Handle config packet on receive from LL (LL->HL config packet response)
+ */
+void handleLowLevelConfig(const uint8_t *buffer, const size_t size) {
+  // This is a flexible length packet where the size may vary when ll_high_level_config struct got enhanced only on one
+  // side. If payload size is larger than our struct size, ensure that we only copy those we know of = our struct size.
+  // If payload size is smaller than our struct size, copy only the payload we got, but ensure that the unsent member(s)
+  // have reasonable defaults.
+  size_t payload_size = std::min(sizeof(ll_high_level_config), size - 3);  // exclude type & crc
+
+  // Copy payload to separated ll_config
+  memcpy(&ll_config, buffer + 1, payload_size);
+
+  ROS_INFO_STREAM("Received ll_high_level_config packet 0x"
+                  << std::hex << +*buffer << ", config_bitmask=0b" << std::bitset<8>(ll_config.config_bitmask)
+                  << ", volume=" << std::dec << +ll_config.volume << ", language='" << ll_config.language[0]
+                  << ll_config.language[1] << "', v_charge_cutoff=" << ll_config.v_charge_cutoff
+                  << ", i_charge_cutoff=" << ll_config.i_charge_cutoff
+                  << ", lift_period=" << ll_config.lift_period);
+
+  // Inform config packet tracker about the response
+  trackConfigPacket(ConfigPacketTrackStatus::RSP);
+
+  manageLowLevelConfigValues();
 }
 
 void handleLowLevelStatus(struct ll_status *status) {
+  static ros::Time last_ll_status_update(0.0);
+
   std::unique_lock<std::mutex> lk(ll_status_mutex);
   last_ll_status = *status;
+
+  // LL status get send at 100ms cycle. If we miss 10 packets, we can assume that it got restarted or flashed with a
+  // new FW. In either case we should ensure that it has the right config and update/re-align with us.
+  if (ros::Time::now() - last_ll_status_update > ros::Duration(1.0)) {
+    publishLowLevelConfig(PACKET_ID_LL_HIGH_LEVEL_CONFIG_REQ);
+    trackConfigPacket(ConfigPacketTrackStatus::REQ);
+  }
+  last_ll_status_update = ros::Time::now();
 }
 
 void handleLowLevelIMU(struct ll_imu *imu) {
@@ -431,6 +589,13 @@ void handleLowLevelIMU(struct ll_imu *imu) {
   sensor_mag_pub.publish(sensor_mag_msg);
 }
 
+void reconfigCB(const mower_logic::MowerLogicConfig &config) {
+  ROS_INFO_STREAM("mower_comms received new mower_logic config");
+  mower_logic_config = config;
+
+  manageDynReconfConfigValues();
+}
+
 int main(int argc, char **argv) {
   ros::init(argc, argv, "mower_comms");
 
@@ -444,6 +609,9 @@ int main(int argc, char **argv) {
   ros::NodeHandle rightParamNh("~/right_xesc");
 
   highLevelClient = n.serviceClient<mower_msgs::HighLevelControlSrv>("mower_service/high_level_control");
+
+  mower_logic_config = mower_logic::MowerLogicConfig::__getDefault__();
+  reconfigClient = new dynamic_reconfigure::Client<mower_logic::MowerLogicConfig>("/mower_logic", reconfigCB);
 
   std::string ll_serial_port_name;
   if (!paramNh.getParam("ll_serial_port", ll_serial_port_name)) {
@@ -459,9 +627,25 @@ int main(int argc, char **argv) {
 
   speed_l = speed_r = speed_mow = target_speed_mow = 0;
 
-  paramNh.getParam("dfp_is_5v", dfp_is_5v);
-  paramNh.getParam("language", language);
-  paramNh.getParam("volume", volume);
+  // FIXME: dfp_is_5v, language and volume should probably go to mower_logic (dyn reconfigure)
+  // Handle if DFP is set to 5V
+  bool dfp_is_5v;
+  if (paramNh.getParam("dfp_is_5v", dfp_is_5v) && dfp_is_5v) {
+    hl_config.config_bitmask |= LL_HIGH_LEVEL_CONFIG_BIT_DFPIS5V;
+  }
+
+  // Handle ISO-639-1 (2 char) language code
+  std::string language;
+  if (paramNh.getParam("language", language)) {
+    strncpy(hl_config.language, language.c_str(), 2);
+  }
+
+  // Handle volume
+  int volume;  // 0-100 = volume (%), all other values = don't change volume
+  if (paramNh.getParam("volume", volume) && volume >= 0 && volume <= 100) {
+    hl_config.volume = volume;
+  }
+
   ROS_INFO_STREAM("DFP is set to 5V [boolean]: " << dfp_is_5v << ", language: '" << language
                                                  << "', volume: " << volume);
 
@@ -572,12 +756,7 @@ int main(int argc, char **argv) {
                 break;
               case PACKET_ID_LL_HIGH_LEVEL_CONFIG_REQ:
               case PACKET_ID_LL_HIGH_LEVEL_CONFIG_RSP:
-                if (data_size == sizeof(struct ll_high_level_config)) {
-                  handleLowLevelConfig((struct ll_high_level_config *)buffer_decoded);
-                } else {
-                  ROS_INFO_STREAM("Low Level Board sent a valid packet with the wrong size. Type was CONFIG_* (0x"
-                                  << std::hex << buffer_decoded[0] << ")");
-                }
+                handleLowLevelConfig(buffer_decoded, data_size);
                 break;
               default: ROS_INFO_STREAM("Got unknown packet from Low Level Board"); break;
             }
