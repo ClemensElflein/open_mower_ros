@@ -70,8 +70,7 @@ double wheel_ticks_per_m = 0.0;
 double wheel_distance_m = 0.0;
 
 // LL, HL configuration
-struct ll_high_level_config hl_config;  // HL leading as well as individual config settings
-struct ll_high_level_config ll_config;  // LL response with probably adjusted config values due to hardware limits
+struct ll_high_level_config llhl_config;
 
 // Stupid enum for easier reading when tracking a config request-response phase
 enum class ConfigPacketTrackStatus {
@@ -256,7 +255,7 @@ void publishLowLevelConfig(const uint8_t pkt_type) {
   buf[0] = pkt_type;
 
   // Copy our live config into the message (behind type)
-  memcpy(&buf[1], &hl_config, sizeof(struct ll_high_level_config));
+  memcpy(&buf[1], &llhl_config, sizeof(struct ll_high_level_config));
 
   // Member access to buffer
   struct ll_high_level_config *buf_config = (struct ll_high_level_config *)&buf[1];
@@ -433,85 +432,26 @@ void handleLowLevelUIEvent(struct ll_ui_event *ui_event) {
   }
 }
 
-// FIXME: This would throw "error: cannot bind packed field". Simlar when build via pointer =
-// "-Waddress-of-packed-member". Haven't been clever enough (now) to work around, thus implemented
-// getCurrentOrChanged<T>()
-/*template <typename T>
-bool applyIfDefined(T s, T &d) {
-  if (s >= 0 && s != d) {
-    d = s;
-    return true;
-  }
-  return false;
-}*/
-
 /**
- * @brief getCurrentOrChanged is only a shorthand wrapper and checks if the new (req)ested value is a defined value and
- * not "unknown/undefined", as well if it differ from the (cur)rent active one
- * @param req is the new requested value, which also might be of kind unknown/undefined
- * @param cur is the current live value
- * @param changed, reference to a boolean used as "changed" indicator
- * @return the (cur)rent value as long as the (req)uest is unknown/undefined or doesn't differ to the current one,
- * otherwise it return the (req)uested one and set reference of (changed) to true
+ * @brief getNewSetChanged return t_new and checks if the value changed in comparison to t_cur.
+ * t_new can't be a reference because the same function is also used for packed structures.
+ * @param t_cur source value
+ * @param t_new reference
+ * @return &bool get set to true if t_cur and t_new differ, otherwise changed doesn't get touched
  */
 template <typename T>
-T getCurrentOrChanged(const T req, const T cur, bool &changed) {
-  if (req < 0) return cur;  // undefined config value
-  if (req == cur) return cur;
-  changed = true;
-  return req;
-}
+T getNewSetChanged(const T t_cur, const T t_new, bool &changed) {
+  bool equal;
+  if (std::is_floating_point<T>::value)
+    equal = fabs(t_cur - t_new) < std::numeric_limits<T>::epsilon();
+  else
+    equal = t_cur == t_new;
 
-/**
- * @brief manageDynReconfConfigValues manages config values after receive via dynamic reconfiguration
- * @details On receive of a dynamic reconfigable parameter, buffer it to our current hl_config state,
- * and check if LL need to be informed about the change.
- */
-void manageDynReconfConfigValues() {
-  bool dirty = false;
+  if (!equal) changed = true;
 
-  // FIXME1: Try with boost::pfr::for_each_field_with_name and a configName-to-mower_logic_member_ptr_Map if
-  // I couldn't get those single lines into a more clean loop?
+  ROS_DEBUG_STREAM("DEBUG mower_comms: cur " << t_cur << " ?= " << t_new << " == equal " << equal << ", changed " << changed);
 
-  // FIXME2: Loved to do it this way, which would look much more clear and compact, but see my comment in function
-  // definition
-  // dirty |= applyIfDefined<float>(mower_logic_config.charge_critical_high_voltage, hl_config.v_charge_cutoff);
-
-  hl_config.v_charge_cutoff =
-      getCurrentOrChanged<float>(mower_logic_config.charge_critical_high_voltage, hl_config.v_charge_cutoff, dirty);
-  hl_config.i_charge_cutoff =
-      getCurrentOrChanged<float>(mower_logic_config.charge_critical_high_current, hl_config.i_charge_cutoff, dirty);
-
-  // FIXME: Remaining values and halls
-
-  if (!dirty) return;
-  trackConfigPacket(ConfigPacketTrackStatus::DIRTY);
-}
-
-/**
- * @brief manageLowLevelConfigValues manages config values after receive of a config packet from LL (LL->HL response)
- * @details On receive of a LL config response, buffer it to mower_logic's dynamic reconfigure object and check if
- * dynamic reconfigure need to be send the new config.
- */
-void manageLowLevelConfigValues() {
-  bool dirty = false;
-
-  // FIXME1: Try with boost::pfr::for_each_field_with_name and a configName-to-mower_logic_member_ptr_Map if
-  // I couldn't get those single lines into a more clean loop?
-
-  // FIXME2: Loved to do it this way, which would look much more clear and compact, but see my comment in function
-  // definition
-  // dirty |= applyIfDefined<float>(mower_logic_config.charge_critical_high_voltage, hl_config.v_charge_cutoff);
-
-  mower_logic_config.charge_critical_high_voltage =
-      getCurrentOrChanged<float>(ll_config.v_charge_cutoff, mower_logic_config.charge_critical_high_voltage, dirty);
-  mower_logic_config.charge_critical_high_current =
-      getCurrentOrChanged<float>(ll_config.i_charge_cutoff, mower_logic_config.charge_critical_high_current, dirty);
-
-  // FIXME: Remaining values and halls
-
-  if (!dirty) return;
-  reconfigClient->setConfiguration(mower_logic_config);
+  return t_new;
 }
 
 /**
@@ -525,19 +465,34 @@ void handleLowLevelConfig(const uint8_t *buffer, const size_t size) {
   size_t payload_size = std::min(sizeof(ll_high_level_config), size - 3);  // exclude type & crc
 
   // Copy payload to separated ll_config
-  memcpy(&ll_config, buffer + 1, payload_size);
+  memcpy(&llhl_config, buffer + 1, payload_size);
 
   ROS_INFO_STREAM("Received ll_high_level_config packet 0x"
-                  << std::hex << +*buffer << ", config_bitmask=0b" << std::bitset<8>(ll_config.config_bitmask)
-                  << ", volume=" << std::dec << +ll_config.volume << ", language='" << ll_config.language[0]
-                  << ll_config.language[1] << "', v_charge_cutoff=" << ll_config.v_charge_cutoff
-                  << ", i_charge_cutoff=" << ll_config.i_charge_cutoff
-                  << ", lift_period=" << ll_config.lift_period);
+                  << std::hex << +*buffer << ", config_bitmask=0b" << std::bitset<8>(llhl_config.config_bitmask)
+                  << ", volume=" << std::dec << +llhl_config.volume << ", language='" << llhl_config.language[0]
+                  << llhl_config.language[1] << "', v_charge_cutoff=" << llhl_config.v_charge_cutoff
+                  << ", i_charge_cutoff=" << llhl_config.i_charge_cutoff
+                  << ", lift_period=" << llhl_config.lift_period);
 
   // Inform config packet tracker about the response
   trackConfigPacket(ConfigPacketTrackStatus::RSP);
 
-  manageLowLevelConfigValues();
+  // Copy received config values from LL to mower_logic's related dynamic reconfigure variables and
+  // decide if mower_logic's dynamic reconfigure need to be updated with probably changed values
+  bool dirty = false;
+  // clang-format off
+  mower_logic_config.charge_critical_high_voltage = getNewSetChanged<double>(mower_logic_config.charge_critical_high_voltage, llhl_config.v_charge_cutoff, dirty);
+  mower_logic_config.charge_critical_high_current = getNewSetChanged<double>(mower_logic_config.charge_critical_high_current, llhl_config.i_charge_cutoff, dirty);
+  mower_logic_config.battery_critical_high_voltage = getNewSetChanged<double>(mower_logic_config.battery_critical_high_voltage, llhl_config.v_battery_cutoff, dirty);
+  mower_logic_config.battery_empty_voltage = getNewSetChanged<double>(mower_logic_config.battery_empty_voltage, llhl_config.v_battery_empty, dirty);
+  mower_logic_config.battery_full_voltage = getNewSetChanged<double>(mower_logic_config.battery_full_voltage, llhl_config.v_battery_full, dirty);
+  mower_logic_config.emergency_lift_period = getNewSetChanged<int>(mower_logic_config.emergency_lift_period, llhl_config.lift_period, dirty);
+  mower_logic_config.emergency_tilt_period = getNewSetChanged<int>(mower_logic_config.emergency_tilt_period, llhl_config.tilt_period, dirty);
+  // clang-format on
+
+  // FIXME: Remaining halls
+
+  if (dirty) reconfigClient->setConfiguration(mower_logic_config);
 }
 
 void handleLowLevelStatus(struct ll_status *status) {
@@ -591,9 +546,25 @@ void handleLowLevelIMU(struct ll_imu *imu) {
 
 void reconfigCB(const mower_logic::MowerLogicConfig &config) {
   ROS_INFO_STREAM("mower_comms received new mower_logic config");
+
   mower_logic_config = config;
 
-  manageDynReconfConfigValues();
+  // Copy changed mower_config's values to the related llhl_config values and
+  // decide if LL need to be informed with a new config packet
+  bool dirty = false;
+  // clang-format off
+  llhl_config.v_charge_cutoff = getNewSetChanged<double>(llhl_config.v_charge_cutoff, mower_logic_config.charge_critical_high_voltage, dirty);
+  llhl_config.i_charge_cutoff = getNewSetChanged<double>(llhl_config.i_charge_cutoff, mower_logic_config.charge_critical_high_current, dirty);
+  llhl_config.v_battery_cutoff = getNewSetChanged<double>(llhl_config.v_battery_cutoff, mower_logic_config.battery_critical_high_voltage, dirty);
+  llhl_config.v_battery_empty = getNewSetChanged<double>(llhl_config.v_battery_empty, mower_logic_config.battery_empty_voltage, dirty);
+  llhl_config.v_battery_full = getNewSetChanged<double>(llhl_config.v_battery_full, mower_logic_config.battery_full_voltage, dirty);
+  llhl_config.lift_period = getNewSetChanged<int>(llhl_config.lift_period, mower_logic_config.emergency_lift_period, dirty);
+  llhl_config.tilt_period = getNewSetChanged<int>(llhl_config.tilt_period, mower_logic_config.emergency_tilt_period, dirty);
+  // clang-format on
+
+  // FIXME: Remaining halls
+
+  if (dirty) trackConfigPacket(ConfigPacketTrackStatus::DIRTY);
 }
 
 int main(int argc, char **argv) {
@@ -631,19 +602,19 @@ int main(int argc, char **argv) {
   // Handle if DFP is set to 5V
   bool dfp_is_5v;
   if (paramNh.getParam("dfp_is_5v", dfp_is_5v) && dfp_is_5v) {
-    hl_config.config_bitmask |= LL_HIGH_LEVEL_CONFIG_BIT_DFPIS5V;
+    llhl_config.config_bitmask |= LL_HIGH_LEVEL_CONFIG_BIT_DFPIS5V;
   }
 
   // Handle ISO-639-1 (2 char) language code
   std::string language;
   if (paramNh.getParam("language", language)) {
-    strncpy(hl_config.language, language.c_str(), 2);
+    strncpy(llhl_config.language, language.c_str(), 2);
   }
 
   // Handle volume
   int volume;  // 0-100 = volume (%), all other values = don't change volume
   if (paramNh.getParam("volume", volume) && volume >= 0 && volume <= 100) {
-    hl_config.volume = volume;
+    llhl_config.volume = volume;
   }
 
   ROS_INFO_STREAM("DFP is set to 5V [boolean]: " << dfp_is_5v << ", language: '" << language
