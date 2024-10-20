@@ -274,8 +274,10 @@ void publishLowLevelConfig(const uint8_t pkt_type) {
   // Send
   try {
     ROS_INFO_STREAM("Send ll_high_level_config packet 0x"
-                    << std::hex << +buf[0] << ", config_bitmask=0b" << std::bitset<8>(buf_config->config_bitmask)
-                    << ", volume=" << std::dec << +buf_config->volume << ", language='" << buf_config->language[0]
+                    << std::hex << +buf[0] << ", options{dfp_is_5v=" << buf_config->options.dfp_is_5v
+                    << ", background_sounds=" << buf_config->options.background_sounds
+                    << ", ignore_charging_current=" << buf_config->options.ignore_charging_current
+                    << "}, volume=" << std::dec << +buf_config->volume << ", language='" << buf_config->language[0]
                     << buf_config->language[1] << "', v_charge_cutoff=" << buf_config->v_charge_cutoff
                     << ", i_charge_cutoff=" << buf_config->i_charge_cutoff
                     << ", lift_period=" << buf_config->lift_period);
@@ -468,8 +470,10 @@ void handleLowLevelConfig(const uint8_t *buffer, const size_t size) {
   memcpy(&llhl_config, buffer + 1, payload_size);
 
   ROS_INFO_STREAM("Received ll_high_level_config packet 0x"
-                  << std::hex << +*buffer << ", config_bitmask=0b" << std::bitset<8>(llhl_config.config_bitmask)
-                  << ", volume=" << std::dec << +llhl_config.volume << ", language='" << llhl_config.language[0]
+                  << std::hex << +*buffer << ", options{dfp_is_5v=" << llhl_config.options.dfp_is_5v
+                  << ", background_sounds=" << llhl_config.options.background_sounds
+                  << ", ignore_charging_current=" << llhl_config.options.ignore_charging_current
+                  << "}, volume=" << std::dec << +llhl_config.volume << ", language='" << llhl_config.language[0]
                   << llhl_config.language[1] << "', v_charge_cutoff=" << llhl_config.v_charge_cutoff
                   << ", i_charge_cutoff=" << llhl_config.i_charge_cutoff
                   << ", lift_period=" << llhl_config.lift_period);
@@ -598,18 +602,16 @@ int main(int argc, char **argv) {
 
   speed_l = speed_r = speed_mow = target_speed_mow = 0;
 
-  // FIXME: dfp_is_5v, language and volume should probably go to mower_logic (dyn reconfigure)
+  // FIXME: dfp_is_5v, language and volume should probably go to mower_logic (dyn reconfigure)?
   // Handle if DFP is set to 5V
-  bool dfp_is_5v;
-  if (paramNh.getParam("dfp_is_5v", dfp_is_5v) && dfp_is_5v) {
-    llhl_config.config_bitmask |= LL_HIGH_LEVEL_CONFIG_BIT_DFPIS5V;
-  }
+  bool dfp_is_5v = false;
+  paramNh.getParam("dfp_is_5v", dfp_is_5v);
+  llhl_config.options.dfp_is_5v = dfp_is_5v;
 
   // Handle ISO-639-1 (2 char) language code
-  std::string language;
-  if (paramNh.getParam("language", language)) {
-    strncpy(llhl_config.language, language.c_str(), 2);
-  }
+  std::string language = "en";
+  paramNh.getParam("language", language);
+  strncpy(llhl_config.language, language.c_str(), 2);
 
   // Handle volume
   int volume;  // 0-100 = volume (%), all other values = don't change volume
