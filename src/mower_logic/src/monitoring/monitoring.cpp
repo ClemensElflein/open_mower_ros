@@ -139,16 +139,11 @@ void set_limits_battery_v(SensorConfig &sensor_config) {
 }
 
 void set_limits_charge_v(SensorConfig &sensor_config) {
-  // FIXME: Shall these better go to mower_logic's dyn-reconfigure (or an own dyn-reconfigure server)?
-  sensor_config.si.min_value = 24.0f;             // Mnimum voltage for before deep-discharge
-  sensor_config.si.max_value = 29.2f;             // Optimal charge voltage
-  sensor_config.si.upper_critical_value = 30.0f;  // Taken from OpenMower FW
+  sensor_config.si.upper_critical_value = mower_logic_config.charge_critical_high_voltage;
 }
 
 void set_limits_charge_current(SensorConfig &sensor_config) {
-  // FIXME: Shall these better go to mower_logic's dyn-reconfigure (or an own dyn-reconfigure server)?
-  sensor_config.si.max_value = 1.0f;             // Taken from the docs
-  sensor_config.si.upper_critical_value = 1.5f;  // Taken from OpenMower FW
+  sensor_config.si.upper_critical_value = mower_logic_config.charge_critical_high_current;
 }
 
 void set_limits_esc_temp(SensorConfig &sensor_config) {
