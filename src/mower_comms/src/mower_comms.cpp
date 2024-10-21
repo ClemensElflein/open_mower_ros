@@ -69,16 +69,8 @@ float speed_l = 0, speed_r = 0, speed_mow = 0, target_speed_mow = 0;
 double wheel_ticks_per_m = 0.0;
 double wheel_distance_m = 0.0;
 
-// LL, HL configuration
+// LL/HL configuration
 struct ll_high_level_config llhl_config;
-
-// Stupid enum for easier reading when tracking a config request-response phase
-enum class ConfigPacketTrackStatus {
-  DIRTY,  // Config got dirty since last sent
-  REQ,    // New request|response phase
-  CHECK,  // Wait for response or do a new request if timed out
-  RSP     // Response received (all done)
-};
 
 dynamic_reconfigure::Client<mower_logic::MowerLogicConfig> *reconfigClient;
 mower_logic::MowerLogicConfig mower_logic_config;
@@ -289,43 +281,36 @@ void publishLowLevelConfig(const uint8_t pkt_type) {
 }
 
 /**
- * @brief trackConfigPacket is a simple function for easier config- request/response packet tracking,
- * and (needs to be) get called regulary from timer (CHECK), or
- * individual if a request got sent and the response need to be tracked, or
- * config became dirty due to dynamic reconfigure.
- * @param ConfigPacketTrackStatus
+ * @brief A simple config tracker (struct-class) for managing lost response packets as well as simpler handling of
+ * LowLevel reboots or flash period.
  */
-void trackConfigPacket(const ConfigPacketTrackStatus t_status = ConfigPacketTrackStatus::CHECK) {
-  static ros::Time last_config_req_(0.0);  // Time when last config request was sent
-  static unsigned int tries_left_ = 0;     // Remaining request tries before giving up
+struct {
+  ros::Time last_config_req;    // Time when last config request was sent
+  unsigned int tries_left = 0;  // Remaining request tries before giving up
 
-  switch (t_status) {
-    case ConfigPacketTrackStatus::DIRTY:
-      tries_left_ = 4;
-      // Don't send request immediately, why not wait for the next cycle?
-      break;
-    case ConfigPacketTrackStatus::REQ:
-      last_config_req_ = ros::Time::now();
-      tries_left_ = 4;
-      break;
-    case ConfigPacketTrackStatus::CHECK:
-      if (!tries_left_) break;
-      if (ros::Time::now() - last_config_req_ < ros::Duration(0.5)) break;  // Not yet timed out
-      publishLowLevelConfig(PACKET_ID_LL_HIGH_LEVEL_CONFIG_REQ);
-      last_config_req_ = ros::Time::now();
-      tries_left_--;
-      ROS_WARN_STREAM_COND(!tries_left_, "Didn't received a config packet from LowLevel. Is your LowLevel firmware up-to-date?");
-      break;
-    case ConfigPacketTrackStatus::RSP:
-      tries_left_ = 0;  // Disable further request
-      break;
-  }
-}
+  void ackResponse() {  // Call this on receive of a response packet to stop monitoring
+    tries_left = 0;
+  };
+  void setDirty() {  // Call this for indicating that config packet need to be resend, i.e. die to LL-reboot
+    tries_left = 5;
+  };
+  void check() {
+    if (!tries_left ||                                            // No request tries left (probably old LL-FW)
+        !serial_port.isOpen() || !allow_send ||                   // Serial not ready
+        ros::Time::now() - last_config_req < ros::Duration(0.5))  // Timeout waiting for response not reached
+      return;
+    publishLowLevelConfig(PACKET_ID_LL_HIGH_LEVEL_CONFIG_REQ);
+    last_config_req = ros::Time::now();
+    tries_left--;
+    ROS_WARN_STREAM_COND(
+        !tries_left, "Didn't received a config packet from LowLevel in time. Is your LowLevel firmware up-to-date?");
+  };
+} configTracker;
 
 void publishActuatorsTimerTask(const ros::TimerEvent &timer_event) {
   publishActuators();
   publishStatus();
-  trackConfigPacket();
+  configTracker.check();
 }
 
 bool setMowEnabled(mower_msgs::MowerControlSrvRequest &req, mower_msgs::MowerControlSrvResponse &res) {
@@ -451,7 +436,7 @@ T getNewSetChanged(const T t_cur, const T t_new, bool &changed) {
 
   if (!equal) changed = true;
 
-  ROS_DEBUG_STREAM("DEBUG mower_comms: cur " << t_cur << " ?= " << t_new << " == equal " << equal << ", changed " << changed);
+  //ROS_INFO_STREAM("DEBUG mower_comms comp. member: cur " << t_cur << " ?= " << t_new << " == equal " << equal << ", changed " << changed);
 
   return t_new;
 }
@@ -479,7 +464,7 @@ void handleLowLevelConfig(const uint8_t *buffer, const size_t size) {
                   << ", lift_period=" << llhl_config.lift_period);
 
   // Inform config packet tracker about the response
-  trackConfigPacket(ConfigPacketTrackStatus::RSP);
+  configTracker.ackResponse();
 
   // Copy received config values from LL to mower_logic's related dynamic reconfigure variables and
   // decide if mower_logic's dynamic reconfigure need to be updated with probably changed values
@@ -500,17 +485,14 @@ void handleLowLevelConfig(const uint8_t *buffer, const size_t size) {
 }
 
 void handleLowLevelStatus(struct ll_status *status) {
-  static ros::Time last_ll_status_update(0.0);
+  static ros::Time last_ll_status_update(ros::Time::now());
 
   std::unique_lock<std::mutex> lk(ll_status_mutex);
   last_ll_status = *status;
 
   // LL status get send at 100ms cycle. If we miss 10 packets, we can assume that it got restarted or flashed with a
   // new FW. In either case we should ensure that it has the right config and update/re-align with us.
-  if (ros::Time::now() - last_ll_status_update > ros::Duration(1.0)) {
-    publishLowLevelConfig(PACKET_ID_LL_HIGH_LEVEL_CONFIG_REQ);
-    trackConfigPacket(ConfigPacketTrackStatus::REQ);
-  }
+  if (ros::Time::now() - last_ll_status_update > ros::Duration(1.0)) configTracker.setDirty();
   last_ll_status_update = ros::Time::now();
 }
 
@@ -568,7 +550,7 @@ void reconfigCB(const mower_logic::MowerLogicConfig &config) {
 
   // FIXME: Remaining halls
 
-  if (dirty) trackConfigPacket(ConfigPacketTrackStatus::DIRTY);
+  if (dirty) configTracker.setDirty();
 }
 
 int main(int argc, char **argv) {
