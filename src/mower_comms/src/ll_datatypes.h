@@ -125,21 +125,16 @@ enum class HallMode : unsigned int {
   OFF = 0,
   LIFT_TILT,  // Wheel lifted and wheels tilted functionality
   STOP,       // Stop mower
-  PAUSE,      // Pause the mower (not yet implemented in ROS)
   UNDEFINED   // This is used by foreign side to inform that it doesn't has a configuration for this sensor
-};
-
-enum class HallLevel : unsigned int {
-  ACTIVE_LOW = 0,  // If Hall-Sensor (or button) is active/triggered we've this level on our GPIO
-  ACTIVE_HIGH
 };
 
 #pragma pack(push, 1)
 struct HallConfig {
-  HallConfig() : mode(HallMode::UNDEFINED), level(HallLevel::ACTIVE_LOW) {};
+  HallConfig(HallMode t_mode = HallMode::UNDEFINED, bool t_active_low = false)
+      : mode(t_mode), active_low(t_active_low) {};
 
-  HallMode mode : 3;
-  HallLevel level : 1;
+  HallMode mode : 3;  // 1 bit reserved
+  bool active_low : 1;
 } __attribute__((packed));
 #pragma pack(pop)
 
@@ -161,7 +156,7 @@ struct ll_high_level_config {
   float v_battery_cutoff = -1;               // Protective max. battery voltage before charging get switched off (-1 = unknown)
   float v_battery_empty = -1;                // Empty battery voltage used for % calc of capacity (-1 = unknown)
   float v_battery_full = -1;                 // Full battery voltage used for % calc of capacity (-1 = unknown)
-  uint16_t lift_period = 0xffff;             // Period (ms) for both wheels to be lifted in order to count as emergency (0 = disable, 0xFFFF = unknown)
+  uint16_t lift_period = 0xffff;             // Period (ms) for >=2 wheels to be lifted in order to count as emergency (0 = disable, 0xFFFF = unknown)
   uint16_t tilt_period = 0xffff;             // Period (ms) for a single wheel to be lifted in order to count as emergency (0 = disable, 0xFFFF = unknown)
   float shutdown_esc_max_pitch = -1;         // Do not shutdown ESCs if absolute pitch angle is greater than this (-1 = unknown) (to be implemented)
   iso639_1 language = {'e', 'n'};            // ISO 639-1 (2-char) language code (en, de, ...)

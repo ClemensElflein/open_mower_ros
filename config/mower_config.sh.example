@@ -226,6 +226,50 @@ export OM_RAIN_MODE=0
 # How long to wait after rain to resume mowing when mode is "Dock Until Dry"
 export OM_RAIN_DELAY_MINUTES=30
 
+# [STORED IN FLASH] marker explanation:
+# Options, which are marked with a [STORED IN FLASH], get transmitted and stored into Pico's flash storage,
+# and thus get automatically reloaded on next Pico reboot.
+# Whenever you use one of the [STORED IN FLASH] marked options here, keep in mind, that commenting (disabling) that option here again,
+# doesn't reset it to it's default values. Instead of, the [STORED IN FLASH] option remains active, till you set it here again!
+
+# Hall / Emergency input configuration [STORED IN FLASH]
+#
+# This is an expert configuration option, use it only for custom builds!
+# The normal YardForce Classic 500 user should leave all options in commented state.
+#
+# We do have 10 emergency inputs. 4 * OM-Hall1 - OM-Hall4, plus 6 * Stock-CoverUI.
+#
+# Each emergency input can be configure in one of the following modes:
+# I = Ignore this input. Use this mode for inputs which aren't connected to any sensor, or if you wish that this sensor get ignored
+# U = Undefined (don't touch this input, leave it as it's configured now or by default)
+# S = Stop. This input shall be used as "Stop" button input
+# L = Lift. Use for an input with Lift and Tilt support like Wheel sensors
+#
+# In addition each mode letter, can be prefixed with a "!" character, which means that this sensor shall be handled as "low-active" sensor
+#
+# All sensors which shall be configured, have to be placed in a comma separated list in the following order:
+#   OM-Hall1, OM-Hall2, OM-Hall3, OM-Hall4
+# If you've a FW-Moded Stock-CoverUI up to CoverUI FW 2.0x, with attached sensors/buttons, you can append the list with the following inputs:
+#   CoverUI-LIFT|LIFTX, Ignore, CoverUI-LBUMP|RBUMP, Ignore, CoverUI-Stop1, CoverUI-Stop2
+# For those with a CoverUI FW as of 2.1x the appendable list of inputs is:
+#   CoverUI-LIFT, CoverUI-LIFTX, CoverUI-LBUMP, CoverUI-RBUMP, CoverUI-Stop1, CoverUI-Stop2
+#
+# Here's an example of a standard Classic 500 configuration where the sensors got attached as documented,
+# which is Hall1+2 to the front wheel-lift sensors, and Hall3+4 to the top cover stop-button halls:
+# export OM_EMERGENCY_INPUT_CONFIG="!L, !L, !S, !S"
+# Yes, "!x" (low-active), because Classic 500 models, pull the input to low when they get triggered.
+#
+#export OM_EMERGENCY_INPUT_CONFIG=""
+#
+# Lift period, to filter uneven ground [STORED IN FLASH]
+# Period (ms) for >=2 wheels to be lifted in order to count as emergency (0 = disable)
+#export OM_EMERGENCY_LIFT_PERIOD="100"
+#
+# Tilt period, to filter uneven ground [STORED IN FLASH]
+# Period (ms) for a single wheel to be lifted in order to count as emergency (0 = disable)
+#export OM_EMERGENCY_TILT_PERIOD="2500"
+
+
 ################################
 ##    External MQTT Broker    ##
 ################################

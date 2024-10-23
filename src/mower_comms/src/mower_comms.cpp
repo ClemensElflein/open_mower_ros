@@ -548,7 +548,26 @@ void reconfigCB(const mower_logic::MowerLogicConfig &config) {
   llhl_config.tilt_period = getNewSetChanged<int>(llhl_config.tilt_period, mower_logic_config.emergency_tilt_period, dirty);
   // clang-format on
 
-  // FIXME: Remaining halls
+  // Parse emergency_input_config and set hall_configs
+  char *token = strtok(strdup(mower_logic_config.emergency_input_config.c_str()), ",");
+  bool low_active;
+  unsigned int hall_idx = 0;
+  while (token != NULL) {
+    low_active = false;
+    while (*token != 0) {
+      switch (std::toupper(*token)) {
+        case '!': low_active = true; break;
+        case 'I': llhl_config.hall_configs[hall_idx] = {HallMode::OFF, low_active}; break;
+        case 'L': llhl_config.hall_configs[hall_idx] = {HallMode::LIFT_TILT, low_active}; break;
+        case 'S': llhl_config.hall_configs[hall_idx] = {HallMode::STOP, low_active}; break;
+        case 'U': llhl_config.hall_configs[hall_idx] = {HallMode::UNDEFINED, low_active}; break;
+        default: break;
+      }
+      token++;
+    }
+    token = strtok(NULL, ",");
+    hall_idx++;
+  }
 
   if (dirty) configTracker.setDirty();
 }

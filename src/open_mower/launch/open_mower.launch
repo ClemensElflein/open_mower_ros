@@ -46,6 +46,9 @@
         <param name="undock_angle" value="$(optenv OM_UNDOCK_ANGLE 0.0)"/>
         <param name="undock_fixed_angle" value="$(optenv OM_UNDOCK_FIXED_ANGLE True)"/>
         <param name="undock_use_curve" value="$(optenv OM_UNDOCK_USE_CURVE True)"/>
+        <param name="emergency_lift_period" value="$(optenv OM_EMERGENCY_LIFT_PERIOD -1)"/>
+        <param name="emergency_tilt_period" value="$(optenv OM_EMERGENCY_TILT_PERIOD -1)"/>
+        <param name="emergency_input_config" value="$(optenv OM_EMERGENCY_INPUT_CONFIG)"/>
     </node>
     <node pkg="slic3r_coverage_planner" type="slic3r_coverage_planner" name="slic3r_coverage_planner" output="screen"/>
 

@@ -506,6 +506,24 @@
                 "type": "number",
                 "description": "Use perimeter sensor for docking. Set to 1 or 2 depending on the signal selected on the docking station. This is only supported by Mowgli builds for now.",
                 "x-environment-variable": "OM_PERIMETER_SIGNAL"
+              },
+              "OM_EMERGENCY_INPUT_CONFIG": {
+                "type": "string",
+                "default": "",
+                "description": "Comma separated list of emergency inputs (halls or stop), where each sensor can be configured in one of the following modes '[!]<I>gnore|<U>nused|<S>top|<L>Lift'",
+                "x-environment-variable": "OM_EMERGENCY_INPUT_CONFIG"
+              },
+              "OM_EMERGENCY_LIFT_PERIOD": {
+                "type": "number",
+                "default": -1,
+                "description": "Period (ms) for >=2 wheels to be lifted in order to count as emergency (0 = disable)",
+                "x-environment-variable": "OM_EMERGENCY_LIFT_PERIOD"
+              },
+              "OM_EMERGENCY_TILT_PERIOD": {
+                "type": "number",
+                "default": -1,
+                "description": "Period (ms) for a single wheel to be lifted in order to count as emergency (0 = disable)",
+                "x-environment-variable": "OM_EMERGENCY_TILT_PERIOD"
               }
             }
           }
