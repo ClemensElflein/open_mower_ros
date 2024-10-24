@@ -531,6 +531,27 @@
                 "title": "Stock-CoverUI rain sensor threshold",
                 "description": "Stock-CoverUI limited rain sensor threshold, below which humidity/dryness value get identified as rain. As higher, as more dry. Default to 700",
                 "x-environment-variable": "OM_CU_RAIN_THRESHOLD"
+              },
+              "OM_BATTERY_CRITICAL_HIGH_VOLTAGE": {
+                "type": "number",
+                "default": -1,
+                "title": "Max. battery voltage",
+                "description": "Max. battery voltage before charging get switched off",
+                "x-environment-variable": "OM_BATTERY_CRITICAL_HIGH_VOLTAGE"
+              },
+              "OM_CHARGE_CRITICAL_HIGH_VOLTAGE": {
+                "type": "number",
+                "default": -1,
+                "title": "Max. charge voltage",
+                "description": "Max. charge voltage before charging get switched off",
+                "x-environment-variable": "OM_CHARGE_CRITICAL_HIGH_VOLTAGE"
+              },
+              "OM_CHARGE_CRITICAL_HIGH_CURRENT": {
+                "type": "number",
+                "default": -1,
+                "title": "Max. charge current",
+                "description": "Max. charge current before charging get switched off",
+                "x-environment-variable": "OM_CHARGE_CRITICAL_HIGH_CURRENT"
               }
             }
           }

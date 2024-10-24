@@ -196,6 +196,14 @@ export OM_BATTERY_EMPTY_VOLTAGE=24.0
 # Immediate dock if voltage is critical
 export OM_BATTERY_CRITICAL_VOLTAGE=23.0
 
+# Absolute battery and charging limits, before charging get switched off
+# Over-voltage battery protection
+#export OM_BATTERY_CRITICAL_HIGH_VOLTAGE=29.0
+# Over-voltage charge protection
+#export OM_CHARGE_CRITICAL_HIGH_VOLTAGE=30.0
+# Over-current charge protection
+#export OM_CHARGE_CRITICAL_HIGH_CURRENT=1.5
+
 # Mower motor temperatures to stop and start mowing
 export OM_MOWING_MOTOR_TEMP_HIGH=80.0
 export OM_MOWING_MOTOR_TEMP_LOW=40.0

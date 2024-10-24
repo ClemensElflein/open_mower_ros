@@ -9,7 +9,6 @@
 
     <arg name="battery_empty_voltage" value="$(env OM_BATTERY_EMPTY_VOLTAGE)" />
     <arg name="battery_critical_voltage" value="$(optenv OM_BATTERY_CRITICAL_VOLTAGE)" />
-    <arg name="battery_critical_high_voltage" value="$(optenv OM_BATTERY_CRITICAL_HIGH_VOLTAGE)" />
 
     <node pkg="mower_map" type="mower_map_service" name="map_service" output="screen"/>
     <node pkg="mower_logic" type="mower_logic" name="mower_logic" output="screen">
@@ -29,6 +28,9 @@
             value="$(eval battery_empty_voltage if battery_critical_voltage=='' else battery_critical_voltage)"
         />
         <param name="battery_full_voltage" value="$(env OM_BATTERY_FULL_VOLTAGE)"/>
+        <param name="battery_critical_high_voltage" value="$(optenv OM_BATTERY_CRITICAL_HIGH_VOLTAGE -1)"/>
+        <param name="charge_critical_high_voltage" value="$(optenv OM_CHARGE_CRITICAL_HIGH_VOLTAGE -1)"/>
+        <param name="charge_critical_high_current" value="$(optenv OM_CHARGE_CRITICAL_HIGH_CURRENT -1)"/>
         <param name="outline_count" value="$(env OM_OUTLINE_COUNT)"/>
         <param name="outline_overlap_count" value="$(optenv OM_OUTLINE_OVERLAP_COUNT 0)"/>
         <param name="outline_offset" value="$(env OM_OUTLINE_OFFSET)"/>
