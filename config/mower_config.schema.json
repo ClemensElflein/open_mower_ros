@@ -524,6 +524,13 @@
                 "default": -1,
                 "description": "Period (ms) for a single wheel to be lifted in order to count as emergency (0 = disable)",
                 "x-environment-variable": "OM_EMERGENCY_TILT_PERIOD"
+              },
+              "OM_CU_RAIN_THRESHOLD": {
+                "type": "number",
+                "default": -1,
+                "title": "Stock-CoverUI rain sensor threshold",
+                "description": "Stock-CoverUI limited rain sensor threshold, below which humidity/dryness value get identified as rain. As higher, as more dry. Default to 700",
+                "x-environment-variable": "OM_CU_RAIN_THRESHOLD"
               }
             }
           }

@@ -226,6 +226,10 @@ export OM_RAIN_MODE=0
 # How long to wait after rain to resume mowing when mode is "Dock Until Dry"
 export OM_RAIN_DELAY_MINUTES=30
 
+# Rain threshold (Stock-CoverUI limited parameter)
+# A rain sensor threshold, below which humidity/dryness value get identified as rain.
+# As higher, as more dry, defaults to 700.
+#export OM_CU_RAIN_THRESHOLD=700
 
 # Hall / Emergency input configuration
 #
