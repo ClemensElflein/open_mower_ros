@@ -479,8 +479,6 @@ void handleLowLevelConfig(const uint8_t *buffer, const size_t size) {
   mower_logic_config.emergency_tilt_period = getNewSetChanged<int>(mower_logic_config.emergency_tilt_period, llhl_config.tilt_period, dirty);
   // clang-format on
 
-  // FIXME: Remaining halls
-
   if (dirty) reconfigClient->setConfiguration(mower_logic_config);
 }
 
