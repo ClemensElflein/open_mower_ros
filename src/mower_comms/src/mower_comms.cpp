@@ -236,6 +236,26 @@ void publishStatus() {
   wheel_tick_pub.publish(wheel_tick_msg);
 }
 
+std::string getHallConfigsString(const HallConfig *hall_configs, const size_t size) {
+  std::string str;
+
+  // Parse hall_configs and build a readable string
+  for (size_t i = 0; i < size; i++) {
+    if (str.length()) str.append(", ");
+    if (hall_configs->active_low) str.append("!");
+    switch (hall_configs->mode) {
+      case HallMode::OFF: str.append("I"); break;
+      case HallMode::LIFT_TILT: str.append("L"); break;
+      case HallMode::STOP: str.append("S"); break;
+      case HallMode::UNDEFINED: str.append("U"); break;
+      default: break;
+    }
+    hall_configs++;
+  }
+
+  return str;
+}
+
 void publishLowLevelConfig(const uint8_t pkt_type) {
   if (!serial_port.isOpen() || !allow_send) return;
 
@@ -265,14 +285,21 @@ void publishLowLevelConfig(const uint8_t pkt_type) {
 
   // Send
   try {
-    ROS_INFO_STREAM("Send ll_high_level_config packet 0x"
-                    << std::hex << +buf[0] << ", options{dfp_is_5v=" << buf_config->options.dfp_is_5v
-                    << ", background_sounds=" << buf_config->options.background_sounds
-                    << ", ignore_charging_current=" << buf_config->options.ignore_charging_current
-                    << "}, volume=" << std::dec << +buf_config->volume << ", language='" << buf_config->language[0]
-                    << buf_config->language[1] << "', v_charge_cutoff=" << buf_config->v_charge_cutoff
-                    << ", i_charge_cutoff=" << buf_config->i_charge_cutoff
-                    << ", lift_period=" << buf_config->lift_period);
+    // Let's be verbose for easier follow-up
+    ROS_INFO(
+        "Send ll_high_level_config packet %#04x\n"
+        "\t options{dfp_is_5v=%d, background_sounds=%d, ignore_charging_current=%d},\n"
+        "\t v_charge_cutoff=%f, i_charge_cutoff=%f,\n"
+        "\t v_battery_cutoff=%f, v_battery_empty=%f, v_battery_full=%f,\n"
+        "\t lift_period=%d, tilt_period=%d,\n"
+        "\t shutdown_esc_max_pitch=%f,\n"
+        "\t language=\"%.2s\", volume=%d\n"
+        "\t hall_configs=\"%s\"",
+        buf[0], buf_config->options.dfp_is_5v, buf_config->options.background_sounds,
+        buf_config->options.ignore_charging_current, buf_config->v_charge_cutoff, buf_config->i_charge_cutoff,
+        buf_config->v_battery_cutoff, buf_config->v_battery_empty, buf_config->v_battery_full, buf_config->lift_period,
+        buf_config->tilt_period, buf_config->shutdown_esc_max_pitch, buf_config->language, buf_config->volume,
+        getHallConfigsString(buf_config->hall_configs, MAX_HALL_INPUTS).c_str());
 
     serial_port.write(out_buf, encoded_size);
   } catch (std::exception &e) {
@@ -454,14 +481,21 @@ void handleLowLevelConfig(const uint8_t *buffer, const size_t size) {
   // Copy payload to separated ll_config
   memcpy(&llhl_config, buffer + 1, payload_size);
 
-  ROS_INFO_STREAM("Received ll_high_level_config packet 0x"
-                  << std::hex << +*buffer << ", options{dfp_is_5v=" << llhl_config.options.dfp_is_5v
-                  << ", background_sounds=" << llhl_config.options.background_sounds
-                  << ", ignore_charging_current=" << llhl_config.options.ignore_charging_current
-                  << "}, volume=" << std::dec << +llhl_config.volume << ", language='" << llhl_config.language[0]
-                  << llhl_config.language[1] << "', v_charge_cutoff=" << llhl_config.v_charge_cutoff
-                  << ", i_charge_cutoff=" << llhl_config.i_charge_cutoff
-                  << ", lift_period=" << llhl_config.lift_period);
+  // Let's be verbose for easier follow-up
+  ROS_INFO(
+      "Received ll_high_level_config packet %#04x\n"
+      "\t options{dfp_is_5v=%d, background_sounds=%d, ignore_charging_current=%d},\n"
+      "\t v_charge_cutoff=%f, i_charge_cutoff=%f,\n"
+      "\t v_battery_cutoff=%f, v_battery_empty=%f, v_battery_full=%f,\n"
+      "\t lift_period=%d, tilt_period=%d,\n"
+      "\t shutdown_esc_max_pitch=%f,\n"
+      "\t language=\"%.2s\", volume=%d\n"
+      "\t hall_configs=\"%s\"",
+      *buffer, llhl_config.options.dfp_is_5v, llhl_config.options.background_sounds,
+      llhl_config.options.ignore_charging_current, llhl_config.v_charge_cutoff, llhl_config.i_charge_cutoff,
+      llhl_config.v_battery_cutoff, llhl_config.v_battery_empty, llhl_config.v_battery_full, llhl_config.lift_period,
+      llhl_config.tilt_period, llhl_config.shutdown_esc_max_pitch, llhl_config.language, llhl_config.volume,
+      getHallConfigsString(llhl_config.hall_configs, MAX_HALL_INPUTS).c_str());
 
   // Inform config packet tracker about the response
   configTracker.ackResponse();
