@@ -52,6 +52,7 @@
         <param name="emergency_lift_period" value="$(optenv OM_EMERGENCY_LIFT_PERIOD -1)"/>
         <param name="emergency_tilt_period" value="$(optenv OM_EMERGENCY_TILT_PERIOD -1)"/>
         <param name="emergency_input_config" value="$(optenv OM_EMERGENCY_INPUT_CONFIG)"/>
+        <param name="ignore_charging_current" value="$(optenv OM_IGNORE_CHARGING_CURRENT False)"/>
     </node>
     <node pkg="slic3r_coverage_planner" type="slic3r_coverage_planner" name="slic3r_coverage_planner" output="screen"/>
 

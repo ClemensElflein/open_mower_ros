@@ -64,6 +64,11 @@ export OM_MOWER_GAMEPAD="xbox360"
 # Output will be stored in your $HOME
 # export OM_ENABLE_RECORDING_ALL=False
 
+# Ignore Charging Current
+# If you're affected by a wrong IC2 sourcing, read here https://openmower.de/docs/versions/errata/ic2-is-wrong/
+# for more details, you can disable the wrong charging current reading by disabling the charging protection via:
+#export OM_IGNORE_CHARGING_CURRENT=True
+
 # Full Sound Support - But read on carefully:
 # Up to (and inclusive) OM hardware version 0.13.x, DFPlayer's power supply is set by default to 3.3V.
 # This is done by solder jumper "JP1" whose board track is by default at 3.3V.

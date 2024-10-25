@@ -537,7 +537,9 @@ void reconfigCB(const mower_logic::MowerLogicConfig &config) {
   // Copy changed mower_config's values to the related llhl_config values and
   // decide if LL need to be informed with a new config packet
   bool dirty = false;
+
   // clang-format off
+  llhl_config.options.ignore_charging_current = getNewSetChanged<bool>(llhl_config.options.ignore_charging_current, mower_logic_config.ignore_charging_current, dirty);
   llhl_config.rain_threshold = getNewSetChanged<int>(llhl_config.rain_threshold, mower_logic_config.cu_rain_threshold, dirty);
   llhl_config.v_charge_cutoff = getNewSetChanged<double>(llhl_config.v_charge_cutoff, mower_logic_config.charge_critical_high_voltage, dirty);
   llhl_config.i_charge_cutoff = getNewSetChanged<double>(llhl_config.i_charge_cutoff, mower_logic_config.charge_critical_high_current, dirty);

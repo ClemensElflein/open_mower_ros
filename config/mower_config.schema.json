@@ -58,6 +58,13 @@
           "default": "xbox360",
           "description": "Select your gamepad. The cheap ones are usually xbox360.",
           "x-environment-variable": "OM_MOWER_GAMEPAD"
+        },
+        "OM_IGNORE_CHARGING_CURRENT": {
+          "type": "boolean",
+          "default": false,
+          "title": "Ignore Charging Current",
+          "description": "Set to True if you're affected by a wrong IC2 sourcing. Read here https://openmower.de/docs/versions/errata/ic2-is-wrong/ for more details",
+          "x-environment-variable": "OM_IGNORE_CHARGING_CURRENT"
         }
       }
     },
