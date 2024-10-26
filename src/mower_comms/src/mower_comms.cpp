@@ -573,7 +573,6 @@ void reconfigCB(const mower_logic::MowerLogicConfig &config) {
   bool dirty = false;
 
   // clang-format off
-  llhl_config.options.ignore_charging_current = getNewSetChanged<bool>(llhl_config.options.ignore_charging_current, mower_logic_config.ignore_charging_current, dirty);
   llhl_config.rain_threshold = getNewSetChanged<int>(llhl_config.rain_threshold, mower_logic_config.cu_rain_threshold, dirty);
   llhl_config.v_charge_cutoff = getNewSetChanged<double>(llhl_config.v_charge_cutoff, mower_logic_config.charge_critical_high_voltage, dirty);
   llhl_config.i_charge_cutoff = getNewSetChanged<double>(llhl_config.i_charge_cutoff, mower_logic_config.charge_critical_high_current, dirty);
@@ -639,25 +638,12 @@ int main(int argc, char **argv) {
 
   speed_l = speed_r = speed_mow = target_speed_mow = 0;
 
-  // FIXME: dfp_is_5v, language and volume should probably go to mower_logic (dyn reconfigure)?
-  // Handle if DFP is set to 5V
-  bool dfp_is_5v = false;
-  paramNh.getParam("dfp_is_5v", dfp_is_5v);
-  llhl_config.options.dfp_is_5v = dfp_is_5v;
-
-  // Handle ISO-639-1 (2 char) language code
-  std::string language = "en";
-  paramNh.getParam("language", language);
-  strncpy(llhl_config.language, language.c_str(), 2);
-
-  // Handle volume
-  int volume;  // 0-100 = volume (%), all other values = don't change volume
-  if (paramNh.getParam("volume", volume) && volume >= 0 && volume <= 100) {
-    llhl_config.volume = volume;
-  }
-
-  ROS_INFO_STREAM("DFP is set to 5V [boolean]: " << dfp_is_5v << ", language: '" << language
-                                                 << "', volume: " << volume);
+  // Some generic settings from param server (non- dynamic)
+  llhl_config.options.ignore_charging_current = paramNh.param("/mower_logic/ignore_charging_current", false);
+  llhl_config.options.dfp_is_5v = paramNh.param("dfp_is_5v", false);
+  llhl_config.volume = paramNh.param("volume", -1);
+  // ISO-639-1 (2 char) language code
+  strncpy(llhl_config.language, paramNh.param<std::string>("language", "en").c_str(), 2);
 
   // Setup XESC interfaces
   if (mowerParamNh.hasParam("xesc_type")) {
