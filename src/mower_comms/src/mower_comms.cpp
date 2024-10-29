@@ -292,11 +292,11 @@ void publishLowLevelConfig(const uint8_t pkt_type) {
         "\t v_charge_cutoff=%f, i_charge_cutoff=%f,\n"
         "\t v_battery_cutoff=%f, v_battery_empty=%f, v_battery_full=%f,\n"
         "\t lift_period=%d, tilt_period=%d,\n"
-        "\t shutdown_esc_max_pitch=%f,\n"
+        "\t shutdown_esc_max_pitch=%d,\n"
         "\t language=\"%.2s\", volume=%d\n"
         "\t hall_configs=\"%s\"",
-        buf[0], buf_config->options.dfp_is_5v, buf_config->options.background_sounds,
-        buf_config->options.ignore_charging_current, buf_config->v_charge_cutoff, buf_config->i_charge_cutoff,
+        buf[0], (int)buf_config->options.dfp_is_5v, (int)buf_config->options.background_sounds,
+        (int)buf_config->options.ignore_charging_current, buf_config->v_charge_cutoff, buf_config->i_charge_cutoff,
         buf_config->v_battery_cutoff, buf_config->v_battery_empty, buf_config->v_battery_full, buf_config->lift_period,
         buf_config->tilt_period, buf_config->shutdown_esc_max_pitch, buf_config->language, buf_config->volume,
         getHallConfigsString(buf_config->hall_configs, MAX_HALL_INPUTS).c_str());
@@ -488,11 +488,11 @@ void handleLowLevelConfig(const uint8_t *buffer, const size_t size) {
       "\t v_charge_cutoff=%f, i_charge_cutoff=%f,\n"
       "\t v_battery_cutoff=%f, v_battery_empty=%f, v_battery_full=%f,\n"
       "\t lift_period=%d, tilt_period=%d,\n"
-      "\t shutdown_esc_max_pitch=%f,\n"
+      "\t shutdown_esc_max_pitch=%d,\n"
       "\t language=\"%.2s\", volume=%d\n"
       "\t hall_configs=\"%s\"",
-      *buffer, llhl_config.options.dfp_is_5v, llhl_config.options.background_sounds,
-      llhl_config.options.ignore_charging_current, llhl_config.v_charge_cutoff, llhl_config.i_charge_cutoff,
+      *buffer, (int)llhl_config.options.dfp_is_5v, (int)llhl_config.options.background_sounds,
+      (int)llhl_config.options.ignore_charging_current, llhl_config.v_charge_cutoff, llhl_config.i_charge_cutoff,
       llhl_config.v_battery_cutoff, llhl_config.v_battery_empty, llhl_config.v_battery_full, llhl_config.lift_period,
       llhl_config.tilt_period, llhl_config.shutdown_esc_max_pitch, llhl_config.language, llhl_config.volume,
       getHallConfigsString(llhl_config.hall_configs, MAX_HALL_INPUTS).c_str());
@@ -639,8 +639,9 @@ int main(int argc, char **argv) {
   speed_l = speed_r = speed_mow = target_speed_mow = 0;
 
   // Some generic settings from param server (non- dynamic)
-  llhl_config.options.ignore_charging_current = paramNh.param("/mower_logic/ignore_charging_current", false);
-  llhl_config.options.dfp_is_5v = paramNh.param("dfp_is_5v", false);
+  llhl_config.options.ignore_charging_current =
+      paramNh.param("/mower_logic/ignore_charging_current", false) ? OptionState::ON : OptionState::OFF;
+  llhl_config.options.dfp_is_5v = paramNh.param("dfp_is_5v", false) ? OptionState::ON : OptionState::OFF;
   llhl_config.volume = paramNh.param("volume", -1);
   // ISO-639-1 (2 char) language code
   strncpy(llhl_config.language, paramNh.param<std::string>("language", "en").c_str(), 2);

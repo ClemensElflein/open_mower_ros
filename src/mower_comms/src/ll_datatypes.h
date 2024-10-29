@@ -111,13 +111,26 @@ struct ll_high_level_state {
 } __attribute__((packed));
 #pragma pack(pop)
 
+enum class OptionState : unsigned int {
+    OFF = 0,
+    ON,
+    UNDEFINED
+};
+
 #pragma pack(push, 1)
 struct ConfigOptions {
-    bool dfp_is_5v : 1;
-    bool background_sounds : 1;
-    bool ignore_charging_current : 1;
+    OptionState dfp_is_5v : 2;
+    OptionState background_sounds : 2;
+    OptionState ignore_charging_current : 2;
+    // Need to block/waster the bits now, to be prepared for future enhancements
+    OptionState reserved_for_future_use1 : 2;
+    OptionState reserved_for_future_use2 : 2;
+    OptionState reserved_for_future_use3 : 2;
+    OptionState reserved_for_future_use4 : 2;
+    OptionState reserved_for_future_use5 : 2;
 } __attribute__((packed));
 #pragma pack(pop)
+static_assert(sizeof(ConfigOptions) == 2, "Changing size of ConfigOption != 2 will break packet compatibilty");
 
 typedef char iso639_1[2];  // Two char ISO 639-1 language code
 
@@ -149,7 +162,7 @@ struct ll_high_level_config {
   // uint8_t type; Just for illustration. Get set later in wire buffer with type PACKET_ID_LL_HIGH_LEVEL_CONFIG_*
 
   // clang-format off
-  ConfigOptions options = {0, 0, 0};
+  ConfigOptions options = {.dfp_is_5v = OptionState::OFF, .background_sounds = OptionState::OFF, .ignore_charging_current = OptionState::OFF};
   uint16_t rain_threshold = 0xffff;          // If (stock CoverUI) rain value < rain_threshold then it rains
   float v_charge_cutoff = -1;                // Protective max. charging voltage before charging get switched off (-1 = unknown)
   float i_charge_cutoff = -1;                // Protective max. charging current before charging get switched off (-1 = unknown)
@@ -158,7 +171,7 @@ struct ll_high_level_config {
   float v_battery_full = -1;                 // Full battery voltage used for % calc of capacity (-1 = unknown)
   uint16_t lift_period = 0xffff;             // Period (ms) for >=2 wheels to be lifted in order to count as emergency (0 = disable, 0xFFFF = unknown)
   uint16_t tilt_period = 0xffff;             // Period (ms) for a single wheel to be lifted in order to count as emergency (0 = disable, 0xFFFF = unknown)
-  float shutdown_esc_max_pitch = -1;         // Do not shutdown ESCs if absolute pitch angle is greater than this (-1 = unknown) (to be implemented)
+  uint8_t shutdown_esc_max_pitch = 0xff;     // Do not shutdown ESCs if absolute pitch angle is greater than this (0 = disable, 0xff = unknown) (to be implemented, see OpenMower PR #97)
   iso639_1 language = {'e', 'n'};            // ISO 639-1 (2-char) language code (en, de, ...)
   uint8_t volume = 0xff;                     // Volume (0-100%) feedback (if directly changed i.e. via CoverUI) (0xff = do not change)
   HallConfig hall_configs[MAX_HALL_INPUTS];  // Set all to UNDEFINED
