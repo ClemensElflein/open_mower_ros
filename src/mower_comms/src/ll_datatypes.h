@@ -47,10 +47,8 @@ struct ll_status {
   float uss_ranges_m[5];
   // Emergency bitmask:
   // Bit 0: Emergency latch
-  // Bit 1: Emergency 0 active
-  // Bit 2: Emergency 1 active
-  // Bit 3: Emergency 2 active
-  // Bit 4: Emergency 3 active
+  // Bit 1: Emergency/Lift (or tilt)
+  // Bit 2: Emergency/Stop
   uint8_t emergency_bitmask;
   // Charge voltage
   float v_charge;
