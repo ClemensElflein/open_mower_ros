@@ -14,9 +14,6 @@ bool rain_detected
 bool sound_module_available
 bool sound_module_busy
 bool ui_board_available
-float32 v_charge
-float32 v_battery
-float32 charge_current
 bool mow_enabled
 
 # ESC stuff

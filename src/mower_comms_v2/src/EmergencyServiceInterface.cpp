@@ -27,7 +27,7 @@ void EmergencyServiceInterface::Heartbeat() {
   SendSetEmergency(latched_emergency_);
 }
 
-bool EmergencyServiceInterface::OnConfigurationRequested(const std::string& uid) {
+bool EmergencyServiceInterface::OnConfigurationRequested(uint16_t service_id) {
   // No config needed
   return true;
 }
@@ -56,13 +56,13 @@ void EmergencyServiceInterface::OnTransactionEnd() {
   PublishEmergencyState();
 }
 
-void EmergencyServiceInterface::OnServiceConnected(const std::string& uid) {
+void EmergencyServiceInterface::OnServiceConnected(uint16_t service_id) {
   std::unique_lock<std::recursive_mutex> lk{state_mutex_};
   latched_emergency_ = active_high_level_emergency_ = active_low_level_emergency_ = true;
   latest_emergency_reason_ = "Service Starting Up";
   PublishEmergencyState();
 }
-void EmergencyServiceInterface::OnServiceDisconnected(const std::string& uid) {
+void EmergencyServiceInterface::OnServiceDisconnected(uint16_t service_id) {
   std::unique_lock<std::recursive_mutex> lk{state_mutex_};
   latched_emergency_ = active_high_level_emergency_ = active_low_level_emergency_ = true;
   latest_emergency_reason_ = "Service Disconnected";

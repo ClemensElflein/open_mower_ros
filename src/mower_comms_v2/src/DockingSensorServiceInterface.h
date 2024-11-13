@@ -16,14 +16,14 @@ class DockingSensorServiceInterface : public DockingSensorServiceInterfaceBase {
                                 const ros::Publisher& sensor_publisher)
       : DockingSensorServiceInterfaceBase(service_id, ctx), sensor_publisher_(sensor_publisher) {
   }
-  bool OnConfigurationRequested(const std::string& uid) override;
+  bool OnConfigurationRequested(uint16_t service_id) override;
 
  protected:
   void OnDetectedSensorsLeftChanged(const uint8_t& new_value) override;
   void OnDetectedSensorsRightChanged(const uint8_t& new_value) override;
 
  private:
-  void OnServiceConnected(const std::string& uid) override;
+  void OnServiceConnected(uint16_t service_id) override;
   void OnTransactionStart(uint64_t timestamp) override;
   void OnTransactionEnd() override;
   const ros::Publisher& sensor_publisher_;

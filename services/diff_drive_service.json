@@ -14,26 +14,36 @@
     },
     {
       "id": 1,
+      "name": "Left ESC Status",
+      "type": "uint8_t"
+    },
+    {
+      "id": 2,
       "name": "Left ESC Temperature",
       "type": "float"
     },
     {
-      "id": 2,
+      "id": 3,
       "name": "Left ESC Current",
       "type": "float"
     },
     {
-      "id": 3,
+      "id": 4,
+      "name": "Right ESC Status",
+      "type": "uint8_t"
+    },
+    {
+      "id": 5,
       "name": "Right ESC Temperature",
       "type": "float"
     },
     {
-      "id": 4,
+      "id": 6,
       "name": "Right ESC Current",
       "type": "float"
     },
     {
-      "id": 5,
+      "id": 7,
       "name": "Wheel Ticks",
       "type": "uint32_t[2]"
     }

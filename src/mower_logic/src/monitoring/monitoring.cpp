@@ -16,6 +16,10 @@
 //
 //
 
+#include <mower_msgs/ESCStatus.h>
+#include <mower_msgs/Power.h>
+#include <xbot_msgs/SensorDataString.h>
+
 #include "mower_msgs/HighLevelStatus.h"
 #include "mower_msgs/Status.h"
 #include "ros/ros.h"
@@ -38,6 +42,10 @@ ros::Publisher v_battery_data_pub;
 xbot_msgs::SensorInfo si_charge_current;
 ros::Publisher si_charge_current_pub;
 ros::Publisher charge_current_data_pub;
+
+xbot_msgs::SensorInfo si_charge_mode;
+ros::Publisher si_charge_mode_pub;
+ros::Publisher charge_mode_data_pub;
 
 xbot_msgs::SensorInfo si_left_esc_temp;
 ros::Publisher si_left_esc_temp_pub;
@@ -65,14 +73,26 @@ ros::Publisher gps_accuracy_data_pub;
 
 ros::NodeHandle *n;
 
-ros::Time last_status_update(0);
-ros::Time last_pose_update(0);
-
 void status(const mower_msgs::Status::ConstPtr &msg) {
+  static ros::Time last_update(0);
   // Rate limit to 2Hz
-  if ((msg->stamp - last_status_update).toSec() < 0.5) return;
-  last_status_update = msg->stamp;
+  if ((msg->stamp - last_update).toSec() < 0.5) return;
+  last_update = msg->stamp;
 
+  xbot_msgs::SensorDataDouble sensor_data;
+  sensor_data.stamp = msg->stamp;
+
+  sensor_data.data = msg->mower_esc_temperature;
+  mow_esc_temp_data_pub.publish(sensor_data);
+
+  sensor_data.data = msg->mower_motor_temperature;
+  mow_motor_temp_data_pub.publish(sensor_data);
+
+  sensor_data.data = msg->mower_esc_current;
+  mow_motor_current_data_pub.publish(sensor_data);
+}
+
+void power_received(const mower_msgs::Power::ConstPtr &msg) {
   xbot_msgs::SensorDataDouble sensor_data;
   sensor_data.stamp = msg->stamp;
 
@@ -85,20 +105,34 @@ void status(const mower_msgs::Status::ConstPtr &msg) {
   sensor_data.data = msg->charge_current;
   charge_current_data_pub.publish(sensor_data);
 
-  sensor_data.data = msg->left_esc_status.temperature_pcb;
+  xbot_msgs::SensorDataString status_sensor_data;
+  status_sensor_data.stamp = msg->stamp;
+  status_sensor_data.data = msg->charger_status;
+  charge_mode_data_pub.publish(status_sensor_data);
+}
+
+void left_esc_status(const mower_msgs::ESCStatus::ConstPtr &msg) {
+  static ros::Time last_update(0);
+  // Rate limit to 2Hz
+  if ((ros::Time::now() - last_update).toSec() < 0.5) return;
+  last_update = ros::Time::now();
+
+  xbot_msgs::SensorDataDouble sensor_data;
+  sensor_data.stamp = ros::Time::now();
+  sensor_data.data = msg->temperature_pcb;
   left_esc_temp_data_pub.publish(sensor_data);
+}
 
-  sensor_data.data = msg->right_esc_status.temperature_pcb;
+void right_esc_status(const mower_msgs::ESCStatus::ConstPtr &msg) {
+  static ros::Time last_update(0);
+  // Rate limit to 2Hz
+  if ((ros::Time::now() - last_update).toSec() < 0.5) return;
+  last_update = ros::Time::now();
+
+  xbot_msgs::SensorDataDouble sensor_data;
+  sensor_data.stamp = ros::Time::now();
+  sensor_data.data = msg->temperature_pcb;
   right_esc_temp_data_pub.publish(sensor_data);
-
-  sensor_data.data = msg->mow_esc_status.temperature_pcb;
-  mow_esc_temp_data_pub.publish(sensor_data);
-
-  sensor_data.data = msg->mow_esc_status.temperature_motor;
-  mow_motor_temp_data_pub.publish(sensor_data);
-
-  sensor_data.data = msg->mow_esc_status.current;
-  mow_motor_current_data_pub.publish(sensor_data);
 }
 
 void high_level_status(const mower_msgs::HighLevelStatus::ConstPtr &msg) {
@@ -118,9 +152,10 @@ void high_level_status(const mower_msgs::HighLevelStatus::ConstPtr &msg) {
 void pose_received(const xbot_msgs::AbsolutePose::ConstPtr &msg) {
   state.robot_pose = *msg;
 
+  static ros::Time last_update(0);
   // Rate limit to 2Hz
-  if ((msg->header.stamp - last_pose_update).toSec() < 0.5) return;
-  last_pose_update = msg->header.stamp;
+  if ((ros::Time::now() - last_update).toSec() < 0.5) return;
+  last_update = ros::Time::now();
 
   xbot_msgs::SensorDataDouble sensor_data;
   sensor_data.stamp = msg->header.stamp;
@@ -161,6 +196,17 @@ void registerSensors() {
   charge_current_data_pub =
       n->advertise<xbot_msgs::SensorDataDouble>("xbot_monitoring/sensors/" + si_charge_current.sensor_id + "/data", 10);
   si_charge_current_pub.publish(si_charge_current);
+
+  si_charge_mode.sensor_id = "om_charge_mode";
+  si_charge_mode.sensor_name = "Charge Mode";
+  si_charge_mode.value_type = xbot_msgs::SensorInfo::TYPE_STRING;
+  si_charge_mode.value_description = xbot_msgs::SensorInfo::VALUE_DESCRIPTION_UNKNOWN;
+  si_charge_mode.unit = "";
+  si_charge_mode_pub =
+      n->advertise<xbot_msgs::SensorInfo>("xbot_monitoring/sensors/" + si_charge_mode.sensor_id + "/info", 1, true);
+  charge_mode_data_pub =
+      n->advertise<xbot_msgs::SensorDataString>("xbot_monitoring/sensors/" + si_charge_mode.sensor_id + "/data", 10);
+  si_charge_mode_pub.publish(si_charge_mode);
 
   si_left_esc_temp.sensor_id = "om_left_esc_temp";
   si_left_esc_temp.sensor_name = "Left ESC Temp";
@@ -239,6 +285,9 @@ int main(int argc, char **argv) {
   ros::Subscriber pose_sub = n->subscribe("xbot_positioning/xb_pose", 10, pose_received);
   ros::Subscriber state_sub = n->subscribe("mower_logic/current_state", 10, high_level_status);
   ros::Subscriber status_sub = n->subscribe("mower/status", 10, status);
+  ros::Subscriber left_esc_status_sub = n->subscribe("ll/diff_drive/left_esc_status", 10, left_esc_status);
+  ros::Subscriber right_esc_status_sub = n->subscribe("ll/diff_drive/right_esc_status", 10, right_esc_status);
+  ros::Subscriber power_status_sub = n->subscribe("ll/power", 10, power_received);
 
   state_pub = n->advertise<xbot_msgs::RobotState>("xbot_monitoring/robot_state", 10);
 

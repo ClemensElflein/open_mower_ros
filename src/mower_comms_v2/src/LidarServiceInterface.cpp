@@ -6,7 +6,7 @@
 
 #include "spdlog/spdlog.h"
 
-bool LidarServiceInterface::OnConfigurationRequested(const std::string &uid) {
+bool LidarServiceInterface::OnConfigurationRequested(uint16_t service_id) {
   return true;
 }
 
@@ -85,15 +85,16 @@ void LidarServiceInterface::OnTransactionEnd() {
         laser_scan_msg_.scan_time = (now - last_full_scan_time_).toSec();
         laser_scan_msg_.time_increment = laser_scan_msg_.scan_time / laser_scan_msg_.ranges.size();
 
-        laser_scan_msg_.angle_increment =
-            fmodf(laser_scan_msg_.angle_max - laser_scan_msg_.angle_min + 2.0 * M_PI, 2.0 * M_PI) /
-            laser_scan_msg_.ranges.size();
 
         // our laser scanner does sometimes report weird start/end angles, so we set min-max angles manually
         // TODO: either fix, or make configurable
         laser_scan_msg_.angle_max = 2.0 * M_PI - M_PI / 800;
         laser_scan_msg_.angle_min = 0;
         // END: fix
+
+        laser_scan_msg_.angle_increment =
+            fmodf(laser_scan_msg_.angle_max - laser_scan_msg_.angle_min + 2.0 * M_PI, 2.0 * M_PI) /
+            laser_scan_msg_.ranges.size();
 
         last_full_scan_time_ = now;
 

@@ -3,7 +3,7 @@
 //
 
 #include "PowerServiceInterface.h"
-bool PowerServiceInterface::OnConfigurationRequested(const std::string& uid) {
+bool PowerServiceInterface::OnConfigurationRequested(uint16_t service_id) {
   return true;
 }
 void PowerServiceInterface::OnChargeVoltageChanged(const float& new_value) {

@@ -7,7 +7,7 @@
 #include <geometry_msgs/Twist.h>
 #include <geometry_msgs/TwistStamped.h>
 
-bool DiffDriveServiceInterface::OnConfigurationRequested(const std::string& uid) {
+bool DiffDriveServiceInterface::OnConfigurationRequested(uint16_t service_id) {
   StartTransaction(true);
   SetRegisterWheelDistance(wheel_distance_);
   SetRegisterWheelTicksPerMeter(ticks_per_meter_);
@@ -66,15 +66,26 @@ void DiffDriveServiceInterface::OnLeftESCTemperatureChanged(const float& new_val
   std::unique_lock<std::mutex> lk{state_mutex_};
   left_esc_state_.temperature_pcb = new_value;
 }
-void DiffDriveServiceInterface::OnServiceConnected(const std::string& uid) {
+void DiffDriveServiceInterface::OnServiceConnected(uint16_t service_id) {
   std::unique_lock<std::mutex> lk{state_mutex_};
-  left_esc_state_.status = mower_msgs::ESCStatus::ESC_STATUS_OK;
-  right_esc_state_.status = mower_msgs::ESCStatus::ESC_STATUS_OK;
+  left_esc_state_.status = mower_msgs::ESCStatus::ESC_STATUS_DISCONNECTED;
+  right_esc_state_.status = mower_msgs::ESCStatus::ESC_STATUS_DISCONNECTED;
 }
+
+void DiffDriveServiceInterface::OnLeftESCStatusChanged(const uint8_t &new_value) {
+  std::unique_lock<std::mutex> lk{state_mutex_};
+  left_esc_state_.status = new_value;
+}
+
+void DiffDriveServiceInterface::OnRightESCStatusChanged(const uint8_t &new_value) {
+  std::unique_lock<std::mutex> lk{state_mutex_};
+  right_esc_state_.status = new_value;
+}
+
 void DiffDriveServiceInterface::OnTransactionStart(uint64_t timestamp) {
 }
 
-void DiffDriveServiceInterface::OnServiceDisconnected(const std::string& uid) {
+void DiffDriveServiceInterface::OnServiceDisconnected(uint16_t service_id) {
   std::unique_lock<std::mutex> lk{state_mutex_};
   left_esc_state_.status = mower_msgs::ESCStatus::ESC_STATUS_DISCONNECTED;
   right_esc_state_.status = mower_msgs::ESCStatus::ESC_STATUS_DISCONNECTED;

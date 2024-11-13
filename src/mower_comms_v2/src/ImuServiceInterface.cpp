@@ -4,7 +4,7 @@
 
 #include "ImuServiceInterface.h"
 
-bool ImuServiceInterface::OnConfigurationRequested(const std::string& uid) {
+bool ImuServiceInterface::OnConfigurationRequested(uint16_t service_id) {
   return true;
 }
 void ImuServiceInterface::OnAxesChanged(const double* new_value, uint32_t length) {
@@ -22,11 +22,11 @@ void ImuServiceInterface::OnAxesChanged(const double* new_value, uint32_t length
   imu_msg.angular_velocity.z = new_value[5];
   imu_publisher_.publish(imu_msg);
 }
-void ImuServiceInterface::OnServiceConnected(const std::string& uid) {
+void ImuServiceInterface::OnServiceConnected(uint16_t service_id) {
 }
 void ImuServiceInterface::OnTransactionStart(uint64_t timestamp) {
 }
 void ImuServiceInterface::OnTransactionEnd() {
 }
-void ImuServiceInterface::OnServiceDisconnected(const std::string& uid) {
+void ImuServiceInterface::OnServiceDisconnected(uint16_t service_id) {
 }

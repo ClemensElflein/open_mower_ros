@@ -4,7 +4,7 @@
 
 #include "MowerServiceInterface.h"
 
-bool MowerServiceInterface::OnConfigurationRequested(const std::string& uid) {
+bool MowerServiceInterface::OnConfigurationRequested(uint16_t service_id) {
   // No configuration
   return true;
 }
@@ -32,7 +32,7 @@ void MowerServiceInterface::OnMowerMotorCurrentChanged(const float& new_value) {
 void MowerServiceInterface::OnMowerMotorRPMChanged(const float& new_value) {
   status_msg_.mower_motor_rpm = new_value;
 }
-void MowerServiceInterface::OnServiceConnected(const std::string& uid) {
+void MowerServiceInterface::OnServiceConnected(uint16_t service_id) {
   status_msg_ = {};
 }
 void MowerServiceInterface::OnTransactionStart(uint64_t timestamp) {
@@ -41,5 +41,5 @@ void MowerServiceInterface::OnTransactionStart(uint64_t timestamp) {
 void MowerServiceInterface::OnTransactionEnd() {
   status_publisher_.publish(status_msg_);
 }
-void MowerServiceInterface::OnServiceDisconnected(const std::string& uid) {
+void MowerServiceInterface::OnServiceDisconnected(uint16_t service_id) {
 }

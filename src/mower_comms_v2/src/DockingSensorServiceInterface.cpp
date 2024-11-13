@@ -3,7 +3,7 @@
 //
 
 #include "DockingSensorServiceInterface.h"
-bool DockingSensorServiceInterface::OnConfigurationRequested(const std::string& uid) {
+bool DockingSensorServiceInterface::OnConfigurationRequested(uint16_t service_id) {
   StartTransaction(true);
   SetRegisterSensorTimeoutMs(1000);
   CommitTransaction();
@@ -15,7 +15,7 @@ void DockingSensorServiceInterface::OnDetectedSensorsLeftChanged(const uint8_t& 
 void DockingSensorServiceInterface::OnDetectedSensorsRightChanged(const uint8_t& new_value) {
   msg.detected_right = new_value;
 }
-void DockingSensorServiceInterface::OnServiceConnected(const std::string& uid) {
+void DockingSensorServiceInterface::OnServiceConnected(uint16_t service_id) {
 }
 void DockingSensorServiceInterface::OnTransactionStart(uint64_t timestamp) {
   msg = {};

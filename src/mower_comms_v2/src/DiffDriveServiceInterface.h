@@ -27,7 +27,7 @@ class DiffDriveServiceInterface : public DiffDriveServiceInterfaceBase {
         ticks_per_meter_(ticks_per_meter) {
   }
 
-  bool OnConfigurationRequested(const std::string& uid) override;
+  bool OnConfigurationRequested(uint16_t service_id) override;
 
   /**
    * Convenience function to transmit the twist from a ROS message
@@ -47,12 +47,14 @@ class DiffDriveServiceInterface : public DiffDriveServiceInterfaceBase {
   void OnRightESCTemperatureChanged(const float& new_value) override;
   void OnRightESCCurrentChanged(const float& new_value) override;
   void OnWheelTicksChanged(const uint32_t* new_value, uint32_t length) override;
+  void OnLeftESCStatusChanged(const uint8_t &new_value) override;
+  void OnRightESCStatusChanged(const uint8_t &new_value) override;
 
  private:
-  void OnServiceConnected(const std::string& uid) override;
+  void OnServiceConnected(uint16_t service_id) override;
   void OnTransactionStart(uint64_t timestamp) override;
   void OnTransactionEnd() override;
-  void OnServiceDisconnected(const std::string& uid) override;
+  void OnServiceDisconnected(uint16_t service_id) override;
 
  private:
   // Store the seq number for the actual twist message

@@ -17,7 +17,7 @@ class MowerServiceInterface : public MowerServiceInterfaceBase {
       : MowerServiceInterfaceBase(service_id, ctx), status_publisher_(status_publisher) {
   }
 
-  bool OnConfigurationRequested(const std::string& uid) override;
+  bool OnConfigurationRequested(uint16_t service_id) override;
   void SetMowerEnabled(bool enabled);
 
  protected:
@@ -30,10 +30,10 @@ class MowerServiceInterface : public MowerServiceInterfaceBase {
   void OnMowerMotorRPMChanged(const float& new_value) override;
 
  private:
-  void OnServiceConnected(const std::string& uid) override;
+  void OnServiceConnected(uint16_t service_id) override;
   void OnTransactionStart(uint64_t timestamp) override;
   void OnTransactionEnd() override;
-  void OnServiceDisconnected(const std::string& uid) override;
+  void OnServiceDisconnected(uint16_t service_id) override;
 
  private:
   mower_msgs::Status status_msg_{};

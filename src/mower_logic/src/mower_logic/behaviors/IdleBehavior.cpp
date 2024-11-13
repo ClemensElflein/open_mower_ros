@@ -17,6 +17,8 @@
 //
 #include "IdleBehavior.h"
 
+#include <mower_msgs/Power.h>
+
 #include "PerimeterDocking.h"
 
 extern void stopMoving();
@@ -28,6 +30,7 @@ extern void registerActions(std::string prefix, const std::vector<xbot_msgs::Act
 
 extern ros::ServiceClient dockingPointClient;
 extern mower_msgs::Status getStatus();
+extern mower_msgs::Power getPower();
 extern mower_logic::MowerLogicConfig getConfig();
 extern dynamic_reconfigure::Server<mower_logic::MowerLogicConfig> *reconfigServer;
 
@@ -69,18 +72,19 @@ Behavior *IdleBehavior::execute() {
     stopBlade();
     const auto last_config = getConfig();
     const auto last_status = getStatus();
+    const auto last_power = getPower();
 
     const bool automatic_mode = last_config.automatic_mode == eAutoMode::AUTO;
     const bool active_semiautomatic_task = last_config.automatic_mode == eAutoMode::SEMIAUTO &&
                                            shared_state->active_semiautomatic_task &&
                                            !shared_state->semiautomatic_task_paused;
-    const bool mower_ready = last_status.v_battery > last_config.battery_full_voltage &&
-                             last_status.mow_esc_status.temperature_motor < last_config.motor_cold_temperature &&
+    const bool mower_ready = last_power.v_battery > last_config.battery_full_voltage &&
+                             last_status.mower_motor_temperature < last_config.motor_cold_temperature &&
                              !last_config.manual_pause_mowing;
 
     if (manual_start_mowing || ((automatic_mode || active_semiautomatic_task) && mower_ready)) {
       // set the robot's position to the dock if we're actually docked
-      if (last_status.v_charge > 5.0) {
+      if (last_power.v_charge > 5.0) {
         if (PerimeterUndockingBehavior::configured(config)) return &PerimeterUndockingBehavior::INSTANCE;
         ROS_INFO_STREAM("Currently inside the docking station, we set the robot's pose to the docks pose.");
         setRobotPose(docking_pose_stamped.pose);
@@ -100,7 +104,7 @@ Behavior *IdleBehavior::execute() {
       return &IdleBehavior::INSTANCE;
     }
 
-    if (last_config.docking_redock && stay_docked && last_status.v_charge < 5.0) {
+    if (last_config.docking_redock && stay_docked && last_power.v_charge < 5.0) {
       ROS_WARN("We docked but seem to have lost contact with the charger.  Undocking and trying again!");
       return &UndockingBehavior::RETRY_INSTANCE;
     }
