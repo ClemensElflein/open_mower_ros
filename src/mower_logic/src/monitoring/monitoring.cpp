@@ -70,7 +70,7 @@ void set_limits_mow_motor_temp(SensorConfig &sensor_config);
 std::map<std::string, SensorConfig> sensor_configs{
   {"om_v_charge", {"V Charge", "V", xbot_msgs::SensorInfo::VALUE_DESCRIPTION_VOLTAGE, [](StatusPtr msg) { return msg->v_charge; }, &set_limits_charge_v}},
   {"om_v_battery", {"V Battery", "V", xbot_msgs::SensorInfo::VALUE_DESCRIPTION_VOLTAGE, [](StatusPtr msg) { return msg->v_battery; }, &set_limits_battery_v}},
-  {"om_charge_current", {"Charge Current", "A", xbot_msgs::SensorInfo::VALUE_DESCRIPTION_CURRENT, [](StatusPtr msg) { return msg->charge_current; }, &set_limits_charge_current}},
+  {"om_charge_current", {"Charge Current", "A", xbot_msgs::SensorInfo::VALUE_DESCRIPTION_CURRENT, [](StatusPtr msg) { return msg->charge_current; }, &set_limits_charge_current, "", [](){ return !paramNh->param("/mower_logic/ignore_charging_current", false); }}},
   {"om_left_esc_temp", {"Left ESC Temp", "deg.C", xbot_msgs::SensorInfo::VALUE_DESCRIPTION_TEMPERATURE, [](StatusPtr msg) { return msg->left_esc_status.temperature_pcb; }, &set_limits_esc_temp, "left_xesc"}},
   {"om_right_esc_temp", {"Right ESC Temp", "deg.C", xbot_msgs::SensorInfo::VALUE_DESCRIPTION_TEMPERATURE, [](StatusPtr msg) { return msg->right_esc_status.temperature_pcb; }, &set_limits_esc_temp, "right_xesc"}},
   {"om_mow_esc_temp", {"Mow ESC Temp", "deg.C", xbot_msgs::SensorInfo::VALUE_DESCRIPTION_TEMPERATURE, [](StatusPtr msg) { return msg->mow_esc_status.temperature_pcb; }, &set_limits_esc_temp, "mower_xesc"}},
@@ -90,7 +90,7 @@ void status(StatusPtr &msg) {
   sensor_data.stamp = msg->stamp;
 
   for (auto &sc_pair : sensor_configs) {
-    // Skip if sensor doesn't exists
+    // Skip if sensor doesn't exists or is disabled
     if (sc_pair.second.existCB && !sc_pair.second.existCB()) continue;
 
     if (sc_pair.second.getStatusSensorValueCB) {
@@ -139,16 +139,11 @@ void set_limits_battery_v(SensorConfig &sensor_config) {
 }
 
 void set_limits_charge_v(SensorConfig &sensor_config) {
-  // FIXME: Shall these better go to mower_logic's dyn-reconfigure (or an own dyn-reconfigure server)?
-  sensor_config.si.min_value = 24.0f;             // Mnimum voltage for before deep-discharge
-  sensor_config.si.max_value = 29.2f;             // Optimal charge voltage
-  sensor_config.si.upper_critical_value = 30.0f;  // Taken from OpenMower FW
+  sensor_config.si.upper_critical_value = mower_logic_config.charge_critical_high_voltage;
 }
 
 void set_limits_charge_current(SensorConfig &sensor_config) {
-  // FIXME: Shall these better go to mower_logic's dyn-reconfigure (or an own dyn-reconfigure server)?
-  sensor_config.si.max_value = 1.0f;             // Taken from the docs
-  sensor_config.si.upper_critical_value = 1.5f;  // Taken from OpenMower FW
+  sensor_config.si.upper_critical_value = mower_logic_config.charge_critical_high_current;
 }
 
 void set_limits_esc_temp(SensorConfig &sensor_config) {

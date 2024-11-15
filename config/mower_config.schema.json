@@ -58,6 +58,13 @@
           "default": "xbox360",
           "description": "Select your gamepad. The cheap ones are usually xbox360.",
           "x-environment-variable": "OM_MOWER_GAMEPAD"
+        },
+        "OM_IGNORE_CHARGING_CURRENT": {
+          "type": "boolean",
+          "default": false,
+          "title": "Ignore Charging Current",
+          "description": "Set to True if you're affected by a wrong IC2 sourcing. Read here https://openmower.de/docs/versions/errata/ic2-is-wrong/ for more details",
+          "x-environment-variable": "OM_IGNORE_CHARGING_CURRENT"
         }
       }
     },
@@ -506,6 +513,52 @@
                 "type": "number",
                 "description": "Use perimeter sensor for docking. Set to 1 or 2 depending on the signal selected on the docking station. This is only supported by Mowgli builds for now.",
                 "x-environment-variable": "OM_PERIMETER_SIGNAL"
+              },
+              "OM_EMERGENCY_INPUT_CONFIG": {
+                "type": "string",
+                "default": "",
+                "description": "Comma separated list of emergency inputs (halls or stop), where each sensor can be configured in one of the following modes '[!]<I>gnore|<U>nused|<S>top|<L>Lift'",
+                "x-environment-variable": "OM_EMERGENCY_INPUT_CONFIG"
+              },
+              "OM_EMERGENCY_LIFT_PERIOD": {
+                "type": "number",
+                "default": -1,
+                "description": "Period (ms) for >=2 wheels to be lifted in order to count as emergency (0 = disable)",
+                "x-environment-variable": "OM_EMERGENCY_LIFT_PERIOD"
+              },
+              "OM_EMERGENCY_TILT_PERIOD": {
+                "type": "number",
+                "default": -1,
+                "description": "Period (ms) for a single wheel to be lifted in order to count as emergency (0 = disable)",
+                "x-environment-variable": "OM_EMERGENCY_TILT_PERIOD"
+              },
+              "OM_CU_RAIN_THRESHOLD": {
+                "type": "number",
+                "default": -1,
+                "title": "Stock-CoverUI rain sensor threshold",
+                "description": "Stock-CoverUI limited rain sensor threshold, below which humidity/dryness value get identified as rain. As higher, as more dry. Default to 700",
+                "x-environment-variable": "OM_CU_RAIN_THRESHOLD"
+              },
+              "OM_BATTERY_CRITICAL_HIGH_VOLTAGE": {
+                "type": "number",
+                "default": -1,
+                "title": "Max. battery voltage",
+                "description": "Max. battery voltage before charging get switched off",
+                "x-environment-variable": "OM_BATTERY_CRITICAL_HIGH_VOLTAGE"
+              },
+              "OM_CHARGE_CRITICAL_HIGH_VOLTAGE": {
+                "type": "number",
+                "default": -1,
+                "title": "Max. charge voltage",
+                "description": "Max. charge voltage before charging get switched off",
+                "x-environment-variable": "OM_CHARGE_CRITICAL_HIGH_VOLTAGE"
+              },
+              "OM_CHARGE_CRITICAL_HIGH_CURRENT": {
+                "type": "number",
+                "default": -1,
+                "title": "Max. charge current",
+                "description": "Max. charge current before charging get switched off",
+                "x-environment-variable": "OM_CHARGE_CRITICAL_HIGH_CURRENT"
               }
             }
           }

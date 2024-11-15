@@ -64,6 +64,11 @@ export OM_MOWER_GAMEPAD="xbox360"
 # Output will be stored in your $HOME
 # export OM_ENABLE_RECORDING_ALL=False
 
+# Ignore Charging Current
+# If you're affected by a wrong IC2 sourcing, read here https://openmower.de/docs/versions/errata/ic2-is-wrong/
+# for more details, you can disable the wrong charging current reading by disabling the charging protection via:
+#export OM_IGNORE_CHARGING_CURRENT=True
+
 # Full Sound Support - But read on carefully:
 # Up to (and inclusive) OM hardware version 0.13.x, DFPlayer's power supply is set by default to 3.3V.
 # This is done by solder jumper "JP1" whose board track is by default at 3.3V.
@@ -196,6 +201,14 @@ export OM_BATTERY_EMPTY_VOLTAGE=24.0
 # Immediate dock if voltage is critical
 export OM_BATTERY_CRITICAL_VOLTAGE=23.0
 
+# Absolute battery and charging limits, before charging get switched off
+# Over-voltage battery protection
+#export OM_BATTERY_CRITICAL_HIGH_VOLTAGE=29.0
+# Over-voltage charge protection
+#export OM_CHARGE_CRITICAL_HIGH_VOLTAGE=30.0
+# Over-current charge protection
+#export OM_CHARGE_CRITICAL_HIGH_CURRENT=1.5
+
 # Mower motor temperatures to stop and start mowing
 export OM_MOWING_MOTOR_TEMP_HIGH=80.0
 export OM_MOWING_MOTOR_TEMP_LOW=40.0
@@ -225,6 +238,49 @@ export OM_RAIN_MODE=0
 # Rain delay
 # How long to wait after rain to resume mowing when mode is "Dock Until Dry"
 export OM_RAIN_DELAY_MINUTES=30
+
+# Rain threshold (Stock-CoverUI limited parameter)
+# A rain sensor threshold, below which humidity/dryness value get identified as rain.
+# As higher, as more dry, defaults to 700.
+#export OM_CU_RAIN_THRESHOLD=700
+
+# Hall / Emergency input configuration
+#
+# This is an expert configuration option, use it only for custom builds!
+# The normal YardForce Classic 500 user should leave all options in commented state.
+#
+# We do have 10 emergency inputs. 4 * OM-Hall1 up to OM-Hall4, plus 6 * Stock-CoverUI.
+#
+# Each emergency input can be configure in one of the following modes:
+# I = Ignore this input. Use this mode for inputs which aren't connected to any sensor, or if you wish that this sensor get ignored
+# U = Undefined (don't touch this input, leave it as it's by default)
+# S = Stop. This input shall be used as "Stop" button input
+# L = Lift. Use for an input with lift and tilt support like for wheel sensors
+#
+# In addition, each mode letter, can be prefixed with a "!" character, which indicate that this sensor shall be handled as "low-active" sensor
+#
+# All sensors which shall be configured, have to be placed in a comma separated list in the following order:
+#   OM-Hall1, OM-Hall2, OM-Hall3, OM-Hall4
+# If you've a FW-Moded Stock-CoverUI up to CoverUI FW 2.0x, with attached sensors/buttons, you can append the list with the following inputs:
+#   CoverUI-LIFT|LIFTX, Ignore, CoverUI-LBUMP|RBUMP, Ignore, CoverUI-Stop1, CoverUI-Stop2
+# For those with a CoverUI FW as of 2.1x the appendable list of inputs is:
+#   CoverUI-LIFT, CoverUI-LIFTX, CoverUI-LBUMP, CoverUI-RBUMP, CoverUI-Stop1, CoverUI-Stop2
+#
+# Here's an example of a standard Classic 500 configuration where the sensors got attached as documented,
+# which is Hall1+2 to the front wheel-lift sensors, and Hall3+4 to the top cover stop-button halls:
+# export OM_EMERGENCY_INPUT_CONFIG="!L, !L, !S, !S"
+# Yes, "!x" (low-active), because Classic 500 models, pull the input to low when they get triggered (whereas all CoverUI signals are "high-active")
+#
+#export OM_EMERGENCY_INPUT_CONFIG=""
+#
+# Lift period, to filter uneven ground
+# Period (ms) for >=2 wheels to be lifted in order to count as emergency (0 = disable)
+#export OM_EMERGENCY_LIFT_PERIOD="100"
+#
+# Tilt period, to filter uneven ground
+# Period (ms) for a single wheel to be lifted in order to count as emergency (0 = disable)
+#export OM_EMERGENCY_TILT_PERIOD="2500"
+
 
 ################################
 ##    External MQTT Broker    ##

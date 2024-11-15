@@ -16,6 +16,7 @@
 // SOFTWARE.
 //
 //
+#include <dynamic_reconfigure/client.h>
 #include <geometry_msgs/Twist.h>
 #include <mower_msgs/Status.h>
 #include <sensor_msgs/Joy.h>
@@ -24,11 +25,13 @@
 #include <xesc_driver/xesc_driver.h>
 #include <xesc_msgs/XescStateStamped.h>
 
+#include <algorithm>
 #include <bitset>
 
 #include "COBS.h"
 #include "boost/crc.hpp"
 #include "ll_datatypes.h"
+#include "mower_logic/MowerLogicConfig.h"
 #include "mower_msgs/EmergencyStopSrv.h"
 #include "mower_msgs/HighLevelControlSrv.h"
 #include "mower_msgs/HighLevelStatus.h"
@@ -66,9 +69,11 @@ float speed_l = 0, speed_r = 0, speed_mow = 0, target_speed_mow = 0;
 double wheel_ticks_per_m = 0.0;
 double wheel_distance_m = 0.0;
 
-bool dfp_is_5v = false;       // DFP is set to 5V Vcc
-std::string language = "en";  // ISO-639-1 (2 char) language code
-int volume = -1;              // -1 = don't change, 0-100 = volume (%)
+// LL/HL configuration
+struct ll_high_level_config llhl_config;
+
+dynamic_reconfigure::Client<mower_logic::MowerLogicConfig> *reconfigClient;
+mower_logic::MowerLogicConfig mower_logic_config;
 
 // Serial port and buffer for the low level connection
 serial::Serial serial_port;
@@ -231,41 +236,108 @@ void publishStatus() {
   wheel_tick_pub.publish(wheel_tick_msg);
 }
 
-void publishLowLevelConfig() {
+std::string getHallConfigsString(const HallConfig *hall_configs, const size_t size) {
+  std::string str;
+
+  // Parse hall_configs and build a readable string
+  for (size_t i = 0; i < size; i++) {
+    if (str.length()) str.append(", ");
+    if (hall_configs->active_low) str.append("!");
+    switch (hall_configs->mode) {
+      case HallMode::OFF: str.append("I"); break;
+      case HallMode::LIFT_TILT: str.append("L"); break;
+      case HallMode::STOP: str.append("S"); break;
+      case HallMode::UNDEFINED: str.append("U"); break;
+      default: break;
+    }
+    hall_configs++;
+  }
+
+  return str;
+}
+
+void publishLowLevelConfig(const uint8_t pkt_type) {
   if (!serial_port.isOpen() || !allow_send) return;
 
-  struct ll_high_level_config config_pkt;
+  // Prepare the pkt
+  size_t size = sizeof(struct ll_high_level_config) + 3;  // +1 type, +2 crc
+  uint8_t buf[size];
 
-  config_pkt.volume = volume;
-  for (unsigned int i = 0; i < sizeof(config_pkt.language) / sizeof(char); i++) {
-    config_pkt.language[i] = language[i];
-  }
-  // Set config_bitmask flags
-  (dfp_is_5v) ? config_pkt.config_bitmask |= LL_HIGH_LEVEL_CONFIG_BIT_DFPIS5V
-              : config_pkt.config_bitmask &= ~LL_HIGH_LEVEL_CONFIG_BIT_DFPIS5V;
+  // Send config and request a config answer
+  buf[0] = pkt_type;
 
+  // Copy our live config into the message (behind type)
+  memcpy(&buf[1], &llhl_config, sizeof(struct ll_high_level_config));
+
+  // Member access to buffer
+  struct ll_high_level_config *buf_config = (struct ll_high_level_config *)&buf[1];
+
+  // CRC
   crc.reset();
-  crc.process_bytes(&config_pkt, sizeof(struct ll_high_level_config) - 2);
-  config_pkt.crc = crc.checksum();
+  crc.process_bytes(buf, sizeof(struct ll_high_level_config) + 1);  // + type
+  buf[size - 1] = (crc.checksum() >> 8) & 0xFF;
+  buf[size - 2] = crc.checksum() & 0xFF;
 
-  size_t encoded_size = cobs.encode((uint8_t *)&config_pkt, sizeof(struct ll_high_level_config), out_buf);
+  // COBS
+  size_t encoded_size = cobs.encode(buf, size, out_buf);
   out_buf[encoded_size] = 0;
   encoded_size++;
 
+  // Send
   try {
-    ROS_INFO_STREAM("Send ll_high_level_config packet 0x"
-                    << std::hex << +config_pkt.type << " with comms_version=" << +config_pkt.comms_version
-                    << ", config_bitmask=0b" << std::bitset<8>(config_pkt.config_bitmask) << ", volume=" << std::dec
-                    << +config_pkt.volume << ", language='" << config_pkt.language << "'");
+    // Let's be verbose for easier follow-up
+    ROS_INFO(
+        "Send ll_high_level_config packet %#04x\n"
+        "\t options{dfp_is_5v=%d, background_sounds=%d, ignore_charging_current=%d},\n"
+        "\t v_charge_cutoff=%f, i_charge_cutoff=%f,\n"
+        "\t v_battery_cutoff=%f, v_battery_empty=%f, v_battery_full=%f,\n"
+        "\t lift_period=%d, tilt_period=%d,\n"
+        "\t shutdown_esc_max_pitch=%d,\n"
+        "\t language=\"%.2s\", volume=%d\n"
+        "\t hall_configs=\"%s\"",
+        buf[0], (int)buf_config->options.dfp_is_5v, (int)buf_config->options.background_sounds,
+        (int)buf_config->options.ignore_charging_current, buf_config->v_charge_cutoff, buf_config->i_charge_cutoff,
+        buf_config->v_battery_cutoff, buf_config->v_battery_empty, buf_config->v_battery_full, buf_config->lift_period,
+        buf_config->tilt_period, buf_config->shutdown_esc_max_pitch, buf_config->language, buf_config->volume,
+        getHallConfigsString(buf_config->hall_configs, MAX_HALL_INPUTS).c_str());
+
     serial_port.write(out_buf, encoded_size);
   } catch (std::exception &e) {
     ROS_ERROR_STREAM("Error writing to serial port");
   }
 }
 
+/**
+ * @brief A simple config tracker (struct-class) for managing lost response packets as well as simpler handling of
+ * LowLevel reboots or flash period.
+ */
+struct {
+  ros::Time last_config_req;    // Time when last config request was sent
+  unsigned int tries_left = 0;  // Remaining request tries before giving up
+
+  void ackResponse() {  // Call this on receive of a response packet to stop monitoring
+    tries_left = 0;
+  };
+  void setDirty() {  // Call this for indicating that config packet need to be resend, i.e. die to LL-reboot
+    tries_left = 5;
+  };
+  void check() {
+    if (!tries_left ||                                            // No request tries left (probably old LL-FW)
+        !serial_port.isOpen() || !allow_send ||                   // Serial not ready
+        ros::Time::now() - last_config_req < ros::Duration(0.5))  // Timeout waiting for response not reached
+      return;
+    publishLowLevelConfig(PACKET_ID_LL_HIGH_LEVEL_CONFIG_REQ);
+    last_config_req = ros::Time::now();
+    tries_left--;
+    ROS_WARN_STREAM_COND(
+        !tries_left, "Didn't received a config packet from LowLevel in time. Is your LowLevel firmware up-to-date?");
+  };
+} configTracker;
+
 void publishActuatorsTimerTask(const ros::TimerEvent &timer_event) {
   publishActuators();
   publishStatus();
+  configTracker.check();
 }
 
 bool setMowEnabled(mower_msgs::MowerControlSrvRequest &req, mower_msgs::MowerControlSrvResponse &res) {
@@ -374,27 +446,87 @@ void handleLowLevelUIEvent(struct ll_ui_event *ui_event) {
   }
 }
 
-void handleLowLevelConfig(struct ll_high_level_config *config_pkt) {
-  ROS_INFO_STREAM("Received ll_high_level_config packet 0x"
-                  << std::hex << +config_pkt->type << " with comms_version=" << +config_pkt->comms_version
-                  << ", config_bitmask=0b" << std::bitset<8>(config_pkt->config_bitmask) << ", volume=" << std::dec
-                  << +config_pkt->volume << ", language='" << config_pkt->language << "'");
+/**
+ * @brief getNewSetChanged return t_new and checks if the value changed in comparison to t_cur.
+ * t_new can't be a reference because the same function is also used for packed structures.
+ * @param t_cur source value
+ * @param t_new reference
+ * @return &bool get set to true if t_cur and t_new differ, otherwise changed doesn't get touched
+ */
+template <typename T>
+T getNewSetChanged(const T t_cur, const T t_new, bool &changed) {
+  bool equal;
+  if (std::is_floating_point<T>::value)
+    equal = fabs(t_cur - t_new) < std::numeric_limits<T>::epsilon();
+  else
+    equal = t_cur == t_new;
 
-  // TODO: Handle announced comms_version once required
+  if (!equal) changed = true;
 
-  // We're not interested in the received langauge setting (yet)
+  //ROS_INFO_STREAM("DEBUG mower_comms comp. member: cur " << t_cur << " ?= " << t_new << " == equal " << equal << ", changed " << changed);
 
-  // We're not interested in the received volume setting (yet)
+  return t_new;
+}
 
-  if (config_pkt->type == PACKET_ID_LL_HIGH_LEVEL_CONFIG_REQ ||                      // Config requested
-      config_pkt->config_bitmask & LL_HIGH_LEVEL_CONFIG_BIT_DFPIS5V != dfp_is_5v) {  // Our DFP_IS_5V setting is leading
-    publishLowLevelConfig();
-  }
+/**
+ * Handle config packet on receive from LL (LL->HL config packet response)
+ */
+void handleLowLevelConfig(const uint8_t *buffer, const size_t size) {
+  // This is a flexible length packet where the size may vary when ll_high_level_config struct got enhanced only on one
+  // side. If payload size is larger than our struct size, ensure that we only copy those we know of = our struct size.
+  // If payload size is smaller than our struct size, copy only the payload we got, but ensure that the unsent member(s)
+  // have reasonable defaults.
+  size_t payload_size = std::min(sizeof(ll_high_level_config), size - 3);  // exclude type & crc
+
+  // Copy payload to separated ll_config
+  memcpy(&llhl_config, buffer + 1, payload_size);
+
+  // Let's be verbose for easier follow-up
+  ROS_INFO(
+      "Received ll_high_level_config packet %#04x\n"
+      "\t options{dfp_is_5v=%d, background_sounds=%d, ignore_charging_current=%d},\n"
+      "\t v_charge_cutoff=%f, i_charge_cutoff=%f,\n"
+      "\t v_battery_cutoff=%f, v_battery_empty=%f, v_battery_full=%f,\n"
+      "\t lift_period=%d, tilt_period=%d,\n"
+      "\t shutdown_esc_max_pitch=%d,\n"
+      "\t language=\"%.2s\", volume=%d\n"
+      "\t hall_configs=\"%s\"",
+      *buffer, (int)llhl_config.options.dfp_is_5v, (int)llhl_config.options.background_sounds,
+      (int)llhl_config.options.ignore_charging_current, llhl_config.v_charge_cutoff, llhl_config.i_charge_cutoff,
+      llhl_config.v_battery_cutoff, llhl_config.v_battery_empty, llhl_config.v_battery_full, llhl_config.lift_period,
+      llhl_config.tilt_period, llhl_config.shutdown_esc_max_pitch, llhl_config.language, llhl_config.volume,
+      getHallConfigsString(llhl_config.hall_configs, MAX_HALL_INPUTS).c_str());
+
+  // Inform config packet tracker about the response
+  configTracker.ackResponse();
+
+  // Copy received config values from LL to mower_logic's related dynamic reconfigure variables and
+  // decide if mower_logic's dynamic reconfigure need to be updated with probably changed values
+  bool dirty = false;
+  // clang-format off
+  mower_logic_config.cu_rain_threshold = getNewSetChanged<int>(mower_logic_config.cu_rain_threshold, llhl_config.rain_threshold, dirty);
+  mower_logic_config.charge_critical_high_voltage = getNewSetChanged<double>(mower_logic_config.charge_critical_high_voltage, llhl_config.v_charge_cutoff, dirty);
+  mower_logic_config.charge_critical_high_current = getNewSetChanged<double>(mower_logic_config.charge_critical_high_current, llhl_config.i_charge_cutoff, dirty);
+  mower_logic_config.battery_critical_high_voltage = getNewSetChanged<double>(mower_logic_config.battery_critical_high_voltage, llhl_config.v_battery_cutoff, dirty);
+  mower_logic_config.battery_empty_voltage = getNewSetChanged<double>(mower_logic_config.battery_empty_voltage, llhl_config.v_battery_empty, dirty);
+  mower_logic_config.battery_full_voltage = getNewSetChanged<double>(mower_logic_config.battery_full_voltage, llhl_config.v_battery_full, dirty);
+  mower_logic_config.emergency_lift_period = getNewSetChanged<int>(mower_logic_config.emergency_lift_period, llhl_config.lift_period, dirty);
+  mower_logic_config.emergency_tilt_period = getNewSetChanged<int>(mower_logic_config.emergency_tilt_period, llhl_config.tilt_period, dirty);
+  // clang-format on
+
+  if (dirty) reconfigClient->setConfiguration(mower_logic_config);
 }
 
 void handleLowLevelStatus(struct ll_status *status) {
+  static ros::Time last_ll_status_update(ros::Time::now());
+
   std::unique_lock<std::mutex> lk(ll_status_mutex);
   last_ll_status = *status;
+
+  // LL status get send at 100ms cycle. If we miss 10 packets, we can assume that it got restarted or flashed with a
+  // new FW. In either case we should ensure that it has the right config and update/re-align with us.
+  if (ros::Time::now() - last_ll_status_update > ros::Duration(1.0)) configTracker.setDirty();
+  last_ll_status_update = ros::Time::now();
 }
 
 void handleLowLevelIMU(struct ll_imu *imu) {
@@ -431,6 +563,50 @@ void handleLowLevelIMU(struct ll_imu *imu) {
   sensor_mag_pub.publish(sensor_mag_msg);
 }
 
+void reconfigCB(const mower_logic::MowerLogicConfig &config) {
+  ROS_INFO_STREAM("mower_comms received new mower_logic config");
+
+  mower_logic_config = config;
+
+  // Copy changed mower_config's values to the related llhl_config values and
+  // decide if LL need to be informed with a new config packet
+  bool dirty = false;
+
+  // clang-format off
+  llhl_config.rain_threshold = getNewSetChanged<int>(llhl_config.rain_threshold, mower_logic_config.cu_rain_threshold, dirty);
+  llhl_config.v_charge_cutoff = getNewSetChanged<double>(llhl_config.v_charge_cutoff, mower_logic_config.charge_critical_high_voltage, dirty);
+  llhl_config.i_charge_cutoff = getNewSetChanged<double>(llhl_config.i_charge_cutoff, mower_logic_config.charge_critical_high_current, dirty);
+  llhl_config.v_battery_cutoff = getNewSetChanged<double>(llhl_config.v_battery_cutoff, mower_logic_config.battery_critical_high_voltage, dirty);
+  llhl_config.v_battery_empty = getNewSetChanged<double>(llhl_config.v_battery_empty, mower_logic_config.battery_empty_voltage, dirty);
+  llhl_config.v_battery_full = getNewSetChanged<double>(llhl_config.v_battery_full, mower_logic_config.battery_full_voltage, dirty);
+  llhl_config.lift_period = getNewSetChanged<int>(llhl_config.lift_period, mower_logic_config.emergency_lift_period, dirty);
+  llhl_config.tilt_period = getNewSetChanged<int>(llhl_config.tilt_period, mower_logic_config.emergency_tilt_period, dirty);
+  // clang-format on
+
+  // Parse emergency_input_config and set hall_configs
+  char *token = strtok(strdup(mower_logic_config.emergency_input_config.c_str()), ",");
+  bool low_active;
+  unsigned int hall_idx = 0;
+  while (token != NULL) {
+    low_active = false;
+    while (*token != 0) {
+      switch (std::toupper(*token)) {
+        case '!': low_active = true; break;
+        case 'I': llhl_config.hall_configs[hall_idx] = {HallMode::OFF, low_active}; break;
+        case 'L': llhl_config.hall_configs[hall_idx] = {HallMode::LIFT_TILT, low_active}; break;
+        case 'S': llhl_config.hall_configs[hall_idx] = {HallMode::STOP, low_active}; break;
+        case 'U': llhl_config.hall_configs[hall_idx] = {HallMode::UNDEFINED, low_active}; break;
+        default: break;
+      }
+      token++;
+    }
+    token = strtok(NULL, ",");
+    hall_idx++;
+  }
+
+  if (dirty) configTracker.setDirty();
+}
+
 int main(int argc, char **argv) {
   ros::init(argc, argv, "mower_comms");
 
@@ -444,6 +620,9 @@ int main(int argc, char **argv) {
   ros::NodeHandle rightParamNh("~/right_xesc");
 
   highLevelClient = n.serviceClient<mower_msgs::HighLevelControlSrv>("mower_service/high_level_control");
+
+  mower_logic_config = mower_logic::MowerLogicConfig::__getDefault__();
+  reconfigClient = new dynamic_reconfigure::Client<mower_logic::MowerLogicConfig>("/mower_logic", reconfigCB);
 
   std::string ll_serial_port_name;
   if (!paramNh.getParam("ll_serial_port", ll_serial_port_name)) {
@@ -459,11 +638,13 @@ int main(int argc, char **argv) {
 
   speed_l = speed_r = speed_mow = target_speed_mow = 0;
 
-  paramNh.getParam("dfp_is_5v", dfp_is_5v);
-  paramNh.getParam("language", language);
-  paramNh.getParam("volume", volume);
-  ROS_INFO_STREAM("DFP is set to 5V [boolean]: " << dfp_is_5v << ", language: '" << language
-                                                 << "', volume: " << volume);
+  // Some generic settings from param server (non- dynamic)
+  llhl_config.options.ignore_charging_current =
+      paramNh.param("/mower_logic/ignore_charging_current", false) ? OptionState::ON : OptionState::OFF;
+  llhl_config.options.dfp_is_5v = paramNh.param("dfp_is_5v", false) ? OptionState::ON : OptionState::OFF;
+  llhl_config.volume = paramNh.param("volume", -1);
+  // ISO-639-1 (2 char) language code
+  strncpy(llhl_config.language, paramNh.param<std::string>("language", "en").c_str(), 2);
 
   // Setup XESC interfaces
   if (mowerParamNh.hasParam("xesc_type")) {
@@ -572,12 +753,7 @@ int main(int argc, char **argv) {
                 break;
               case PACKET_ID_LL_HIGH_LEVEL_CONFIG_REQ:
               case PACKET_ID_LL_HIGH_LEVEL_CONFIG_RSP:
-                if (data_size == sizeof(struct ll_high_level_config)) {
-                  handleLowLevelConfig((struct ll_high_level_config *)buffer_decoded);
-                } else {
-                  ROS_INFO_STREAM("Low Level Board sent a valid packet with the wrong size. Type was CONFIG_* (0x"
-                                  << std::hex << buffer_decoded[0] << ")");
-                }
+                handleLowLevelConfig(buffer_decoded, data_size);
                 break;
               default: ROS_INFO_STREAM("Got unknown packet from Low Level Board"); break;
             }
