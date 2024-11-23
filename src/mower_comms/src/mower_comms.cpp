@@ -643,6 +643,8 @@ int main(int argc, char **argv) {
       paramNh.param("/mower_logic/ignore_charging_current", false) ? OptionState::ON : OptionState::OFF;
   llhl_config.options.dfp_is_5v = paramNh.param("dfp_is_5v", false) ? OptionState::ON : OptionState::OFF;
   llhl_config.volume = paramNh.param("volume", -1);
+  llhl_config.options.background_sounds =
+      paramNh.param("background_sounds", false) ? OptionState::ON : OptionState::OFF;
   // ISO-639-1 (2 char) language code
   strncpy(llhl_config.language, paramNh.param<std::string>("language", "en").c_str(), 2);
 
