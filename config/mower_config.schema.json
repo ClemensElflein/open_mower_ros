@@ -635,6 +635,13 @@
           "description": "Sound volume (0-100 or -1). -1 means the volume is managed by the CoverUI.",
           "default": -1,
           "x-environment-variable": "OM_VOLUME"
+        },
+        "OM_BACKGROUND_SOUNDS": {
+          "type": "boolean",
+          "title": "Also play background sounds",
+          "description": "Enable if DFPlayer shall also play background-sounds (beside the informational advert sounds)",
+          "default": false,
+          "x-environment-variable": "OM_BACKGROUND_SOUNDS"
         }
       }
     },

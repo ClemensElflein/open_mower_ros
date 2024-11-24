@@ -14,6 +14,7 @@
         <param name="dfp_is_5v" value="$(optenv OM_DFP_IS_5V False)"/>
         <param name="language" value="$(optenv OM_LANGUAGE en)"/>
         <param name="volume" value="$(optenv OM_VOLUME -1)"/>
+        <param name="background_sounds" value="$(optenv OM_BACKGROUND_SOUNDS False)"/>
     </node>
 
     <include file="$(find open_mower)/launch/include/_gps.launch" unless="$(optenv OM_NO_GPS False)">

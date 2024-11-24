@@ -85,8 +85,16 @@ export OM_MOWER_GAMEPAD="xbox360"
 # Sound volume (%)
 # Supported values:
 # 0-100 = Set sound volume on OM start, ignoring a previously set volume level (i.e. changed by CoverUI)
-#    -1 = Don't change a previously set volume level (i.e. changed by CoverUI)
+#    -1 = Don't change a previously set volume level
 # export OM_VOLUME=-1
+#
+# Background sounds
+# Beside some spoken informational advert sounds like "Waiting for RTK GPS" or "Heading back to docking station",
+# the current sound implementation might also play some funny background sounds like "I'm singing in the rain" once rain got detected.
+# But it will also play background sounds which might unsettle your wife or neighbor.
+# That's why it's configured false/off by default. If your wife or neightbor is heavy-duty, you can set it to "true" (on) here:
+# export OM_BACKGROUND_SOUNDS=False
+
 
 ################################
 ##        GPS Settings        ##
