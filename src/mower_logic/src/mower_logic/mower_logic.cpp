@@ -90,6 +90,10 @@ std::vector<xbot_msgs::ActionInfo> rootActions;
 ros::Time last_v_battery_check;
 double max_v_battery_seen = 0.0;
 
+ros::Time last_rain_check;
+bool rain_detected = true;
+ros::Time rain_resume;
+
 /**
  * Some thread safe methods to get a copy of the logic state
  */
@@ -511,6 +515,29 @@ void checkSafety(const ros::TimerEvent &timer_event) {
     dockingNeeded = true;
   }
 
+  // Rain detected is initialized to true and flips to false if rain is not detected
+  // continuously for rain_check_seconds. This is to avoid false positives due to noise
+  rain_detected = rain_detected && last_status.rain_detected;
+  if (last_config.rain_check_seconds == 0 ||
+      ros::Time::now() - last_rain_check > ros::Duration(last_config.rain_check_seconds)) {
+    if (rain_detected) {
+      // Reset rain resume time
+      rain_resume =
+          ros::Time::now() + ros::Duration(last_config.rain_check_seconds + last_config.rain_delay_minutes * 60);
+    }
+    if (!dockingNeeded && rain_detected && last_config.rain_mode) {
+      dockingReason << "Rain detected";
+      dockingNeeded = true;
+      if (last_config.rain_mode == 3) {
+        auto new_config = getConfig();
+        new_config.manual_pause_mowing = true;
+        setConfig(new_config);
+      }
+    }
+    last_rain_check = ros::Time::now();
+    rain_detected = true;
+  }
+
   if (dockingNeeded && currentBehavior != &DockingBehavior::INSTANCE &&
       currentBehavior != &UndockingBehavior::RETRY_INSTANCE && currentBehavior != &IdleBehavior::INSTANCE &&
       currentBehavior != &IdleBehavior::DOCKED_INSTANCE) {
@@ -834,7 +861,7 @@ int main(int argc, char **argv) {
 
   ROS_INFO("om_mower_logic: Got all servers, we can mow");
 
-  last_v_battery_check = ros::Time::now();
+  rain_resume = last_rain_check = last_v_battery_check = ros::Time::now();
   ros::Timer safety_timer = n->createTimer(ros::Duration(0.5), checkSafety);
   ros::Timer ui_timer = n->createTimer(ros::Duration(1.0), updateUI);
 

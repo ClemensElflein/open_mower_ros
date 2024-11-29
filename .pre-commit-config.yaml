@@ -1,4 +1,4 @@
-exclude: '^(config|web)/.+$'
+exclude: '^(config/.+\.sh|web/.+)$'
 repos:
 -   repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.6.0
@@ -22,4 +22,4 @@ repos:
     rev: v1.3.5
     hooks:
       - id: clang-format
-        args: [--style=file, -i]
+        args: [--style=file, -i, --version=14.0.0]

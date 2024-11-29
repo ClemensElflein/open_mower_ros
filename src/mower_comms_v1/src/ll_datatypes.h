@@ -24,8 +24,8 @@
 #define PACKET_ID_LL_STATUS 1
 #define PACKET_ID_LL_IMU 2
 #define PACKET_ID_LL_UI_EVENT 3
-#define PACKET_ID_LL_HIGH_LEVEL_CONFIG_REQ 0x21  // ll_high_level_config and request config from receiver
-#define PACKET_ID_LL_HIGH_LEVEL_CONFIG_RSP 0x22  // ll_high_level_config response
+#define PACKET_ID_LL_HIGH_LEVEL_CONFIG_REQ 0x11  // ll_high_level_config and request config from receiver
+#define PACKET_ID_LL_HIGH_LEVEL_CONFIG_RSP 0x12  // ll_high_level_config response
 #define PACKET_ID_LL_HEARTBEAT 0x42
 #define PACKET_ID_LL_HIGH_LEVEL_STATE 0x43
 
@@ -47,10 +47,8 @@ struct ll_status {
   float uss_ranges_m[5];
   // Emergency bitmask:
   // Bit 0: Emergency latch
-  // Bit 1: Emergency 0 active
-  // Bit 2: Emergency 1 active
-  // Bit 3: Emergency 2 active
-  // Bit 4: Emergency 3 active
+  // Bit 1: Emergency/Lift (or tilt)
+  // Bit 2: Emergency/Stop
   uint8_t emergency_bitmask;
   // Charge voltage
   float v_charge;
@@ -111,24 +109,74 @@ struct ll_high_level_state {
 } __attribute__((packed));
 #pragma pack(pop)
 
-#define LL_HIGH_LEVEL_CONFIG_MAX_COMMS_VERSION 1  // Max. comms packet version supported by this open_mower_ros
-#define LL_HIGH_LEVEL_CONFIG_BIT_DFPIS5V 1 << 0   // Enable full sound via mower_config env var "OM_DFP_IS_5V"
-#define LL_HIGH_LEVEL_CONFIG_BIT_EMERGENCY_INVERSE \
-  1 << 1  // Sample, for possible future usage, i.e. for SA-Type emergency
+enum class OptionState : unsigned int {
+    OFF = 0,
+    ON,
+    UNDEFINED
+};
+
+#pragma pack(push, 1)
+struct ConfigOptions {
+    OptionState dfp_is_5v : 2;
+    OptionState background_sounds : 2;
+    OptionState ignore_charging_current : 2;
+    // Need to block/waster the bits now, to be prepared for future enhancements
+    OptionState reserved_for_future_use1 : 2;
+    OptionState reserved_for_future_use2 : 2;
+    OptionState reserved_for_future_use3 : 2;
+    OptionState reserved_for_future_use4 : 2;
+    OptionState reserved_for_future_use5 : 2;
+} __attribute__((packed));
+#pragma pack(pop)
+static_assert(sizeof(ConfigOptions) == 2, "Changing size of ConfigOption != 2 will break packet compatibilty");
 
 typedef char iso639_1[2];  // Two char ISO 639-1 language code
 
+enum class HallMode : unsigned int {
+  OFF = 0,
+  LIFT_TILT,  // Wheel lifted and wheels tilted functionality
+  STOP,       // Stop mower
+  UNDEFINED   // This is used by foreign side to inform that it doesn't has a configuration for this sensor
+};
+
+#pragma pack(push, 1)
+struct HallConfig {
+  HallConfig(HallMode t_mode = HallMode::UNDEFINED, bool t_active_low = false)
+      : mode(t_mode), active_low(t_active_low) {};
+
+  HallMode mode : 3;  // 1 bit reserved
+  bool active_low : 1;
+} __attribute__((packed));
+#pragma pack(pop)
+
+#define MAX_HALL_INPUTS 10  // How much Hall-inputs we do support. 4 * OM + 6 * Stock-CoverUI
+
+// LL/HL config packet, bi-directional, flexible-length
 #pragma pack(push, 1)
 struct ll_high_level_config {
-  uint8_t type = PACKET_ID_LL_HIGH_LEVEL_CONFIG_RSP;               // By default, respond only (for now)
-  uint8_t comms_version = LL_HIGH_LEVEL_CONFIG_MAX_COMMS_VERSION;  // Increasing comms packet-version number for packet
-                                                                   // compatibility (n > 0)
-  uint8_t config_bitmask = 0;                                      // See LL_HIGH_LEVEL_CONFIG_BIT_*
-  int8_t volume;        // Volume (0-100%) feedback (if directly changed via CoverUI). -1 = don't change
-  iso639_1 language;    // ISO 639-1 (2-char) language code (en, de, ...)
-  uint16_t spare1 = 0;  // Spare for future use
-  uint16_t spare2 = 0;  // Spare for future use
-  uint16_t crc;
+  // ATTENTION: This is a flexible length struct. It is allowed to grow independently to HL without loosing
+  // compatibility, but never change or restructure already published member, except you really know their consequences.
+
+  // uint8_t type; Just for illustration. Get set later in wire buffer with type PACKET_ID_LL_HIGH_LEVEL_CONFIG_*
+
+  // clang-format off
+  ConfigOptions options = {.dfp_is_5v = OptionState::OFF, .background_sounds = OptionState::OFF, .ignore_charging_current = OptionState::OFF};
+  uint16_t rain_threshold = 0xffff;          // If (stock CoverUI) rain value < rain_threshold then it rains
+  float v_charge_cutoff = -1;                // Protective max. charging voltage before charging get switched off (-1 = unknown)
+  float i_charge_cutoff = -1;                // Protective max. charging current before charging get switched off (-1 = unknown)
+  float v_battery_cutoff = -1;               // Protective max. battery voltage before charging get switched off (-1 = unknown)
+  float v_battery_empty = -1;                // Empty battery voltage used for % calc of capacity (-1 = unknown)
+  float v_battery_full = -1;                 // Full battery voltage used for % calc of capacity (-1 = unknown)
+  uint16_t lift_period = 0xffff;             // Period (ms) for >=2 wheels to be lifted in order to count as emergency (0 = disable, 0xFFFF = unknown)
+  uint16_t tilt_period = 0xffff;             // Period (ms) for a single wheel to be lifted in order to count as emergency (0 = disable, 0xFFFF = unknown)
+  uint8_t shutdown_esc_max_pitch = 0xff;     // Do not shutdown ESCs if absolute pitch angle is greater than this (0 = disable, 0xff = unknown) (to be implemented, see OpenMower PR #97)
+  iso639_1 language = {'e', 'n'};            // ISO 639-1 (2-char) language code (en, de, ...)
+  uint8_t volume = 0xff;                     // Volume (0-100%) feedback (if directly changed i.e. via CoverUI) (0xff = do not change)
+  HallConfig hall_configs[MAX_HALL_INPUTS];  // Set all to UNDEFINED
+  // INFO: Before adding a new member here: Decide if and how much hall_configs spares do we like to have
+
+  // uint16_t crc;  Just for illustration, that it get appended later within the wire buffer
+  // clang-format on
 } __attribute__((packed));
 #pragma pack(pop)
 

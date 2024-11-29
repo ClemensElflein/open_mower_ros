@@ -27,6 +27,7 @@ extern void setEmergencyMode(bool emergency);
 extern void setGPS(bool enabled);
 extern void setRobotPose(geometry_msgs::Pose &pose);
 extern void registerActions(std::string prefix, const std::vector<xbot_msgs::ActionInfo> &actions);
+extern ros::Time rain_resume;
 
 extern ros::ServiceClient dockingPointClient;
 extern mower_msgs::Status getStatus();
@@ -78,9 +79,13 @@ Behavior *IdleBehavior::execute() {
     const bool active_semiautomatic_task = last_config.automatic_mode == eAutoMode::SEMIAUTO &&
                                            shared_state->active_semiautomatic_task &&
                                            !shared_state->semiautomatic_task_paused;
+    const bool rain_delay = last_config.rain_mode == 2 && ros::Time::now() < rain_resume;
+    if (rain_delay) {
+      ROS_INFO_STREAM_THROTTLE(300, "Rain delay: " << int((rain_resume - ros::Time::now()).toSec() / 60) << " minutes");
+    }
     const bool mower_ready = last_power.v_battery > last_config.battery_full_voltage &&
                              last_status.mower_motor_temperature < last_config.motor_cold_temperature &&
-                             !last_config.manual_pause_mowing;
+                             !last_config.manual_pause_mowing && !rain_delay;
 
     if (manual_start_mowing || ((automatic_mode || active_semiautomatic_task) && mower_ready)) {
       // set the robot's position to the dock if we're actually docked

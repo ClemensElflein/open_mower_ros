@@ -19,6 +19,8 @@
 
 #include <mower_msgs/Power.h>
 
+#include "tf2_eigen/tf2_eigen.h"
+
 extern ros::ServiceClient dockingPointClient;
 extern actionlib::SimpleActionClient<mbf_msgs::ExePathAction> *mbfClientExePath;
 extern xbot_msgs::AbsolutePose getPose();
@@ -38,6 +40,8 @@ std::string UndockingBehavior::state_name() {
 }
 
 Behavior *UndockingBehavior::execute() {
+  static bool rng_seeding_required = true;
+
   // get robot's current pose from odometry.
   xbot_msgs::AbsolutePose pose = getPose();
   tf2::Quaternion quat;
@@ -50,13 +54,46 @@ Behavior *UndockingBehavior::execute() {
 
   nav_msgs::Path path;
 
-  int undock_point_count = config.undock_distance * 10.0;
-  for (int i = 0; i < undock_point_count; i++) {
-    geometry_msgs::PoseStamped docking_pose_stamped_front;
-    docking_pose_stamped_front.pose = pose.pose.pose;
-    docking_pose_stamped_front.header = pose.header;
-    docking_pose_stamped_front.pose.position.x -= cos(yaw) * (i / 10.0);
-    docking_pose_stamped_front.pose.position.y -= sin(yaw) * (i / 10.0);
+  geometry_msgs::PoseStamped docking_pose_stamped_front;
+  docking_pose_stamped_front.pose = pose.pose.pose;
+  docking_pose_stamped_front.header = pose.header;
+
+  const int straight_undock_point_count = 3;  // The FTC planner requires at least 3 points to work
+  double incremental_distance = config.undock_distance / straight_undock_point_count;
+  for (int i = 0; i < straight_undock_point_count; i++) {
+    docking_pose_stamped_front.pose.position.x -= cos(yaw) * incremental_distance;
+    docking_pose_stamped_front.pose.position.y -= sin(yaw) * incremental_distance;
+    path.poses.push_back(docking_pose_stamped_front);
+  }
+
+  double angle;
+  if (config.undock_fixed_angle) {
+    angle = config.undock_angle * M_PI / 180.0;
+    ROS_INFO_STREAM("Fixed angle undock: " << config.undock_angle);
+  } else {
+    // seed based on first undock time rather than boot so should be ok even without RTC
+    if (rng_seeding_required) {
+      srand(ros::Time::now().toSec());
+      ROS_INFO_STREAM("Random angle undock: Seeded rand()");
+      rng_seeding_required = false;
+    }
+    double random_number = ((double)rand() / RAND_MAX) * 2.0 - 1.0;
+    double random_angle_deg = abs(config.undock_angle) * random_number;
+    ROS_INFO_STREAM("Random angle undock: " << random_angle_deg);
+    angle = random_angle_deg * M_PI / 180.0;
+  }
+
+  const int angled_undock_point_count = 10;
+  incremental_distance = config.undock_angled_distance / angled_undock_point_count;
+  for (int i = 0; i < angled_undock_point_count; i++) {
+    double orientation = yaw + angle * (config.undock_use_curve ? ((i + 1.0) / angled_undock_point_count) : 1);
+
+    docking_pose_stamped_front.pose.position.x -= cos(orientation) * incremental_distance;
+    docking_pose_stamped_front.pose.position.y -= sin(orientation) * incremental_distance;
+
+    tf2::Quaternion q;
+    q.setRPY(0.0, 0.0, orientation);
+    docking_pose_stamped_front.pose.orientation = tf2::toMsg(q);
     path.poses.push_back(docking_pose_stamped_front);
   }
 
