@@ -28,6 +28,8 @@
 
 #include <algorithm>
 #include <bitset>
+#include <mower_msgs/ESCStatus.h>
+#include <mower_msgs/Power.h>
 
 #include "COBS.h"
 #include "boost/crc.hpp"
@@ -173,6 +175,28 @@ void convertStatus(xesc_msgs::XescStateStamped &vesc_status, mower_msgs::ESCStat
   ros_esc_status.temperature_pcb = vesc_status.state.temperature_pcb;
 }
 
+void convertStatus(xesc_msgs::XescStateStamped &vesc_status, uint8_t &esc_status, double &esc_temperature,
+double &esc_current,
+double &motor_temperature,
+double &motor_rpm) {
+  if (vesc_status.state.connection_state != xesc_msgs::XescState::XESC_CONNECTION_STATE_CONNECTED &&
+      vesc_status.state.connection_state != xesc_msgs::XescState::XESC_CONNECTION_STATE_CONNECTED_INCOMPATIBLE_FW) {
+    // ESC is disconnected
+    esc_status = mower_msgs::ESCStatus::ESC_STATUS_DISCONNECTED;
+  } else if (vesc_status.state.fault_code) {
+    ROS_ERROR_STREAM_THROTTLE(1, "Motor controller fault code: " << vesc_status.state.fault_code);
+    // ESC has a fault
+    esc_status = mower_msgs::ESCStatus::ESC_STATUS_ERROR;
+  } else {
+    // ESC is OK but standing still
+    esc_status = mower_msgs::ESCStatus::ESC_STATUS_OK;
+  }
+  motor_rpm = vesc_status.state.rpm;
+  esc_current = vesc_status.state.current_input;
+  motor_temperature = vesc_status.state.temperature_motor;
+  esc_temperature = vesc_status.state.temperature_pcb;
+}
+
 void publishStatus() {
   mower_msgs::Status status_msg;
   status_msg.stamp = ros::Time::now();
@@ -212,9 +236,10 @@ void publishStatus() {
   emergency_msg.reason = "";
   emergency_pub.publish(emergency_msg);
 
-  status_msg.v_battery = last_ll_status.v_system;
-  status_msg.v_charge = last_ll_status.v_charge;
-  status_msg.charge_current = last_ll_status.charging_current;
+  mower_msgs::Power power_msg{};
+  power_msg.v_battery = last_ll_status.v_system;
+  power_msg.v_charge = last_ll_status.v_charge;
+  power_msg.charge_current = last_ll_status.charging_current;
 
   xesc_msgs::XescStateStamped mow_status, left_status, right_status;
   if (mow_xesc_interface) {
@@ -225,9 +250,12 @@ void publishStatus() {
   left_xesc_interface->getStatus(left_status);
   right_xesc_interface->getStatus(right_status);
 
-  convertStatus(mow_status, status_msg.mow_esc_status);
-  convertStatus(left_status, status_msg.left_esc_status);
-  convertStatus(right_status, status_msg.right_esc_status);
+  mower_msgs::ESCStatus left_esc_status{};
+  mower_msgs::ESCStatus right_esc_status{};
+
+  // convertStatus(mow_status, status_msg.mow_esc_status);
+  convertStatus(left_status, left_esc_status);
+  convertStatus(right_status, right_esc_status);
 
   status_pub.publish(status_msg);
 

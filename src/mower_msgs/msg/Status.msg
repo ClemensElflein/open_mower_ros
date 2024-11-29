@@ -17,6 +17,7 @@ bool ui_board_available
 bool mow_enabled
 
 # ESC stuff
+uint8   mower_esc_status
 float32 mower_esc_temperature
 float32 mower_esc_current
 float32 mower_motor_temperature
