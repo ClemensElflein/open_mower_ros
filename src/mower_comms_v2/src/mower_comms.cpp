@@ -28,6 +28,7 @@
 #include "DiffDriveServiceInterface.h"
 #include "DockingSensorServiceInterface.h"
 #include "EmergencyServiceInterface.h"
+#include "GpsPositionServiceInterface.h"
 #include "ImuServiceInterface.h"
 #include "LidarServiceInterface.h"
 #include "MowerServiceInterface.h"
@@ -35,6 +36,7 @@
 
 ros::Publisher status_pub;
 ros::Publisher power_pub;
+ros::Publisher gps_position_pub;
 ros::Publisher status_left_esc_pub;
 ros::Publisher status_right_esc_pub;
 ros::Publisher emergency_pub;
@@ -53,6 +55,7 @@ std::unique_ptr<ImuServiceInterface> imu_service = nullptr;
 std::unique_ptr<LidarServiceInterface> lidar_service = nullptr;
 std::unique_ptr<PowerServiceInterface> power_service = nullptr;
 std::unique_ptr<DockingSensorServiceInterface> docking_sensor_service = nullptr;
+std::unique_ptr<GpsPositionServiceInterface> gps_position_service = nullptr;
 
 xbot::serviceif::Context ctx{};
 
@@ -109,6 +112,7 @@ int main(int argc, char **argv) {
   sensor_dock_pub = n.advertise<mower_msgs::DockingSensor>("ll/dock_sensor", 1);
   sensor_lidar_pub = n.advertise<sensor_msgs::LaserScan>("ll/lidar", 1);
   power_pub = n.advertise<mower_msgs::Power>("ll/power", 1);
+  gps_position_pub = n.advertise<xbot_msgs::AbsolutePose>("ll/position/gps", 1);
   ros::ServiceServer mow_service = n.advertiseService("ll/mower/mow_enabled", setMowEnabled);
   ros::ServiceServer ros_emergency_service = n.advertiseService("ll/emergency", setEmergencyStop);
   ros::Subscriber cmd_vel_sub = n.subscribe("ll/cmd_vel", 0, velReceived, ros::TransportHints().tcpNoDelay(true));
@@ -123,6 +127,7 @@ int main(int argc, char **argv) {
   mower_service = std::make_unique<MowerServiceInterface>(3, ctx, status_pub);
   imu_service = std::make_unique<ImuServiceInterface>(4, ctx, sensor_imu_pub);
   power_service = std::make_unique<PowerServiceInterface>(5, ctx, power_pub);
+  gps_position_service = std::make_unique<GpsPositionServiceInterface>(6, ctx, gps_position_pub);
   lidar_service = std::make_unique<LidarServiceInterface>(42, ctx, sensor_lidar_pub);
   docking_sensor_service = std::make_unique<DockingSensorServiceInterface>(43, ctx, sensor_dock_pub);
 
@@ -133,6 +138,7 @@ int main(int argc, char **argv) {
   lidar_service->Start();
   power_service->Start();
   docking_sensor_service->Start();
+  gps_position_service->Start();
 
   ros::spin();
 

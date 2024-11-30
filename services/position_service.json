@@ -24,7 +24,7 @@
     },
     {
       "id": 3,
-      "name": "MotionVectorENU",
+      "name": "MotionVectorXYZ",
       "type": "double[3]"
     },
     {
@@ -60,6 +60,6 @@
       "type": "double[3]"
     }
   ],
-  "type": "GpsService",
+  "type": "PositionService",
   "version": 1
 }

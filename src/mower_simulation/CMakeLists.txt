@@ -157,9 +157,27 @@ include_directories(
 #   ${catkin_LIBRARIES}
 # )
 
-add_executable(mower_simulation src/mower_simulation.cpp)
+add_executable(mower_simulation
+        src/mower_simulation.cpp
+        src/SimRobot.cpp
+        src/SimRobot.h
+        src/services/imu_service/imu_service.cpp
+        src/services/power_service/power_service.cpp
+        src/services/emergency_service/emergency_service.cpp
+                src/services/diff_drive_service/diff_drive_service.cpp
+        src/services/mower_service/mower_service.cpp
+        src/services/position_service/position_service.cpp
+)
 add_dependencies(mower_simulation ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
-target_link_libraries(mower_simulation ${catkin_LIBRARIES})
+target_link_libraries(mower_simulation PUBLIC ${catkin_LIBRARIES} spdlog::spdlog)
+
+target_add_service(mower_simulation ImuService ${CMAKE_CURRENT_SOURCE_DIR}/../../services/imu_service.json)
+target_add_service(mower_simulation PowerService ${CMAKE_CURRENT_SOURCE_DIR}/../../services/power_service.json)
+target_add_service(mower_simulation EmergencyService ${CMAKE_CURRENT_SOURCE_DIR}/../../services/emergency_service.json)
+target_add_service(mower_simulation DiffDriveService ${CMAKE_CURRENT_SOURCE_DIR}/../../services/diff_drive_service.json)
+target_add_service(mower_simulation MowerService ${CMAKE_CURRENT_SOURCE_DIR}/../../services/mower_service.json)
+target_add_service(mower_simulation PositionService ${CMAKE_CURRENT_SOURCE_DIR}/../../services/position_service.json)
+
 
 #############
 ## Install ##
