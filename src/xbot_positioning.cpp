@@ -109,7 +109,7 @@ void onImu(const sensor_msgs::Imu::ConstPtr &msg) {
 
     odometry.header.stamp = ros::Time::now();
     odometry.header.seq++;
-    odometry.header.frame_id = "odom";
+    odometry.header.frame_id = "map";
     odometry.child_frame_id = "base_link";
     odometry.pose.pose.position.x = x.x_pos();
     odometry.pose.pose.position.y = x.y_pos();
