@@ -1,0 +1,60 @@
+{
+  "inputs": [
+    {
+      "id": 0,
+      "name": "State ID",
+      "type": "uint8_t"
+    },
+    {
+      "id": 1,
+      "name": "State Name",
+      "type": "char[100]"
+    },
+    {
+      "id": 2,
+      "name": "Gps Quality",
+      "type": "float"
+    },
+    {
+      "id": 3,
+      "name": "Battery Percent",
+      "type": "float"
+    }
+  ],
+  "outputs": [
+    {
+      "id": 8,
+      "name": "Left ESC Temperature",
+      "type": "uint8_t"
+    },
+    {
+      "id": 9,
+      "name": "Right ESC Temperature",
+      "type": "uint8_t"
+    },
+    {
+      "id": 10,
+      "name": "Mow ESC Temperature",
+      "type": "uint8_t"
+    },
+    {
+      "id": 11,
+      "name": "Mow Motor Temperature",
+      "type": "uint8_t"
+    }
+  ],
+  "registers": [
+    {
+      "id": 0,
+      "name": "Wheel Ticks Per Meter",
+      "type": "double"
+    },
+    {
+      "id": 1,
+      "name": "Wheel Distance",
+      "type": "double"
+    }
+  ],
+  "type": "MowerUiService",
+  "version": 1
+}

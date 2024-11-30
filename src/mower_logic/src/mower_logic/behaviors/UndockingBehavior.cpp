@@ -17,12 +17,15 @@
 //
 #include "UndockingBehavior.h"
 
+#include <mower_msgs/Power.h>
+
 #include "tf2_eigen/tf2_eigen.h"
 
 extern ros::ServiceClient dockingPointClient;
 extern actionlib::SimpleActionClient<mbf_msgs::ExePathAction> *mbfClientExePath;
 extern xbot_msgs::AbsolutePose getPose();
 extern mower_msgs::Status getStatus();
+extern mower_msgs::Power getPower();
 
 extern void setRobotPose(geometry_msgs::Pose &pose);
 extern void stopMoving();
@@ -136,7 +139,7 @@ void UndockingBehavior::enter() {
   docking_pose_stamped.header.stamp = ros::Time::now();
 
   // set the robot's position to the dock if we're actually docked
-  if (getStatus().v_charge > 5.0) {
+  if (getPower().v_charge > 5.0) {
     ROS_INFO_STREAM("Currently inside the docking station, we set the robot's pose to the docks pose.");
     setRobotPose(docking_pose_stamped.pose);
   }

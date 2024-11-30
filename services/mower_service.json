@@ -1,0 +1,49 @@
+{
+  "inputs": [
+    {
+      "id": 0,
+      "name": "MowerEnabled",
+      "type": "uint8_t"
+    }
+  ],
+  "outputs": [
+    {
+      "id": 0,
+      "name": "Mower Status",
+      "type": "uint8_t"
+    },
+    {
+      "id": 1,
+      "name": "Rain Detected",
+      "type": "uint8_t"
+    },
+    {
+      "id": 2,
+      "name": "Mower Running",
+      "type": "uint8_t"
+    },
+    {
+      "id": 3,
+      "name": "Mower ESC Temperature",
+      "type": "float"
+    },
+    {
+      "id": 4,
+      "name": "Mower Motor Temperature",
+      "type": "float"
+    },
+    {
+      "id": 5,
+      "name": "Mower Motor Current",
+      "type": "float"
+    },
+    {
+      "id": 6,
+      "name": "Mower Motor RPM",
+      "type": "float"
+    }
+  ],
+  "registers": [],
+  "type": "MowerService",
+  "version": 1
+}
