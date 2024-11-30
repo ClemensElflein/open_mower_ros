@@ -66,9 +66,9 @@ void SimRobot::GetPosition(double& x, double& y, double& heading) {
   x += position_noise(generator);
   y += position_noise(generator);
   heading += heading_noise(generator);
-  heading = fmod(heading, M_PI*2.0);
-  while(heading < 0) {
-    heading += M_PI*2.0;
+  heading = fmod(heading, M_PI * 2.0);
+  while (heading < 0) {
+    heading += M_PI * 2.0;
   }
 }
 void SimRobot::GetIsCharging(bool& charging, double& seconds_since_start, std::string& charging_status,
@@ -82,45 +82,48 @@ void SimRobot::GetIsCharging(bool& charging, double& seconds_since_start, std::s
   battery_volts = battery_volts_;
 }
 void SimRobot::SimulationStep(const ros::TimerEvent& te) {
+  std::lock_guard<std::mutex> lk{state_mutex_};
   const auto now = ros::Time::now();
-  // Update Position
-  double time_diff_s = (now - last_update_).toSec();
-  double delta_x = (vx_ * cos(pos_heading_)) * time_diff_s;
-  double delta_y = (vx_ * sin(pos_heading_)) * time_diff_s;
-  double delta_th = vr_ * time_diff_s;
-  pos_x_ += delta_x;
-  pos_y_ += delta_y;
-  pos_heading_ += delta_th;
-  pos_heading_ = fmod(pos_heading_, M_PI*2.0);
-  if (pos_heading_ < 0) {
-    pos_heading_ += M_PI*2.0;
+  // Update Position if not in emergency mode
+  if (!emergency_latch_) {
+    double time_diff_s = (now - last_update_).toSec();
+    double delta_x = (vx_ * cos(pos_heading_)) * time_diff_s;
+    double delta_y = (vx_ * sin(pos_heading_)) * time_diff_s;
+    double delta_th = vr_ * time_diff_s;
+    pos_x_ += delta_x;
+    pos_y_ += delta_y;
+    pos_heading_ += delta_th;
+    pos_heading_ = fmod(pos_heading_, M_PI * 2.0);
+    if (pos_heading_ < 0) {
+      pos_heading_ += M_PI * 2.0;
+    }
   }
 
-
   // Update Charger Status
-  if(sqrt((docking_pos_x_-pos_x_)*(docking_pos_x_-pos_x_)+(docking_pos_y_-pos_y_)*(docking_pos_y_-pos_y_)) < 0.5) {
-    if(!is_charging_) {
+  if (sqrt((docking_pos_x_ - pos_x_) * (docking_pos_x_ - pos_x_) +
+           (docking_pos_y_ - pos_y_) * (docking_pos_y_ - pos_y_)) < 0.5) {
+    if (!is_charging_) {
       spdlog::info("Charging");
       is_charging_ = true;
       charging_started_time = ros::Time::now();
     }
   } else {
-    if(is_charging_) {
+    if (is_charging_) {
       spdlog::info("Stopped Charging");
       is_charging_ = false;
     }
   }
 
-  if(is_charging_) {
-    if(battery_volts_ < BATTERY_VOLTS_MAX) {
+  if (is_charging_) {
+    if (battery_volts_ < BATTERY_VOLTS_MAX) {
       charger_state_ = "CC";
       battery_volts_ += 0.05;
-      if(battery_volts_ > BATTERY_VOLTS_MAX) {
+      if (battery_volts_ > BATTERY_VOLTS_MAX) {
         battery_volts_ = BATTERY_VOLTS_MAX;
       }
       charger_volts_ = CHARGE_VOLTS;
       charge_current_ = CHARGE_CURRENT;
-    } else if(charge_current_ > 0.2) {
+    } else if (charge_current_ > 0.2) {
       charger_state_ = "CV";
       battery_volts_ = BATTERY_VOLTS_MAX;
       charger_volts_ = CHARGE_VOLTS;
