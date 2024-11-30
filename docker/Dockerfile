@@ -8,7 +8,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 #   - nginx (remove default site to free up port 80)
 RUN apt-get update && apt-get install --yes \
     git \
-    mosquitto \
+    mosquitto python3.8-venv \
     nginx && rm -rf /var/www /etc/nginx/sites-enabled/* \
     rm -rf /var/lib/apt/lists/*
 
