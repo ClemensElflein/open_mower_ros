@@ -1,0 +1,29 @@
+{
+  "inputs": [
+    {
+      "id": 0,
+      "name": "Set Emergency",
+      "type": "uint8_t"
+    }
+  ],
+  "outputs": [
+    {
+      "id": 0,
+      "name": "Emergency Active",
+      "type": "uint8_t"
+    },
+    {
+      "id": 1,
+      "name": "Emergency Latch",
+      "type": "uint8_t"
+    },
+    {
+      "id": 2,
+      "name": "Emergency Reason",
+      "type": "char[255]"
+    }
+  ],
+  "registers": [],
+  "type": "EmergencyService",
+  "version": 1
+}

@@ -1,0 +1,65 @@
+{
+  "inputs": [
+    {
+      "id": 0,
+      "name": "Control Twist",
+      "type": "double[6]"
+    }
+  ],
+  "outputs": [
+    {
+      "id": 0,
+      "name": "Actual Twist",
+      "type": "double[6]"
+    },
+    {
+      "id": 1,
+      "name": "Left ESC Status",
+      "type": "uint8_t"
+    },
+    {
+      "id": 2,
+      "name": "Left ESC Temperature",
+      "type": "float"
+    },
+    {
+      "id": 3,
+      "name": "Left ESC Current",
+      "type": "float"
+    },
+    {
+      "id": 4,
+      "name": "Right ESC Status",
+      "type": "uint8_t"
+    },
+    {
+      "id": 5,
+      "name": "Right ESC Temperature",
+      "type": "float"
+    },
+    {
+      "id": 6,
+      "name": "Right ESC Current",
+      "type": "float"
+    },
+    {
+      "id": 7,
+      "name": "Wheel Ticks",
+      "type": "uint32_t[2]"
+    }
+  ],
+  "registers": [
+    {
+      "id": 0,
+      "name": "Wheel Ticks Per Meter",
+      "type": "double"
+    },
+    {
+      "id": 1,
+      "name": "Wheel Distance",
+      "type": "double"
+    }
+  ],
+  "type": "DiffDriveService",
+  "version": 1
+}

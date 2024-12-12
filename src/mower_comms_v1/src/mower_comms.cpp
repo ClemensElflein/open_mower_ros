@@ -18,6 +18,7 @@
 //
 #include <dynamic_reconfigure/client.h>
 #include <geometry_msgs/Twist.h>
+#include <mower_msgs/Emergency.h>
 #include <mower_msgs/Status.h>
 #include <sensor_msgs/Joy.h>
 #include <serial/serial.h>
@@ -27,6 +28,8 @@
 
 #include <algorithm>
 #include <bitset>
+#include <mower_msgs/ESCStatus.h>
+#include <mower_msgs/Power.h>
 
 #include "COBS.h"
 #include "boost/crc.hpp"
@@ -44,6 +47,7 @@
 #include "std_msgs/Empty.h"
 
 ros::Publisher status_pub;
+ros::Publisher emergency_pub;
 ros::Publisher wheel_tick_pub;
 
 ros::Publisher sensor_imu_pub;
@@ -55,6 +59,8 @@ COBS cobs;
 bool emergency_high_level = false;
 // True, if the LL board thinks there should be an emergency
 bool emergency_low_level = false;
+// Bits are set showing which emergency is active
+uint8_t active_low_level_emergency = 0;
 
 // True, if the LL emergency should be cleared in the next request
 bool ll_clear_emergency = false;
@@ -169,6 +175,28 @@ void convertStatus(xesc_msgs::XescStateStamped &vesc_status, mower_msgs::ESCStat
   ros_esc_status.temperature_pcb = vesc_status.state.temperature_pcb;
 }
 
+void convertStatus(xesc_msgs::XescStateStamped &vesc_status, uint8_t &esc_status, double &esc_temperature,
+double &esc_current,
+double &motor_temperature,
+double &motor_rpm) {
+  if (vesc_status.state.connection_state != xesc_msgs::XescState::XESC_CONNECTION_STATE_CONNECTED &&
+      vesc_status.state.connection_state != xesc_msgs::XescState::XESC_CONNECTION_STATE_CONNECTED_INCOMPATIBLE_FW) {
+    // ESC is disconnected
+    esc_status = mower_msgs::ESCStatus::ESC_STATUS_DISCONNECTED;
+  } else if (vesc_status.state.fault_code) {
+    ROS_ERROR_STREAM_THROTTLE(1, "Motor controller fault code: " << vesc_status.state.fault_code);
+    // ESC has a fault
+    esc_status = mower_msgs::ESCStatus::ESC_STATUS_ERROR;
+  } else {
+    // ESC is OK but standing still
+    esc_status = mower_msgs::ESCStatus::ESC_STATUS_OK;
+  }
+  motor_rpm = vesc_status.state.rpm;
+  esc_current = vesc_status.state.current_input;
+  motor_temperature = vesc_status.state.temperature_motor;
+  esc_temperature = vesc_status.state.temperature_pcb;
+}
+
 void publishStatus() {
   mower_msgs::Status status_msg;
   status_msg.stamp = ros::Time::now();
@@ -190,12 +218,9 @@ void publishStatus() {
   status_msg.ui_board_available = (last_ll_status.status_bitmask & 0b10000000) != 0;
   status_msg.mow_enabled = !(target_speed_mow == 0);
 
-  for (uint8_t i = 0; i < 5; i++) {
-    status_msg.ultrasonic_ranges[i] = last_ll_status.uss_ranges_m[i];
-  }
-
   // overwrite emergency with the LL value.
   emergency_low_level = last_ll_status.emergency_bitmask > 0;
+  active_low_level_emergency = last_ll_status.emergency_bitmask & 0xFE;
   if (!emergency_low_level) {
     // it obviously worked, reset the request
     ll_clear_emergency = false;
@@ -204,11 +229,17 @@ void publishStatus() {
   }
 
   // True, if high or low level emergency condition is present
-  status_msg.emergency = is_emergency();
+  mower_msgs::Emergency emergency_msg{};
+  emergency_msg.stamp = status_msg.stamp;
+  emergency_msg.active_emergency = active_low_level_emergency > 0;
+  emergency_msg.latched_emergency = is_emergency();
+  emergency_msg.reason = "";
+  emergency_pub.publish(emergency_msg);
 
-  status_msg.v_battery = last_ll_status.v_system;
-  status_msg.v_charge = last_ll_status.v_charge;
-  status_msg.charge_current = last_ll_status.charging_current;
+  mower_msgs::Power power_msg{};
+  power_msg.v_battery = last_ll_status.v_system;
+  power_msg.v_charge = last_ll_status.v_charge;
+  power_msg.charge_current = last_ll_status.charging_current;
 
   xesc_msgs::XescStateStamped mow_status, left_status, right_status;
   if (mow_xesc_interface) {
@@ -219,9 +250,12 @@ void publishStatus() {
   left_xesc_interface->getStatus(left_status);
   right_xesc_interface->getStatus(right_status);
 
-  convertStatus(mow_status, status_msg.mow_esc_status);
-  convertStatus(left_status, status_msg.left_esc_status);
-  convertStatus(right_status, status_msg.right_esc_status);
+  mower_msgs::ESCStatus left_esc_status{};
+  mower_msgs::ESCStatus right_esc_status{};
+
+  // convertStatus(mow_status, status_msg.mow_esc_status);
+  convertStatus(left_status, left_esc_status);
+  convertStatus(right_status, right_esc_status);
 
   status_pub.publish(status_msg);
 
@@ -608,7 +642,7 @@ void reconfigCB(const mower_logic::MowerLogicConfig &config) {
 }
 
 int main(int argc, char **argv) {
-  ros::init(argc, argv, "mower_comms");
+  ros::init(argc, argv, "mower_comms_v1");
 
   sensor_mag_msg.header.seq = 0;
   sensor_imu_msg.header.seq = 0;
@@ -657,6 +691,7 @@ int main(int argc, char **argv) {
   right_xesc_interface = new xesc_driver::XescDriver(n, rightParamNh);
 
   status_pub = n.advertise<mower_msgs::Status>("mower/status", 1);
+  emergency_pub = n.advertise<mower_msgs::Emergency>("mower/emergency", 1);
   wheel_tick_pub = n.advertise<xbot_msgs::WheelTick>("mower/wheel_ticks", 1);
 
   sensor_imu_pub = n.advertise<sensor_msgs::Imu>("imu/data_raw", 1);

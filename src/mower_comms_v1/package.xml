@@ -1,14 +1,15 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>mower_comms</name>
+  <name>mower_comms_v1</name>
   <version>0.0.0</version>
-  <description>The mower_comms package</description>
+  <description>The mower_comms_v1 package</description>
   <maintainer email="clemens1@familie-elflein.de">Clemens Elflein</maintainer>
   <license>CC BY-NC-SA 4.0</license>
 
   <url type="website">https://github.com/ClemensElflein/OpenMower</url>
 
   <buildtool_depend>catkin</buildtool_depend>
+  <depend>xbot_framework</depend>
   <build_depend>xbot_msgs</build_depend>
   <build_depend>mower_msgs</build_depend>
   <build_depend>sensor_msgs</build_depend>

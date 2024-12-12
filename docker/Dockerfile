@@ -8,7 +8,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 #   - nginx (remove default site to free up port 80)
 RUN apt-get update && apt-get install --yes \
     git \
-    mosquitto \
+    mosquitto python3.8-venv \
     nginx && rm -rf /var/www /etc/nginx/sites-enabled/* \
     rm -rf /var/lib/apt/lists/*
 
@@ -43,7 +43,7 @@ COPY --link --from=fetch /opt/open_mower_ros/src/lib/slic3r_coverage_planner /op
 WORKDIR /opt/slic3r_coverage_planner_workspace
 RUN rosdep install --from-paths src --ignore-src --simulate | \
     sed --expression '1d' | sort | tr -d '\n' | sed --expression 's/  apt-get install//g' > apt-install_list && \
-    apt-get update && apt-get install --no-install-recommends --yes $(cat apt-install_list) && \
+    apt-get update && apt-get install --no-install-recommends --yes $(cat apt-install_list) libasio-dev && \
     rm -rf /var/lib/apt/lists/* apt-install_list
 RUN bash -c "source /opt/ros/$ROS_DISTRO/setup.bash && catkin_make"
 RUN bash -c "source /opt/ros/$ROS_DISTRO/setup.bash && source /opt/slic3r_coverage_planner_workspace/devel/setup.bash && catkin_make -DCMAKE_INSTALL_PREFIX=/opt/prebuilt/slic3r_coverage_planner install"
@@ -77,7 +77,7 @@ COPY --link --from=slic3r /opt/prebuilt/slic3r_coverage_planner /opt/prebuilt/sl
 #Fetch the list of packages, this only changes if new dependencies have been added (only sometimes)
 COPY --link --from=dependencies /apt-install_list /apt-install_list
 RUN apt-get update && \
-    apt-get install --no-install-recommends --yes $(cat /apt-install_list) && \
+    apt-get install --no-install-recommends --yes $(cat /apt-install_list) libasio-dev && \
     rm -rf /var/lib/apt/lists/*
 
 # This will already have the submodules initialized, no need to clone again

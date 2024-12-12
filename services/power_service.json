@@ -1,0 +1,39 @@
+{
+  "inputs": [
+    {
+      "id": 0,
+      "name": "Charging Allowed",
+      "type": "uint8_t"
+    }
+  ],
+  "outputs": [
+    {
+      "id": 0,
+      "name": "Charge Voltage",
+      "type": "float"
+    },
+    {
+      "id": 1,
+      "name": "Charge Current",
+      "type": "float"
+    },
+    {
+      "id": 2,
+      "name": "Battery Voltage",
+      "type": "float"
+    },
+    {
+      "id": 3,
+      "name": "Charging Status",
+      "type": "char[25]"
+    },
+    {
+      "id": 4,
+      "name": "Charger Enabled",
+      "type": "uint8_t"
+    }
+  ],
+  "registers": [],
+  "type": "PowerService",
+  "version": 1
+}
