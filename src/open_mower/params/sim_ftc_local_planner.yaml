@@ -1,4 +1,6 @@
 FTCPlanner:
+  check_obstacles: false
+  oscillation_recovery: false
   acceleration: 2.0
   goal_timeout: 2.5
   kd_ang: 0.1
