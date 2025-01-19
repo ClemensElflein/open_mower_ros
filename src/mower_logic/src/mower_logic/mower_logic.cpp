@@ -75,6 +75,7 @@ ros::Time pose_time(0.0);
 xbot_msgs::AbsolutePose last_pose;
 ros::Time status_time(0.0);
 mower_msgs::Status last_status;
+ros::Time joy_vel_time(0.0);
 
 ros::Time last_good_gps(0.0);
 
@@ -494,6 +495,12 @@ void checkSafety(const ros::TimerEvent &timer_event) {
     }
   }
 
+  if (currentBehavior != nullptr && currentBehavior->redirect_joystick()) {
+    if (ros::Time::now() - joy_vel_time > ros::Duration(10)) {
+      stopMoving(); // To avoid cmd_vel receive timeout in mower_comms
+    }
+  }
+
   // enable the mower (if not aleady) if mowerAllowed is still true after checks and bahavior agrees
   setMowerEnabled(currentBehavior != nullptr && mowerAllowed && currentBehavior->mower_enabled());
 
@@ -636,6 +643,7 @@ void actionReceived(const std_msgs::String::ConstPtr &action) {
 }
 
 void joyVelReceived(const geometry_msgs::Twist::ConstPtr &joy_vel) {
+  joy_vel_time = ros::Time::now();
   if (currentBehavior && currentBehavior->redirect_joystick()) {
     cmd_vel_pub.publish(joy_vel);
   }
