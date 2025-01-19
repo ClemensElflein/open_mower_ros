@@ -31,10 +31,15 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
-        docker_build_arch: [ linux/arm64 , linux/amd64 ]
+        os: [ ubuntu-24.04-arm, ubuntu-24.04 ]
+        include:
+          - os: ubuntu-24.04-arm
+            docker_build_arch: arm64
+          - os: ubuntu-24.04
+            docker_build_arch: amd64
     steps:
       - name: Prepare
         env:
@@ -64,18 +69,6 @@ jobs:
           # list of Docker images to use as base name for tags
           images: |
             ghcr.io/${{ env.REPOSITORY_LC }}
-
-      # https://github.com/docker/setup-qemu-action
-      - name: Set up QEMU (arm64)
-        if: runner.arch != 'arm64' && matrix.docker_build_arch == 'linux/arm64'
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: arm64
-      - name: Set up QEMU (x64)
-        if: runner.arch != 'x64' && matrix.docker_build_arch == 'linux/amd64'
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: amd64
 
       # https://github.com/docker/setup-buildx-action
       - name: Set up Docker Buildx
