@@ -9,8 +9,10 @@ RUN groupadd -g ${MY_GID} -o ${MY_USER}
 # Create a new user, assign it to the group, and set its shell to bash
 RUN useradd -m -u ${MY_UID} -g ${MY_GID} -o -s /bin/bash ${MY_USER} && yes ${MY_USER} | passwd ${MY_USER}
 
+RUN echo $MY_USER ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$MY_USER \
+    && chmod 0440 /etc/sudoers.d/$MY_USER
+
 RUN apt-get update && apt-get install -y zsh git sudo ssh gdb rsync
-RUN echo "$MY_USER ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
 RUN ( \
     echo 'LogLevel DEBUG2'; \
@@ -21,6 +23,8 @@ RUN ( \
   ) > /etc/ssh/sshd_clion \
   && mkdir /run/sshd
 RUN bash -c "ssh-keygen -A"
+
+RUN echo "$MY_USER ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
 # Update rosdep package manager for ROS
 RUN rosdep update --rosdistro $ROS_DISTRO
