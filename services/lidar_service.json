@@ -1,6 +1,4 @@
 {
-  "type": "LidarService",
-  "version": 1,
   "inputs": [],
   "outputs": [
     {
@@ -49,5 +47,7 @@
       "type": "uint8_t"
     }
   ],
-  "registers": []
+  "registers": [],
+  "type": "LidarService",
+  "version": 1
 }
