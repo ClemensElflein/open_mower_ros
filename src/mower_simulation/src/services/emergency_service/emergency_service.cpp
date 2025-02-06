@@ -4,18 +4,12 @@
 
 #include "emergency_service.hpp"
 
-bool EmergencyService::Configure() {
-  // No config needed
-  return true;
-}
 void EmergencyService::OnStart() {
   robot_.SetEmergency(true, "Boot");
 }
 
 void EmergencyService::OnStop() {
   robot_.SetEmergency(true, "Service Stopped");
-}
-void EmergencyService::OnCreate() {
 }
 
 void EmergencyService::tick() {

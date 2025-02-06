@@ -23,7 +23,6 @@ class DockingSensorServiceInterface : public DockingSensorServiceInterfaceBase {
   void OnDetectedSensorsRightChanged(const uint8_t& new_value) override;
 
  private:
-  void OnServiceConnected(uint16_t service_id) override;
   void OnTransactionStart(uint64_t timestamp) override;
   void OnTransactionEnd() override;
   const ros::Publisher& sensor_publisher_;

@@ -27,10 +27,6 @@ void EmergencyServiceInterface::Heartbeat() {
   SendSetEmergency(latched_emergency_);
 }
 
-bool EmergencyServiceInterface::OnConfigurationRequested(uint16_t service_id) {
-  // No config needed
-  return true;
-}
 void EmergencyServiceInterface::OnEmergencyActiveChanged(const uint8_t& new_value) {
   std::unique_lock<std::recursive_mutex> lk{state_mutex_};
   active_low_level_emergency_ = new_value;
@@ -49,8 +45,7 @@ void EmergencyServiceInterface::OnEmergencyLatchChanged(const uint8_t& new_value
 void EmergencyServiceInterface::OnEmergencyReasonChanged(const char* new_value, uint32_t length) {
   latest_emergency_reason_ = std::string{new_value, length};
 }
-void EmergencyServiceInterface::OnTransactionStart(uint64_t timestamp) {
-}
+
 void EmergencyServiceInterface::OnTransactionEnd() {
   // Send the packet
   PublishEmergencyState();

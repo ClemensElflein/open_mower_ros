@@ -52,7 +52,6 @@ class DiffDriveServiceInterface : public DiffDriveServiceInterfaceBase {
 
  private:
   void OnServiceConnected(uint16_t service_id) override;
-  void OnTransactionStart(uint64_t timestamp) override;
   void OnTransactionEnd() override;
   void OnServiceDisconnected(uint16_t service_id) override;
 

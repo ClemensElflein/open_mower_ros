@@ -19,8 +19,6 @@ class DiffDriveService : public DiffDriveServiceBase {
 
  protected:
   bool Configure() override;
-  void OnStart() override;
-  void OnCreate() override;
   void OnStop() override;
 
  private:

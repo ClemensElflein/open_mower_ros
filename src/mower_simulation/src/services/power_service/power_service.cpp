@@ -6,16 +6,6 @@
 
 PowerService::PowerService(uint16_t service_id, SimRobot& robot) : PowerServiceBase(service_id, 200000), robot_(robot) {
 }
-bool PowerService::Configure() {
-  return true;
-}
-
-void PowerService::OnStart() {
-}
-void PowerService::OnCreate() {
-}
-void PowerService::OnStop() {
-}
 
 void PowerService::tick() {
   bool is_charging;

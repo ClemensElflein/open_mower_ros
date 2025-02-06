@@ -4,10 +4,6 @@
 
 #include "MowerServiceInterface.h"
 
-bool MowerServiceInterface::OnConfigurationRequested(uint16_t service_id) {
-  // No configuration
-  return true;
-}
 void MowerServiceInterface::SetMowerEnabled(bool enabled) {
   SendMowerEnabled(enabled);
 }
@@ -40,6 +36,4 @@ void MowerServiceInterface::OnTransactionStart(uint64_t timestamp) {
 }
 void MowerServiceInterface::OnTransactionEnd() {
   status_publisher_.publish(status_msg_);
-}
-void MowerServiceInterface::OnServiceDisconnected(uint16_t service_id) {
 }

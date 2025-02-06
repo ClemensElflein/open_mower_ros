@@ -17,7 +17,6 @@ class MowerServiceInterface : public MowerServiceInterfaceBase {
       : MowerServiceInterfaceBase(service_id, ctx), status_publisher_(status_publisher) {
   }
 
-  bool OnConfigurationRequested(uint16_t service_id) override;
   void SetMowerEnabled(bool enabled);
 
  protected:
@@ -33,7 +32,6 @@ class MowerServiceInterface : public MowerServiceInterfaceBase {
   void OnServiceConnected(uint16_t service_id) override;
   void OnTransactionStart(uint64_t timestamp) override;
   void OnTransactionEnd() override;
-  void OnServiceDisconnected(uint16_t service_id) override;
 
  private:
   mower_msgs::Status status_msg_{};

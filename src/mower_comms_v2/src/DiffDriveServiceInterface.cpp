@@ -82,9 +82,6 @@ void DiffDriveServiceInterface::OnRightESCStatusChanged(const uint8_t& new_value
   right_esc_state_.status = new_value;
 }
 
-void DiffDriveServiceInterface::OnTransactionStart(uint64_t timestamp) {
-}
-
 void DiffDriveServiceInterface::OnServiceDisconnected(uint16_t service_id) {
   std::unique_lock<std::mutex> lk{state_mutex_};
   left_esc_state_.status = mower_msgs::ESCStatus::ESC_STATUS_DISCONNECTED;

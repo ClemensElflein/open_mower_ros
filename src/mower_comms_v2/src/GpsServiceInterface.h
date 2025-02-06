@@ -25,10 +25,8 @@ class GpsServiceInterface : public GpsServiceInterfaceBase {
   void OnVehicleHeadingAndAccuracyChanged(const double* new_value, uint32_t length) override;
 
  private:
-  void OnServiceConnected(uint16_t service_id) override;
   void OnTransactionStart(uint64_t timestamp) override;
   void OnTransactionEnd() override;
-  void OnServiceDisconnected(uint16_t service_id) override;
   const ros::Publisher& absolute_pose_publisher_;
   xbot_msgs::AbsolutePose pose_msg_;
 };

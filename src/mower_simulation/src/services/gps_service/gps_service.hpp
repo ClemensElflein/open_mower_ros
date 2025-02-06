@@ -13,12 +13,6 @@ class GpsService : public GpsServiceBase {
   explicit GpsService(uint16_t service_id, SimRobot &robot) : GpsServiceBase(service_id, 200000), robot_(robot) {
   }
 
- protected:
-  bool Configure() override;
-  void OnStart() override;
-  void OnCreate() override;
-  void OnStop() override;
-
  private:
   void tick() override;
 

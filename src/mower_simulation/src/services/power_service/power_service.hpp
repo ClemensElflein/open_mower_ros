@@ -13,12 +13,6 @@ class PowerService : public PowerServiceBase {
  public:
   explicit PowerService(uint16_t service_id, SimRobot &robot);
 
- protected:
-  bool Configure() override;
-  void OnStart() override;
-  void OnCreate() override;
-  void OnStop() override;
-
  private:
   static constexpr auto CHARGE_STATUS_ERROR = "Error";
   static constexpr auto CHARGE_STATUS_FAULT = "Error (Fault)";

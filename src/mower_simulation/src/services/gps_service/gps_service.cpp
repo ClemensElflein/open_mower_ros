@@ -3,16 +3,7 @@
 //
 
 #include "gps_service.hpp"
-bool GpsService::Configure() {
-  // We're always happy
-  return true;
-}
-void GpsService::OnStart() {
-}
-void GpsService::OnCreate() {
-}
-void GpsService::OnStop() {
-}
+
 void GpsService::tick() {
   StartTransaction();
   std::string fix_type = "FIX";

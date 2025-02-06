@@ -3,9 +3,7 @@
 //
 
 #include "PowerServiceInterface.h"
-bool PowerServiceInterface::OnConfigurationRequested(uint16_t service_id) {
-  return true;
-}
+
 void PowerServiceInterface::OnChargeVoltageChanged(const float& new_value) {
   power_msg_.v_charge = new_value;
 }

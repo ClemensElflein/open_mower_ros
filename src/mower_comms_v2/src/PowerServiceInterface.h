@@ -16,7 +16,6 @@ class PowerServiceInterface : public PowerServiceInterfaceBase {
                         const ros::Publisher& status_publisher)
       : PowerServiceInterfaceBase(service_id, ctx), status_publisher_(status_publisher) {
   }
-  bool OnConfigurationRequested(uint16_t service_id) override;
 
  protected:
   void OnChargeVoltageChanged(const float& new_value) override;

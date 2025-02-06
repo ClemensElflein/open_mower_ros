@@ -16,8 +16,6 @@ class LidarServiceInterface : public LidarServiceInterfaceBase {
       : LidarServiceInterfaceBase(service_id, ctx), lidar_publisher_(lidar_publisher) {
   }
 
-  bool OnConfigurationRequested(uint16_t service_id) override;
-
  protected:
   void OnAngleMinRadChanged(const double &new_value) override;
 

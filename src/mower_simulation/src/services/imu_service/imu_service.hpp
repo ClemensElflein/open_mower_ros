@@ -14,12 +14,6 @@ class ImuService : public ImuServiceBase {
   explicit ImuService(const uint16_t service_id, SimRobot &robot) : ImuServiceBase(service_id, 10000), robot_(robot) {
   }
 
- protected:
-  bool Configure() override;
-  void OnStart() override;
-  void OnStop() override;
-  void OnCreate() override;
-
  private:
   SimRobot &robot_;
   void tick() override;

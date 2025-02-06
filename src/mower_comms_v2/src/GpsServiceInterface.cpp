@@ -69,10 +69,7 @@ void GpsServiceInterface::OnVehicleHeadingAndAccuracyChanged(const double* new_v
   pose_msg_.orientation_accuracy = new_value[1];
   pose_msg_.orientation_valid = true;
 }
-void GpsServiceInterface::OnServiceConnected(uint16_t service_id) {
-}
+
 void GpsServiceInterface::OnTransactionEnd() {
   absolute_pose_publisher_.publish(pose_msg_);
-}
-void GpsServiceInterface::OnServiceDisconnected(uint16_t service_id) {
 }

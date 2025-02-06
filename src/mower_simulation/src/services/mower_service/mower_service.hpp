@@ -13,12 +13,6 @@ class MowerService : public MowerServiceBase {
  public:
   explicit MowerService(const uint16_t service_id, SimRobot &robot_);
 
- protected:
-  bool Configure() override;
-  void OnCreate() override;
-  void OnStart() override;
-  void OnStop() override;
-
  private:
   SimRobot &robot_;
   void tick() override;

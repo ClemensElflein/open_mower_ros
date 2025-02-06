@@ -6,10 +6,6 @@
 
 #include "spdlog/spdlog.h"
 
-bool LidarServiceInterface::OnConfigurationRequested(uint16_t service_id) {
-  return true;
-}
-
 void LidarServiceInterface::OnAngleMinRadChanged(const double &new_value) {
   angle_min = new_value;
 }
