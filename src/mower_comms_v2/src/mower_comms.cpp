@@ -28,7 +28,7 @@
 #include "DiffDriveServiceInterface.h"
 #include "DockingSensorServiceInterface.h"
 #include "EmergencyServiceInterface.h"
-#include "GpsPositionServiceInterface.h"
+#include "GpsServiceInterface.h"
 #include "ImuServiceInterface.h"
 #include "LidarServiceInterface.h"
 #include "MowerServiceInterface.h"
@@ -55,7 +55,7 @@ std::unique_ptr<ImuServiceInterface> imu_service = nullptr;
 std::unique_ptr<LidarServiceInterface> lidar_service = nullptr;
 std::unique_ptr<PowerServiceInterface> power_service = nullptr;
 std::unique_ptr<DockingSensorServiceInterface> docking_sensor_service = nullptr;
-std::unique_ptr<GpsPositionServiceInterface> gps_position_service = nullptr;
+std::unique_ptr<GpsServiceInterface> gps_service = nullptr;
 
 xbot::serviceif::Context ctx{};
 
@@ -127,7 +127,7 @@ int main(int argc, char **argv) {
   mower_service = std::make_unique<MowerServiceInterface>(3, ctx, status_pub);
   imu_service = std::make_unique<ImuServiceInterface>(4, ctx, sensor_imu_pub);
   power_service = std::make_unique<PowerServiceInterface>(5, ctx, power_pub);
-  gps_position_service = std::make_unique<GpsPositionServiceInterface>(6, ctx, gps_position_pub);
+  gps_service = std::make_unique<GpsServiceInterface>(6, ctx, gps_position_pub);
   lidar_service = std::make_unique<LidarServiceInterface>(42, ctx, sensor_lidar_pub);
   docking_sensor_service = std::make_unique<DockingSensorServiceInterface>(43, ctx, sensor_dock_pub);
 
@@ -138,7 +138,7 @@ int main(int argc, char **argv) {
   lidar_service->Start();
   power_service->Start();
   docking_sensor_service->Start();
-  gps_position_service->Start();
+  gps_service->Start();
 
   ros::spin();
 

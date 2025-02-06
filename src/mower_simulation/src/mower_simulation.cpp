@@ -41,7 +41,7 @@
 #include "services/emergency_service/emergency_service.hpp"
 #include "services/imu_service/imu_service.hpp"
 #include "services/mower_service/mower_service.hpp"
-#include "services/position_service/position_service.hpp"
+#include "services/gps_service/gps_service.hpp"
 #include "services/power_service/power_service.hpp"
 #include "xbot_msgs/AbsolutePose.h"
 #include "xbot_positioning/GPSControlSrv.h"
@@ -76,14 +76,14 @@ int main(int argc, char **argv) {
   MowerService mower_service{3, robot};
   ImuService imu_service{4, robot};
   PowerService power_service{5, robot};
-  PositionService gps_position_service{6, robot};
+  GpsService gps_service{6, robot};
 
   emergency_service.start();
   diff_drive_service.start();
   mower_service.start();
   imu_service.start();
   power_service.start();
-  gps_position_service.start();
+  gps_service.start();
 
   robot.Start();
 

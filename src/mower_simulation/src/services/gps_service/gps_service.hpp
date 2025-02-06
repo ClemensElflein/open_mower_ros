@@ -2,15 +2,15 @@
 // Created by clemens on 02.08.24.
 //
 
-#ifndef POSITION_SERVICE_HPP
-#define POSITION_SERVICE_HPP
-#include <PositionServiceBase.hpp>
+#ifndef GPS_SERVICE_HPP
+#define GPS_SERVICE_HPP
+#include <GpsServiceBase.hpp>
 #include "../../SimRobot.h"
 
-class PositionService : public PositionServiceBase {
+class GpsService : public GpsServiceBase {
 public:
- explicit PositionService(uint16_t service_id, SimRobot &robot)
-   : PositionServiceBase(service_id, 200000), robot_(robot) {
+ explicit GpsService(uint16_t service_id, SimRobot &robot)
+   : GpsServiceBase(service_id, 200000), robot_(robot) {
  }
 protected:
   bool Configure() override;
@@ -30,4 +30,4 @@ private:
 
 };
 
-#endif  // POSITION_SERVICE_HPP
+#endif  // GPS_SERVICE_HPP

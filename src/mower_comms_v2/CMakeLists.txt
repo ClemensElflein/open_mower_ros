@@ -173,8 +173,8 @@ add_executable(mower_comms_v2
         src/PowerServiceInterface.h
         src/DockingSensorServiceInterface.cpp
         src/DockingSensorServiceInterface.h
-        src/GpsPositionServiceInterface.cpp
-        src/GpsPositionServiceInterface.h
+        src/GpsServiceInterface.cpp
+        src/GpsServiceInterface.h
 )
 
 target_add_service_interface(mower_comms_v2 ImuServiceInterface ${CMAKE_CURRENT_SOURCE_DIR}/../../services/imu_service.json)
@@ -184,7 +184,7 @@ target_add_service_interface(mower_comms_v2 MowerServiceInterface ${CMAKE_CURREN
 target_add_service_interface(mower_comms_v2 LidarServiceInterface ${CMAKE_CURRENT_SOURCE_DIR}/../../services/lidar_service.json)
 target_add_service_interface(mower_comms_v2 PowerServiceInterface ${CMAKE_CURRENT_SOURCE_DIR}/../../services/power_service.json)
 target_add_service_interface(mower_comms_v2 DockingSensorServiceInterface ${CMAKE_CURRENT_SOURCE_DIR}/../../services/docking_sensor_service.json)
-target_add_service_interface(mower_comms_v2 PositionServiceInterface ${CMAKE_CURRENT_SOURCE_DIR}/../../services/position_service.json)
+target_add_service_interface(mower_comms_v2 GpsServiceInterface ${CMAKE_CURRENT_SOURCE_DIR}/../../services/gps_service.json)
 
 
 add_dependencies(mower_comms_v2 ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
