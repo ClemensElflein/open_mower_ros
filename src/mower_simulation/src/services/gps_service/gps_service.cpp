@@ -29,7 +29,7 @@ void GpsService::tick() {
   double motion_vector_enu[3]{};
   motion_vector_enu[0] = vx * cos(headingAndAccuracy[0]);
   motion_vector_enu[1] = vx * sin(headingAndAccuracy[0]);
-  SendMotionVectorENU(motion_vector_enu,3);
+  SendMotionVectorENU(motion_vector_enu, 3);
   CommitTransaction();
 }
 bool GpsService::OnRTCMChanged(const uint8_t* new_value, uint32_t length) {

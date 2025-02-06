@@ -15,7 +15,8 @@ void EmergencyService::OnStart() {
 void EmergencyService::OnStop() {
   robot_.SetEmergency(true, "Service Stopped");
 }
-void EmergencyService::OnCreate() {}
+void EmergencyService::OnCreate() {
+}
 
 void EmergencyService::tick() {
   /*// Get the current emergency state
@@ -51,7 +52,7 @@ void EmergencyService::tick() {
 }
 
 bool EmergencyService::OnSetEmergencyChanged(const uint8_t& new_value) {
-  if(new_value) {
+  if (new_value) {
     robot_.SetEmergency(true, "High Level");
   } else {
     robot_.ResetEmergency();

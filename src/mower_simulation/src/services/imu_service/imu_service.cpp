@@ -4,11 +4,14 @@
 
 #include "imu_service.hpp"
 
-bool ImuService::Configure() { return true; }
-void ImuService::OnStart() {}
-void ImuService::OnStop() {}
+bool ImuService::Configure() {
+  return true;
+}
+void ImuService::OnStart() {
+}
+void ImuService::OnStop() {
+}
 void ImuService::OnCreate() {
-
 }
 void ImuService::tick() {
   double axes[9]{};

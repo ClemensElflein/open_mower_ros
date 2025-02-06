@@ -26,8 +26,8 @@ void DiffDriveService::tick() {
   SendLeftESCStatus(200u);
   SendRightESCStatus(200u);
   double twist[6]{0};
-  robot_.GetTwist(twist[0],twist[5]);
-  SendActualTwist(twist, sizeof(twist)/sizeof(double));
+  robot_.GetTwist(twist[0], twist[5]);
+  SendActualTwist(twist, sizeof(twist) / sizeof(double));
   CommitTransaction();
 }
 

@@ -11,7 +11,6 @@ bool GpsServiceInterface::OnConfigurationRequested(uint16_t service_id) {
   return true;
 }
 
-
 void GpsServiceInterface::OnTransactionStart(uint64_t timestamp) {
   pose_msg_.header.frame_id = "gps";
   pose_msg_.header.stamp = ros::Time::now();
@@ -22,9 +21,8 @@ void GpsServiceInterface::OnTransactionStart(uint64_t timestamp) {
   pose_msg_.flags = 0;
 }
 
-
 void GpsServiceInterface::OnPositionChanged(const double* new_value, uint32_t length) {
-  if(length != 3) {
+  if (length != 3) {
     ROS_INFO_STREAM("OnPositionChanged called with length " << length);
     return;
   }
@@ -38,14 +36,14 @@ void GpsServiceInterface::OnPositionHorizontalAccuracyChanged(const double& new_
 void GpsServiceInterface::OnFixTypeChanged(const char* new_value, uint32_t length) {
   pose_msg_.flags |= xbot_msgs::AbsolutePose::FLAG_GPS_RTK;
   std::string type(new_value, length);
-  if(type == "FIX") {
+  if (type == "FIX") {
     pose_msg_.flags |= xbot_msgs::AbsolutePose::FLAG_GPS_RTK_FIXED;
-  } else if(type == "FLOAT") {
+  } else if (type == "FLOAT") {
     pose_msg_.flags |= xbot_msgs::AbsolutePose::FLAG_GPS_RTK_FLOAT;
   }
 }
 void GpsServiceInterface::OnMotionVectorENUChanged(const double* new_value, uint32_t length) {
-  if(length != 3) {
+  if (length != 3) {
     ROS_INFO_STREAM("OnMotionVectorENUChanged called with length " << length);
     return;
   }
@@ -55,7 +53,7 @@ void GpsServiceInterface::OnMotionVectorENUChanged(const double* new_value, uint
   pose_msg_.motion_vector.z = new_value[2];
 }
 void GpsServiceInterface::OnMotionHeadingAndAccuracyChanged(const double* new_value, uint32_t length) {
-  if(length != 2) {
+  if (length != 2) {
     ROS_INFO_STREAM("OnMotionHeadingAndAccuracyChanged called with length " << length);
     return;
   }
@@ -63,7 +61,7 @@ void GpsServiceInterface::OnMotionHeadingAndAccuracyChanged(const double* new_va
   pose_msg_.motion_vector_valid = true;
 }
 void GpsServiceInterface::OnVehicleHeadingAndAccuracyChanged(const double* new_value, uint32_t length) {
-  if(length != 2) {
+  if (length != 2) {
     ROS_INFO_STREAM("OnVehicleHeadingAndAccuracyChanged called with length " << length);
     return;
   }

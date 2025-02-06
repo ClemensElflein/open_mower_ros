@@ -18,7 +18,9 @@
 //
 #include <dynamic_reconfigure/client.h>
 #include <geometry_msgs/Twist.h>
+#include <mower_msgs/ESCStatus.h>
 #include <mower_msgs/Emergency.h>
+#include <mower_msgs/Power.h>
 #include <mower_msgs/Status.h>
 #include <sensor_msgs/Joy.h>
 #include <serial/serial.h>
@@ -28,8 +30,6 @@
 
 #include <algorithm>
 #include <bitset>
-#include <mower_msgs/ESCStatus.h>
-#include <mower_msgs/Power.h>
 
 #include "COBS.h"
 #include "boost/crc.hpp"
@@ -176,9 +176,7 @@ void convertStatus(xesc_msgs::XescStateStamped &vesc_status, mower_msgs::ESCStat
 }
 
 void convertStatus(xesc_msgs::XescStateStamped &vesc_status, uint8_t &esc_status, double &esc_temperature,
-double &esc_current,
-double &motor_temperature,
-double &motor_rpm) {
+                   double &esc_current, double &motor_temperature, double &motor_rpm) {
   if (vesc_status.state.connection_state != xesc_msgs::XescState::XESC_CONNECTION_STATE_CONNECTED &&
       vesc_status.state.connection_state != xesc_msgs::XescState::XESC_CONNECTION_STATE_CONNECTED_INCOMPATIBLE_FW) {
     // ESC is disconnected
@@ -497,7 +495,8 @@ T getNewSetChanged(const T t_cur, const T t_new, bool &changed) {
 
   if (!equal) changed = true;
 
-  //ROS_INFO_STREAM("DEBUG mower_comms comp. member: cur " << t_cur << " ?= " << t_new << " == equal " << equal << ", changed " << changed);
+  // ROS_INFO_STREAM("DEBUG mower_comms comp. member: cur " << t_cur << " ?= " << t_new << " == equal " << equal << ",
+  // changed " << changed);
 
   return t_new;
 }
@@ -787,9 +786,7 @@ int main(int argc, char **argv) {
                 }
                 break;
               case PACKET_ID_LL_HIGH_LEVEL_CONFIG_REQ:
-              case PACKET_ID_LL_HIGH_LEVEL_CONFIG_RSP:
-                handleLowLevelConfig(buffer_decoded, data_size);
-                break;
+              case PACKET_ID_LL_HIGH_LEVEL_CONFIG_RSP: handleLowLevelConfig(buffer_decoded, data_size); break;
               default: ROS_INFO_STREAM("Got unknown packet from Low Level Board"); break;
             }
           } else {

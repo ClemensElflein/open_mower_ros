@@ -4,21 +4,24 @@
 
 #include "power_service.hpp"
 
+PowerService::PowerService(uint16_t service_id, SimRobot& robot) : PowerServiceBase(service_id, 200000), robot_(robot) {
+}
+bool PowerService::Configure() {
+  return true;
+}
 
-PowerService::PowerService(uint16_t service_id, SimRobot &robot)
-    : PowerServiceBase(service_id, 200000), robot_(robot) {}
-bool PowerService::Configure() { return true; }
-
-void PowerService::OnStart() {  }
-void PowerService::OnCreate() {}
-void PowerService::OnStop() {}
+void PowerService::OnStart() {
+}
+void PowerService::OnCreate() {
+}
+void PowerService::OnStop() {
+}
 
 void PowerService::tick() {
   bool is_charging;
   double charging_time, charge_volts, battery_volts, charge_current;
   std::string charge_state;
   robot_.GetIsCharging(is_charging, charging_time, charge_state, charge_volts, battery_volts, charge_current);
-
 
   // Send the sensor values
   StartTransaction();
