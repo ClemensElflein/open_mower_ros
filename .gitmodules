@@ -27,4 +27,4 @@
 	url = https://github.com/ClemensElflein/xbot_remote
 [submodule "src/lib/xbot_framework"]
 	path = src/lib/xbot_framework
-	url = https://github.com/ClemensElflein/xbot_framework.git
+	url = https://github.com/xtech/xbot_framework.git
