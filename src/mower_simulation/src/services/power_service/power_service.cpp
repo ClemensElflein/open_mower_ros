@@ -22,6 +22,7 @@ void PowerService::tick() {
   SendChargingStatus(charge_state.c_str(), charge_state.length());
   CommitTransaction();
 }
+
 bool PowerService::OnChargingAllowedChanged(const uint8_t& new_value) {
   (void)new_value;
   return true;

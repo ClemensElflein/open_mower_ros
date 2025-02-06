@@ -23,6 +23,7 @@ void GpsService::tick() {
   SendMotionVectorENU(motion_vector_enu, 3);
   CommitTransaction();
 }
+
 bool GpsService::OnRTCMChanged(const uint8_t* new_value, uint32_t length) {
   return true;
 }

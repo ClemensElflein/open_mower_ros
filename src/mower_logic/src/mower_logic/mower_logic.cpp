@@ -121,9 +121,11 @@ void setConfig(mower_logic::MowerLogicConfig c) {
 mower_msgs::Status getStatus() {
   return status_state_subscriber.getMessage();
 }
+
 mower_msgs::Power getPower() {
   return power_state_subscriber.getMessage();
 }
+
 xbot_msgs::AbsolutePose getPose() {
   return pose_state_subscriber.getMessage();
 }

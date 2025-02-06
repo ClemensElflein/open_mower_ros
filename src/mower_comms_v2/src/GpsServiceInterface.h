@@ -14,6 +14,7 @@ class GpsServiceInterface : public GpsServiceInterfaceBase {
   GpsServiceInterface(uint16_t service_id, const xbot::serviceif::Context& ctx, const ros::Publisher& imu_publisher)
       : GpsServiceInterfaceBase(service_id, ctx), absolute_pose_publisher_(imu_publisher) {
   }
+
   bool OnConfigurationRequested(uint16_t service_id) override;
 
  protected:

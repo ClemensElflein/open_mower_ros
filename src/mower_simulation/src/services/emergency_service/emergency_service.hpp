@@ -10,6 +10,7 @@
 #include <EmergencyServiceBase.hpp>
 
 #include "../../SimRobot.h"
+
 class EmergencyService : public EmergencyServiceBase {
  private:
  public:

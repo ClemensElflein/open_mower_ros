@@ -135,6 +135,7 @@ void pose_received(const xbot_msgs::AbsolutePose::ConstPtr &msg) {
     sc_it->second.data_pub.publish(sensor_data);
   }
 }
+
 void power_received(const mower_msgs::Power::ConstPtr &msg) {
   // Rate limit to 2Hz
   static ros::Time last_update{0};

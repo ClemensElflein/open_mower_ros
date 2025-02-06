@@ -350,9 +350,11 @@ struct {
   void ackResponse() {  // Call this on receive of a response packet to stop monitoring
     tries_left = 0;
   };
+
   void setDirty() {  // Call this for indicating that config packet need to be resend, i.e. die to LL-reboot
     tries_left = 5;
   };
+
   void check() {
     if (!tries_left ||                                            // No request tries left (probably old LL-FW)
         !serial_port.isOpen() || !allow_send ||                   // Serial not ready

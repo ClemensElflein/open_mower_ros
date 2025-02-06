@@ -16,6 +16,7 @@ constexpr double SimRobot::CHARGE_VOLTS;
 
 SimRobot::SimRobot(ros::NodeHandle& nh) : nh_{nh} {
 }
+
 void SimRobot::Start() {
   std::lock_guard<std::mutex> lk{state_mutex_};
   if (started_) {
@@ -34,28 +35,33 @@ void SimRobot::GetTwist(double& vx, double& vr) {
   vx += linear_speed_noise(generator);
   vr += angular_speed_noise(generator);
 }
+
 void SimRobot::ResetEmergency() {
   std::lock_guard<std::mutex> lk{state_mutex_};
   emergency_active_ = false;
   emergency_latch_ = false;
 }
+
 void SimRobot::SetEmergency(bool active, const std::string& reason) {
   std::lock_guard<std::mutex> lk{state_mutex_};
   emergency_active_ = active;
   emergency_latch_ |= active;
   emergency_reason_ = reason;
 }
+
 void SimRobot::GetEmergencyState(bool& active, bool& latch, std::string& reason) {
   std::lock_guard<std::mutex> lk{state_mutex_};
   active = emergency_active_;
   latch = emergency_latch_;
   reason = emergency_reason_;
 }
+
 void SimRobot::SetControlTwist(double linear, double angular) {
   std::lock_guard<std::mutex> lk{state_mutex_};
   vx_ = linear;
   vr_ = angular;
 }
+
 void SimRobot::GetPosition(double& x, double& y, double& heading) {
   std::lock_guard<std::mutex> lk{state_mutex_};
 
@@ -71,6 +77,7 @@ void SimRobot::GetPosition(double& x, double& y, double& heading) {
     heading += M_PI * 2.0;
   }
 }
+
 void SimRobot::GetIsCharging(bool& charging, double& seconds_since_start, std::string& charging_status,
                              double& charger_volts, double& battery_volts, double& charging_current) {
   std::lock_guard<std::mutex> lk{state_mutex_};
@@ -81,6 +88,7 @@ void SimRobot::GetIsCharging(bool& charging, double& seconds_since_start, std::s
   charging_current = charge_current_;
   battery_volts = battery_volts_;
 }
+
 void SimRobot::SimulationStep(const ros::TimerEvent& te) {
   std::lock_guard<std::mutex> lk{state_mutex_};
   const auto now = ros::Time::now();

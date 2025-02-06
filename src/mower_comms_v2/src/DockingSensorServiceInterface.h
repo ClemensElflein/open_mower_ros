@@ -16,6 +16,7 @@ class DockingSensorServiceInterface : public DockingSensorServiceInterfaceBase {
                                 const ros::Publisher& sensor_publisher)
       : DockingSensorServiceInterfaceBase(service_id, ctx), sensor_publisher_(sensor_publisher) {
   }
+
   bool OnConfigurationRequested(uint16_t service_id) override;
 
  protected:

@@ -45,27 +45,33 @@ void DiffDriveServiceInterface::OnActualTwistChanged(const double* new_value, ui
     actual_twist_publisher_.publish(twist);
   }
 }
+
 void DiffDriveServiceInterface::OnLeftESCCurrentChanged(const float& new_value) {
   std::unique_lock<std::mutex> lk{state_mutex_};
   left_esc_state_.current = new_value;
 }
+
 void DiffDriveServiceInterface::OnRightESCTemperatureChanged(const float& new_value) {
   std::unique_lock<std::mutex> lk{state_mutex_};
   right_esc_state_.temperature_pcb = new_value;
 }
+
 void DiffDriveServiceInterface::OnRightESCCurrentChanged(const float& new_value) {
   std::unique_lock<std::mutex> lk{state_mutex_};
   right_esc_state_.current = new_value;
 }
+
 void DiffDriveServiceInterface::OnWheelTicksChanged(const uint32_t* new_value, uint32_t length) {
   if (length != 2) return;
   left_esc_state_.tacho = new_value[0];
   right_esc_state_.tacho = new_value[1];
 }
+
 void DiffDriveServiceInterface::OnLeftESCTemperatureChanged(const float& new_value) {
   std::unique_lock<std::mutex> lk{state_mutex_};
   left_esc_state_.temperature_pcb = new_value;
 }
+
 void DiffDriveServiceInterface::OnServiceConnected(uint16_t service_id) {
   std::unique_lock<std::mutex> lk{state_mutex_};
   left_esc_state_.status = mower_msgs::ESCStatus::ESC_STATUS_DISCONNECTED;

@@ -3,6 +3,7 @@
 //
 
 #include "GpsServiceInterface.h"
+
 bool GpsServiceInterface::OnConfigurationRequested(uint16_t service_id) {
   StartTransaction(true);
   SetRegisterBaudrate(921600);
@@ -30,9 +31,11 @@ void GpsServiceInterface::OnPositionChanged(const double* new_value, uint32_t le
   pose_msg_.pose.pose.position.y = new_value[1];
   pose_msg_.pose.pose.position.z = new_value[2];
 }
+
 void GpsServiceInterface::OnPositionHorizontalAccuracyChanged(const double& new_value) {
   pose_msg_.position_accuracy = static_cast<float>(new_value);
 }
+
 void GpsServiceInterface::OnFixTypeChanged(const char* new_value, uint32_t length) {
   pose_msg_.flags |= xbot_msgs::AbsolutePose::FLAG_GPS_RTK;
   std::string type(new_value, length);
@@ -42,6 +45,7 @@ void GpsServiceInterface::OnFixTypeChanged(const char* new_value, uint32_t lengt
     pose_msg_.flags |= xbot_msgs::AbsolutePose::FLAG_GPS_RTK_FLOAT;
   }
 }
+
 void GpsServiceInterface::OnMotionVectorENUChanged(const double* new_value, uint32_t length) {
   if (length != 3) {
     ROS_INFO_STREAM("OnMotionVectorENUChanged called with length " << length);
@@ -52,6 +56,7 @@ void GpsServiceInterface::OnMotionVectorENUChanged(const double* new_value, uint
   pose_msg_.motion_vector.y = new_value[1];
   pose_msg_.motion_vector.z = new_value[2];
 }
+
 void GpsServiceInterface::OnMotionHeadingAndAccuracyChanged(const double* new_value, uint32_t length) {
   if (length != 2) {
     ROS_INFO_STREAM("OnMotionHeadingAndAccuracyChanged called with length " << length);
@@ -60,6 +65,7 @@ void GpsServiceInterface::OnMotionHeadingAndAccuracyChanged(const double* new_va
   pose_msg_.motion_heading = new_value[0];
   pose_msg_.motion_vector_valid = true;
 }
+
 void GpsServiceInterface::OnVehicleHeadingAndAccuracyChanged(const double* new_value, uint32_t length) {
   if (length != 2) {
     ROS_INFO_STREAM("OnVehicleHeadingAndAccuracyChanged called with length " << length);
