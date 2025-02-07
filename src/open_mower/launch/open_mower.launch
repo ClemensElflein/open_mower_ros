@@ -57,7 +57,7 @@
     <node pkg="slic3r_coverage_planner" type="slic3r_coverage_planner" name="slic3r_coverage_planner" output="screen"/>
 
     <node pkg="twist_mux" type="twist_mux" name="twist_mux" output="screen">
-        <remap from="cmd_vel_out" to="/cmd_vel"/>
+        <remap from="cmd_vel_out" to="/ll/cmd_vel"/>
 
         <rosparam file="$(find open_mower)/params/twist_mux_topics.yaml"  command="load"/>
     </node>

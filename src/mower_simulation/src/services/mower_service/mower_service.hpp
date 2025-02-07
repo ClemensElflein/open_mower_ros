@@ -21,6 +21,7 @@ class MowerService : public MowerServiceBase {
 
  private:
  SimRobot &robot_;
+ bool mower_running_ = false;
   void tick() override;
 
  protected:

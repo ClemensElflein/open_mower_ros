@@ -113,8 +113,8 @@ int main(int argc, char **argv) {
   sensor_lidar_pub = n.advertise<sensor_msgs::LaserScan>("ll/lidar", 1);
   power_pub = n.advertise<mower_msgs::Power>("ll/power", 1);
   gps_position_pub = n.advertise<xbot_msgs::AbsolutePose>("ll/position/gps", 1);
-  ros::ServiceServer mow_service = n.advertiseService("ll/mower/mow_enabled", setMowEnabled);
-  ros::ServiceServer ros_emergency_service = n.advertiseService("ll/emergency", setEmergencyStop);
+  ros::ServiceServer mow_service = n.advertiseService("ll/_service/mow_enabled", setMowEnabled);
+  ros::ServiceServer ros_emergency_service = n.advertiseService("ll/_service/emergency", setEmergencyStop);
   ros::Subscriber cmd_vel_sub = n.subscribe("ll/cmd_vel", 0, velReceived, ros::TransportHints().tcpNoDelay(true));
   // ros::Subscriber high_level_status_sub = n.subscribe("/mower_logic/current_state", 0, highLevelStatusReceived);
   ros::Timer publish_timer = n.createTimer(ros::Duration(0.5), sendEmergencyHeartbeatTimerTask);

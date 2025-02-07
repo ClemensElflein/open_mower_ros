@@ -652,8 +652,8 @@ int main(int argc, char **argv) {
   positioningClient = n->serviceClient<xbot_positioning::SetPoseSrv>("xbot_positioning/set_robot_pose");
   actionRegistrationClient = n->serviceClient<xbot_msgs::RegisterActionsSrv>("xbot/register_actions");
 
-  mowClient = n->serviceClient<mower_msgs::MowerControlSrv>("mower_service/mow_enabled");
-  emergencyClient = n->serviceClient<mower_msgs::EmergencyStopSrv>("mower_service/emergency");
+  mowClient = n->serviceClient<mower_msgs::MowerControlSrv>("ll/_service/mow_enabled");
+  emergencyClient = n->serviceClient<mower_msgs::EmergencyStopSrv>("ll/_service/emergency");
 
   dockingPointClient = n->serviceClient<mower_map::GetDockingPointSrv>("mower_map_service/get_docking_point");
 
