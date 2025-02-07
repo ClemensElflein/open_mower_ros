@@ -90,55 +90,65 @@ int main(int argc, char **argv) {
 
   highLevelClient = n.serviceClient<mower_msgs::HighLevelControlSrv>("mower_service/high_level_control");
 
-  // Ticks / m and wheel distance for this robot
-  double wheel_ticks_per_m = 0.0;
-  double wheel_distance_m = 0.0;
-
-  std::string bind_ip = "0.0.0.0";
-  paramNh.getParam("bind_ip", bind_ip);
-  paramNh.getParam("wheel_ticks_per_m", wheel_ticks_per_m);
-  paramNh.getParam("wheel_distance_m", wheel_distance_m);
-
-  ROS_INFO_STREAM("Bind IP (Robot Internal): " << bind_ip);
-  ROS_INFO_STREAM("Wheel ticks [1/m]: " << wheel_ticks_per_m);
-  ROS_INFO_STREAM("Wheel distance [m]: " << wheel_distance_m);
-
-  status_pub = n.advertise<mower_msgs::Status>("ll/mower_status", 1);
-  status_left_esc_pub = n.advertise<mower_msgs::ESCStatus>("ll/diff_drive/left_esc_status", 1);
-  status_right_esc_pub = n.advertise<mower_msgs::ESCStatus>("ll/diff_drive/right_esc_status", 1);
-  emergency_pub = n.advertise<mower_msgs::Emergency>("ll/emergency", 1);
-  actual_twist_pub = n.advertise<geometry_msgs::TwistStamped>("ll/diff_drive/measured_twist", 1);
-  sensor_imu_pub = n.advertise<sensor_msgs::Imu>("ll/imu/data_raw", 1);
-  sensor_dock_pub = n.advertise<mower_msgs::DockingSensor>("ll/dock_sensor", 1);
-  sensor_lidar_pub = n.advertise<sensor_msgs::LaserScan>("ll/lidar", 1);
-  power_pub = n.advertise<mower_msgs::Power>("ll/power", 1);
-  gps_position_pub = n.advertise<xbot_msgs::AbsolutePose>("ll/position/gps", 1);
   ros::ServiceServer mow_service = n.advertiseService("ll/_service/mow_enabled", setMowEnabled);
   ros::ServiceServer ros_emergency_service = n.advertiseService("ll/_service/emergency", setEmergencyStop);
   ros::Subscriber cmd_vel_sub = n.subscribe("ll/cmd_vel", 0, velReceived, ros::TransportHints().tcpNoDelay(true));
   // ros::Subscriber high_level_status_sub = n.subscribe("/mower_logic/current_state", 0, highLevelStatusReceived);
   ros::Timer publish_timer = n.createTimer(ros::Duration(0.5), sendEmergencyHeartbeatTimerTask);
 
+  std::string bind_ip = "0.0.0.0";
+  paramNh.getParam("bind_ip", bind_ip);
+  ROS_INFO_STREAM("Bind IP (Robot Internal): " << bind_ip);
   ctx = xbot::serviceif::Start(true, bind_ip);
 
+  // Emergency service
+  emergency_pub = n.advertise<mower_msgs::Emergency>("ll/emergency", 1);
   emergency_service = std::make_unique<EmergencyServiceInterface>(1, ctx, emergency_pub);
+  emergency_service->Start();
+
+  // Diff drive service
+  actual_twist_pub = n.advertise<geometry_msgs::TwistStamped>("ll/diff_drive/measured_twist", 1);
+  status_left_esc_pub = n.advertise<mower_msgs::ESCStatus>("ll/diff_drive/left_esc_status", 1);
+  status_right_esc_pub = n.advertise<mower_msgs::ESCStatus>("ll/diff_drive/right_esc_status", 1);
+  double wheel_ticks_per_m = 0.0;
+  double wheel_distance_m = 0.0;
+  paramNh.getParam("wheel_ticks_per_m", wheel_ticks_per_m);
+  paramNh.getParam("wheel_distance_m", wheel_distance_m);
+  ROS_INFO_STREAM("Wheel ticks [1/m]: " << wheel_ticks_per_m);
+  ROS_INFO_STREAM("Wheel distance [m]: " << wheel_distance_m);
   diff_drive_service = std::make_unique<DiffDriveServiceInterface>(
       2, ctx, actual_twist_pub, status_left_esc_pub, status_right_esc_pub, wheel_ticks_per_m, wheel_distance_m);
-  mower_service = std::make_unique<MowerServiceInterface>(3, ctx, status_pub);
-  imu_service = std::make_unique<ImuServiceInterface>(4, ctx, sensor_imu_pub);
-  power_service = std::make_unique<PowerServiceInterface>(5, ctx, power_pub);
-  gps_service = std::make_unique<GpsServiceInterface>(6, ctx, gps_position_pub);
-  lidar_service = std::make_unique<LidarServiceInterface>(42, ctx, sensor_lidar_pub);
-  docking_sensor_service = std::make_unique<DockingSensorServiceInterface>(43, ctx, sensor_dock_pub);
-
-  emergency_service->Start();
   diff_drive_service->Start();
+
+  // Mower service
+  status_pub = n.advertise<mower_msgs::Status>("ll/mower_status", 1);
+  mower_service = std::make_unique<MowerServiceInterface>(3, ctx, status_pub);
   mower_service->Start();
+
+  // IMU service
+  sensor_imu_pub = n.advertise<sensor_msgs::Imu>("ll/imu/data_raw", 1);
+  imu_service = std::make_unique<ImuServiceInterface>(4, ctx, sensor_imu_pub);
   imu_service->Start();
-  lidar_service->Start();
+
+  // Power service
+  power_pub = n.advertise<mower_msgs::Power>("ll/power", 1);
+  power_service = std::make_unique<PowerServiceInterface>(5, ctx, power_pub);
   power_service->Start();
-  docking_sensor_service->Start();
+
+  //GPS service
+  gps_position_pub = n.advertise<xbot_msgs::AbsolutePose>("ll/position/gps", 1);
+  gps_service = std::make_unique<GpsServiceInterface>(6, ctx, gps_position_pub);
   gps_service->Start();
+
+  // Lidar service
+  sensor_lidar_pub = n.advertise<sensor_msgs::LaserScan>("ll/lidar", 1);
+  lidar_service = std::make_unique<LidarServiceInterface>(42, ctx, sensor_lidar_pub);
+  lidar_service->Start();
+
+  // Docking sensor service
+  sensor_dock_pub = n.advertise<mower_msgs::DockingSensor>("ll/dock_sensor", 1);
+  docking_sensor_service = std::make_unique<DockingSensorServiceInterface>(43, ctx, sensor_dock_pub);
+  docking_sensor_service->Start();
 
   ros::spin();
 
