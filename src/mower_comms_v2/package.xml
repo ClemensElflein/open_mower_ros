@@ -15,6 +15,7 @@
     <build_depend>sensor_msgs</build_depend>
     <build_depend>roscpp</build_depend>
     <build_depend>ublox_msgs</build_depend>
+    <build_depend>robot_localization</build_depend>
     <build_export_depend>xbot_msgs</build_export_depend>
     <build_export_depend>mower_msgs</build_export_depend>
     <build_export_depend>roscpp</build_export_depend>

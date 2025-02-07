@@ -135,9 +135,19 @@ int main(int argc, char **argv) {
   power_service = std::make_unique<PowerServiceInterface>(5, ctx, power_pub);
   power_service->Start();
 
-  //GPS service
+  // GPS service
+  double datum_lat, datum_long, datum_height;
+  bool has_datum = true;
+  has_datum &= paramNh.getParam("datum_lat", datum_lat);
+  has_datum &= paramNh.getParam("datum_long", datum_long);
+  has_datum &= paramNh.getParam("datum_height", datum_height);
+  if (!has_datum) {
+    ROS_ERROR_STREAM("You need to provide datum_lat and datum_long and datum_height in order to use the absolute mode");
+    return 2;
+  }
+  ROS_INFO_STREAM("Datum: " << datum_lat << ", " << datum_long << ", " << datum_height);
   gps_position_pub = n.advertise<xbot_msgs::AbsolutePose>("ll/position/gps", 1);
-  gps_service = std::make_unique<GpsServiceInterface>(6, ctx, gps_position_pub);
+  gps_service = std::make_unique<GpsServiceInterface>(6, ctx, gps_position_pub, datum_lat, datum_long, datum_height);
   gps_service->Start();
 
   // Lidar service

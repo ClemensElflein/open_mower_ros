@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
         roscpp
         xesc_msgs
         xbot_msgs
+        robot_localization
 )
 
 find_package(

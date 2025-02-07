@@ -4,6 +4,16 @@
 
 #include "GpsServiceInterface.h"
 
+#include "robot_localization/navsat_conversions.h"
+
+GpsServiceInterface::GpsServiceInterface(uint16_t service_id, const xbot::serviceif::Context& ctx,
+                                         const ros::Publisher& imu_publisher,
+                                         double datum_lat, double datum_long, double datum_height)
+    : GpsServiceInterfaceBase(service_id, ctx), absolute_pose_publisher_(imu_publisher) {
+  RobotLocalization::NavsatConversions::LLtoUTM(datum_lat, datum_long, datum_n_, datum_e_, datum_zone_);
+  datum_u_ = datum_height;
+}
+
 bool GpsServiceInterface::OnConfigurationRequested(uint16_t service_id) {
   StartTransaction(true);
   SetRegisterBaudrate(921600);

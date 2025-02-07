@@ -11,9 +11,8 @@
 
 class GpsServiceInterface : public GpsServiceInterfaceBase {
  public:
-  GpsServiceInterface(uint16_t service_id, const xbot::serviceif::Context& ctx, const ros::Publisher& imu_publisher)
-      : GpsServiceInterfaceBase(service_id, ctx), absolute_pose_publisher_(imu_publisher) {
-  }
+  GpsServiceInterface(uint16_t service_id, const xbot::serviceif::Context& ctx, const ros::Publisher& imu_publisher,
+                      double datum_lat, double datum_long, double datum_height);
 
   bool OnConfigurationRequested(uint16_t service_id) override;
 
@@ -28,8 +27,12 @@ class GpsServiceInterface : public GpsServiceInterfaceBase {
  private:
   void OnTransactionStart(uint64_t timestamp) override;
   void OnTransactionEnd() override;
+
   const ros::Publisher& absolute_pose_publisher_;
+
   xbot_msgs::AbsolutePose pose_msg_;
+  double datum_e_, datum_n_, datum_u_;
+  std::string datum_zone_;
 };
 
 #endif  // GPSSERVICEINTERFACE_H
