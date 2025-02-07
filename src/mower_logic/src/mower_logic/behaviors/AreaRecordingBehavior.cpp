@@ -225,6 +225,7 @@ void AreaRecordingBehavior::pose_received(const xbot_msgs::AbsolutePose::ConstPt
   last_pose = *msg;
   has_odom = true;
 }
+
 void AreaRecordingBehavior::joy_received(const sensor_msgs::Joy &joy_msg) {
   if (joy_msg.buttons[1] && !last_joy.buttons[1]) {
     // B was pressed. We toggle recording state
@@ -504,6 +505,7 @@ bool AreaRecordingBehavior::redirect_joystick() {
 uint8_t AreaRecordingBehavior::get_sub_state() {
   return sub_state;
 }
+
 uint8_t AreaRecordingBehavior::get_state() {
   return mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_RECORDING;
 }

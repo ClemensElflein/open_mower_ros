@@ -21,14 +21,12 @@ class EmergencyServiceInterface : public EmergencyServiceInterfaceBase {
   void Heartbeat();
 
  protected:
-  bool OnConfigurationRequested(uint16_t service_id) override;
   void OnEmergencyActiveChanged(const uint8_t& new_value) override;
   void OnEmergencyLatchChanged(const uint8_t& new_value) override;
   void OnEmergencyReasonChanged(const char* new_value, uint32_t length) override;
 
  private:
   void OnServiceConnected(uint16_t service_id) override;
-  void OnTransactionStart(uint64_t timestamp) override;
   void OnTransactionEnd() override;
   void OnServiceDisconnected(uint16_t service_id) override;
 

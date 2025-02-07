@@ -6,17 +6,12 @@
 #define POWER_SERVICE_HPP
 
 #include <PowerServiceBase.hpp>
+
 #include "../../SimRobot.h"
 
 class PowerService : public PowerServiceBase {
  public:
   explicit PowerService(uint16_t service_id, SimRobot &robot);
-
- protected:
-  bool Configure() override;
-  void OnStart() override;
-  void OnCreate() override;
-  void OnStop() override;
 
  private:
   static constexpr auto CHARGE_STATUS_ERROR = "Error";
@@ -29,14 +24,12 @@ class PowerService : public PowerServiceBase {
   static constexpr auto CHARGE_STATUS_CV = "Taper Charge (CV)";
   static constexpr auto CHARGE_STATUS_TOP_OFF = "Top Off";
   static constexpr auto CHARGE_STATUS_DONE = "Done";
- SimRobot &robot_;
+  SimRobot &robot_;
 
   void tick() override;
 
-
-
  protected:
-  bool OnChargingAllowedChanged(const uint8_t& new_value) override;
+  bool OnChargingAllowedChanged(const uint8_t &new_value) override;
 };
 
 #endif  // POWER_SERVICE_HPP

@@ -6,17 +6,12 @@
 
 bool DiffDriveService::Configure() {
   // Check, if configuration is valid, if not retry
-  if (!WheelDistance.valid || !WheelTicksPerMeter.valid || WheelDistance.value == 0 ||
-      WheelTicksPerMeter.value == 0.0) {
+  if (WheelDistance.value == 0 || WheelTicksPerMeter.value == 0.0) {
     return false;
   }
-  // It's fine, we don't actually need to configure anything
   return true;
 }
-void DiffDriveService::OnStart() {
-}
-void DiffDriveService::OnCreate() {
-}
+
 void DiffDriveService::OnStop() {
   robot_.SetControlTwist(0, 0);
 }
@@ -26,8 +21,8 @@ void DiffDriveService::tick() {
   SendLeftESCStatus(200u);
   SendRightESCStatus(200u);
   double twist[6]{0};
-  robot_.GetTwist(twist[0],twist[5]);
-  SendActualTwist(twist, sizeof(twist)/sizeof(double));
+  robot_.GetTwist(twist[0], twist[5]);
+  SendActualTwist(twist, sizeof(twist) / sizeof(double));
   CommitTransaction();
 }
 

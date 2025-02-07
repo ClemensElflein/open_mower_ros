@@ -7,64 +7,63 @@
 
 #include "ros/ros.h"
 
-template<typename MESSAGE>
+template <typename MESSAGE>
 class StateSubscriber {
-public:
-    explicit StateSubscriber(const std::string &topic);
+ public:
+  explicit StateSubscriber(const std::string &topic);
 
-    void Start(ros::NodeHandle *n);
+  void Start(ros::NodeHandle *n);
 
-    MESSAGE getMessage();
+  MESSAGE getMessage();
 
-    bool hasMessage();
+  bool hasMessage();
 
-    ros::Time getMessageTime();
+  ros::Time getMessageTime();
 
-    void setMessage(const MESSAGE &message);
+  void setMessage(const MESSAGE &message);
 
-private:
-    std::string topic_;
-    std::mutex message_mutex_{};
-    MESSAGE message_{};
-    ros::Time last_message_time_{};
-    bool has_message_ = false;
-    ros::Subscriber subscriber_{};
+ private:
+  std::string topic_;
+  std::mutex message_mutex_{};
+  MESSAGE message_{};
+  ros::Time last_message_time_{};
+  bool has_message_ = false;
+  ros::Subscriber subscriber_{};
 };
 
-template<typename MESSAGE>
+template <typename MESSAGE>
 StateSubscriber<MESSAGE>::StateSubscriber(const std::string &topic) : topic_{topic} {
 }
 
-template<typename MESSAGE>
+template <typename MESSAGE>
 void StateSubscriber<MESSAGE>::Start(ros::NodeHandle *n) {
     subscriber_ = n->subscribe(topic_, 10, &StateSubscriber::setMessage, this);
 }
 
-template<typename MESSAGE>
+template <typename MESSAGE>
 MESSAGE StateSubscriber<MESSAGE>::getMessage() {
-    std::lock_guard<std::mutex> lk{message_mutex_};
-    return message_;
+  std::lock_guard<std::mutex> lk{message_mutex_};
+  return message_;
 }
 
-template<typename MESSAGE>
+template <typename MESSAGE>
 bool StateSubscriber<MESSAGE>::hasMessage() {
-    std::lock_guard<std::mutex> lk{message_mutex_};
-    return has_message_;
+  std::lock_guard<std::mutex> lk{message_mutex_};
+  return has_message_;
 }
 
-template<typename MESSAGE>
+template <typename MESSAGE>
 ros::Time StateSubscriber<MESSAGE>::getMessageTime() {
-    std::lock_guard<std::mutex> lk{message_mutex_};
-    return last_message_time_;
+  std::lock_guard<std::mutex> lk{message_mutex_};
+  return last_message_time_;
 }
 
-template<typename MESSAGE>
+template <typename MESSAGE>
 void StateSubscriber<MESSAGE>::setMessage(const MESSAGE &message) {
-    std::lock_guard<std::mutex> lk{message_mutex_};
-    last_message_time_ = ros::Time::now();
-    message_ = message;
-    has_message_ = true;
+  std::lock_guard<std::mutex> lk{message_mutex_};
+  last_message_time_ = ros::Time::now();
+  message_ = message;
+  has_message_ = true;
 }
 
-
-#endif //STATESUBSCRIBER_H
+#endif  // STATESUBSCRIBER_H

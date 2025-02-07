@@ -4,17 +4,9 @@
 
 #include "mower_service.hpp"
 
-
-bool MowerService::Configure() {
-  // No configuration needed
-  return true;
-}
-void MowerService::OnCreate() {
-}
 void MowerService::OnStart() {
   mower_running_ = false;
 }
-void MowerService::OnStop() { }
 
 void MowerService::tick() {
   StartTransaction();

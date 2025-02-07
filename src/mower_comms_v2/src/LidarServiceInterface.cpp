@@ -6,10 +6,6 @@
 
 #include "spdlog/spdlog.h"
 
-bool LidarServiceInterface::OnConfigurationRequested(uint16_t service_id) {
-  return true;
-}
-
 void LidarServiceInterface::OnAngleMinRadChanged(const double &new_value) {
   angle_min = new_value;
 }
@@ -84,7 +80,6 @@ void LidarServiceInterface::OnTransactionEnd() {
         laser_scan_msg_.range_max = 20.0;
         laser_scan_msg_.scan_time = (now - last_full_scan_time_).toSec();
         laser_scan_msg_.time_increment = laser_scan_msg_.scan_time / laser_scan_msg_.ranges.size();
-
 
         // our laser scanner does sometimes report weird start/end angles, so we set min-max angles manually
         // TODO: either fix, or make configurable

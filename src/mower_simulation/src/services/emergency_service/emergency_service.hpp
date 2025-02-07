@@ -10,6 +10,7 @@
 #include <EmergencyServiceBase.hpp>
 
 #include "../../SimRobot.h"
+
 class EmergencyService : public EmergencyServiceBase {
  private:
  public:
@@ -18,10 +19,8 @@ class EmergencyService : public EmergencyServiceBase {
   }
 
  protected:
-  bool Configure() override;
   void OnStart() override;
   void OnStop() override;
-  void OnCreate() override;
 
  private:
   void tick() override;

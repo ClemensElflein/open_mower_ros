@@ -13,7 +13,7 @@
 #include <thread>
 
 class SimRobot {
-public:
+ public:
   explicit SimRobot(ros::NodeHandle &nh);
   void Start();
 
@@ -29,13 +29,13 @@ public:
 
   void SetDockingPose(double x, double y, double heading);
 
-  void GetIsCharging(bool &charging, double &seconds_since_start, std::string &charging_status, double &charger_volts, double &battery_volts, double &charging_current);
+  void GetIsCharging(bool &charging, double &seconds_since_start, std::string &charging_status, double &charger_volts,
+                     double &battery_volts, double &charging_current);
 
  private:
-
   // 7 cells
-  static constexpr double BATTERY_VOLTS_MIN = 3.2*7;
-  static constexpr double BATTERY_VOLTS_MAX = 4.18*7;
+  static constexpr double BATTERY_VOLTS_MIN = 3.2 * 7;
+  static constexpr double BATTERY_VOLTS_MAX = 4.18 * 7;
   static constexpr double CHARGE_CURRENT = 2.5;
   static constexpr double CHARGE_VOLTS = 32.0;
 
@@ -74,8 +74,7 @@ public:
 
   // Timer for simulation
   ros::Timer timer_;
-  void SimulationStep(const ros::TimerEvent& te);
-
+  void SimulationStep(const ros::TimerEvent &te);
 
   /*
    * Generate some noise
@@ -86,11 +85,9 @@ public:
   std::normal_distribution<double> linear_speed_noise{0.0, 0.02};
   std::normal_distribution<double> angular_speed_noise{0.0, 0.02};
 
-
   // Debugging
   nav_msgs::Odometry actual_position_{};
   ros::Publisher actual_position_publisher_{};
-
 };
 
-#endif //SIMROBOT_H
+#endif  // SIMROBOT_H

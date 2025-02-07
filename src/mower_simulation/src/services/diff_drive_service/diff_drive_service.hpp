@@ -6,10 +6,10 @@
 #define DIFF_DRIVE_SERVICE_HPP
 
 #include <DiffDriveServiceBase.hpp>
+
 #include "../../SimRobot.h"
 
 class DiffDriveService : public DiffDriveServiceBase {
-
  public:
   explicit DiffDriveService(uint16_t service_id, SimRobot &robot)
       : DiffDriveServiceBase(service_id, 20000), robot_(robot) {
@@ -19,8 +19,6 @@ class DiffDriveService : public DiffDriveServiceBase {
 
  protected:
   bool Configure() override;
-  void OnStart() override;
-  void OnCreate() override;
   void OnStop() override;
 
  private:
@@ -31,7 +29,7 @@ class DiffDriveService : public DiffDriveServiceBase {
   void ProcessStatusUpdate();
 
  protected:
-  bool OnControlTwistChanged(const double* new_value, uint32_t length) override;
+  bool OnControlTwistChanged(const double *new_value, uint32_t length) override;
 };
 
 #endif  // DIFF_DRIVE_SERVICE_HPP

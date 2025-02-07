@@ -15,16 +15,11 @@ class ImuServiceInterface : public ImuServiceInterfaceBase {
   ImuServiceInterface(uint16_t service_id, const xbot::serviceif::Context& ctx, const ros::Publisher& imu_publisher)
       : ImuServiceInterfaceBase(service_id, ctx), imu_publisher_(imu_publisher) {
   }
-  bool OnConfigurationRequested(uint16_t service_id) override;
 
  protected:
   void OnAxesChanged(const double* new_value, uint32_t length) override;
 
  private:
-  void OnServiceConnected(uint16_t service_id) override;
-  void OnTransactionStart(uint64_t timestamp) override;
-  void OnTransactionEnd() override;
-  void OnServiceDisconnected(uint16_t service_id) override;
   const ros::Publisher& imu_publisher_;
 
   sensor_msgs::Imu imu_msg{};

@@ -23,14 +23,11 @@ bool EmergencyServiceInterface::SetEmergency(bool new_value) {
   PublishEmergencyState();
   return true;
 }
+
 void EmergencyServiceInterface::Heartbeat() {
   SendSetEmergency(latched_emergency_);
 }
 
-bool EmergencyServiceInterface::OnConfigurationRequested(uint16_t service_id) {
-  // No config needed
-  return true;
-}
 void EmergencyServiceInterface::OnEmergencyActiveChanged(const uint8_t& new_value) {
   std::unique_lock<std::recursive_mutex> lk{state_mutex_};
   active_low_level_emergency_ = new_value;
@@ -46,11 +43,11 @@ void EmergencyServiceInterface::OnEmergencyLatchChanged(const uint8_t& new_value
     latched_emergency_ = false;
   }
 }
+
 void EmergencyServiceInterface::OnEmergencyReasonChanged(const char* new_value, uint32_t length) {
   latest_emergency_reason_ = std::string{new_value, length};
 }
-void EmergencyServiceInterface::OnTransactionStart(uint64_t timestamp) {
-}
+
 void EmergencyServiceInterface::OnTransactionEnd() {
   // Send the packet
   PublishEmergencyState();
@@ -62,12 +59,14 @@ void EmergencyServiceInterface::OnServiceConnected(uint16_t service_id) {
   latest_emergency_reason_ = "Service Starting Up";
   PublishEmergencyState();
 }
+
 void EmergencyServiceInterface::OnServiceDisconnected(uint16_t service_id) {
   std::unique_lock<std::recursive_mutex> lk{state_mutex_};
   latched_emergency_ = active_high_level_emergency_ = active_low_level_emergency_ = true;
   latest_emergency_reason_ = "Service Disconnected";
   PublishEmergencyState();
 }
+
 void EmergencyServiceInterface::PublishEmergencyState() {
   mower_msgs::Emergency emergency_{};
   std::unique_lock<std::recursive_mutex> lk{state_mutex_};

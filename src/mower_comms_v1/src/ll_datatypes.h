@@ -109,23 +109,19 @@ struct ll_high_level_state {
 } __attribute__((packed));
 #pragma pack(pop)
 
-enum class OptionState : unsigned int {
-    OFF = 0,
-    ON,
-    UNDEFINED
-};
+enum class OptionState : unsigned int { OFF = 0, ON, UNDEFINED };
 
 #pragma pack(push, 1)
 struct ConfigOptions {
-    OptionState dfp_is_5v : 2;
-    OptionState background_sounds : 2;
-    OptionState ignore_charging_current : 2;
-    // Need to block/waster the bits now, to be prepared for future enhancements
-    OptionState reserved_for_future_use1 : 2;
-    OptionState reserved_for_future_use2 : 2;
-    OptionState reserved_for_future_use3 : 2;
-    OptionState reserved_for_future_use4 : 2;
-    OptionState reserved_for_future_use5 : 2;
+  OptionState dfp_is_5v : 2;
+  OptionState background_sounds : 2;
+  OptionState ignore_charging_current : 2;
+  // Need to block/waster the bits now, to be prepared for future enhancements
+  OptionState reserved_for_future_use1 : 2;
+  OptionState reserved_for_future_use2 : 2;
+  OptionState reserved_for_future_use3 : 2;
+  OptionState reserved_for_future_use4 : 2;
+  OptionState reserved_for_future_use5 : 2;
 } __attribute__((packed));
 #pragma pack(pop)
 static_assert(sizeof(ConfigOptions) == 2, "Changing size of ConfigOption != 2 will break packet compatibilty");
@@ -142,7 +138,7 @@ enum class HallMode : unsigned int {
 #pragma pack(push, 1)
 struct HallConfig {
   HallConfig(HallMode t_mode = HallMode::UNDEFINED, bool t_active_low = false)
-      : mode(t_mode), active_low(t_active_low) {};
+      : mode(t_mode), active_low(t_active_low){};
 
   HallMode mode : 3;  // 1 bit reserved
   bool active_low : 1;
