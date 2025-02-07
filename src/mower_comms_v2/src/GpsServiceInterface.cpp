@@ -37,9 +37,12 @@ void GpsServiceInterface::OnPositionChanged(const double* new_value, uint32_t le
     ROS_INFO_STREAM("OnPositionChanged called with length " << length);
     return;
   }
-  pose_msg_.pose.pose.position.x = new_value[0];
-  pose_msg_.pose.pose.position.y = new_value[1];
-  pose_msg_.pose.pose.position.z = new_value[2];
+  double e, n;
+  std::string zone;
+  RobotLocalization::NavsatConversions::LLtoUTM(new_value[0], new_value[1], n, e, zone);
+  pose_msg_.pose.pose.position.x = e - datum_e_;
+  pose_msg_.pose.pose.position.y = n - datum_n_;
+  pose_msg_.pose.pose.position.z = new_value[2] - datum_u_;
 }
 
 void GpsServiceInterface::OnPositionHorizontalAccuracyChanged(const double& new_value) {
