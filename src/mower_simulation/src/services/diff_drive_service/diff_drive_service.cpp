@@ -26,12 +26,11 @@ void DiffDriveService::tick() {
   CommitTransaction();
 }
 
-bool DiffDriveService::OnControlTwistChanged(const double* new_value, uint32_t length) {
-  if (length != 6) return false;
+void DiffDriveService::OnControlTwistChanged(const double* new_value, uint32_t length) {
+  if (length != 6) return;
   // we can only do forward and rotation around one axis
   const auto linear = static_cast<float>(new_value[0]);
   const auto angular = static_cast<float>(new_value[5]);
 
   robot_.SetControlTwist(linear, angular);
-  return true;
 }

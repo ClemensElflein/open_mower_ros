@@ -16,9 +16,6 @@ class GpsService : public GpsServiceBase {
  private:
   void tick() override;
 
- protected:
-  bool OnRTCMChanged(const uint8_t *new_value, uint32_t length) override;
-
  private:
   SimRobot &robot_;
 };

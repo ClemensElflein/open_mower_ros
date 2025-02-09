@@ -45,12 +45,10 @@ void EmergencyService::tick() {
   CommitTransaction();
 }
 
-bool EmergencyService::OnSetEmergencyChanged(const uint8_t& new_value) {
+void EmergencyService::OnSetEmergencyChanged(const uint8_t& new_value) {
   if (new_value) {
     robot_.SetEmergency(true, "High Level");
   } else {
     robot_.ResetEmergency();
   }
-
-  return true;
 }

@@ -25,12 +25,6 @@ void MowerService::tick() {
   CommitTransaction();
 }
 
-
-bool MowerService::OnMowerEnabledChanged(const uint8_t& new_value) {
+void MowerService::OnMowerEnabledChanged(const uint8_t& new_value) {
   mower_running_ = new_value;
-  return true;
-}
-
-MowerService::MowerService(const uint16_t service_id, SimRobot &robot)
-    : MowerServiceBase(service_id, 1000000), robot_(robot) {
 }

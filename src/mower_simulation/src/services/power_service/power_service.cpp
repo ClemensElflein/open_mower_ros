@@ -4,9 +4,6 @@
 
 #include "power_service.hpp"
 
-PowerService::PowerService(uint16_t service_id, SimRobot& robot) : PowerServiceBase(service_id, 200000), robot_(robot) {
-}
-
 void PowerService::tick() {
   bool is_charging;
   double charging_time, charge_volts, battery_volts, charge_current;
@@ -23,7 +20,6 @@ void PowerService::tick() {
   CommitTransaction();
 }
 
-bool PowerService::OnChargingAllowedChanged(const uint8_t& new_value) {
+void PowerService::OnChargingAllowedChanged(const uint8_t& new_value) {
   (void)new_value;
-  return true;
 }

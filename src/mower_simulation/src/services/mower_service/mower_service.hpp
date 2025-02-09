@@ -11,7 +11,9 @@
 
 class MowerService : public MowerServiceBase {
  public:
-  explicit MowerService(const uint16_t service_id, SimRobot &robot_);
+  explicit MowerService(const uint16_t service_id, SimRobot &robot)
+      : MowerServiceBase(service_id, 1000000), robot_(robot) {
+  }
 
  private:
  SimRobot &robot_;
@@ -20,7 +22,7 @@ class MowerService : public MowerServiceBase {
 
  protected:
   void OnStart() override;
-  bool OnMowerEnabledChanged(const uint8_t &new_value) override;
+  void OnMowerEnabledChanged(const uint8_t &new_value) override;
 };
 
 #endif  // MOWER_SERVICE_HPP

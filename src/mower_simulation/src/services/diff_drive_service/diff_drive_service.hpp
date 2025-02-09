@@ -29,7 +29,7 @@ class DiffDriveService : public DiffDriveServiceBase {
   void ProcessStatusUpdate();
 
  protected:
-  bool OnControlTwistChanged(const double *new_value, uint32_t length) override;
+  void OnControlTwistChanged(const double *new_value, uint32_t length) override;
 };
 
 #endif  // DIFF_DRIVE_SERVICE_HPP

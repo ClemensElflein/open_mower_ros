@@ -11,7 +11,8 @@
 
 class PowerService : public PowerServiceBase {
  public:
-  explicit PowerService(uint16_t service_id, SimRobot &robot);
+  explicit PowerService(uint16_t service_id, SimRobot &robot) : PowerServiceBase(service_id, 200000), robot_(robot) {
+  }
 
  private:
   static constexpr auto CHARGE_STATUS_ERROR = "Error";
@@ -29,7 +30,7 @@ class PowerService : public PowerServiceBase {
   void tick() override;
 
  protected:
-  bool OnChargingAllowedChanged(const uint8_t &new_value) override;
+  void OnChargingAllowedChanged(const uint8_t &new_value) override;
 };
 
 #endif  // POWER_SERVICE_HPP

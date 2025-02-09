@@ -31,7 +31,7 @@ class EmergencyService : public EmergencyServiceBase {
   std::string emergency_reason{"Boot"};
 
  protected:
-  bool OnSetEmergencyChanged(const uint8_t &new_value) override;
+  void OnSetEmergencyChanged(const uint8_t &new_value) override;
 };
 
 #endif  // EMERGENCY_SERVICE_HPP
