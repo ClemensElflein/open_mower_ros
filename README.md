@@ -37,6 +37,7 @@ Run in the repository's root:
 ```bash
 
 rosdep update
+git submodule update --init --recursive
 rosdep install --from-paths src --ignore-src --default-yes
 ```
 
