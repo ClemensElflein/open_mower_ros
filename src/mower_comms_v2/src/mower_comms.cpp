@@ -25,6 +25,7 @@
 #include <ros/ros.h>
 #include <sensor_msgs/Imu.h>
 
+#include "../../../services/service_ids.h"
 #include "DiffDriveServiceInterface.h"
 #include "DockingSensorServiceInterface.h"
 #include "EmergencyServiceInterface.h"
@@ -103,7 +104,7 @@ int main(int argc, char **argv) {
 
   // Emergency service
   emergency_pub = n.advertise<mower_msgs::Emergency>("ll/emergency", 1);
-  emergency_service = std::make_unique<EmergencyServiceInterface>(1, ctx, emergency_pub);
+  emergency_service = std::make_unique<EmergencyServiceInterface>(xbot::service_ids::EMERGENCY, ctx, emergency_pub);
   emergency_service->Start();
 
   // Diff drive service
@@ -116,23 +117,24 @@ int main(int argc, char **argv) {
   paramNh.getParam("wheel_distance_m", wheel_distance_m);
   ROS_INFO_STREAM("Wheel ticks [1/m]: " << wheel_ticks_per_m);
   ROS_INFO_STREAM("Wheel distance [m]: " << wheel_distance_m);
-  diff_drive_service = std::make_unique<DiffDriveServiceInterface>(
-      2, ctx, actual_twist_pub, status_left_esc_pub, status_right_esc_pub, wheel_ticks_per_m, wheel_distance_m);
+  diff_drive_service = std::make_unique<DiffDriveServiceInterface>(xbot::service_ids::DIFF_DRIVE, ctx, actual_twist_pub,
+                                                                   status_left_esc_pub, status_right_esc_pub,
+                                                                   wheel_ticks_per_m, wheel_distance_m);
   diff_drive_service->Start();
 
   // Mower service
   status_pub = n.advertise<mower_msgs::Status>("ll/mower_status", 1);
-  mower_service = std::make_unique<MowerServiceInterface>(3, ctx, status_pub);
+  mower_service = std::make_unique<MowerServiceInterface>(xbot::service_ids::MOWER, ctx, status_pub);
   mower_service->Start();
 
   // IMU service
   sensor_imu_pub = n.advertise<sensor_msgs::Imu>("ll/imu/data_raw", 1);
-  imu_service = std::make_unique<ImuServiceInterface>(4, ctx, sensor_imu_pub);
+  imu_service = std::make_unique<ImuServiceInterface>(xbot::service_ids::IMU, ctx, sensor_imu_pub);
   imu_service->Start();
 
   // Power service
   power_pub = n.advertise<mower_msgs::Power>("ll/power", 1);
-  power_service = std::make_unique<PowerServiceInterface>(5, ctx, power_pub);
+  power_service = std::make_unique<PowerServiceInterface>(xbot::service_ids::POWER, ctx, power_pub);
   power_service->Start();
 
   // GPS service
@@ -147,7 +149,8 @@ int main(int argc, char **argv) {
   }
   ROS_INFO_STREAM("Datum: " << datum_lat << ", " << datum_long << ", " << datum_height);
   gps_position_pub = n.advertise<xbot_msgs::AbsolutePose>("ll/position/gps", 1);
-  gps_service = std::make_unique<GpsServiceInterface>(6, ctx, gps_position_pub, datum_lat, datum_long, datum_height);
+  gps_service = std::make_unique<GpsServiceInterface>(xbot::service_ids::GPS, ctx, gps_position_pub, datum_lat,
+                                                      datum_long, datum_height);
   gps_service->Start();
 
   // Lidar service
