@@ -27,6 +27,7 @@
 #include <xbot-service/Io.hpp>
 #include <xbot-service/portable/system.hpp>
 
+#include "../../../services/service_ids.h"
 #include "SimRobot.h"
 #include "dynamic_reconfigure/server.h"
 #include "geometry_msgs/PoseWithCovarianceStamped.h"
@@ -71,12 +72,12 @@ int main(int argc, char **argv) {
 
   SimRobot robot{paramNh};
 
-  EmergencyService emergency_service{1, robot};
-  DiffDriveService diff_drive_service{2, robot};
-  MowerService mower_service{3, robot};
-  ImuService imu_service{4, robot};
-  PowerService power_service{5, robot};
-  GpsService gps_service{6, robot};
+  EmergencyService emergency_service{xbot::service_ids::EMERGENCY, robot};
+  DiffDriveService diff_drive_service{xbot::service_ids::DIFF_DRIVE, robot};
+  MowerService mower_service{xbot::service_ids::MOWER, robot};
+  ImuService imu_service{xbot::service_ids::IMU, robot};
+  PowerService power_service{xbot::service_ids::POWER, robot};
+  GpsService gps_service{xbot::service_ids::GPS, robot};
 
   emergency_service.start();
   diff_drive_service.start();
