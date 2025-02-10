@@ -28,3 +28,6 @@
 [submodule "src/lib/xbot_framework"]
 	path = src/lib/xbot_framework
 	url = https://github.com/xtech/xbot_framework.git
+[submodule "services"]
+	path = services
+	url = https://github.com/xtech/definitions-open-mower.git
