@@ -17,7 +17,7 @@ GpsServiceInterface::GpsServiceInterface(uint16_t service_id, const xbot::servic
 bool GpsServiceInterface::OnConfigurationRequested(uint16_t service_id) {
   StartTransaction(true);
   SetRegisterBaudrate(921600);
-  SetRegisterProtocol("UBX", 3);
+  SetRegisterProtocol(ProtocolType::UBX);
   CommitTransaction();
   return true;
 }
