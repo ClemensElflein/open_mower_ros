@@ -34,6 +34,7 @@
 #include "LidarServiceInterface.h"
 #include "MowerServiceInterface.h"
 #include "PowerServiceInterface.h"
+#include <rtcm_msgs/Message.h>
 
 ros::Publisher status_pub;
 ros::Publisher power_pub;
@@ -74,6 +75,11 @@ void velReceived(const geometry_msgs::Twist::ConstPtr &msg) {
   diff_drive_service->SendTwist(msg);
 }
 
+void rtcmReceived(const rtcm_msgs::Message &msg) {
+  if(!gps_service) return;
+  gps_service->SendRTCM(msg.message.data(), msg.message.size());
+}
+
 void sendEmergencyHeartbeatTimerTask(const ros::TimerEvent &) {
   emergency_service->Heartbeat();
 }
@@ -94,6 +100,7 @@ int main(int argc, char **argv) {
   ros::ServiceServer mow_service = n.advertiseService("ll/_service/mow_enabled", setMowEnabled);
   ros::ServiceServer ros_emergency_service = n.advertiseService("ll/_service/emergency", setEmergencyStop);
   ros::Subscriber cmd_vel_sub = n.subscribe("ll/cmd_vel", 0, velReceived, ros::TransportHints().tcpNoDelay(true));
+  ros::Subscriber rtcm_sub = n.subscribe("ll/position/gps/rtcm_in", 0, rtcmReceived);
   // ros::Subscriber high_level_status_sub = n.subscribe("/mower_logic/current_state", 0, highLevelStatusReceived);
   ros::Timer publish_timer = n.createTimer(ros::Duration(0.5), sendEmergencyHeartbeatTimerTask);
 

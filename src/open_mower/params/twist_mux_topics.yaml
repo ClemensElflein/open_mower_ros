@@ -15,4 +15,9 @@ topics:
     name    : logic
     topic   : logic_vel
     timeout : 0.5
+    priority: 50
+  -
+    name    : logic
+    topic   : override_vel
+    timeout : 0.5
     priority: 100

@@ -19,7 +19,7 @@
     <group if="$(optenv OM_V2 False)">
         <!-- Use V2 Comms -->
         <node pkg="mower_comms_v2" type="mower_comms_v2" name="mower_comms_v2" output="screen">
-            <param name="bind_ip" value="$(optenv OM_COMMS_BIND_IP 172.16.0.1)" />
+            <param name="bind_ip" value="$(optenv OM_COMMS_BIND_IP 172.16.78.1)" />
             <rosparam if="$(eval env('OM_MOWER')=='CUSTOM')" file="$(env HOME)/mower_params/custom_params.yaml"/>
             <param name="wheel_ticks_per_m" value="$(env OM_WHEEL_TICKS_PER_M)"/>
             <param name="wheel_distance_m" value="$(env OM_WHEEL_DISTANCE_M)"/>
