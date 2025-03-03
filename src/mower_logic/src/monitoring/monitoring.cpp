@@ -84,7 +84,7 @@ std::map<std::string, SensorConfig> sensor_configs{
 };
 // clang-format on
 
-void status(StatusPtr &msg) {
+void status_received(StatusPtr &msg) {
   // Rate limit to 2Hz
   static ros::Time last_update{0};
   if ((msg->stamp - last_update).toSec() < 0.5) return;
@@ -184,6 +184,42 @@ void power_received(const mower_msgs::Power::ConstPtr &msg) {
   }
 }
 
+void left_esc_status_received(const mower_msgs::ESCStatus::ConstPtr &msg) {
+  // Rate limit to 2Hz
+  static ros::Time last_update{0};
+  const auto now = ros::Time::now();
+  if ((now - last_update).toSec() < 0.5) return;
+  last_update = now;
+  {
+    xbot_msgs::SensorDataDouble sensor_data;
+    sensor_data.stamp = ros::Time::now();
+    sensor_data.data = msg->temperature_pcb;
+    auto sc_it = sensor_configs.find("om_left_esc_temp");
+    if (sc_it != std::end(sensor_configs)) {
+      sc_it->second.data_pub.publish(sensor_data);
+    }
+  }
+
+}
+void right_esc_status_received(const mower_msgs::ESCStatus::ConstPtr &msg) {
+  // Rate limit to 2Hz
+  static ros::Time last_update{0};
+  const auto now = ros::Time::now();
+  if ((now - last_update).toSec() < 0.5) return;
+  last_update = now;
+  {
+    xbot_msgs::SensorDataDouble sensor_data;
+    sensor_data.stamp = ros::Time::now();
+    sensor_data.data = msg->temperature_pcb;
+    auto sc_it = sensor_configs.find("om_right_esc_temp");
+    if (sc_it != std::end(sensor_configs)) {
+      sc_it->second.data_pub.publish(sensor_data);
+    }
+  }
+
+}
+
+
 void set_limits_battery_v(SensorConfig &sensor_config) {
   sensor_config.si.lower_critical_value = mower_logic_config.battery_critical_voltage;
   sensor_config.si.min_value = mower_logic_config.battery_empty_voltage;
@@ -281,9 +317,13 @@ int main(int argc, char **argv) {
 
   registerSensors();
 
-  ros::Subscriber pose_sub = n->subscribe("xbot_positioning/xb_pose", 10, pose_received);
   ros::Subscriber state_sub = n->subscribe("mower_logic/current_state", 10, high_level_status);
-  ros::Subscriber status_sub = n->subscribe("mower/status", 10, status);
+  ros::Subscriber status_state_subscriber = n->subscribe("/ll/mower_status", 10, status_received);
+  ros::Subscriber power_state_subscriber = n->subscribe("/ll/power", 10, power_received);
+  ros::Subscriber left_esc_status_state_subscriber = n->subscribe("/ll/diff_drive/left_esc_status", 10, left_esc_status_received);
+  ros::Subscriber right_esc_status_state_subscriber = n->subscribe("/ll/diff_drive/right_esc_status", 10, right_esc_status_received);
+  ros::Subscriber pose_state_subscriber = n->subscribe("/xbot_positioning/xb_pose", 10, pose_received);
+
 
   state_pub = n->advertise<xbot_msgs::RobotState>("xbot_monitoring/robot_state", 10);
 
