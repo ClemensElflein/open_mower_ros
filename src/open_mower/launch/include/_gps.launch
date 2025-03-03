@@ -23,9 +23,9 @@
             <param name="mode" value="absolute" unless="$(env OM_USE_RELATIVE_POSITION)"/>
             <param name="mode" value="relative" if="$(env OM_USE_RELATIVE_POSITION)"/>
             <param name="ubx_mode" value="$(eval optenv('OM_GPS_PROTOCOL','UBX')=='UBX')"/>
-            <param unless="$(env OM_USE_RELATIVE_POSITION)" name="datum_lat" value="$(env OM_DATUM_LAT)"/>
-            <param unless="$(env OM_USE_RELATIVE_POSITION)" name="datum_long" value="$(env OM_DATUM_LONG)"/>
-            <param unless="$(env OM_USE_RELATIVE_POSITION)" name="datum_height" value="0"/>
+            <param unless="$(optenv OM_USE_RELATIVE_POSITION False)" name="datum_lat" value="$(env OM_DATUM_LAT)"/>
+            <param unless="$(optenv OM_USE_RELATIVE_POSITION False)" name="datum_long" value="$(env OM_DATUM_LONG)"/>
+            <param unless="$(optenv OM_USE_RELATIVE_POSITION False)" name="datum_height" value="0"/>
             <remap from="/rtcm" to="/ntrip_client/rtcm"/>
             <remap from="~wheel_ticks" to="/mower/wheel_ticks"/>
         </node>
