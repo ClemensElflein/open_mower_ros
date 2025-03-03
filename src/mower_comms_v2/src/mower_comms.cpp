@@ -77,7 +77,16 @@ void velReceived(const geometry_msgs::Twist::ConstPtr &msg) {
 
 void rtcmReceived(const rtcm_msgs::Message &msg) {
   if(!gps_service) return;
-  gps_service->SendRTCM(msg.message.data(), msg.message.size());
+  static std::vector<uint8_t> rtcm_buffer{};
+  static ros::Time last_time_sent{0};
+  ros::Time now = ros::Time::now();
+  // Append the bytes to the buffer
+  rtcm_buffer.insert(rtcm_buffer.end(), msg.message.begin(), msg.message.end());
+  // In order to not spam after each received byte, limit packets to 5Hz
+  if ((now - last_time_sent).toSec() < 0.2) return;
+  last_time_sent = now;
+  gps_service->SendRTCM(rtcm_buffer.data(), rtcm_buffer.size());
+  rtcm_buffer.clear();
 }
 
 void sendEmergencyHeartbeatTimerTask(const ros::TimerEvent &) {
