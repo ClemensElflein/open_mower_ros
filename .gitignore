@@ -60,3 +60,4 @@ CATKIN_IGNORE
 cmake-build-debug/
 .vscode
 .venv
+src/cmake-build-debug-ros
