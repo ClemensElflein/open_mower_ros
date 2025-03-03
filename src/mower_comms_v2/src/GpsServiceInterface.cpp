@@ -8,16 +8,25 @@
 
 GpsServiceInterface::GpsServiceInterface(uint16_t service_id, const xbot::serviceif::Context& ctx,
                                          const ros::Publisher& imu_publisher,
-                                         double datum_lat, double datum_long, double datum_height)
-    : GpsServiceInterfaceBase(service_id, ctx), absolute_pose_publisher_(imu_publisher) {
+                                         double datum_lat, double datum_long, double datum_height, uint32_t baud_rate, const std::string &protocol, uint8_t port_index)
+    : GpsServiceInterfaceBase(service_id, ctx), absolute_pose_publisher_(imu_publisher), baud_rate_(baud_rate), protocol_(protocol), port_index_(port_index) {
   RobotLocalization::NavsatConversions::LLtoUTM(datum_lat, datum_long, datum_n_, datum_e_, datum_zone_);
   datum_u_ = datum_height;
 }
 
 bool GpsServiceInterface::OnConfigurationRequested(uint16_t service_id) {
   StartTransaction(true);
-  SetRegisterBaudrate(921600);
-  SetRegisterProtocol(ProtocolType::UBX);
+  SetRegisterBaudrate(baud_rate_);
+  if(protocol_ == "UBX") {
+    SetRegisterProtocol(ProtocolType::UBX);
+  } else if(protocol_ == "NMEA") {
+    SetRegisterProtocol(ProtocolType::NMEA);
+  } else {
+    ROS_ERROR_STREAM("Invalid Protocol: " << protocol_);
+  }
+  if(port_index_ > 0) {
+    SetRegisterUart(port_index_);
+  }
   CommitTransaction();
   return true;
 }

@@ -124,6 +124,18 @@ int main(int argc, char **argv) {
   paramNh.getParam("wheel_distance_m", wheel_distance_m);
   ROS_INFO_STREAM("Wheel ticks [1/m]: " << wheel_ticks_per_m);
   ROS_INFO_STREAM("Wheel distance [m]: " << wheel_distance_m);
+
+  int baud_rate=0;
+  paramNh.getParam("baud_rate", baud_rate);
+
+  std::string protocol;
+  paramNh.getParam("protocol", protocol);
+
+  int gps_port_index = 0;
+  paramNh.getParam("gps_port_index", gps_port_index);
+
+  ROS_INFO_STREAM("GPS protocol: " << protocol << ", baud rate: " <<baud_rate);
+
   diff_drive_service = std::make_unique<DiffDriveServiceInterface>(xbot::service_ids::DIFF_DRIVE, ctx, actual_twist_pub,
                                                                    status_left_esc_pub, status_right_esc_pub,
                                                                    wheel_ticks_per_m, wheel_distance_m);
@@ -157,7 +169,7 @@ int main(int argc, char **argv) {
   ROS_INFO_STREAM("Datum: " << datum_lat << ", " << datum_long << ", " << datum_height);
   gps_position_pub = n.advertise<xbot_msgs::AbsolutePose>("ll/position/gps", 1);
   gps_service = std::make_unique<GpsServiceInterface>(xbot::service_ids::GPS, ctx, gps_position_pub, datum_lat,
-                                                      datum_long, datum_height);
+                                                      datum_long, datum_height, baud_rate, protocol, gps_port_index);
   gps_service->Start();
 
   // Lidar service
