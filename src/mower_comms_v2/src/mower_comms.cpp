@@ -82,8 +82,8 @@ void rtcmReceived(const rtcm_msgs::Message &msg) {
   ros::Time now = ros::Time::now();
   // Append the bytes to the buffer
   rtcm_buffer.insert(rtcm_buffer.end(), msg.message.begin(), msg.message.end());
-  // In order to not spam after each received byte, limit packets to 5Hz
-  if ((now - last_time_sent).toSec() < 0.2) return;
+  // In order to not spam after each received byte, limit packets to 5Hz and to max 1k of size
+  if (rtcm_buffer.size() < 1000 && (now - last_time_sent).toSec() < 0.2) return;
   last_time_sent = now;
   gps_service->SendRTCM(rtcm_buffer.data(), rtcm_buffer.size());
   rtcm_buffer.clear();
