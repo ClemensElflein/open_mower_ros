@@ -21,6 +21,7 @@
         <node pkg="mower_comms_v2" type="mower_comms_v2" name="mower_comms_v2" output="screen">
             <param name="bind_ip" value="$(optenv OM_COMMS_BIND_IP 172.16.78.1)" />
             <rosparam if="$(eval env('OM_MOWER')=='CUSTOM')" file="$(env HOME)/mower_params/custom_params.yaml"/>
+            <rosparam unless="$(eval env('OM_MOWER')=='CUSTOM')" file="$(find open_mower)/params/hardware_specific/$(env OM_MOWER)/comms_v2_params.yaml"/>
             <param name="wheel_ticks_per_m" value="$(env OM_WHEEL_TICKS_PER_M)"/>
             <param name="wheel_distance_m" value="$(env OM_WHEEL_DISTANCE_M)"/>
             <param name="language" value="$(optenv OM_LANGUAGE en)"/>
@@ -28,9 +29,10 @@
             <param name="datum_lat" value="$(env OM_DATUM_LAT)"/>
             <param name="datum_long" value="$(env OM_DATUM_LONG)"/>
             <param name="datum_height" value="0"/>
-            <param name="gps_baudrate" value="$(env OM_GPS_BAUDRATE)"/>
-            <param name="gps_protocol" value="$(env OM_GPS_PROTOCOL)"/>
             <param name="gps_port_index" value="$(optenv OM_GPS_PORT_INDEX 0)"/>
+            <!-- Allow overriding gps_baudrate -->
+            <param if="$(eval optenv('OM_GPS_BAUDRATE')!='')" name="gps_baudrate" value="$(env OM_GPS_BAUDRATE)"/>
+            <param if="$(eval optenv('OM_GPS_PORT')!='')" name="gps_protocol" value="$(env OM_GPS_PROTOCOL)"/>
         </node>
     </group>
 
