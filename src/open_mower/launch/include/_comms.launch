@@ -23,12 +23,14 @@
             <rosparam if="$(eval env('OM_MOWER')=='CUSTOM')" file="$(env HOME)/mower_params/custom_params.yaml"/>
             <param name="wheel_ticks_per_m" value="$(env OM_WHEEL_TICKS_PER_M)"/>
             <param name="wheel_distance_m" value="$(env OM_WHEEL_DISTANCE_M)"/>
-            <param name="dfp_is_5v" value="$(optenv OM_DFP_IS_5V False)"/>
             <param name="language" value="$(optenv OM_LANGUAGE en)"/>
             <param name="volume" value="$(optenv OM_VOLUME -1)"/>
-            <param unless="$(env OM_USE_RELATIVE_POSITION)" name="datum_lat" value="$(env OM_DATUM_LAT)"/>
-            <param unless="$(env OM_USE_RELATIVE_POSITION)" name="datum_long" value="$(env OM_DATUM_LONG)"/>
-            <param unless="$(env OM_USE_RELATIVE_POSITION)" name="datum_height" value="0"/>
+            <param name="datum_lat" value="$(env OM_DATUM_LAT)"/>
+            <param name="datum_long" value="$(env OM_DATUM_LONG)"/>
+            <param name="datum_height" value="0"/>
+            <param name="gps_baudrate" value="$(env OM_GPS_BAUDRATE)"/>
+            <param name="gps_protocol" value="$(env OM_GPS_PROTOCOL)"/>
+            <param name="gps_port_index" value="$(optenv OM_GPS_PORT_INDEX 0)"/>
         </node>
     </group>
 
