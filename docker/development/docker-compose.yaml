@@ -16,3 +16,12 @@ services:
       - "9001:9001"  # WebSockets (if enabled in config)
     volumes:
       - ../assets/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro  # Your custom config file
+
+  etherbridge:
+    image: ghcr.io/xtech/etherbridge:main
+    container_name: etherbridge
+    network_mode: host
+    privileged: true
+    volumes:
+      - /dev:/dev
+    command: "client --peer openmower --bridge 172.16.78.2"
