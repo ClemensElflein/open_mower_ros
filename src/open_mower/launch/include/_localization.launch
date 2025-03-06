@@ -4,9 +4,5 @@
         <remap from="~twist_in" to="/ll/diff_drive/measured_twist"/>
         <remap from="~xb_pose_in" to="/ll/position/gps"/>
         <remap from="~xb_pose_out" to="xbot_positioning/xb_pose"/>
-        <param name="max_gps_accuracy" value="0.2"/>
-        <param name="antenna_offset_x" value="$(env OM_ANTENNA_OFFSET_X)"/>
-        <param name="antenna_offset_y" value="$(env OM_ANTENNA_OFFSET_Y)"/>
-        <param name="debug" value="false" />
     </node>
 </launch>
