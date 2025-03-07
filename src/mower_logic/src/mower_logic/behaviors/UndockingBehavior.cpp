@@ -60,6 +60,7 @@ Behavior *UndockingBehavior::execute() {
 
   const int straight_undock_point_count = 3;  // The FTC planner requires at least 3 points to work
   double incremental_distance = config.undock_distance / straight_undock_point_count;
+  path.poses.push_back(docking_pose_stamped_front);  // Start from current position
   for (int i = 0; i < straight_undock_point_count; i++) {
     docking_pose_stamped_front.pose.position.x -= cos(yaw) * incremental_distance;
     docking_pose_stamped_front.pose.position.y -= sin(yaw) * incremental_distance;

@@ -1,6 +1,7 @@
 FTCPlanner:
   acceleration: 0.1
   check_obstacles: false
+  oscillation_recovery: false
   debug_pid: true
   forward_only: true
   goal_timeout: 20.0

@@ -37,6 +37,7 @@
         <param name="mower_comms/dfp_is_5v" value="$(optenv OM_DFP_IS_5V False)"/>
         <param name="mower_comms/language" value="$(optenv OM_LANGUAGE en)"/>
         <param name="mower_comms/volume" value="$(optenv OM_VOLUME -1)"/>
+        <param name="mower_comms/background_sounds" value="$(optenv OM_BACKGROUND_SOUNDS False)"/>
 
 
         <!-- xbot_driver_gps -->
