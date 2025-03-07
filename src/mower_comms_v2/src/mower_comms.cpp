@@ -76,7 +76,7 @@ void velReceived(const geometry_msgs::Twist::ConstPtr &msg) {
 }
 
 void rtcmReceived(const rtcm_msgs::Message &msg) {
-  if(!gps_service) return;
+  if (!gps_service) return;
   static std::vector<uint8_t> rtcm_buffer{};
   static ros::Time last_time_sent{0};
   ros::Time now = ros::Time::now();
@@ -134,16 +134,21 @@ int main(int argc, char **argv) {
   ROS_INFO_STREAM("Wheel ticks [1/m]: " << wheel_ticks_per_m);
   ROS_INFO_STREAM("Wheel distance [m]: " << wheel_distance_m);
 
-  int baud_rate=0;
-  paramNh.getParam("baud_rate", baud_rate);
+  int baud_rate = 0;
+  paramNh.getParam("services/gps/baud_rate", baud_rate);
 
   std::string protocol;
-  paramNh.getParam("protocol", protocol);
+  paramNh.getParam("services/gps/protocol", protocol);
 
   int gps_port_index = 0;
-  paramNh.getParam("gps_port_index", gps_port_index);
+  paramNh.getParam("services/gps/port_index", gps_port_index);
 
-  ROS_INFO_STREAM("GPS protocol: " << protocol << ", baud rate: " <<baud_rate);
+  if (baud_rate == 0 || protocol.empty()) {
+    ROS_ERROR("Need to specify GPS protocol and baud rate!");
+    return 1;
+  }
+
+  ROS_INFO_STREAM("GPS protocol: " << protocol << ", baud rate: " <<baud_rate << ", gps port index:" << gps_port_index);
 
   diff_drive_service = std::make_unique<DiffDriveServiceInterface>(xbot::service_ids::DIFF_DRIVE, ctx, actual_twist_pub,
                                                                    status_left_esc_pub, status_right_esc_pub,
@@ -168,9 +173,9 @@ int main(int argc, char **argv) {
   // GPS service
   double datum_lat, datum_long, datum_height;
   bool has_datum = true;
-  has_datum &= paramNh.getParam("datum_lat", datum_lat);
-  has_datum &= paramNh.getParam("datum_long", datum_long);
-  has_datum &= paramNh.getParam("datum_height", datum_height);
+  has_datum &= paramNh.getParam("services/gps/datum_lat", datum_lat);
+  has_datum &= paramNh.getParam("services/gps/datum_long", datum_long);
+  has_datum &= paramNh.getParam("services/gps/datum_height", datum_height);
   if (!has_datum) {
     ROS_ERROR_STREAM("You need to provide datum_lat and datum_long and datum_height in order to use the absolute mode");
     return 2;

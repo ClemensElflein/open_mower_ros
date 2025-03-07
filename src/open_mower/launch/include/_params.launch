@@ -1,0 +1,139 @@
+<!--
+    This launch file loads the parameters.
+
+    For v1 it maps the environment variables to the parameter server
+    For v2 it loads the parameters into the parameter server via yaml file
+-->
+<launch>
+    <group if="$(optenv OM_V2 False)">
+        <!-- v2 params -->
+        <group if="$(eval env('OM_MOWER')=='CUSTOM')">
+            <!-- If it is a custom robot, don't load any pre-defined params, let the user load whatever they want -->
+            <rosparam if="$(eval env('OM_MOWER')=='CUSTOM')" file="$(env HOME)/mower_params/custom_params.yaml"/>
+        </group>
+        <group unless="$(eval env('OM_MOWER')=='CUSTOM')">
+            <!-- This is the default case: We have a predefined mower model and let the user override -->
+            <rosparam file="$(find open_mower)/params/openmower_defaults_v2.yaml"/>
+            <rosparam file="$(find open_mower)/params/hardware_specific/$(env OM_MOWER)/params_v2.yaml"/>
+            <rosparam file="$(env HOME)/mower_params.yaml"/>
+        </group>
+    </group>
+
+    <group unless="$(optenv OM_V2 False)">
+        <!-- V1 params -->
+        <!-- mower_comms -->
+        <rosparam unless="$(eval env('OM_MOWER')=='CUSTOM')"
+                  ns="mower_comms"
+                  file="$(find open_mower)/params/hardware_specific/$(env OM_MOWER)/comms_general_params.yaml"/>
+        <rosparam unless="$(eval env('OM_MOWER')=='CUSTOM')"
+                  ns="mower_comms"
+                  file="$(find open_mower)/params/hardware_specific/$(env OM_MOWER)/comms_$(env OM_MOWER_ESC_TYPE)_params.yaml"/>
+        <rosparam if="$(eval env('OM_MOWER')=='CUSTOM')"
+                  ns="mower_comms"
+                  file="$(env HOME)/mower_params/comms_params.yaml"/>
+
+        <param name="mower_comms/wheel_ticks_per_m" value="$(env OM_WHEEL_TICKS_PER_M)"/>
+        <param name="mower_comms/wheel_distance_m" value="$(env OM_WHEEL_DISTANCE_M)"/>
+        <param name="mower_comms/dfp_is_5v" value="$(optenv OM_DFP_IS_5V False)"/>
+        <param name="mower_comms/language" value="$(optenv OM_LANGUAGE en)"/>
+        <param name="mower_comms/volume" value="$(optenv OM_VOLUME -1)"/>
+
+
+        <!-- xbot_driver_gps -->
+        <rosparam if="$(eval env('OM_MOWER')=='CUSTOM')"
+                  ns="xbot_driver_gps"
+                  file="$(env HOME)/mower_params/gps_params.yaml"/>
+        <rosparam unless="$(eval env('OM_MOWER')=='CUSTOM')"
+                  ns="xbot_driver_gps"
+                  file="$(find open_mower)/params/hardware_specific/$(env OM_MOWER)/comms_gps_params.yaml"/>
+
+        <param if="$(eval optenv('OM_GPS_BAUDRATE')!='')" name="xbot_driver_gps/baudrate"
+               value="$(optenv OM_GPS_BAUDRATE)"/>
+        <param if="$(eval optenv('OM_GPS_PORT')!='')" name="xbot_driver_gps/serial_port" value="$(optenv OM_GPS_PORT)"/>
+        <param name="xbot_driver_gps/device_type" value="$(optenv OM_GPS_DEVICE_TYPE serial)"/>
+        <param if="$(eval optenv('OM_GPS_DEVICE_TYPE')=='tcp')" name="xbot_driver_gps/tcp_host"
+               value="$(optenv OM_GPS_TCP_HOSTNAME 127.0.0.1)"/>
+        <param if="$(eval optenv('OM_GPS_DEVICE_TYPE')=='tcp')" name="xbot_driver_gps/tcp_port"
+               value="$(optenv OM_GPS_TCP_PORT 2102)" type="string"/>
+        <param name="xbot_driver_gps/mode" value="absolute" unless="$(env OM_USE_RELATIVE_POSITION)"/>
+        <param name="xbot_driver_gps/mode" value="relative" if="$(env OM_USE_RELATIVE_POSITION)"/>
+        <param name="xbot_driver_gps/ubx_mode" value="$(eval optenv('OM_GPS_PROTOCOL','UBX')=='UBX')"/>
+        <param unless="$(optenv OM_USE_RELATIVE_POSITION False)" name="xbot_driver_gps/datum_lat"
+               value="$(env OM_DATUM_LAT)"/>
+        <param unless="$(optenv OM_USE_RELATIVE_POSITION False)" name="xbot_driver_gps/datum_long"
+               value="$(env OM_DATUM_LONG)"/>
+        <param unless="$(optenv OM_USE_RELATIVE_POSITION False)" name="xbot_driver_gps/datum_height" value="0"/>
+
+
+        <!-- xbot_positioning -->
+        <param name="xbot_positioning/max_gps_accuracy" value="0.2"/>
+        <param name="xbot_positioning/antenna_offset_x" value="$(env OM_ANTENNA_OFFSET_X)"/>
+        <param name="xbot_positioning/antenna_offset_y" value="$(env OM_ANTENNA_OFFSET_Y)"/>
+        <param name="xbot_positioning/debug" value="false"/>
+
+        <!-- ntrip_client -->
+        <param name="ntrip_client/host" value="$(env OM_NTRIP_HOSTNAME)"/>
+        <param name="ntrip_client/port" value="$(env OM_NTRIP_PORT)"/>
+        <param name="ntrip_client/mountpoint" value="$(env OM_NTRIP_ENDPOINT)"/>
+        <param name="ntrip_client/username" value="$(env OM_NTRIP_USER)"/>
+        <param name="ntrip_client/password" value="$(env OM_NTRIP_PASSWORD)"/>
+        <param name="ntrip_client/reconnect_attempt_max" value="$(optenv OM_NTRIP_RECONNECT_WAIT_SECONDS 5)"/>
+        <param name="ntrip_client/reconnect_attempt_wait_seconds" value="$(optenv OM_NTRIP_RECONNECT_MAX 99999)"/>
+
+        <!-- mower_logic -->
+        <param name="mower_logic/automatic_mode" value="$(optenv OM_AUTOMATIC_MODE 0)"/>
+        <param name="mower_logic/docking_distance" value="$(env OM_DOCKING_DISTANCE)"/>
+        <param name="mower_logic/docking_approach_distance" value="$(optenv OM_DOCKING_APPROACH_DISTANCE 1.5)"/>
+        <param name="mower_logic/docking_extra_time" value="$(optenv OM_DOCKING_EXTRA_TIME 0)"/>
+        <param name="mower_logic/docking_retry_count" value="$(optenv OM_DOCKING_RETRY_COUNT 4)"/>
+        <param name="mower_logic/docking_redock" value="$(optenv OM_DOCKING_REDOCK False)"/>
+        <param name="mower_logic/undock_distance" value="$(env OM_UNDOCK_DISTANCE)"/>
+        <param name="mower_logic/perimeter_signal" value="$(optenv OM_PERIMETER_SIGNAL)"/>
+        <param name="mower_logic/tool_width" value="$(env OM_TOOL_WIDTH)"/>
+        <param name="mower_logic/enable_mower" value="$(env OM_ENABLE_MOWER)"/>
+        <param name="mower_logic/battery_empty_voltage" value="$(env OM_BATTERY_EMPTY_VOLTAGE)"/>
+        <param
+                name="mower_logic/battery_critical_voltage"
+                value="$(eval battery_empty_voltage if battery_critical_voltage=='' else battery_critical_voltage)"
+        />
+        <param name="mower_logic/battery_full_voltage" value="$(env OM_BATTERY_FULL_VOLTAGE)"/>
+        <param name="mower_logic/battery_critical_high_voltage" value="$(optenv OM_BATTERY_CRITICAL_HIGH_VOLTAGE -1)"/>
+        <param name="mower_logic/charge_critical_high_voltage" value="$(optenv OM_CHARGE_CRITICAL_HIGH_VOLTAGE -1)"/>
+        <param name="mower_logic/charge_critical_high_current" value="$(optenv OM_CHARGE_CRITICAL_HIGH_CURRENT -1)"/>
+        <param name="mower_logic/outline_count" value="$(env OM_OUTLINE_COUNT)"/>
+        <param name="mower_logic/outline_overlap_count" value="$(optenv OM_OUTLINE_OVERLAP_COUNT 0)"/>
+        <param name="mower_logic/outline_offset" value="$(env OM_OUTLINE_OFFSET)"/>
+        <param name="mower_logic/mow_angle_offset" value="$(optenv OM_MOWING_ANGLE_OFFSET 0)"/>
+        <param name="mower_logic/mow_angle_offset_is_absolute"
+               value="$(optenv OM_MOWING_ANGLE_OFFSET_IS_ABSOLUTE False)"/>
+        <param name="mower_logic/mow_angle_increment" value="$(optenv OM_MOWING_ANGLE_INCREMENT 0)"/>
+        <param name="mower_logic/motor_hot_temperature" value="$(env OM_MOWING_MOTOR_TEMP_HIGH)"/>
+        <param name="mower_logic/motor_cold_temperature" value="$(env OM_MOWING_MOTOR_TEMP_LOW)"/>
+        <param name="mower_logic/gps_wait_time" value="$(optenv OM_GPS_WAIT_TIME_SEC 10.0)"/>
+        <param name="mower_logic/gps_timeout" value="$(optenv OM_GPS_TIMEOUT_SEC 10.0)"/>
+        <param name="mower_logic/rain_mode" value="$(optenv OM_RAIN_MODE 0)"/>
+        <param name="mower_logic/rain_delay_minutes" value="$(optenv OM_RAIN_DELAY_MINUTES 30)"/>
+        <param name="mower_logic/rain_check_seconds" value="$(optenv OM_RAIN_CHECK_SECONDS 20)"/>
+        <param name="mower_logic/cu_rain_threshold" value="$(optenv OM_CU_RAIN_THRESHOLD -1)"/>
+        <param name="mower_logic/undock_angled_distance" value="$(optenv OM_UNDOCK_ANGLED_DISTANCE 0.0)"/>
+        <param name="mower_logic/undock_angle" value="$(optenv OM_UNDOCK_ANGLE 0.0)"/>
+        <param name="mower_logic/undock_fixed_angle" value="$(optenv OM_UNDOCK_FIXED_ANGLE True)"/>
+        <param name="mower_logic/undock_use_curve" value="$(optenv OM_UNDOCK_USE_CURVE True)"/>
+        <param name="mower_logic/emergency_lift_period" value="$(optenv OM_EMERGENCY_LIFT_PERIOD -1)"/>
+        <param name="mower_logic/emergency_tilt_period" value="$(optenv OM_EMERGENCY_TILT_PERIOD -1)"/>
+        <param name="mower_logic/emergency_input_config" value="$(optenv OM_EMERGENCY_INPUT_CONFIG)"/>
+        <param name="mower_logic/ignore_charging_current" value="$(optenv OM_IGNORE_CHARGING_CURRENT False)"/>
+
+        <!-- xbot_monitoring -->
+        <param name="xbot_monitoring/external_mqtt_enable" value="$(optenv OM_MQTT_ENABLE False)"/>
+        <param name="xbot_monitoring/external_mqtt_hostname" value="$(optenv OM_MQTT_HOSTNAME)"/>
+        <param name="xbot_monitoring/external_mqtt_port" value="$(optenv OM_MQTT_PORT)"/>
+        <param name="xbot_monitoring/external_mqtt_username" value="$(optenv OM_MQTT_USER)"/>
+        <param name="xbot_monitoring/external_mqtt_password" value="$(optenv OM_MQTT_PASSWORD)"/>
+        <param name="xbot_monitoring/external_mqtt_topic_prefix" value="$(optenv OM_MQTT_TOPIC_PREFIX)"/>
+        <param name="xbot_monitoring/software_version" value="$(optenv OM_SOFTWARE_VERSION)"/>
+
+        <!-- heatmap_generator -->
+        <param name="sensor_ids" value="$(optenv OM_HEATMAP_SENSOR_IDS)"/>
+    </group>
+</launch>

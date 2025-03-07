@@ -1,4 +1,5 @@
 <launch>
+    <include file="$(find open_mower)/launch/include/_params.launch"/>
     <include file="$(find open_mower)/launch/include/_comms.launch"/>
     <include file="$(find open_mower)/launch/include/_move_base.launch"/>
     <include file="$(find open_mower)/launch/include/_localization.launch"/>
@@ -7,74 +8,25 @@
         <arg name="prefix" value="mow_area"/>
     </include>
 
-    <arg name="battery_empty_voltage" value="$(env OM_BATTERY_EMPTY_VOLTAGE)" />
-    <arg name="battery_critical_voltage" value="$(optenv OM_BATTERY_CRITICAL_VOLTAGE)" />
 
     <node pkg="mower_map" type="mower_map_service" name="map_service" output="screen"/>
     <node pkg="mower_logic" type="mower_logic" name="mower_logic" output="screen">
-        <param name="automatic_mode" value="$(optenv OM_AUTOMATIC_MODE 0)"/>
-        <param name="docking_distance" value="$(env OM_DOCKING_DISTANCE)"/>
-        <param name="docking_approach_distance" value="$(optenv OM_DOCKING_APPROACH_DISTANCE 1.5)"/>
-        <param name="docking_extra_time" value="$(optenv OM_DOCKING_EXTRA_TIME 0)"/>
-        <param name="docking_retry_count" value="$(optenv OM_DOCKING_RETRY_COUNT 4)"/>
-        <param name="docking_redock" value="$(optenv OM_DOCKING_REDOCK False)"/>
-        <param name="undock_distance" value="$(env OM_UNDOCK_DISTANCE)"/>
-        <param name="perimeter_signal" value="$(optenv OM_PERIMETER_SIGNAL)"/>
-        <param name="tool_width" value="$(env OM_TOOL_WIDTH)"/>
-        <param name="enable_mower" value="$(env OM_ENABLE_MOWER)"/>
-        <param name="battery_empty_voltage" value="$(arg battery_empty_voltage)"/>
-        <param
-            name="battery_critical_voltage"
-            value="$(eval battery_empty_voltage if battery_critical_voltage=='' else battery_critical_voltage)"
-        />
-        <param name="battery_full_voltage" value="$(env OM_BATTERY_FULL_VOLTAGE)"/>
-        <param name="battery_critical_high_voltage" value="$(optenv OM_BATTERY_CRITICAL_HIGH_VOLTAGE -1)"/>
-        <param name="charge_critical_high_voltage" value="$(optenv OM_CHARGE_CRITICAL_HIGH_VOLTAGE -1)"/>
-        <param name="charge_critical_high_current" value="$(optenv OM_CHARGE_CRITICAL_HIGH_CURRENT -1)"/>
-        <param name="outline_count" value="$(env OM_OUTLINE_COUNT)"/>
-        <param name="outline_overlap_count" value="$(optenv OM_OUTLINE_OVERLAP_COUNT 0)"/>
-        <param name="outline_offset" value="$(env OM_OUTLINE_OFFSET)"/>
-        <param name="mow_angle_offset" value="$(optenv OM_MOWING_ANGLE_OFFSET 0)"/>
-        <param name="mow_angle_offset_is_absolute" value="$(optenv OM_MOWING_ANGLE_OFFSET_IS_ABSOLUTE False)"/>
-        <param name="mow_angle_increment" value="$(optenv OM_MOWING_ANGLE_INCREMENT 0)"/>
-        <param name="motor_hot_temperature" value="$(env OM_MOWING_MOTOR_TEMP_HIGH)"/>
-        <param name="motor_cold_temperature" value="$(env OM_MOWING_MOTOR_TEMP_LOW)"/>
-        <param name="gps_wait_time" value="$(optenv OM_GPS_WAIT_TIME_SEC 10.0)"/>
-        <param name="gps_timeout" value="$(optenv OM_GPS_TIMEOUT_SEC 10.0)"/>
-        <param name="rain_mode" value="$(optenv OM_RAIN_MODE 0)"/>
-        <param name="rain_delay_minutes" value="$(optenv OM_RAIN_DELAY_MINUTES 30)"/>
-        <param name="rain_check_seconds" value="$(optenv OM_RAIN_CHECK_SECONDS 20)"/>
-        <param name="cu_rain_threshold" value="$(optenv OM_CU_RAIN_THRESHOLD -1)"/>
-        <param name="undock_angled_distance" value="$(optenv OM_UNDOCK_ANGLED_DISTANCE 0.0)"/>
-        <param name="undock_angle" value="$(optenv OM_UNDOCK_ANGLE 0.0)"/>
-        <param name="undock_fixed_angle" value="$(optenv OM_UNDOCK_FIXED_ANGLE True)"/>
-        <param name="undock_use_curve" value="$(optenv OM_UNDOCK_USE_CURVE True)"/>
-        <param name="emergency_lift_period" value="$(optenv OM_EMERGENCY_LIFT_PERIOD -1)"/>
-        <param name="emergency_tilt_period" value="$(optenv OM_EMERGENCY_TILT_PERIOD -1)"/>
-        <param name="emergency_input_config" value="$(optenv OM_EMERGENCY_INPUT_CONFIG)"/>
-        <param name="ignore_charging_current" value="$(optenv OM_IGNORE_CHARGING_CURRENT False)"/>
     </node>
     <node pkg="slic3r_coverage_planner" type="slic3r_coverage_planner" name="slic3r_coverage_planner" output="screen"/>
 
     <node pkg="twist_mux" type="twist_mux" name="twist_mux" output="screen">
         <remap from="cmd_vel_out" to="/ll/cmd_vel"/>
 
-        <rosparam file="$(find open_mower)/params/twist_mux_topics.yaml"  command="load"/>
+        <rosparam file="$(find open_mower)/params/twist_mux_topics.yaml" command="load"/>
     </node>
 
-    <node pkg="xbot_monitoring" type="xbot_monitoring" name="xbot_monitoring" output="screen" respawn="true" respawn_delay="10">
-        <param name="external_mqtt_enable" value="$(optenv OM_MQTT_ENABLE False)" />
-        <param name="external_mqtt_hostname" value="$(optenv OM_MQTT_HOSTNAME)" />
-        <param name="external_mqtt_port" value="$(optenv OM_MQTT_PORT)" />
-        <param name="external_mqtt_username" value="$(optenv OM_MQTT_USER)" />
-        <param name="external_mqtt_password" value="$(optenv OM_MQTT_PASSWORD)" />
-        <param name="external_mqtt_topic_prefix" value="$(optenv OM_MQTT_TOPIC_PREFIX)" />
-        <param name="software_version" value="$(optenv OM_SOFTWARE_VERSION)" />
+    <node pkg="xbot_monitoring" type="xbot_monitoring" name="xbot_monitoring" output="screen" respawn="true"
+          respawn_delay="10">
         <remap from="/xbot_monitoring/remote_cmd_vel" to="/joy_vel"/>
     </node>
 
-    <node pkg="xbot_monitoring" type="heatmap_generator" name="heatmap_generator" output="screen" respawn="true" respawn_delay="10" unless="$(eval optenv('OM_HEATMAP_SENSOR_IDS', 'UNSET') == 'UNSET')">
-        <param name="sensor_ids" value="$(optenv OM_HEATMAP_SENSOR_IDS)" />
+    <node pkg="xbot_monitoring" type="heatmap_generator" name="heatmap_generator" output="screen" respawn="true"
+          respawn_delay="10" unless="$(eval optenv('OM_HEATMAP_SENSOR_IDS', 'UNSET') == 'UNSET')">
     </node>
 
     <node pkg="xbot_remote" type="xbot_remote" name="xbot_remote" output="screen" respawn="true" respawn_delay="10">

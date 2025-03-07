@@ -1,0 +1,27 @@
+services:
+  nginx:
+    image: nginx:latest
+    container_name: nginx_server
+    ports:
+      - "8080:8080"
+    volumes:
+      - ../assets/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ../../web:/opt/open_mower_ros/web:ro
+
+  mosquitto:
+    image: eclipse-mosquitto:latest
+    container_name: mosquitto_broker
+    ports:
+      - "1883:1883"  # MQTT default port
+      - "9001:9001"  # WebSockets (if enabled in config)
+    volumes:
+      - ../assets/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro  # Your custom config file
+
+  etherbridge:
+    image: ghcr.io/xtech/etherbridge:main
+    container_name: etherbridge
+    network_mode: host
+    privileged: true
+    volumes:
+      - /dev:/dev
+    command: "client --peer openmower --bridge 172.16.78.2"

@@ -1,0 +1,12 @@
+mower_comms_v2:
+  services:
+    gps:
+      baud_rate: 921600
+      protocol: "UBX"
+    diff_drive:
+      wheel_distance_m: 0.325
+      ticks_per_m: 1600.0
+
+xbot_positioning:
+  antenna_offset_x: 0.3
+  antenna_offset_y: 0.0
