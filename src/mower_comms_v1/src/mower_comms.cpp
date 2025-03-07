@@ -30,6 +30,7 @@
 
 #include <algorithm>
 #include <bitset>
+#include <geometry_msgs/TwistStamped.h>
 
 #include "COBS.h"
 #include "boost/crc.hpp"
@@ -47,11 +48,12 @@
 #include "std_msgs/Empty.h"
 
 ros::Publisher status_pub;
+ros::Publisher power_pub;
 ros::Publisher emergency_pub;
-ros::Publisher wheel_tick_pub;
-
+ros::Publisher actual_twist_pub;
+ros::Publisher status_left_esc_pub;
+ros::Publisher status_right_esc_pub;
 ros::Publisher sensor_imu_pub;
-ros::Publisher sensor_mag_pub;
 
 COBS cobs;
 
@@ -94,10 +96,16 @@ xesc_driver::XescDriver *mow_xesc_interface;
 xesc_driver::XescDriver *left_xesc_interface;
 xesc_driver::XescDriver *right_xesc_interface;
 
+// True, if we have wheel ticks (i.e. last_ticks is valid)
+bool has_ticks;
+uint32_t last_ticks_l = 0;
+uint32_t last_ticks_r = 0;
+ros::Time last_ticks_stamp{};
+geometry_msgs::TwistStamped measured_twist_msg{};
+
 std::mutex ll_status_mutex;
 struct ll_status last_ll_status = {0};
 
-sensor_msgs::MagneticField sensor_mag_msg;
 sensor_msgs::Imu sensor_imu_msg;
 
 ros::ServiceClient highLevelClient;
@@ -133,16 +141,18 @@ void publishActuators() {
   left_xesc_interface->setDutyCycle(speed_l);
   right_xesc_interface->setDutyCycle(-speed_r);
 
-  struct ll_heartbeat heartbeat = {.type = PACKET_ID_LL_HEARTBEAT,
-                                   // If high level has emergency and LL does not know yet, we set it
-                                   .emergency_requested = (!emergency_low_level && emergency_high_level),
-                                   .emergency_release_requested = ll_clear_emergency};
+  struct ll_heartbeat heartbeat = {
+    .type = PACKET_ID_LL_HEARTBEAT,
+    // If high level has emergency and LL does not know yet, we set it
+    .emergency_requested = (!emergency_low_level && emergency_high_level),
+    .emergency_release_requested = ll_clear_emergency
+  };
 
   crc.reset();
   crc.process_bytes(&heartbeat, sizeof(struct ll_heartbeat) - 2);
   heartbeat.crc = crc.checksum();
 
-  size_t encoded_size = cobs.encode((uint8_t *)&heartbeat, sizeof(struct ll_heartbeat), out_buf);
+  size_t encoded_size = cobs.encode((uint8_t *) &heartbeat, sizeof(struct ll_heartbeat), out_buf);
   out_buf[encoded_size] = 0;
   encoded_size++;
 
@@ -238,8 +248,11 @@ void publishStatus() {
   power_msg.v_battery = last_ll_status.v_system;
   power_msg.v_charge = last_ll_status.v_charge;
   power_msg.charge_current = last_ll_status.charging_current;
+  power_msg.charger_enabled = (last_ll_status.status_bitmask & LL_STATUS_BIT_CHARGING) != 0;
+  power_msg.charger_status = "UNKNOWN";
+  power_pub.publish(power_msg);
 
-  xesc_msgs::XescStateStamped mow_status, left_status, right_status;
+  xesc_msgs::XescStateStamped mow_status{}, left_status{}, right_status{};
   if (mow_xesc_interface) {
     mow_xesc_interface->getStatus(mow_status);
   } else {
@@ -255,17 +268,55 @@ void publishStatus() {
   convertStatus(left_status, left_esc_status);
   convertStatus(right_status, right_esc_status);
 
+  status_msg.mower_esc_current = static_cast<float>(mow_status.state.current_input);
+  status_msg.mower_esc_status = mow_status.state.connection_state;
+  status_msg.mower_motor_rpm = mow_status.state.rpm;
+  status_msg.mower_esc_temperature = static_cast<float>(mow_status.state.temperature_pcb);
+  status_msg.mower_motor_temperature = static_cast<float>(mow_status.state.temperature_motor);
+
   status_pub.publish(status_msg);
+  status_left_esc_pub.publish(left_esc_status);
+  status_right_esc_pub.publish(right_esc_status);
 
-  xbot_msgs::WheelTick wheel_tick_msg;
-  wheel_tick_msg.wheel_tick_factor = static_cast<unsigned int>(wheel_ticks_per_m);
-  wheel_tick_msg.stamp = status_msg.stamp;
-  wheel_tick_msg.wheel_ticks_rl = left_status.state.tacho_absolute;
-  wheel_tick_msg.wheel_direction_rl = left_status.state.direction && abs(left_status.state.duty_cycle) > 0;
-  wheel_tick_msg.wheel_ticks_rr = right_status.state.tacho_absolute;
-  wheel_tick_msg.wheel_direction_rr = !right_status.state.direction && abs(right_status.state.duty_cycle) > 0;
+  if (!has_ticks) {
+    last_ticks_stamp = status_msg.stamp;
+    last_ticks_l = left_status.state.tacho_absolute;
+    last_ticks_r = right_status.state.tacho_absolute;
+    has_ticks = true;
+  } else {
+    bool wheel_direction_l = left_status.state.direction && abs(left_status.state.duty_cycle) > 0;
+    bool wheel_direction_r = !right_status.state.direction && abs(right_status.state.duty_cycle) > 0;
 
-  wheel_tick_pub.publish(wheel_tick_msg);
+    double dt = (status_msg.stamp - last_ticks_stamp).toSec();
+
+    double d_wheel_l = (double) (left_status.state.tacho_absolute - last_ticks_l) * (
+                         1 / wheel_ticks_per_m);
+    double d_wheel_r = (double) (right_status.state.tacho_absolute - last_ticks_r) * (
+                         1 / wheel_ticks_per_m);
+
+    if (wheel_direction_l) {
+      d_wheel_l *= -1.0;
+    }
+    if (wheel_direction_r) {
+      d_wheel_r *= -1.0;
+    }
+
+
+    double d_ticks = (d_wheel_l + d_wheel_r) / 2.0;
+    double vx = d_ticks / dt;
+    double vr = -(d_wheel_l + d_wheel_r) / (2.0f * dt);
+    last_ticks_stamp = status_msg.stamp;
+    last_ticks_l = left_status.state.tacho_absolute;
+    last_ticks_r = right_status.state.tacho_absolute;
+
+    measured_twist_msg.header.frame_id = "base_link";
+    measured_twist_msg.header.stamp = status_msg.stamp;
+    measured_twist_msg.header.seq++;
+    measured_twist_msg.twist.linear.x = vx;
+    measured_twist_msg.twist.angular.z = vr;
+
+    actual_twist_pub.publish(measured_twist_msg);
+  }
 }
 
 std::string getHallConfigsString(const HallConfig *hall_configs, const size_t size) {
@@ -276,10 +327,14 @@ std::string getHallConfigsString(const HallConfig *hall_configs, const size_t si
     if (str.length()) str.append(", ");
     if (hall_configs->active_low) str.append("!");
     switch (hall_configs->mode) {
-      case HallMode::OFF: str.append("I"); break;
-      case HallMode::LIFT_TILT: str.append("L"); break;
-      case HallMode::STOP: str.append("S"); break;
-      case HallMode::UNDEFINED: str.append("U"); break;
+      case HallMode::OFF: str.append("I");
+        break;
+      case HallMode::LIFT_TILT: str.append("L");
+        break;
+      case HallMode::STOP: str.append("S");
+        break;
+      case HallMode::UNDEFINED: str.append("U");
+        break;
       default: break;
     }
     hall_configs++;
@@ -292,7 +347,7 @@ void publishLowLevelConfig(const uint8_t pkt_type) {
   if (!serial_port.isOpen() || !allow_send) return;
 
   // Prepare the pkt
-  size_t size = sizeof(struct ll_high_level_config) + 3;  // +1 type, +2 crc
+  size_t size = sizeof(struct ll_high_level_config) + 3; // +1 type, +2 crc
   uint8_t buf[size];
 
   // Send config and request a config answer
@@ -302,11 +357,11 @@ void publishLowLevelConfig(const uint8_t pkt_type) {
   memcpy(&buf[1], &llhl_config, sizeof(struct ll_high_level_config));
 
   // Member access to buffer
-  struct ll_high_level_config *buf_config = (struct ll_high_level_config *)&buf[1];
+  struct ll_high_level_config *buf_config = (struct ll_high_level_config *) &buf[1];
 
   // CRC
   crc.reset();
-  crc.process_bytes(buf, sizeof(struct ll_high_level_config) + 1);  // + type
+  crc.process_bytes(buf, sizeof(struct ll_high_level_config) + 1); // + type
   buf[size - 1] = (crc.checksum() >> 8) & 0xFF;
   buf[size - 2] = crc.checksum() & 0xFF;
 
@@ -319,19 +374,19 @@ void publishLowLevelConfig(const uint8_t pkt_type) {
   try {
     // Let's be verbose for easier follow-up
     ROS_INFO(
-        "Send ll_high_level_config packet %#04x\n"
-        "\t options{dfp_is_5v=%d, background_sounds=%d, ignore_charging_current=%d},\n"
-        "\t v_charge_cutoff=%f, i_charge_cutoff=%f,\n"
-        "\t v_battery_cutoff=%f, v_battery_empty=%f, v_battery_full=%f,\n"
-        "\t lift_period=%d, tilt_period=%d,\n"
-        "\t shutdown_esc_max_pitch=%d,\n"
-        "\t language=\"%.2s\", volume=%d\n"
-        "\t hall_configs=\"%s\"",
-        buf[0], (int)buf_config->options.dfp_is_5v, (int)buf_config->options.background_sounds,
-        (int)buf_config->options.ignore_charging_current, buf_config->v_charge_cutoff, buf_config->i_charge_cutoff,
-        buf_config->v_battery_cutoff, buf_config->v_battery_empty, buf_config->v_battery_full, buf_config->lift_period,
-        buf_config->tilt_period, buf_config->shutdown_esc_max_pitch, buf_config->language, buf_config->volume,
-        getHallConfigsString(buf_config->hall_configs, MAX_HALL_INPUTS).c_str());
+      "Send ll_high_level_config packet %#04x\n"
+      "\t options{dfp_is_5v=%d, background_sounds=%d, ignore_charging_current=%d},\n"
+      "\t v_charge_cutoff=%f, i_charge_cutoff=%f,\n"
+      "\t v_battery_cutoff=%f, v_battery_empty=%f, v_battery_full=%f,\n"
+      "\t lift_period=%d, tilt_period=%d,\n"
+      "\t shutdown_esc_max_pitch=%d,\n"
+      "\t language=\"%.2s\", volume=%d\n"
+      "\t hall_configs=\"%s\"",
+      buf[0], (int)buf_config->options.dfp_is_5v, (int)buf_config->options.background_sounds,
+      (int)buf_config->options.ignore_charging_current, buf_config->v_charge_cutoff, buf_config->i_charge_cutoff,
+      buf_config->v_battery_cutoff, buf_config->v_battery_empty, buf_config->v_battery_full, buf_config->lift_period,
+      buf_config->tilt_period, buf_config->shutdown_esc_max_pitch, buf_config->language, buf_config->volume,
+      getHallConfigsString(buf_config->hall_configs, MAX_HALL_INPUTS).c_str());
 
     serial_port.write(out_buf, encoded_size);
   } catch (std::exception &e) {
@@ -344,27 +399,29 @@ void publishLowLevelConfig(const uint8_t pkt_type) {
  * LowLevel reboots or flash period.
  */
 struct {
-  ros::Time last_config_req;    // Time when last config request was sent
-  unsigned int tries_left = 0;  // Remaining request tries before giving up
+  ros::Time last_config_req; // Time when last config request was sent
+  unsigned int tries_left = 0; // Remaining request tries before giving up
 
-  void ackResponse() {  // Call this on receive of a response packet to stop monitoring
+  void ackResponse() {
+    // Call this on receive of a response packet to stop monitoring
     tries_left = 0;
   };
 
-  void setDirty() {  // Call this for indicating that config packet need to be resend, i.e. die to LL-reboot
+  void setDirty() {
+    // Call this for indicating that config packet need to be resend, i.e. die to LL-reboot
     tries_left = 5;
   };
 
   void check() {
-    if (!tries_left ||                                            // No request tries left (probably old LL-FW)
-        !serial_port.isOpen() || !allow_send ||                   // Serial not ready
-        ros::Time::now() - last_config_req < ros::Duration(0.5))  // Timeout waiting for response not reached
+    if (!tries_left || // No request tries left (probably old LL-FW)
+        !serial_port.isOpen() || !allow_send || // Serial not ready
+        ros::Time::now() - last_config_req < ros::Duration(0.5)) // Timeout waiting for response not reached
       return;
     publishLowLevelConfig(PACKET_ID_LL_HIGH_LEVEL_CONFIG_REQ);
     last_config_req = ros::Time::now();
     tries_left--;
     ROS_WARN_STREAM_COND(
-        !tries_left, "Didn't received a config packet from LowLevel in time. Is your LowLevel firmware up-to-date?");
+      !tries_left, "Didn't received a config packet from LowLevel in time. Is your LowLevel firmware up-to-date?");
   };
 } configTracker;
 
@@ -398,15 +455,17 @@ bool setEmergencyStop(mower_msgs::EmergencyStopSrvRequest &req, mower_msgs::Emer
 }
 
 void highLevelStatusReceived(const mower_msgs::HighLevelStatus::ConstPtr &msg) {
-  struct ll_high_level_state hl_state = {.type = PACKET_ID_LL_HIGH_LEVEL_STATE,
-                                         .current_mode = msg->state,
-                                         .gps_quality = static_cast<uint8_t>(msg->gps_quality_percent * 100.0)};
+  struct ll_high_level_state hl_state = {
+    .type = PACKET_ID_LL_HIGH_LEVEL_STATE,
+    .current_mode = msg->state,
+    .gps_quality = static_cast<uint8_t>(msg->gps_quality_percent * 100.0)
+  };
 
   crc.reset();
   crc.process_bytes(&hl_state, sizeof(struct ll_high_level_state) - 2);
   hl_state.crc = crc.checksum();
 
-  size_t encoded_size = cobs.encode((uint8_t *)&hl_state, sizeof(struct ll_high_level_state), out_buf);
+  size_t encoded_size = cobs.encode((uint8_t *) &hl_state, sizeof(struct ll_high_level_state), out_buf);
   out_buf[encoded_size] = 0;
   encoded_size++;
 
@@ -487,7 +546,7 @@ void handleLowLevelUIEvent(struct ll_ui_event *ui_event) {
  * @param t_new reference
  * @return &bool get set to true if t_cur and t_new differ, otherwise changed doesn't get touched
  */
-template <typename T>
+template<typename T>
 T getNewSetChanged(const T t_cur, const T t_new, bool &changed) {
   bool equal;
   if (std::is_floating_point<T>::value)
@@ -511,26 +570,26 @@ void handleLowLevelConfig(const uint8_t *buffer, const size_t size) {
   // side. If payload size is larger than our struct size, ensure that we only copy those we know of = our struct size.
   // If payload size is smaller than our struct size, copy only the payload we got, but ensure that the unsent member(s)
   // have reasonable defaults.
-  size_t payload_size = std::min(sizeof(ll_high_level_config), size - 3);  // exclude type & crc
+  size_t payload_size = std::min(sizeof(ll_high_level_config), size - 3); // exclude type & crc
 
   // Copy payload to separated ll_config
   memcpy(&llhl_config, buffer + 1, payload_size);
 
   // Let's be verbose for easier follow-up
   ROS_INFO(
-      "Received ll_high_level_config packet %#04x\n"
-      "\t options{dfp_is_5v=%d, background_sounds=%d, ignore_charging_current=%d},\n"
-      "\t v_charge_cutoff=%f, i_charge_cutoff=%f,\n"
-      "\t v_battery_cutoff=%f, v_battery_empty=%f, v_battery_full=%f,\n"
-      "\t lift_period=%d, tilt_period=%d,\n"
-      "\t shutdown_esc_max_pitch=%d,\n"
-      "\t language=\"%.2s\", volume=%d\n"
-      "\t hall_configs=\"%s\"",
-      *buffer, (int)llhl_config.options.dfp_is_5v, (int)llhl_config.options.background_sounds,
-      (int)llhl_config.options.ignore_charging_current, llhl_config.v_charge_cutoff, llhl_config.i_charge_cutoff,
-      llhl_config.v_battery_cutoff, llhl_config.v_battery_empty, llhl_config.v_battery_full, llhl_config.lift_period,
-      llhl_config.tilt_period, llhl_config.shutdown_esc_max_pitch, llhl_config.language, llhl_config.volume,
-      getHallConfigsString(llhl_config.hall_configs, MAX_HALL_INPUTS).c_str());
+    "Received ll_high_level_config packet %#04x\n"
+    "\t options{dfp_is_5v=%d, background_sounds=%d, ignore_charging_current=%d},\n"
+    "\t v_charge_cutoff=%f, i_charge_cutoff=%f,\n"
+    "\t v_battery_cutoff=%f, v_battery_empty=%f, v_battery_full=%f,\n"
+    "\t lift_period=%d, tilt_period=%d,\n"
+    "\t shutdown_esc_max_pitch=%d,\n"
+    "\t language=\"%.2s\", volume=%d\n"
+    "\t hall_configs=\"%s\"",
+    *buffer, (int)llhl_config.options.dfp_is_5v, (int)llhl_config.options.background_sounds,
+    (int)llhl_config.options.ignore_charging_current, llhl_config.v_charge_cutoff, llhl_config.i_charge_cutoff,
+    llhl_config.v_battery_cutoff, llhl_config.v_battery_empty, llhl_config.v_battery_full, llhl_config.lift_period,
+    llhl_config.tilt_period, llhl_config.shutdown_esc_max_pitch, llhl_config.language, llhl_config.volume,
+    getHallConfigsString(llhl_config.hall_configs, MAX_HALL_INPUTS).c_str());
 
   // Inform config packet tracker about the response
   configTracker.ackResponse();
@@ -577,13 +636,6 @@ void handleLowLevelIMU(struct ll_imu *imu) {
   imu_msg.my = imu->mag_uT[1];
   imu_msg.mz = imu->mag_uT[2];
 
-  sensor_mag_msg.header.stamp = ros::Time::now();
-  sensor_mag_msg.header.seq++;
-  sensor_mag_msg.header.frame_id = "base_link";
-  sensor_mag_msg.magnetic_field.x = imu_msg.mx / 1000.0;
-  sensor_mag_msg.magnetic_field.y = imu_msg.my / 1000.0;
-  sensor_mag_msg.magnetic_field.z = imu_msg.mz / 1000.0;
-
   sensor_imu_msg.header.stamp = ros::Time::now();
   sensor_imu_msg.header.seq++;
   sensor_imu_msg.header.frame_id = "base_link";
@@ -595,7 +647,6 @@ void handleLowLevelIMU(struct ll_imu *imu) {
   sensor_imu_msg.angular_velocity.z = imu_msg.gz;
 
   sensor_imu_pub.publish(sensor_imu_msg);
-  sensor_mag_pub.publish(sensor_mag_msg);
 }
 
 void reconfigCB(const mower_logic::MowerLogicConfig &config) {
@@ -626,11 +677,16 @@ void reconfigCB(const mower_logic::MowerLogicConfig &config) {
     low_active = false;
     while (*token != 0) {
       switch (std::toupper(*token)) {
-        case '!': low_active = true; break;
-        case 'I': llhl_config.hall_configs[hall_idx] = {HallMode::OFF, low_active}; break;
-        case 'L': llhl_config.hall_configs[hall_idx] = {HallMode::LIFT_TILT, low_active}; break;
-        case 'S': llhl_config.hall_configs[hall_idx] = {HallMode::STOP, low_active}; break;
-        case 'U': llhl_config.hall_configs[hall_idx] = {HallMode::UNDEFINED, low_active}; break;
+        case '!': low_active = true;
+          break;
+        case 'I': llhl_config.hall_configs[hall_idx] = {HallMode::OFF, low_active};
+          break;
+        case 'L': llhl_config.hall_configs[hall_idx] = {HallMode::LIFT_TILT, low_active};
+          break;
+        case 'S': llhl_config.hall_configs[hall_idx] = {HallMode::STOP, low_active};
+          break;
+        case 'U': llhl_config.hall_configs[hall_idx] = {HallMode::UNDEFINED, low_active};
+          break;
         default: break;
       }
       token++;
@@ -645,7 +701,6 @@ void reconfigCB(const mower_logic::MowerLogicConfig &config) {
 int main(int argc, char **argv) {
   ros::init(argc, argv, "mower_comms_v1");
 
-  sensor_mag_msg.header.seq = 0;
   sensor_imu_msg.header.seq = 0;
 
   ros::NodeHandle n;
@@ -693,15 +748,21 @@ int main(int argc, char **argv) {
   left_xesc_interface = new xesc_driver::XescDriver(n, leftParamNh);
   right_xesc_interface = new xesc_driver::XescDriver(n, rightParamNh);
 
-  status_pub = n.advertise<mower_msgs::Status>("mower/status", 1);
-  emergency_pub = n.advertise<mower_msgs::Emergency>("mower/emergency", 1);
-  wheel_tick_pub = n.advertise<xbot_msgs::WheelTick>("mower/wheel_ticks", 1);
+  emergency_pub = n.advertise<mower_msgs::Emergency>("ll/emergency", 1);
 
+  // Diff drive service
+  actual_twist_pub = n.advertise<geometry_msgs::TwistStamped>("ll/diff_drive/measured_twist", 1);
+  status_left_esc_pub = n.advertise<mower_msgs::ESCStatus>("ll/diff_drive/left_esc_status", 1);
+  status_right_esc_pub = n.advertise<mower_msgs::ESCStatus>("ll/diff_drive/right_esc_status", 1);
+
+  status_pub = n.advertise<mower_msgs::Status>("ll/mower_status", 1);
   sensor_imu_pub = n.advertise<sensor_msgs::Imu>("imu/data_raw", 1);
-  sensor_mag_pub = n.advertise<sensor_msgs::MagneticField>("imu/mag", 1);
-  ros::ServiceServer mow_service = n.advertiseService("mower_service/mow_enabled", setMowEnabled);
-  ros::ServiceServer emergency_service = n.advertiseService("mower_service/emergency", setEmergencyStop);
-  ros::Subscriber cmd_vel_sub = n.subscribe("cmd_vel", 0, velReceived, ros::TransportHints().tcpNoDelay(true));
+  power_pub = n.advertise<mower_msgs::Power>("ll/power", 1);
+
+
+  ros::ServiceServer mow_service = n.advertiseService("ll/_service/mow_enabled", setMowEnabled);
+  ros::ServiceServer emergency_service = n.advertiseService("ll/_service/emergency", setEmergencyStop);
+  ros::Subscriber cmd_vel_sub = n.subscribe("ll/cmd_vel", 0, velReceived, ros::TransportHints().tcpNoDelay(true));
   ros::Subscriber high_level_status_sub = n.subscribe("/mower_logic/current_state", 0, highLevelStatusReceived);
   ros::Timer publish_timer = n.createTimer(ros::Duration(0.02), publishActuatorsTimerTask);
 
@@ -764,34 +825,36 @@ int main(int argc, char **argv) {
           // bytes.
           crc.process_bytes(buffer_decoded, data_size - 2);
           uint16_t checksum = crc.checksum();
-          uint16_t received_checksum = *(uint16_t *)(buffer_decoded + data_size - 2);
+          uint16_t received_checksum = *(uint16_t *) (buffer_decoded + data_size - 2);
           if (checksum == received_checksum) {
             // Packet checksum is OK, process it
             switch (buffer_decoded[0]) {
               case PACKET_ID_LL_STATUS:
                 if (data_size == sizeof(struct ll_status)) {
-                  handleLowLevelStatus((struct ll_status *)buffer_decoded);
+                  handleLowLevelStatus((struct ll_status *) buffer_decoded);
                 } else {
                   ROS_INFO_STREAM("Low Level Board sent a valid packet with the wrong size. Type was STATUS");
                 }
                 break;
               case PACKET_ID_LL_IMU:
                 if (data_size == sizeof(struct ll_imu)) {
-                  handleLowLevelIMU((struct ll_imu *)buffer_decoded);
+                  handleLowLevelIMU((struct ll_imu *) buffer_decoded);
                 } else {
                   ROS_INFO_STREAM("Low Level Board sent a valid packet with the wrong size. Type was IMU");
                 }
                 break;
               case PACKET_ID_LL_UI_EVENT:
                 if (data_size == sizeof(struct ll_ui_event)) {
-                  handleLowLevelUIEvent((struct ll_ui_event *)buffer_decoded);
+                  handleLowLevelUIEvent((struct ll_ui_event *) buffer_decoded);
                 } else {
                   ROS_INFO_STREAM("Low Level Board sent a valid packet with the wrong size. Type was UI_EVENT");
                 }
                 break;
               case PACKET_ID_LL_HIGH_LEVEL_CONFIG_REQ:
-              case PACKET_ID_LL_HIGH_LEVEL_CONFIG_RSP: handleLowLevelConfig(buffer_decoded, data_size); break;
-              default: ROS_INFO_STREAM("Got unknown packet from Low Level Board"); break;
+              case PACKET_ID_LL_HIGH_LEVEL_CONFIG_RSP: handleLowLevelConfig(buffer_decoded, data_size);
+                break;
+              default: ROS_INFO_STREAM("Got unknown packet from Low Level Board");
+                break;
             }
           } else {
             ROS_INFO_STREAM("Got invalid checksum from Low Level Board");

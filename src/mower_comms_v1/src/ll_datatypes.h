@@ -29,6 +29,31 @@
 #define PACKET_ID_LL_HEARTBEAT 0x42
 #define PACKET_ID_LL_HIGH_LEVEL_STATE 0x43
 
+// clang-format off
+#define LL_EMERGENCY_BIT_LATCH (1 << 0)  // Any emergency latch
+#define LL_EMERGENCY_BIT_STOP  (1 << 1)  // Stop
+#define LL_EMERGENCY_BIT_LIFT  (1 << 2)  // Lift (or tilt)
+
+// CoverUI will stay with the old emergency_bitmask definition
+#define LL_EMERGENCY_BIT_CU_LATCH (1 << 0)  // Any emergency latch
+#define LL_EMERGENCY_BIT_CU_STOP1 (1 << 1)  // Stop1
+#define LL_EMERGENCY_BIT_CU_STOP2 (1 << 2)  // Stop2
+#define LL_EMERGENCY_BIT_CU_LIFT  (1 << 3)  // LIFT | LIFTX (up to CoverUI FW 2.0x)
+#define LL_EMERGENCY_BIT_CU_BUMP  (1 << 4)  // LBUMP | RBUMP (up to CoverUI FW 2.0x)
+#define LL_EMERGENCY_BIT_CU_LIFTX (1 << 5)  // CoverUI-LIFTX (as of CoverUI FW 2.1x)
+#define LL_EMERGENCY_BIT_CU_RBUMP (1 << 6)  // CoverUI-RBUMP (as of CoverUI FW 2.1x)
+
+#define LL_STATUS_BIT_INITIALIZED (1 << 0)
+#define LL_STATUS_BIT_RASPI_POWER (1 << 1)
+#define LL_STATUS_BIT_CHARGING    (1 << 2)
+#define LL_STATUS_BIT_FREE        (1 << 3)
+#define LL_STATUS_BIT_RAIN        (1 << 4)
+#define LL_STATUS_BIT_SOUND_AVAIL (1 << 5)
+#define LL_STATUS_BIT_SOUND_BUSY  (1 << 6)
+#define LL_STATUS_BIT_UI_AVAIL    (1 << 7)
+// clang-format on
+
+
 #pragma pack(push, 1)
 struct ll_status {
   // Type of this message. Has to be PACKET_ID_LL_STATUS.
@@ -94,7 +119,7 @@ struct ll_ui_event {
   // Type of this message. Has to be PACKET_ID_LL_UI_EVENT
   uint8_t type;
   uint8_t button_id;
-  uint8_t press_duration;  // 0 for single press, 1 for long, 2 for very long press
+  uint8_t press_duration; // 0 for single press, 1 for long, 2 for very long press
   uint16_t crc;
 } __attribute__((packed));
 #pragma pack(pop)
@@ -103,8 +128,8 @@ struct ll_ui_event {
 struct ll_high_level_state {
   // Type of this message. Has to be PACKET_ID_LL_HIGH_LEVEL_STATE
   uint8_t type;
-  uint8_t current_mode;  // see HighLevelMode
-  uint8_t gps_quality;   // GPS quality in percent (0-100)
+  uint8_t current_mode; // see HighLevelMode
+  uint8_t gps_quality; // GPS quality in percent (0-100)
   uint16_t crc;
 } __attribute__((packed));
 #pragma pack(pop)
@@ -113,35 +138,36 @@ enum class OptionState : unsigned int { OFF = 0, ON, UNDEFINED };
 
 #pragma pack(push, 1)
 struct ConfigOptions {
-  OptionState dfp_is_5v : 2;
-  OptionState background_sounds : 2;
-  OptionState ignore_charging_current : 2;
+  OptionState dfp_is_5v: 2;
+  OptionState background_sounds: 2;
+  OptionState ignore_charging_current: 2;
   // Need to block/waster the bits now, to be prepared for future enhancements
-  OptionState reserved_for_future_use1 : 2;
-  OptionState reserved_for_future_use2 : 2;
-  OptionState reserved_for_future_use3 : 2;
-  OptionState reserved_for_future_use4 : 2;
-  OptionState reserved_for_future_use5 : 2;
+  OptionState reserved_for_future_use1: 2;
+  OptionState reserved_for_future_use2: 2;
+  OptionState reserved_for_future_use3: 2;
+  OptionState reserved_for_future_use4: 2;
+  OptionState reserved_for_future_use5: 2;
 } __attribute__((packed));
 #pragma pack(pop)
 static_assert(sizeof(ConfigOptions) == 2, "Changing size of ConfigOption != 2 will break packet compatibilty");
 
-typedef char iso639_1[2];  // Two char ISO 639-1 language code
+typedef char iso639_1[2]; // Two char ISO 639-1 language code
 
 enum class HallMode : unsigned int {
   OFF = 0,
-  LIFT_TILT,  // Wheel lifted and wheels tilted functionality
-  STOP,       // Stop mower
-  UNDEFINED   // This is used by foreign side to inform that it doesn't has a configuration for this sensor
+  LIFT_TILT, // Wheel lifted and wheels tilted functionality
+  STOP, // Stop mower
+  UNDEFINED // This is used by foreign side to inform that it doesn't has a configuration for this sensor
 };
 
 #pragma pack(push, 1)
 struct HallConfig {
   HallConfig(HallMode t_mode = HallMode::UNDEFINED, bool t_active_low = false)
-      : mode(t_mode), active_low(t_active_low){};
+    : mode(t_mode), active_low(t_active_low) {
+  };
 
-  HallMode mode : 3;  // 1 bit reserved
-  bool active_low : 1;
+  HallMode mode: 3; // 1 bit reserved
+  bool active_low: 1;
 } __attribute__((packed));
 #pragma pack(pop)
 
