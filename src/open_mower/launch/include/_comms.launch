@@ -16,7 +16,7 @@
                   clear_params="true"
                   respawn="true"
                   respawn_delay="5">
-                <remap from="/rtcm" to="/ntrip_client/rtcm"/>
+                <remap from="/rtcm" to="/ll/position/gps/rtcm"/>
                 <remap from="~wheel_ticks" to="/mower/wheel_ticks"/>
             </node>
 
