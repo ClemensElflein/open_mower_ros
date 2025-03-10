@@ -4,13 +4,6 @@
 
 #include "diff_drive_service.hpp"
 
-bool DiffDriveService::Configure() {
-  // Check, if configuration is valid, if not retry
-  if (WheelDistance.value == 0 || WheelTicksPerMeter.value == 0.0) {
-    return false;
-  }
-  return true;
-}
 
 void DiffDriveService::OnStop() {
   robot_.SetControlTwist(0, 0);
@@ -33,4 +26,11 @@ void DiffDriveService::OnControlTwistChanged(const double* new_value, uint32_t l
   const auto angular = static_cast<float>(new_value[5]);
 
   robot_.SetControlTwist(linear, angular);
+}
+bool DiffDriveService::OnStart() {
+  // Check, if configuration is valid, if not retry
+  if (WheelDistance.value == 0 || WheelTicksPerMeter.value == 0.0) {
+    return false;
+  }
+  return true;
 }

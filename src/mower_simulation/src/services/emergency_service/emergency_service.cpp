@@ -4,8 +4,9 @@
 
 #include "emergency_service.hpp"
 
-void EmergencyService::OnStart() {
+bool EmergencyService::OnStart() {
   robot_.SetEmergency(true, "Boot");
+  return true;
 }
 
 void EmergencyService::OnStop() {

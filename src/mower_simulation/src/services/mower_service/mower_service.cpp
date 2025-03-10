@@ -4,8 +4,9 @@
 
 #include "mower_service.hpp"
 
-void MowerService::OnStart() {
+bool MowerService::OnStart() {
   mower_running_ = false;
+  return true;
 }
 
 void MowerService::tick() {

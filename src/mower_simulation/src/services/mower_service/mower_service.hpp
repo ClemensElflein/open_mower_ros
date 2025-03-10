@@ -21,7 +21,7 @@ class MowerService : public MowerServiceBase {
   void tick() override;
 
  protected:
-  void OnStart() override;
+  bool OnStart() override;
   void OnMowerEnabledChanged(const uint8_t &new_value) override;
 };
 

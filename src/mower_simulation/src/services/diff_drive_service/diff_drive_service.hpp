@@ -18,7 +18,7 @@ class DiffDriveService : public DiffDriveServiceBase {
   void OnMowerStatusChanged(uint32_t new_status);
 
  protected:
-  bool Configure() override;
+  bool OnStart() override;
   void OnStop() override;
 
  private:
