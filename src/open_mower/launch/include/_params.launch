@@ -82,6 +82,8 @@
         <param name="ntrip_client/reconnect_attempt_wait_seconds" value="$(optenv OM_NTRIP_RECONNECT_MAX 99999)"/>
 
         <!-- mower_logic -->
+        <arg name="battery_empty_voltage" value="$(env OM_BATTERY_EMPTY_VOLTAGE)" />
+        <arg name="battery_critical_voltage" value="$(optenv OM_BATTERY_CRITICAL_VOLTAGE)" />
         <param name="mower_logic/automatic_mode" value="$(optenv OM_AUTOMATIC_MODE 0)"/>
         <param name="mower_logic/docking_distance" value="$(env OM_DOCKING_DISTANCE)"/>
         <param name="mower_logic/docking_approach_distance" value="$(optenv OM_DOCKING_APPROACH_DISTANCE 1.5)"/>
