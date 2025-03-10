@@ -109,7 +109,7 @@ int main(int argc, char **argv) {
   ros::ServiceServer mow_service = n.advertiseService("ll/_service/mow_enabled", setMowEnabled);
   ros::ServiceServer ros_emergency_service = n.advertiseService("ll/_service/emergency", setEmergencyStop);
   ros::Subscriber cmd_vel_sub = n.subscribe("ll/cmd_vel", 0, velReceived, ros::TransportHints().tcpNoDelay(true));
-  ros::Subscriber rtcm_sub = n.subscribe("ll/position/gps/rtcm_in", 0, rtcmReceived);
+  ros::Subscriber rtcm_sub = n.subscribe("ll/position/gps/rtcm", 0, rtcmReceived);
   // ros::Subscriber high_level_status_sub = n.subscribe("/mower_logic/current_state", 0, highLevelStatusReceived);
   ros::Timer publish_timer = n.createTimer(ros::Duration(0.5), sendEmergencyHeartbeatTimerTask);
 
