@@ -20,6 +20,9 @@ find_package(
         Boost
 )
 
+# Geographiclib installs FindGeographicLib.cmake to this non-standard location
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "/usr/share/cmake/geographiclib/")
+find_package(GeographicLib REQUIRED)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -114,7 +117,7 @@ catkin_package(
         #  INCLUDE_DIRS include
         #  LIBRARIES mower_comms_v2
         #  CATKIN_DEPENDS mower_msgs roscpp serial
-        #  DEPENDS system_lib
+          DEPENDS GeographicLib
 )
 
 ###########
@@ -189,7 +192,7 @@ target_add_service_interface(mower_comms_v2 GpsServiceInterface ${CMAKE_CURRENT_
 
 
 add_dependencies(mower_comms_v2 ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
-target_link_libraries(mower_comms_v2 PUBLIC ${catkin_LIBRARIES})
+target_link_libraries(mower_comms_v2 PUBLIC ${catkin_LIBRARIES} ${GeographicLib_LIBRARIES})
 
 #############
 ## Install ##

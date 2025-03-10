@@ -11,7 +11,7 @@
 
 class GpsServiceInterface : public GpsServiceInterfaceBase {
  public:
-  GpsServiceInterface(uint16_t service_id, const xbot::serviceif::Context& ctx, const ros::Publisher& imu_publisher,
+  GpsServiceInterface(uint16_t service_id, const xbot::serviceif::Context& ctx, const ros::Publisher& imu_publisher, const ros::Publisher &nmea_publisher,
                       double datum_lat, double datum_long, double datum_height, uint32_t baud_rate, const std::string &protocol, uint8_t port_index);
 
   bool OnConfigurationRequested(uint16_t service_id) override;
@@ -29,6 +29,7 @@ class GpsServiceInterface : public GpsServiceInterfaceBase {
   void OnTransactionEnd() override;
 
   const ros::Publisher& absolute_pose_publisher_;
+  const ros::Publisher& nmea_publisher_;
 
   std::string protocol_;
   uint32_t baud_rate_;
@@ -37,6 +38,7 @@ class GpsServiceInterface : public GpsServiceInterfaceBase {
   xbot_msgs::AbsolutePose pose_msg_;
   double datum_e_, datum_n_, datum_u_;
   std::string datum_zone_;
+  void SendNMEA(double lat_in, double lon_in);
 };
 
 #endif  // GPSSERVICEINTERFACE_H

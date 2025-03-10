@@ -35,8 +35,10 @@
 #include "MowerServiceInterface.h"
 #include "PowerServiceInterface.h"
 #include <rtcm_msgs/Message.h>
+#include <nmea_msgs/Sentence.h>
 
 ros::Publisher status_pub;
+ros::Publisher nmea_pub;
 ros::Publisher power_pub;
 ros::Publisher gps_position_pub;
 ros::Publisher status_left_esc_pub;
@@ -182,7 +184,8 @@ int main(int argc, char **argv) {
   }
   ROS_INFO_STREAM("Datum: " << datum_lat << ", " << datum_long << ", " << datum_height);
   gps_position_pub = n.advertise<xbot_msgs::AbsolutePose>("ll/position/gps", 1);
-  gps_service = std::make_unique<GpsServiceInterface>(xbot::service_ids::GPS, ctx, gps_position_pub, datum_lat,
+  nmea_pub = n.advertise<nmea_msgs::Sentence>("ll/position/gps/nmea", 1);
+  gps_service = std::make_unique<GpsServiceInterface>(xbot::service_ids::GPS, ctx, gps_position_pub, nmea_pub, datum_lat,
                                                       datum_long, datum_height, baud_rate, protocol, gps_port_index);
   gps_service->Start();
 

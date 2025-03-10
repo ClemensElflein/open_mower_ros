@@ -5,14 +5,73 @@
 #include "GpsServiceInterface.h"
 
 #include "robot_localization/navsat_conversions.h"
+#include <nmea_msgs/Sentence.h>
+#include "GeographicLib/DMS.hpp"
+#include <boost/algorithm/string.hpp>
+#include <boost/date_time/posix_time/posix_time.hpp>
+#include <boost/date_time/posix_time/posix_time_io.hpp>
 
-GpsServiceInterface::GpsServiceInterface(uint16_t service_id, const xbot::serviceif::Context& ctx,
-                                         const ros::Publisher& imu_publisher,
+
+GpsServiceInterface::GpsServiceInterface(uint16_t service_id,
+                                         const xbot::serviceif::Context& ctx,
+                                         const ros::Publisher& absolute_pose_publisher,
+                                         const ros::Publisher& nmea_publisher,
                                          double datum_lat, double datum_long, double datum_height, uint32_t baud_rate, const std::string &protocol, uint8_t port_index)
-    : GpsServiceInterfaceBase(service_id, ctx), absolute_pose_publisher_(imu_publisher), baud_rate_(baud_rate), protocol_(protocol), port_index_(port_index) {
+    : GpsServiceInterfaceBase(service_id, ctx), absolute_pose_publisher_(absolute_pose_publisher), nmea_publisher_(nmea_publisher), baud_rate_(baud_rate), protocol_(protocol), port_index_(port_index) {
   RobotLocalization::NavsatConversions::LLtoUTM(datum_lat, datum_long, datum_n_, datum_e_, datum_zone_);
   datum_u_ = datum_height;
 }
+
+void GpsServiceInterface::SendNMEA(double lat_in, double lon_in) {
+  using namespace GeographicLib;
+  // only send every 10 seconds, this will be more than needed
+  static ros::Time last_vrs_feedback(0.0);
+  static nmea_msgs::Sentence vrs_msg{};
+  if ((ros::Time::now() - last_vrs_feedback).toSec() < 10.0) {
+    return;
+  }
+  last_vrs_feedback = ros::Time::now();
+
+  auto lat = GeographicLib::DMS::Encode(lat_in, GeographicLib::DMS::component::MINUTE, 4,
+                                        GeographicLib::DMS::flag::LATITUDE, ';');
+  auto lon = GeographicLib::DMS::Encode(lon_in, GeographicLib::DMS::component::MINUTE, 4,
+                                        GeographicLib::DMS::flag::LONGITUDE, ';');
+
+  // remove separator char
+  boost::erase_all(lat, ";");
+  boost::erase_all(lon, ";");
+
+  auto lat_hemisphere = lat.substr(lat.length() - 1, 1);
+  auto lon_hemisphere = lon.substr(lon.length() - 1, 1);
+
+
+  std::stringstream message_ss;
+  auto time_facet = new boost::posix_time::time_facet("%H%M%s");
+
+  message_ss.imbue(std::locale(message_ss.getloc(), time_facet));
+  message_ss << "GPGGA," << ros::Time::now().toBoost() << "," <<
+      lat.substr(0, lat.length() - 1) << "," <<
+      lat_hemisphere << "," <<
+      lon.substr(0, lon.length() - 1) << "," <<
+      lon_hemisphere << ",1,0,0,0,M,0,M,0000,";
+
+  std::string message_content = message_ss.str();
+
+  uint8_t checksum = 0;
+  for(const auto c : message_content) {
+    checksum ^= c;
+  }
+
+  std::stringstream final_message_ss;
+  final_message_ss << "$" << message_content << "*" << std::hex << std::uppercase << std::setw(2) << std::setfill('0') << (int)checksum;
+
+  vrs_msg.header.frame_id = "gps";
+  vrs_msg.header.seq++;
+  vrs_msg.header.stamp = ros::Time::now();
+  vrs_msg.sentence = final_message_ss.str();
+  nmea_publisher_.publish(vrs_msg);
+}
+
 
 bool GpsServiceInterface::OnConfigurationRequested(uint16_t service_id) {
   StartTransaction(true);
@@ -46,6 +105,7 @@ void GpsServiceInterface::OnPositionChanged(const double* new_value, uint32_t le
     ROS_INFO_STREAM("OnPositionChanged called with length " << length);
     return;
   }
+  SendNMEA(new_value[0], new_value[1]);
   double e, n;
   std::string zone;
   RobotLocalization::NavsatConversions::LLtoUTM(new_value[0], new_value[1], n, e, zone);
