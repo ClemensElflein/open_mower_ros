@@ -756,7 +756,7 @@ int main(int argc, char **argv) {
   status_right_esc_pub = n.advertise<mower_msgs::ESCStatus>("ll/diff_drive/right_esc_status", 1);
 
   status_pub = n.advertise<mower_msgs::Status>("ll/mower_status", 1);
-  sensor_imu_pub = n.advertise<sensor_msgs::Imu>("imu/data_raw", 1);
+  sensor_imu_pub = n.advertise<sensor_msgs::Imu>("ll/imu/data_raw", 1);
   power_pub = n.advertise<mower_msgs::Power>("ll/power", 1);
 
 
