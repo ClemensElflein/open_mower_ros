@@ -7,7 +7,7 @@
         <!-- TODO: Add parameter for simulation -->
         <group unless="$(optenv OM_V2 False)">
             <!-- Comms v1 -->
-            <node pkg="mower_comms" type="mower_comms" name="mower_comms" unless="$(optenv OM_NO_COMMS False)"
+            <node pkg="mower_comms_v1" type="mower_comms_v1" name="mower_comms" unless="$(optenv OM_NO_COMMS False)"
                   output="screen">
             </node>
             <!-- GPS driver only for v1 builds -->
