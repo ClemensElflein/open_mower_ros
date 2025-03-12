@@ -12,6 +12,7 @@ on:
     branches:
       - 'main'
       - 'releases/**'
+      - 'v2'
     tags:
       - 'v*'
   pull_request:
