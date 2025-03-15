@@ -45,26 +45,32 @@ typedef const mower_msgs::Status::ConstPtr StatusPtr;
 
 // Sensor configuration
 struct SensorConfig {
-  std::string name;     // Speaking name, used in sensor widget
-  std::string unit;     // Unit like A, V, ...
-  uint8_t value_desc;   // Voltage, Current, RPM, ...
-  uint8_t sensor_type;  // Double, String, ...
+  std::string name; // Speaking name, used in sensor widget
+  std::string unit; // Unit like A, V, ...
+  uint8_t value_desc; // Voltage, Current, RPM, ...
+  uint8_t sensor_type; // Double, String, ...
   std::function<double(StatusPtr)> getStatusSensorValueCB = nullptr;
   std::function<void(SensorConfig &sensor_config)> setSensorLimitsCB = nullptr;
-  std::string param_path = "";              // Path to parameters
-  std::function<bool()> existCB = nullptr;  // nullptr = no callback for exist check = enabled
-  xbot_msgs::SensorInfo si;                 // SensorInfo Msg
-  ros::Publisher si_pub;                    // SensorInfo publisher
-  ros::Publisher data_pub;                  // Sensor-data publisher
+  std::string param_path = ""; // Path to parameters
+  std::function<bool()> existCB = nullptr; // nullptr = no callback for exist check = enabled
+  xbot_msgs::SensorInfo si; // SensorInfo Msg
+  ros::Publisher si_pub; // SensorInfo publisher
+  ros::Publisher data_pub; // Sensor-data publisher
 };
 
 // Forward declare set_limits_* callback functions
 void set_limits_battery_v(SensorConfig &sensor_config);
+
 void set_limits_charge_current(SensorConfig &sensor_config);
+
 void set_limits_charge_v(SensorConfig &sensor_config);
+
 void set_limits_esc_temp(SensorConfig &sensor_config);
+
 void set_limits_mow_motor_current(SensorConfig &sensor_config);
+
 void set_limits_mow_motor_rpm(SensorConfig &sensor_config);
+
 void set_limits_mow_motor_temp(SensorConfig &sensor_config);
 
 // Place all sensors in a key=sensor.id -> SensorConfig map
@@ -93,7 +99,7 @@ void status_received(StatusPtr &msg) {
   xbot_msgs::SensorDataDouble sensor_data;
   sensor_data.stamp = msg->stamp;
 
-  for (auto &sc_pair : sensor_configs) {
+  for (auto &sc_pair: sensor_configs) {
     // Skip if sensor doesn't exists or is disabled
     if (sc_pair.second.existCB && !sc_pair.second.existCB()) continue;
 
@@ -140,9 +146,7 @@ void power_received(const mower_msgs::Power::ConstPtr &msg) {
   // Rate limit to 2Hz
   static ros::Time last_update{0};
   if ((msg->stamp - last_update).toSec() < 0.5) return;
-  last_update = msg->stamp;
-
-  {
+  last_update = msg->stamp; {
     xbot_msgs::SensorDataDouble sensor_data;
     sensor_data.stamp = msg->stamp;
     sensor_data.data = msg->v_charge;
@@ -151,8 +155,7 @@ void power_received(const mower_msgs::Power::ConstPtr &msg) {
     if (sc_it != std::end(sensor_configs)) {
       sc_it->second.data_pub.publish(sensor_data);
     }
-  }
-  {
+  } {
     xbot_msgs::SensorDataDouble sensor_data;
     sensor_data.stamp = msg->stamp;
     sensor_data.data = msg->v_battery;
@@ -161,8 +164,7 @@ void power_received(const mower_msgs::Power::ConstPtr &msg) {
     if (sc_it != std::end(sensor_configs)) {
       sc_it->second.data_pub.publish(sensor_data);
     }
-  }
-  {
+  } {
     xbot_msgs::SensorDataDouble sensor_data;
     sensor_data.stamp = msg->stamp;
     sensor_data.data = msg->charge_current;
@@ -171,8 +173,7 @@ void power_received(const mower_msgs::Power::ConstPtr &msg) {
     if (sc_it != std::end(sensor_configs)) {
       sc_it->second.data_pub.publish(sensor_data);
     }
-  }
-  {
+  } {
     xbot_msgs::SensorDataString sensor_data;
     sensor_data.stamp = msg->stamp;
     sensor_data.data = msg->charger_status;
@@ -189,8 +190,7 @@ void left_esc_status_received(const mower_msgs::ESCStatus::ConstPtr &msg) {
   static ros::Time last_update{0};
   const auto now = ros::Time::now();
   if ((now - last_update).toSec() < 0.5) return;
-  last_update = now;
-  {
+  last_update = now; {
     xbot_msgs::SensorDataDouble sensor_data;
     sensor_data.stamp = ros::Time::now();
     sensor_data.data = msg->temperature_pcb;
@@ -199,15 +199,14 @@ void left_esc_status_received(const mower_msgs::ESCStatus::ConstPtr &msg) {
       sc_it->second.data_pub.publish(sensor_data);
     }
   }
-
 }
+
 void right_esc_status_received(const mower_msgs::ESCStatus::ConstPtr &msg) {
   // Rate limit to 2Hz
   static ros::Time last_update{0};
   const auto now = ros::Time::now();
   if ((now - last_update).toSec() < 0.5) return;
-  last_update = now;
-  {
+  last_update = now; {
     xbot_msgs::SensorDataDouble sensor_data;
     sensor_data.stamp = ros::Time::now();
     sensor_data.data = msg->temperature_pcb;
@@ -216,7 +215,6 @@ void right_esc_status_received(const mower_msgs::ESCStatus::ConstPtr &msg) {
       sc_it->second.data_pub.publish(sensor_data);
     }
   }
-
 }
 
 
@@ -253,15 +251,17 @@ void set_limits_mow_motor_rpm(SensorConfig &sensor_config) {
 void set_limits_mow_motor_temp(SensorConfig &sensor_config) {
   // mower_config settings have precedence before xesc param file because user editable
   sensor_config.si.max_value =
-      (mower_logic_config_valid ? mower_logic_config.motor_hot_temperature
-                                : paramNh->param(sensor_config.param_path + "/max_motor_temp", 0.0f));
+  (mower_logic_config_valid
+     ? mower_logic_config.motor_hot_temperature
+     : paramNh->param(sensor_config.param_path + "/max_motor_temp", 0.0f));
   sensor_config.si.min_value =
-      (mower_logic_config_valid ? mower_logic_config.motor_cold_temperature
-                                : paramNh->param(sensor_config.param_path + "/min_motor_temp", 0.0f));
+  (mower_logic_config_valid
+     ? mower_logic_config.motor_cold_temperature
+     : paramNh->param(sensor_config.param_path + "/min_motor_temp", 0.0f));
 }
 
 void registerSensors() {
-  for (auto &sc_pair : sensor_configs) {
+  for (auto &sc_pair: sensor_configs) {
     if (sc_pair.second.existCB && !sc_pair.second.existCB()) {
       ROS_INFO_STREAM("Skipped monitoring of sensor " << sc_pair.first);
       continue;
@@ -271,7 +271,7 @@ void registerSensors() {
     sc_pair.second.si.sensor_name = sc_pair.second.name;
 
     sc_pair.second.si.unit = sc_pair.second.unit;
-    sc_pair.second.si.value_type = xbot_msgs::SensorInfo::TYPE_DOUBLE;
+    sc_pair.second.si.value_type = sc_pair.second.sensor_type;
     sc_pair.second.si.value_description = sc_pair.second.value_desc;
 
     // Set sensor threshold values
@@ -320,8 +320,10 @@ int main(int argc, char **argv) {
   ros::Subscriber state_sub = n->subscribe("mower_logic/current_state", 10, high_level_status);
   ros::Subscriber status_state_subscriber = n->subscribe("/ll/mower_status", 10, status_received);
   ros::Subscriber power_state_subscriber = n->subscribe("/ll/power", 10, power_received);
-  ros::Subscriber left_esc_status_state_subscriber = n->subscribe("/ll/diff_drive/left_esc_status", 10, left_esc_status_received);
-  ros::Subscriber right_esc_status_state_subscriber = n->subscribe("/ll/diff_drive/right_esc_status", 10, right_esc_status_received);
+  ros::Subscriber left_esc_status_state_subscriber = n->subscribe("/ll/diff_drive/left_esc_status", 10,
+                                                                  left_esc_status_received);
+  ros::Subscriber right_esc_status_state_subscriber = n->subscribe("/ll/diff_drive/right_esc_status", 10,
+                                                                   right_esc_status_received);
   ros::Subscriber pose_state_subscriber = n->subscribe("/xbot_positioning/xb_pose", 10, pose_received);
 
 
