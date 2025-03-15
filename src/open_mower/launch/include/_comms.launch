@@ -17,6 +17,7 @@
                   respawn="true"
                   respawn_delay="5">
                 <remap from="/rtcm" to="/ll/position/gps/rtcm"/>
+                <remap from="/nmea" to="/ll/position/gps/nmea"/>
                 <remap from="~xb_pose" to="/ll/position/gps"/>
                 <remap from="~wheel_ticks" to="/mower/wheel_ticks"/>
             </node>
