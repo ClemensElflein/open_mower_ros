@@ -22,7 +22,9 @@
 #include <mower_msgs/EmergencyStopSrv.h>
 #include <mower_msgs/HighLevelControlSrv.h>
 #include <mower_msgs/MowerControlSrv.h>
+#include <nmea_msgs/Sentence.h>
 #include <ros/ros.h>
+#include <rtcm_msgs/Message.h>
 #include <sensor_msgs/Imu.h>
 
 #include "../../../services/service_ids.h"
@@ -34,8 +36,6 @@
 #include "LidarServiceInterface.h"
 #include "MowerServiceInterface.h"
 #include "PowerServiceInterface.h"
-#include <rtcm_msgs/Message.h>
-#include <nmea_msgs/Sentence.h>
 
 ros::Publisher status_pub;
 ros::Publisher nmea_pub;
@@ -131,8 +131,14 @@ int main(int argc, char **argv) {
   status_right_esc_pub = n.advertise<mower_msgs::ESCStatus>("ll/diff_drive/right_esc_status", 1);
   double wheel_ticks_per_m = 0.0;
   double wheel_distance_m = 0.0;
-  paramNh.getParam("wheel_ticks_per_m", wheel_ticks_per_m);
-  paramNh.getParam("wheel_distance_m", wheel_distance_m);
+  if (!paramNh.getParam("services/diff_drive/ticks_per_m", wheel_ticks_per_m)) {
+    ROS_ERROR("Need to provide param services/diff_drive/ticks_per_m");
+    return 1;
+  }
+  if (!paramNh.getParam("services/diff_drive/wheel_distance_m", wheel_distance_m)) {
+    ROS_ERROR("Need to provide param services/diff_drive/wheel_distance_m");
+    return 1;
+  }
   ROS_INFO_STREAM("Wheel ticks [1/m]: " << wheel_ticks_per_m);
   ROS_INFO_STREAM("Wheel distance [m]: " << wheel_distance_m);
 
@@ -150,7 +156,8 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  ROS_INFO_STREAM("GPS protocol: " << protocol << ", baud rate: " <<baud_rate << ", gps port index:" << gps_port_index);
+  ROS_INFO_STREAM("GPS protocol: " << protocol << ", baud rate: " << baud_rate
+                                   << ", gps port index:" << gps_port_index);
 
   diff_drive_service = std::make_unique<DiffDriveServiceInterface>(xbot::service_ids::DIFF_DRIVE, ctx, actual_twist_pub,
                                                                    status_left_esc_pub, status_right_esc_pub,
@@ -185,8 +192,9 @@ int main(int argc, char **argv) {
   ROS_INFO_STREAM("Datum: " << datum_lat << ", " << datum_long << ", " << datum_height);
   gps_position_pub = n.advertise<xbot_msgs::AbsolutePose>("ll/position/gps", 1);
   nmea_pub = n.advertise<nmea_msgs::Sentence>("ll/position/gps/nmea", 1);
-  gps_service = std::make_unique<GpsServiceInterface>(xbot::service_ids::GPS, ctx, gps_position_pub, nmea_pub, datum_lat,
-                                                      datum_long, datum_height, baud_rate, protocol, gps_port_index);
+  gps_service =
+      std::make_unique<GpsServiceInterface>(xbot::service_ids::GPS, ctx, gps_position_pub, nmea_pub, datum_lat,
+                                            datum_long, datum_height, baud_rate, protocol, gps_port_index);
   gps_service->Start();
 
   // Lidar service
