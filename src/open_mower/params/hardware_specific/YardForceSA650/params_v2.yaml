@@ -1,8 +1,5 @@
 mower_comms_v2:
   services:
-    gps:
-      baud_rate: 921600
-      protocol: "UBX"
     diff_drive:
       wheel_distance_m: 0.325
       ticks_per_m: 1964.0

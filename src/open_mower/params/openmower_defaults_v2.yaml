@@ -6,6 +6,8 @@ mower_comms_v2:
       language: "en"
       volume: -1
     gps:
+      baud_rate: 921600
+      protocol: "UBX"
       datum_height: 0
 
 xbot_positioning:
