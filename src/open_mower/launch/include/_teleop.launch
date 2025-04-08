@@ -6,7 +6,7 @@
         </node>
 
         <node name="joy_teleop" pkg="teleop_twist_joy" type="teleop_node" required="true">
-            <remap from="cmd_vel" to="/override_vel"/>
+            <remap from="cmd_vel" to="/joy_vel"/>
             <param name="~scale_linear" value="0.5"/>
             <param name="~scale_angular" value="1.5"/>
             <param name="~scale_linear_turbo" value="1.0"/>
