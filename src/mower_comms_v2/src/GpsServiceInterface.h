@@ -35,7 +35,7 @@ class GpsServiceInterface : public GpsServiceInterfaceBase {
   uint32_t baud_rate_;
   uint8_t port_index_;
 
-  xbot_msgs::AbsolutePose pose_msg_;
+  xbot_msgs::AbsolutePose pose_msg_{};
   double datum_e_, datum_n_, datum_u_;
   std::string datum_zone_;
   void SendNMEA(double lat_in, double lon_in);
