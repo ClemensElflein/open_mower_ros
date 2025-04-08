@@ -4,6 +4,10 @@
 
 #include "MowerServiceInterface.h"
 
+void MowerServiceInterface::Tick() {
+    SendMowerEnabled(status_msg_.mow_enabled);
+}
+
 void MowerServiceInterface::SetMowerEnabled(bool enabled) {
     SendMowerEnabled(enabled);
     status_msg_.mow_enabled = enabled;
