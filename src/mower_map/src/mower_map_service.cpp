@@ -566,6 +566,7 @@ bool getDockingPoint(mower_map::GetDockingPointSrvRequest &req, mower_map::GetDo
 
   return has_docking_point;
 }
+
 bool setNavPoint(mower_map::SetNavPointSrvRequest &req, mower_map::SetNavPointSrvResponse &res) {
   ROS_INFO_STREAM("Setting Nav Point");
 

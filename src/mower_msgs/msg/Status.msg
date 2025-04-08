@@ -14,14 +14,11 @@ bool rain_detected
 bool sound_module_available
 bool sound_module_busy
 bool ui_board_available
-float32[5] ultrasonic_ranges
-bool emergency
-float32 v_charge
-float32 v_battery
-float32 charge_current
 bool mow_enabled
 
 # ESC stuff
-ESCStatus left_esc_status
-ESCStatus right_esc_status
-ESCStatus mow_esc_status
+uint8   mower_esc_status
+float32 mower_esc_temperature
+float32 mower_esc_current
+float32 mower_motor_temperature
+float32 mower_motor_rpm
