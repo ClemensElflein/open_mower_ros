@@ -170,8 +170,11 @@ int main(int argc, char **argv) {
   mower_service->Start();
 
   // IMU service
+  std::string imu_axis_config;
+  paramNh.getParam("services/imu/axis_config", imu_axis_config);
+  ROS_INFO_STREAM("IMU axis config: " << imu_axis_config);
   sensor_imu_pub = n.advertise<sensor_msgs::Imu>("ll/imu/data_raw", 1);
-  imu_service = std::make_unique<ImuServiceInterface>(xbot::service_ids::IMU, ctx, sensor_imu_pub);
+  imu_service = std::make_unique<ImuServiceInterface>(xbot::service_ids::IMU, ctx, sensor_imu_pub, imu_axis_config);
   imu_service->Start();
 
   // Power service

@@ -1,0 +1,11 @@
+mower_comms_v2:
+  services:
+    diff_drive:
+      wheel_distance_m: 0.45
+      ticks_per_m: 1195.0
+    imu:
+      axis_config: "+Z-X-Y"
+
+xbot_positioning:
+  antenna_offset_x: 0.18
+  antenna_offset_y: 0.0
