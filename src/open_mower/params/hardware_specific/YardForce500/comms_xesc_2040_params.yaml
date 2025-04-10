@@ -1,6 +1,6 @@
 left_xesc:
   xesc_type: "xesc_2040"
-  serial_port: "/dev/ttyAMA4"
+  serial_port: "/dev/ttyAMA5"
   hall_table_0: 255
   hall_table_1: 5
   hall_table_2: 3
@@ -18,7 +18,7 @@ left_xesc:
   max_pcb_temp: 60
 right_xesc:
   xesc_type: "xesc_2040"
-  serial_port: "/dev/ttyAMA2"
+  serial_port: "/dev/ttyAMA3"
   hall_table_0: 255
   hall_table_1: 5
   hall_table_2: 3
@@ -36,7 +36,7 @@ right_xesc:
   max_pcb_temp: 60
 mower_xesc:
   xesc_type: "xesc_2040"
-  serial_port: "/dev/ttyAMA3"
+  serial_port: "/dev/ttyAMA4"
   hall_table_0: 255
   hall_table_1: 3
   hall_table_2: 1
