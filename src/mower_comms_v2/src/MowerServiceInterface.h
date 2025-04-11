@@ -19,6 +19,8 @@ class MowerServiceInterface : public MowerServiceInterfaceBase {
 
   void SetMowerEnabled(bool enabled);
 
+  void Tick();
+
  protected:
   void OnMowerStatusChanged(const uint8_t& new_value) override;
   void OnRainDetectedChanged(const uint8_t& new_value) override;
