@@ -8,13 +8,17 @@
 
 #include "../../SimRobot.h"
 
+using namespace xbot::service;
+
 class GpsService : public GpsServiceBase {
  public:
-  explicit GpsService(uint16_t service_id, SimRobot &robot) : GpsServiceBase(service_id, 200000), robot_(robot) {
+  explicit GpsService(uint16_t service_id, SimRobot &robot) : GpsServiceBase(service_id), robot_(robot) {
   }
 
  private:
-  void tick() override;
+  void tick();
+  ManagedSchedule tick_schedule_{scheduler_, IsRunning(), 200'000,
+                                 XBOT_FUNCTION_FOR_METHOD(GpsService, &GpsService::tick, this)};
 
  private:
   SimRobot &robot_;

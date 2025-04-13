@@ -11,11 +11,12 @@
 
 #include "../../SimRobot.h"
 
+using namespace xbot::service;
+
 class EmergencyService : public EmergencyServiceBase {
  private:
  public:
-  explicit EmergencyService(uint16_t service_id, SimRobot &robot)
-      : EmergencyServiceBase(service_id, 100000), robot_(robot) {
+  explicit EmergencyService(uint16_t service_id, SimRobot &robot) : EmergencyServiceBase(service_id), robot_(robot) {
   }
 
  protected:
@@ -23,7 +24,9 @@ class EmergencyService : public EmergencyServiceBase {
   void OnStop() override;
 
  private:
-  void tick() override;
+  void tick();
+  ManagedSchedule tick_schedule_{scheduler_, IsRunning(), 100'000,
+                                 XBOT_FUNCTION_FOR_METHOD(EmergencyService, &EmergencyService::tick, this)};
 
   SimRobot &robot_;
 
