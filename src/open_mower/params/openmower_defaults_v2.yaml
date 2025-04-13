@@ -9,6 +9,8 @@ mower_comms_v2:
       baud_rate: 921600
       protocol: "UBX"
       datum_height: 0
+    imu:
+      axis_config: "+X-Y-Z"
 
 xbot_positioning:
   max_gps_accuracy: 0.2
