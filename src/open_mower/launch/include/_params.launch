@@ -133,6 +133,7 @@
         <param name="mower_logic/emergency_tilt_period" value="$(optenv OM_EMERGENCY_TILT_PERIOD -1)"/>
         <param name="mower_logic/emergency_input_config" value="$(optenv OM_EMERGENCY_INPUT_CONFIG)"/>
         <param name="mower_logic/ignore_charging_current" value="$(optenv OM_IGNORE_CHARGING_CURRENT False)"/>
+        <param name="mower_logic/shutdown_esc_max_pitch" value="$(optenv OM_SHUTDOWN_ESC_MAX_PITCH 0)"/>
 
         <!-- xbot_monitoring -->
         <param name="xbot_monitoring/external_mqtt_enable" value="$(optenv OM_MQTT_ENABLE False)"/>
