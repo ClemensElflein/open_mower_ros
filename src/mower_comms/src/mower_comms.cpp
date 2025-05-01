@@ -512,6 +512,7 @@ void handleLowLevelConfig(const uint8_t *buffer, const size_t size) {
   mower_logic_config.battery_full_voltage = getNewSetChanged<double>(mower_logic_config.battery_full_voltage, llhl_config.v_battery_full, dirty);
   mower_logic_config.emergency_lift_period = getNewSetChanged<int>(mower_logic_config.emergency_lift_period, llhl_config.lift_period, dirty);
   mower_logic_config.emergency_tilt_period = getNewSetChanged<int>(mower_logic_config.emergency_tilt_period, llhl_config.tilt_period, dirty);
+  mower_logic_config.shutdown_esc_max_pitch = getNewSetChanged<int>(mower_logic_config.shutdown_esc_max_pitch, llhl_config.shutdown_esc_max_pitch, dirty);
   // clang-format on
 
   if (dirty) reconfigClient->setConfiguration(mower_logic_config);
@@ -581,6 +582,7 @@ void reconfigCB(const mower_logic::MowerLogicConfig &config) {
   llhl_config.v_battery_full = getNewSetChanged<double>(llhl_config.v_battery_full, mower_logic_config.battery_full_voltage, dirty);
   llhl_config.lift_period = getNewSetChanged<int>(llhl_config.lift_period, mower_logic_config.emergency_lift_period, dirty);
   llhl_config.tilt_period = getNewSetChanged<int>(llhl_config.tilt_period, mower_logic_config.emergency_tilt_period, dirty);
+  llhl_config.shutdown_esc_max_pitch = getNewSetChanged<int>(llhl_config.shutdown_esc_max_pitch, mower_logic_config.shutdown_esc_max_pitch, dirty);
   // clang-format on
 
   // Parse emergency_input_config and set hall_configs
