@@ -106,6 +106,7 @@ generate_messages(
 generate_dynamic_reconfigure_options(
         cfg/MowerLogic.cfg
         cfg/MowerOdometry.cfg
+        cfg/Power.cfg
 )
 
 ###################################

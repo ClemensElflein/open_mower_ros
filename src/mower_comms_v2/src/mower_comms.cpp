@@ -29,11 +29,9 @@
 
 #include "../../../services/service_ids.h"
 #include "DiffDriveServiceInterface.h"
-#include "DockingSensorServiceInterface.h"
 #include "EmergencyServiceInterface.h"
 #include "GpsServiceInterface.h"
 #include "ImuServiceInterface.h"
-#include "LidarServiceInterface.h"
 #include "MowerServiceInterface.h"
 #include "PowerServiceInterface.h"
 
@@ -47,8 +45,6 @@ ros::Publisher emergency_pub;
 ros::Publisher actual_twist_pub;
 
 ros::Publisher sensor_imu_pub;
-ros::Publisher sensor_lidar_pub;
-ros::Publisher sensor_dock_pub;
 
 ros::ServiceClient highLevelClient;
 
@@ -56,9 +52,7 @@ std::unique_ptr<EmergencyServiceInterface> emergency_service = nullptr;
 std::unique_ptr<DiffDriveServiceInterface> diff_drive_service = nullptr;
 std::unique_ptr<MowerServiceInterface> mower_service = nullptr;
 std::unique_ptr<ImuServiceInterface> imu_service = nullptr;
-std::unique_ptr<LidarServiceInterface> lidar_service = nullptr;
 std::unique_ptr<PowerServiceInterface> power_service = nullptr;
-std::unique_ptr<DockingSensorServiceInterface> docking_sensor_service = nullptr;
 std::unique_ptr<GpsServiceInterface> gps_service = nullptr;
 
 xbot::serviceif::Context ctx{};
@@ -96,7 +90,7 @@ void sendEmergencyHeartbeatTimerTask(const ros::TimerEvent &) {
 }
 
 void sendMowerEnabledTimerTask(const ros::TimerEvent &e) {
-    mower_service->Tick();
+  mower_service->Tick();
 }
 
 bool setMowEnabled(mower_msgs::MowerControlSrvRequest &req, mower_msgs::MowerControlSrvRequest &res) {
@@ -184,7 +178,31 @@ int main(int argc, char **argv) {
 
   // Power service
   power_pub = n.advertise<mower_msgs::Power>("ll/power", 1);
-  power_service = std::make_unique<PowerServiceInterface>(xbot::service_ids::POWER, ctx, power_pub);
+  float battery_full_voltage;
+  float battery_empty_voltage;
+  float battery_critical_voltage;
+  float battery_critical_high_voltage;
+  float charge_current = -1;
+  if (!paramNh.getParam("services/power/battery_full_voltage", battery_full_voltage)) {
+    ROS_ERROR("Need to set param: services/power/battery_full_voltage");
+    return 1;
+  }
+  if (!paramNh.getParam("services/power/battery_empty_voltage", battery_empty_voltage)) {
+    ROS_ERROR("Need to set param: services/power/battery_empty_voltage");
+    return 1;
+  }
+  if (!paramNh.getParam("services/power/battery_critical_voltage", battery_critical_voltage)) {
+    ROS_ERROR("Need to set param: services/power/battery_critical_voltage");
+    return 1;
+  }
+  if (!paramNh.getParam("services/power/battery_critical_high_voltage", battery_critical_high_voltage)) {
+    ROS_ERROR("Need to set param: services/power/battery_critical_high_voltage");
+    return 1;
+  }
+  paramNh.getParam("services/power/charge_current", charge_current);
+  power_service = std::make_unique<PowerServiceInterface>(
+      xbot::service_ids::POWER, ctx, power_pub, battery_full_voltage, battery_empty_voltage, battery_critical_voltage,
+      battery_critical_high_voltage, charge_current);
   power_service->Start();
 
   // GPS service
@@ -204,16 +222,6 @@ int main(int argc, char **argv) {
       std::make_unique<GpsServiceInterface>(xbot::service_ids::GPS, ctx, gps_position_pub, nmea_pub, datum_lat,
                                             datum_long, datum_height, baud_rate, protocol, gps_port_index);
   gps_service->Start();
-
-  // Lidar service
-  sensor_lidar_pub = n.advertise<sensor_msgs::LaserScan>("ll/lidar", 1);
-  lidar_service = std::make_unique<LidarServiceInterface>(42, ctx, sensor_lidar_pub);
-  lidar_service->Start();
-
-  // Docking sensor service
-  sensor_dock_pub = n.advertise<mower_msgs::DockingSensor>("ll/dock_sensor", 1);
-  docking_sensor_service = std::make_unique<DockingSensorServiceInterface>(43, ctx, sensor_dock_pub);
-  docking_sensor_service->Start();
 
   ros::spin();
 

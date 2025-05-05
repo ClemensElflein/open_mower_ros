@@ -1,4 +1,4 @@
-mower_comms_v2:
+ll:
   bind_ip: "172.16.78.1"
 
   services:
@@ -11,6 +11,10 @@ mower_comms_v2:
       datum_height: 0
     imu:
       axis_config: "+X-Y-Z"
+    power:
+      battery_critical_high_voltage: -1
+      charge_critical_high_voltage: -1
+      charge_critical_high_current: -1
 
 xbot_positioning:
   max_gps_accuracy: 0.2
@@ -26,9 +30,6 @@ mower_logic:
   docking_extra_time: 0
   docking_retry_count: 4
   docking_redock: false
-  battery_critical_high_voltage: -1
-  charge_critical_high_voltage: -1
-  charge_critical_high_current: -1
   outline_overlap_count: 0
   mow_angle_offset: 0
   mow_angle_offset_is_absolute: false

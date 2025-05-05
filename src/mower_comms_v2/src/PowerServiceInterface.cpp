@@ -23,6 +23,16 @@ void PowerServiceInterface::OnChargingStatusChanged(const char* new_value, uint3
 void PowerServiceInterface::OnChargerEnabledChanged(const uint8_t& new_value) {
   power_msg_.charger_enabled = new_value;
 }
+bool PowerServiceInterface::OnConfigurationRequested(uint16_t service_id) {
+  StartTransaction(true);
+  SetRegisterBatteryFullVoltage(battery_full_voltage_);
+  SetRegisterBatteryEmptyVoltage(battery_empty_voltage_);
+  SetRegisterCriticalBatteryLowVoltage(battery_critical_voltage_);
+  SetRegisterCriticalBatteryHighVoltage(battery_critical_high_voltage_);
+  SetRegisterChargeCurrent(battery_charge_current_);
+  CommitTransaction();
+  return true;
+}
 
 void PowerServiceInterface::OnTransactionStart(uint64_t timestamp) {
   power_msg_ = {};

@@ -94,15 +94,18 @@
         <param name="mower_logic/perimeter_signal" value="$(optenv OM_PERIMETER_SIGNAL)"/>
         <param name="mower_logic/tool_width" value="$(env OM_TOOL_WIDTH)"/>
         <param name="mower_logic/enable_mower" value="$(env OM_ENABLE_MOWER)"/>
-        <param name="mower_logic/battery_empty_voltage" value="$(env OM_BATTERY_EMPTY_VOLTAGE)"/>
+        <param name="ll/services/power/battery_empty_voltage" value="$(env OM_BATTERY_EMPTY_VOLTAGE)"/>
         <param
-                name="mower_logic/battery_critical_voltage"
+                name="ll/services/power/battery_critical_voltage"
                 value="$(eval battery_empty_voltage if battery_critical_voltage=='' else battery_critical_voltage)"
         />
-        <param name="mower_logic/battery_full_voltage" value="$(env OM_BATTERY_FULL_VOLTAGE)"/>
-        <param name="mower_logic/battery_critical_high_voltage" value="$(optenv OM_BATTERY_CRITICAL_HIGH_VOLTAGE -1)"/>
-        <param name="mower_logic/charge_critical_high_voltage" value="$(optenv OM_CHARGE_CRITICAL_HIGH_VOLTAGE -1)"/>
-        <param name="mower_logic/charge_critical_high_current" value="$(optenv OM_CHARGE_CRITICAL_HIGH_CURRENT -1)"/>
+        <param name="ll/services/power/battery_full_voltage" value="$(env OM_BATTERY_FULL_VOLTAGE)"/>
+        <param name="ll/services/power/battery_critical_high_voltage"
+               value="$(optenv OM_BATTERY_CRITICAL_HIGH_VOLTAGE -1)"/>
+        <param name="ll/services/power/charge_critical_high_voltage"
+               value="$(optenv OM_CHARGE_CRITICAL_HIGH_VOLTAGE -1)"/>
+        <param name="ll/services/power/charge_critical_high_current"
+               value="$(optenv OM_CHARGE_CRITICAL_HIGH_CURRENT -1)"/>
         <param name="mower_logic/outline_count" value="$(env OM_OUTLINE_COUNT)"/>
         <param name="mower_logic/outline_overlap_count" value="$(optenv OM_OUTLINE_OVERLAP_COUNT 0)"/>
         <param name="mower_logic/outline_offset" value="$(env OM_OUTLINE_OFFSET)"/>
