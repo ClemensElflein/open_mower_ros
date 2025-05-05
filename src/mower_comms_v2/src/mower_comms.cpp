@@ -102,7 +102,7 @@ int main(int argc, char **argv) {
   ros::init(argc, argv, "mower_comms_v2");
 
   ros::NodeHandle n;
-  ros::NodeHandle paramNh("~");
+  ros::NodeHandle paramNh("/ll");
 
   highLevelClient = n.serviceClient<mower_msgs::HighLevelControlSrv>("mower_service/high_level_control");
 
