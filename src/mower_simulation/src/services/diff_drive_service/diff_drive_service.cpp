@@ -4,7 +4,6 @@
 
 #include "diff_drive_service.hpp"
 
-
 void DiffDriveService::OnStop() {
   robot_.SetControlTwist(0, 0);
 }

@@ -37,7 +37,7 @@ StateSubscriber<MESSAGE>::StateSubscriber(const std::string &topic) : topic_{top
 
 template <typename MESSAGE>
 void StateSubscriber<MESSAGE>::Start(ros::NodeHandle *n) {
-    subscriber_ = n->subscribe(topic_, 10, &StateSubscriber::setMessage, this);
+  subscriber_ = n->subscribe(topic_, 10, &StateSubscriber::setMessage, this);
 }
 
 template <typename MESSAGE>

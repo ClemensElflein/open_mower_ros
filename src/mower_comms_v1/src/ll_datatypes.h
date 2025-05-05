@@ -53,7 +53,6 @@
 #define LL_STATUS_BIT_UI_AVAIL    (1 << 7)
 // clang-format on
 
-
 #pragma pack(push, 1)
 struct ll_status {
   // Type of this message. Has to be PACKET_ID_LL_STATUS.
@@ -119,7 +118,7 @@ struct ll_ui_event {
   // Type of this message. Has to be PACKET_ID_LL_UI_EVENT
   uint8_t type;
   uint8_t button_id;
-  uint8_t press_duration; // 0 for single press, 1 for long, 2 for very long press
+  uint8_t press_duration;  // 0 for single press, 1 for long, 2 for very long press
   uint16_t crc;
 } __attribute__((packed));
 #pragma pack(pop)
@@ -128,8 +127,8 @@ struct ll_ui_event {
 struct ll_high_level_state {
   // Type of this message. Has to be PACKET_ID_LL_HIGH_LEVEL_STATE
   uint8_t type;
-  uint8_t current_mode; // see HighLevelMode
-  uint8_t gps_quality; // GPS quality in percent (0-100)
+  uint8_t current_mode;  // see HighLevelMode
+  uint8_t gps_quality;   // GPS quality in percent (0-100)
   uint16_t crc;
 } __attribute__((packed));
 #pragma pack(pop)
@@ -138,36 +137,35 @@ enum class OptionState : unsigned int { OFF = 0, ON, UNDEFINED };
 
 #pragma pack(push, 1)
 struct ConfigOptions {
-  OptionState dfp_is_5v: 2;
-  OptionState background_sounds: 2;
-  OptionState ignore_charging_current: 2;
+  OptionState dfp_is_5v : 2;
+  OptionState background_sounds : 2;
+  OptionState ignore_charging_current : 2;
   // Need to block/waster the bits now, to be prepared for future enhancements
-  OptionState reserved_for_future_use1: 2;
-  OptionState reserved_for_future_use2: 2;
-  OptionState reserved_for_future_use3: 2;
-  OptionState reserved_for_future_use4: 2;
-  OptionState reserved_for_future_use5: 2;
+  OptionState reserved_for_future_use1 : 2;
+  OptionState reserved_for_future_use2 : 2;
+  OptionState reserved_for_future_use3 : 2;
+  OptionState reserved_for_future_use4 : 2;
+  OptionState reserved_for_future_use5 : 2;
 } __attribute__((packed));
 #pragma pack(pop)
 static_assert(sizeof(ConfigOptions) == 2, "Changing size of ConfigOption != 2 will break packet compatibilty");
 
-typedef char iso639_1[2]; // Two char ISO 639-1 language code
+typedef char iso639_1[2];  // Two char ISO 639-1 language code
 
 enum class HallMode : unsigned int {
   OFF = 0,
-  LIFT_TILT, // Wheel lifted and wheels tilted functionality
-  STOP, // Stop mower
-  UNDEFINED // This is used by foreign side to inform that it doesn't has a configuration for this sensor
+  LIFT_TILT,  // Wheel lifted and wheels tilted functionality
+  STOP,       // Stop mower
+  UNDEFINED   // This is used by foreign side to inform that it doesn't has a configuration for this sensor
 };
 
 #pragma pack(push, 1)
 struct HallConfig {
   HallConfig(HallMode t_mode = HallMode::UNDEFINED, bool t_active_low = false)
-    : mode(t_mode), active_low(t_active_low) {
-  };
+      : mode(t_mode), active_low(t_active_low){};
 
-  HallMode mode: 3; // 1 bit reserved
-  bool active_low: 1;
+  HallMode mode : 3;  // 1 bit reserved
+  bool active_low : 1;
 } __attribute__((packed));
 #pragma pack(pop)
 

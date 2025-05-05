@@ -17,15 +17,15 @@ class MowerService : public MowerServiceBase {
   }
 
  private:
- SimRobot &robot_;
- bool mower_running_ = false;
- void tick();
- ManagedSchedule tick_schedule_{scheduler_, IsRunning(), 1'000'000,
-                                XBOT_FUNCTION_FOR_METHOD(MowerService, &MowerService::tick, this)};
+  SimRobot &robot_;
+  bool mower_running_ = false;
+  void tick();
+  ManagedSchedule tick_schedule_{scheduler_, IsRunning(), 1'000'000,
+                                 XBOT_FUNCTION_FOR_METHOD(MowerService, &MowerService::tick, this)};
 
-protected:
- bool OnStart() override;
- void OnMowerEnabledChanged(const uint8_t &new_value) override;
+ protected:
+  bool OnStart() override;
+  void OnMowerEnabledChanged(const uint8_t &new_value) override;
 };
 
 #endif  // MOWER_SERVICE_HPP
