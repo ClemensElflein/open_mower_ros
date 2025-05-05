@@ -17,6 +17,7 @@
 //
 #include "IdleBehavior.h"
 
+#include <mower_logic/PowerConfig.h>
 #include <mower_msgs/Power.h>
 
 #include "PerimeterDocking.h"
@@ -33,6 +34,7 @@ extern ros::ServiceClient dockingPointClient;
 extern mower_msgs::Status getStatus();
 extern mower_msgs::Power getPower();
 extern mower_logic::MowerLogicConfig getConfig();
+extern ll::PowerConfig getPowerConfig();
 extern dynamic_reconfigure::Server<mower_logic::MowerLogicConfig> *reconfigServer;
 
 extern ros::ServiceClient mapClient;
@@ -72,6 +74,7 @@ Behavior *IdleBehavior::execute() {
     stopMoving();
     stopBlade();
     const auto last_config = getConfig();
+    const auto last_power_config = getPowerConfig();
     const auto last_status = getStatus();
     const auto last_power = getPower();
 
@@ -83,7 +86,7 @@ Behavior *IdleBehavior::execute() {
     if (rain_delay) {
       ROS_INFO_STREAM_THROTTLE(300, "Rain delay: " << int((rain_resume - ros::Time::now()).toSec() / 60) << " minutes");
     }
-    const bool mower_ready = last_power.v_battery > last_config.battery_full_voltage &&
+    const bool mower_ready = last_power.v_battery > last_power_config.battery_full_voltage &&
                              last_status.mower_motor_temperature < last_config.motor_cold_temperature &&
                              !last_config.manual_pause_mowing && !rain_delay;
 

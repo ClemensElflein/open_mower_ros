@@ -20,6 +20,7 @@
 
 #include <actionlib/client/simple_action_client.h>
 #include <dynamic_reconfigure/server.h>
+#include <mower_logic/PowerConfig.h>
 #include <mower_msgs/ESCStatus.h>
 #include <mower_msgs/Emergency.h>
 #include <mower_msgs/Power.h>
@@ -68,6 +69,7 @@ actionlib::SimpleActionClient<mbf_msgs::ExePathAction> *mbfClientExePath;
 
 ros::Publisher cmd_vel_pub, high_level_state_publisher;
 mower_logic::MowerLogicConfig last_config;
+ll::PowerConfig last_power_config;
 
 StateSubscriber<mower_msgs::Emergency> emergency_state_subscriber{"/ll/emergency"};
 StateSubscriber<mower_msgs::Status> status_state_subscriber{"/ll/mower_status"};
@@ -111,6 +113,11 @@ void setLastGoodGPS(ros::Time time) {
 mower_logic::MowerLogicConfig getConfig() {
   std::lock_guard<std::recursive_mutex> lk{mower_logic_mutex};
   return last_config;
+}
+
+ll::PowerConfig getPowerConfig() {
+  std::lock_guard<std::recursive_mutex> lk{mower_logic_mutex};
+  return last_power_config;
 }
 
 void setConfig(mower_logic::MowerLogicConfig c) {
@@ -476,15 +483,15 @@ void checkSafety(const ros::TimerEvent &timer_event) {
 
   if (currentBehavior != nullptr && currentBehavior->redirect_joystick()) {
     if (ros::Time::now() - joy_vel_time > ros::Duration(10)) {
-      stopMoving(); // To avoid cmd_vel receive timeout in mower_comms
+      stopMoving();  // To avoid cmd_vel receive timeout in mower_comms
     }
   }
 
   // enable the mower (if not aleady) if mowerAllowed is still true after checks and bahavior agrees
   setMowerEnabled(currentBehavior != nullptr && mowerAllowed && currentBehavior->mower_enabled());
 
-  double battery_percent = (last_power.v_battery - last_config.battery_empty_voltage) /
-                           (last_config.battery_full_voltage - last_config.battery_empty_voltage);
+  double battery_percent = (last_power.v_battery - last_power_config.battery_empty_voltage) /
+                           (last_power_config.battery_full_voltage - last_power_config.battery_empty_voltage);
   if (battery_percent > 1.0) {
     battery_percent = 1.0;
   } else if (battery_percent < 0.0) {
@@ -503,7 +510,7 @@ void checkSafety(const ros::TimerEvent &timer_event) {
   }
 
   // Dock if below critical voltage to avoid BMS undervoltage protection
-  if (!dockingNeeded && (last_power.v_battery < last_config.battery_critical_voltage)) {
+  if (!dockingNeeded && (last_power.v_battery < last_power_config.battery_critical_voltage)) {
     dockingReason << "Battery voltage min critical: " << last_power.v_battery;
     dockingNeeded = true;
   }
@@ -511,7 +518,7 @@ void checkSafety(const ros::TimerEvent &timer_event) {
   // Otherwise take the max battery voltage over 20s to ignore droop during short current spikes
   max_v_battery_seen = std::max<double>(max_v_battery_seen, last_power.v_battery);
   if (ros::Time::now() - last_v_battery_check > ros::Duration(20.0)) {
-    if (!dockingNeeded && (max_v_battery_seen < last_config.battery_empty_voltage)) {
+    if (!dockingNeeded && (max_v_battery_seen < last_power_config.battery_empty_voltage)) {
       dockingReason << "Battery average voltage low: " << max_v_battery_seen;
       dockingNeeded = true;
     }
@@ -643,12 +650,16 @@ int main(int argc, char **argv) {
 
   n = new ros::NodeHandle();
   paramNh = new ros::NodeHandle("~");
+  ros::NodeHandle powerNodeHandle("/ll/services/power");
   mowerAllowed = false;
 
   boost::recursive_mutex mutex;
 
   reconfigServer = new dynamic_reconfigure::Server<mower_logic::MowerLogicConfig>(mutex, *paramNh);
   reconfigServer->setCallback(reconfigureCB);
+
+  last_power_config = ll::PowerConfig::__getDefault__();
+  last_power_config.__fromServer__(powerNodeHandle);
 
   cmd_vel_pub = n->advertise<geometry_msgs::Twist>("/logic_vel", 1);
 
