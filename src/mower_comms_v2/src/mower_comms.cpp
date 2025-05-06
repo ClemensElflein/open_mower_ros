@@ -34,6 +34,7 @@
 #include "EmergencyServiceInterface.h"
 #include "GpsServiceInterface.h"
 #include "ImuServiceInterface.h"
+#include "InputServiceInterface.h"
 #include "MowerServiceInterface.h"
 #include "PowerServiceInterface.h"
 
@@ -56,6 +57,7 @@ std::unique_ptr<MowerServiceInterface> mower_service = nullptr;
 std::unique_ptr<ImuServiceInterface> imu_service = nullptr;
 std::unique_ptr<PowerServiceInterface> power_service = nullptr;
 std::unique_ptr<GpsServiceInterface> gps_service = nullptr;
+std::unique_ptr<InputServiceInterface> input_service = nullptr;
 
 xbot::serviceif::Context ctx{};
 
@@ -244,6 +246,13 @@ int main(int argc, char **argv) {
       std::make_unique<GpsServiceInterface>(xbot::service_ids::GPS, ctx, gps_position_pub, nmea_pub, datum_lat,
                                             datum_long, datum_height, baud_rate, protocol, gps_port_index);
   gps_service->Start();
+
+  // Input service
+  {
+    std::string config_file = paramNh.param<std::string>("services/input/config_file", "");
+    input_service = std::make_unique<InputServiceInterface>(xbot::service_ids::INPUT, ctx, config_file);
+    input_service->Start();
+  }
 
   ros::spin();
 
