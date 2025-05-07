@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<package format="2">
+    <name>mower_comms_v2</name>
+    <version>0.0.0</version>
+    <description>The mower_comms_v2 package</description>
+    <maintainer email="clemens1@familie-elflein.de">Clemens Elflein</maintainer>
+    <license>CC BY-NC-SA 4.0</license>
+
+    <url type="website">https://github.com/ClemensElflein/OpenMower</url>
+
+    <buildtool_depend>catkin</buildtool_depend>
+    <depend>xbot_framework</depend>
+    <build_depend>xbot_msgs</build_depend>
+    <build_depend>mower_msgs</build_depend>
+    <build_depend>sensor_msgs</build_depend>
+    <build_depend>roscpp</build_depend>
+    <build_depend>ublox_msgs</build_depend>
+    <build_depend>robot_localization</build_depend>
+    <build_export_depend>xbot_msgs</build_export_depend>
+    <build_export_depend>mower_msgs</build_export_depend>
+    <build_export_depend>roscpp</build_export_depend>
+    <exec_depend>xbot_msgs</exec_depend>
+    <exec_depend>mower_msgs</exec_depend>
+    <exec_depend>roscpp</exec_depend>
+    <depend>xesc_msgs</depend>
+    <depend>nmea_msgs</depend>
+
+
+    <!-- The export tag contains other, unspecified, tags -->
+    <export>
+        <!-- Other tools can request additional information be placed here -->
+
+    </export>
+</package>

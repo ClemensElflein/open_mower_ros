@@ -34,7 +34,6 @@
   <exec_depend>tf2_ros</exec_depend>
   <exec_depend>mower_msgs</exec_depend>
   <exec_depend>dynamic_reconfigure</exec_depend>
-  <exec_depend>mobile_robot_simulator</exec_depend>
   <exec_depend>rqt_reconfigure</exec_depend>
   <exec_depend>mower_map</exec_depend>
   <exec_depend>rosbridge_server</exec_depend>

@@ -1,0 +1,16 @@
+ll:
+  services:
+    diff_drive:
+      wheel_distance_m: 0.325
+      ticks_per_m: 1964.0
+    power:
+      battery_full_voltage: 28.5
+      battery_empty_voltage: 24.0
+      battery_critical_voltage: 23.0
+      battery_critical_high_voltage: 29.0
+      charge_critical_high_voltage: 30.0
+      charge_critical_high_current: 1.5
+
+xbot_positioning:
+  antenna_offset_x: 0.1
+  antenna_offset_y: 0.0

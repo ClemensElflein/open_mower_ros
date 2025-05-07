@@ -3,26 +3,34 @@
     I.e. the raw data comms to the Low Level Board, the GPS, etc.
 -->
 <launch>
-    <!-- TODO: Add parameter for simulation -->
+    <group unless="$(optenv OM_NO_COMMS False)">
+        <!-- TODO: Add parameter for simulation -->
+        <group unless="$(optenv OM_V2 False)">
+            <!-- Comms v1 -->
+            <node pkg="mower_comms_v1" type="mower_comms_v1" name="mower_comms" unless="$(optenv OM_NO_COMMS False)"
+                  output="screen">
+            </node>
+            <!-- GPS driver only for v1 builds -->
+            <node pkg="xbot_driver_gps" type="driver_gps_node" name="xbot_driver_gps"
+                  output="screen"
+                  clear_params="true"
+                  respawn="true"
+                  respawn_delay="5">
+                <remap from="/rtcm" to="/ll/position/gps/rtcm"/>
+                <remap from="/nmea" to="/ll/position/gps/nmea"/>
+                <remap from="~xb_pose" to="/ll/position/gps"/>
+                <remap from="~wheel_ticks" to="/mower/wheel_ticks"/>
+            </node>
 
-    <node pkg="mower_comms" type="mower_comms" name="mower_comms" unless="$(optenv OM_NO_COMMS False)" output="screen">
-        <rosparam unless="$(eval env('OM_MOWER')=='CUSTOM')" file="$(find open_mower)/params/hardware_specific/$(env OM_MOWER)/comms_general_params.yaml"/>
-        <rosparam unless="$(eval env('OM_MOWER')=='CUSTOM')" file="$(find open_mower)/params/hardware_specific/$(env OM_MOWER)/comms_$(env OM_MOWER_ESC_TYPE)_params.yaml"/>
-        <rosparam if="$(eval env('OM_MOWER')=='CUSTOM')" file="$(env HOME)/mower_params/comms_params.yaml"/>
-        <param if="$(eval optenv('OM_XESC_LEFT_PORT')!='')" name="left_xesc/serial_port" value="$(optenv OM_XESC_LEFT_PORT)"/>
-        <param if="$(eval optenv('OM_XESC_RIGHT_PORT')!='')" name="right_xesc/serial_port" value="$(optenv OM_XESC_RIGHT_PORT)"/>
-        <param if="$(eval optenv('OM_XESC_MOWER_PORT')!='')" name="mower_xesc/serial_port" value="$(optenv OM_XESC_MOWER_PORT)"/>
-        <param name="wheel_ticks_per_m" value="$(env OM_WHEEL_TICKS_PER_M)"/>
-        <param name="wheel_distance_m" value="$(env OM_WHEEL_DISTANCE_M)"/>
-        <param name="dfp_is_5v" value="$(optenv OM_DFP_IS_5V False)"/>
-        <param name="language" value="$(optenv OM_LANGUAGE en)"/>
-        <param name="volume" value="$(optenv OM_VOLUME -1)"/>
-        <param name="background_sounds" value="$(optenv OM_BACKGROUND_SOUNDS False)"/>
-    </node>
+        </group>
+        <group if="$(optenv OM_V2 False)">
+            <!-- Use V2 Comms -->
+            <node pkg="mower_comms_v2" type="mower_comms_v2" name="mower_comms_v2" output="screen">
+            </node>
+        </group>
 
-    <include file="$(find open_mower)/launch/include/_gps.launch" unless="$(optenv OM_NO_GPS False)">
-
-    </include>
-
+        <!-- NTRIP for both: v1 and v2 -->
+        <include if="$(optenv OM_USE_NTRIP True)" file="$(find open_mower)/launch/include/_ntrip_client.launch"/>
+    </group>
 
 </launch>

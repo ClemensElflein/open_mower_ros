@@ -8,22 +8,22 @@ project(mower_logic)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-  dynamic_reconfigure
-  ftc_local_planner
-  mbf_msgs
-  mower_map
-  mower_msgs
-  nav_msgs
-  rosbag
-  roscpp
-  slic3r_coverage_planner
-  tf2
-  tf2_geometry_msgs
-  tf2_ros
-  sensor_msgs
-  robot_localization
-  xbot_msgs
-  xbot_positioning
+        dynamic_reconfigure
+        ftc_local_planner
+        mbf_msgs
+        mower_map
+        mower_msgs
+        nav_msgs
+        rosbag
+        roscpp
+        slic3r_coverage_planner
+        tf2
+        tf2_geometry_msgs
+        tf2_ros
+        sensor_msgs
+        robot_localization
+        xbot_msgs
+        xbot_positioning
 )
 
 find_package(PkgConfig REQUIRED)
@@ -64,8 +64,8 @@ pkg_check_modules(CRYPTOPP REQUIRED libcrypto++)
 
 ## Generate messages in the 'msg' folder
 add_message_files(
-  FILES
-  CheckPoint.msg
+        FILES
+        CheckPoint.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -84,8 +84,8 @@ add_message_files(
 
 ## Generate added messages and services with any dependencies listed here
 generate_messages(
-#   DEPENDENCIES
-#   mbf_msgs#   mower_msgs#   nav_msgs#   tf2_geometry_msgs
+        #   DEPENDENCIES
+        #   mbf_msgs#   mower_msgs#   nav_msgs#   tf2_geometry_msgs
 )
 
 ################################################
@@ -103,10 +103,11 @@ generate_messages(
 ##     and list every .cfg file to be processed
 
 ## Generate dynamic reconfigure parameters in the 'cfg' folder
- generate_dynamic_reconfigure_options(
-         cfg/MowerLogic.cfg
-         cfg/MowerOdometry.cfg
- )
+generate_dynamic_reconfigure_options(
+        cfg/MowerLogic.cfg
+        cfg/MowerOdometry.cfg
+        cfg/Power.cfg
+)
 
 ###################################
 ## catkin specific configuration ##
@@ -118,10 +119,10 @@ generate_messages(
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
-#  LIBRARIES mower_logic
-#  CATKIN_DEPENDS dynamic_reconfigure ftc_local_planner mbf_msgs mower_map mower_msgs nav_msgs roscpp slic3r_coverage_planner tf2 tf2_geometry_msgs tf2_ros
-#  DEPENDS system_lib
+        #  INCLUDE_DIRS include
+        #  LIBRARIES mower_logic
+        #  CATKIN_DEPENDS dynamic_reconfigure ftc_local_planner mbf_msgs mower_map mower_msgs nav_msgs roscpp slic3r_coverage_planner tf2 tf2_geometry_msgs tf2_ros
+        #  DEPENDS system_lib
 )
 
 ###########
@@ -131,9 +132,9 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-# include
-  ${catkin_INCLUDE_DIRS}
-  ${CRYPTOPP_INCLUDE_DIRS}
+        # include
+        ${catkin_INCLUDE_DIRS}
+        ${CRYPTOPP_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library
@@ -181,17 +182,9 @@ add_executable(mower_logic
         src/mower_logic/behaviors/PerimeterDocking.cpp
         src/mower_logic/behaviors/AreaRecordingBehavior.h
         src/mower_logic/behaviors/AreaRecordingBehavior.cpp
-        )
+)
 add_dependencies(mower_logic ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
 target_link_libraries(mower_logic ${catkin_LIBRARIES} ${CRYPTOPP_LIBRARIES})
-
-add_executable(mower_odometry src/mower_odometry/mower_odometry.cpp)
-add_dependencies(mower_odometry ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
-target_link_libraries(mower_odometry ${catkin_LIBRARIES})
-
-add_executable(mag_calibration src/mag_calibration/mag_calibration.cpp)
-add_dependencies(mag_calibration ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
-target_link_libraries(mag_calibration ${catkin_LIBRARIES})
 
 add_executable(monitoring src/monitoring/monitoring.cpp)
 add_dependencies(monitoring ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})

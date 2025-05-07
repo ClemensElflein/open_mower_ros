@@ -1,37 +1,8 @@
 <launch>
-    <arg name="use_legacy_localization" default="False"/>
-    <group unless="$(arg use_legacy_localization)">
-        <node pkg="xbot_positioning" type="xbot_positioning" name="xbot_positioning" output="screen" required="true">
-            <remap from="~imu_in" to="/imu/data_raw"/>
-            <remap from="~wheel_ticks_in" to="/mower/wheel_ticks"/>
-            <remap from="~xb_pose_in" to="xbot_driver_gps/xb_pose"/>
-            <remap from="~xb_pose_out" to="xbot_positioning/xb_pose"/>
-            <param name="max_gps_accuracy" value="0.2"/>
-            <param name="antenna_offset_x" value="$(env OM_ANTENNA_OFFSET_X)"/>
-            <param name="antenna_offset_y" value="$(env OM_ANTENNA_OFFSET_Y)"/>
-        </node>
-    </group>
-    <group if="$(arg use_legacy_localization)">
-        <node pkg="mower_logic" type="mower_odometry" name="mower_odometry" output="screen" required="true">
-            <param name="imu_offset" value="$(env OM_IMU_OFFSET)"/>
-            <param name="gps_antenna_offset" value="$(env OM_GPS_ANTENNA_OFFSET)"/>
-            <param name="use_relative_position" value="$(env OM_USE_RELATIVE_POSITION)"/>
-            <param name="use_f9r_sensor_fusion" value="$(optenv OM_USE_F9R_SENSOR_FUSION False)"/>
-            <param unless="$(env OM_USE_RELATIVE_POSITION)" name="datum_lat" value="$(env OM_DATUM_LAT)"/>
-            <param unless="$(env OM_USE_RELATIVE_POSITION)" name="datum_long" value="$(env OM_DATUM_LONG)"/>
-            <remap from="xbot_driver_gps/imu" to="driver_gps_node/imu"/>
-            <remap from="xbot_driver_gps/xb_pose" to="driver_gps_node/xb_pose"/>
-        </node>
-
-        <node pkg="imu_filter_madgwick" type="imu_filter_node" name="imu_filter_node" required="true"
-              unless="$(optenv OM_USE_F9R_SENSOR_FUSION False)">
-            <param name="publish_tf" value="false"/>
-            <param name="mag_bias_x" value="$(env OM_MAG_BIAS_X)"/>
-            <param name="mag_bias_y" value="$(env OM_MAG_BIAS_Y)"/>
-            <param name="mag_bias_z" value="$(env OM_MAG_BIAS_Z)"/>
-            <param name="orientation_stddev" value="0.0"/>
-            <param name="zeta" value="0.0"/>
-            <param name="gain" value="$(env OM_IMU_FILTER_GAIN)"/>
-        </node>
-    </group>
+    <node pkg="xbot_positioning" type="xbot_positioning" name="xbot_positioning" output="screen" required="true">
+        <remap from="~imu_in" to="/ll/imu/data_raw"/>
+        <remap from="~twist_in" to="/ll/diff_drive/measured_twist"/>
+        <remap from="~xb_pose_in" to="/ll/position/gps"/>
+        <remap from="~xb_pose_out" to="xbot_positioning/xb_pose"/>
+    </node>
 </launch>

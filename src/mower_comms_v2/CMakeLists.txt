@@ -1,5 +1,5 @@
-cmake_minimum_required(VERSION 3.0.2)
-project(mower_comms)
+cmake_minimum_required(VERSION 3.16 FATAL_ERROR)
+project(mower_comms_v2)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
@@ -8,20 +8,21 @@ project(mower_comms)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-  dynamic_reconfigure
-  mower_msgs
+        mower_msgs
         sensor_msgs
-  roscpp
-  serial
-        xesc_driver
+        roscpp
         xesc_msgs
-        xesc_interface
         xbot_msgs
+        robot_localization
 )
 
 find_package(
         Boost
 )
+
+# Geographiclib installs FindGeographicLib.cmake to this non-standard location
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "/usr/share/cmake/geographiclib/")
+find_package(GeographicLib REQUIRED)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -113,10 +114,10 @@ find_package(
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
-#  LIBRARIES mower_comms
-#  CATKIN_DEPENDS mower_msgs roscpp serial
-#  DEPENDS system_lib
+        #  INCLUDE_DIRS include
+        #  LIBRARIES mower_comms_v2
+        #  CATKIN_DEPENDS mower_msgs roscpp serial
+        DEPENDS GeographicLib
 )
 
 ###########
@@ -126,13 +127,13 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-# include
-  ${catkin_INCLUDE_DIRS}
+        # include
+        ${catkin_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
-#   src/${PROJECT_NAME}/mower_comms.cpp
+#   src/${PROJECT_NAME}/mower_comms_v2.cpp
 # )
 
 ## Add cmake target dependencies of the library
@@ -143,7 +144,7 @@ include_directories(
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-# add_executable(${PROJECT_NAME}_node src/mower_comms_node.cpp)
+# add_executable(${PROJECT_NAME}_node src/mower_comms_v2_node.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -160,14 +161,32 @@ include_directories(
 #   ${catkin_LIBRARIES}
 # )
 
-add_executable(mower_comms
+add_executable(mower_comms_v2
         src/mower_comms.cpp
-        src/COBS.h
-        src/ll_datatypes.h
-        )
+        src/EmergencyServiceInterface.cpp
+        src/EmergencyServiceInterface.h
+        src/DiffDriveServiceInterface.cpp
+        src/DiffDriveServiceInterface.h
+        src/MowerServiceInterface.cpp
+        src/MowerServiceInterface.h
+        src/ImuServiceInterface.cpp
+        src/ImuServiceInterface.h
+        src/PowerServiceInterface.cpp
+        src/PowerServiceInterface.h
+        src/GpsServiceInterface.cpp
+        src/GpsServiceInterface.h
+)
 
-add_dependencies(mower_comms ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
-target_link_libraries(mower_comms ${catkin_LIBRARIES})
+target_add_service_interface(mower_comms_v2 ImuServiceInterface ${CMAKE_CURRENT_SOURCE_DIR}/../../services/imu_service.json)
+target_add_service_interface(mower_comms_v2 EmergencyServiceInterface ${CMAKE_CURRENT_SOURCE_DIR}/../../services/emergency_service.json)
+target_add_service_interface(mower_comms_v2 DiffDriveServiceInterface ${CMAKE_CURRENT_SOURCE_DIR}/../../services/diff_drive_service.json)
+target_add_service_interface(mower_comms_v2 MowerServiceInterface ${CMAKE_CURRENT_SOURCE_DIR}/../../services/mower_service.json)
+target_add_service_interface(mower_comms_v2 PowerServiceInterface ${CMAKE_CURRENT_SOURCE_DIR}/../../services/power_service.json)
+target_add_service_interface(mower_comms_v2 GpsServiceInterface ${CMAKE_CURRENT_SOURCE_DIR}/../../services/gps_service.json)
+
+
+add_dependencies(mower_comms_v2 ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
+target_link_libraries(mower_comms_v2 PUBLIC ${catkin_LIBRARIES} ${GeographicLib_LIBRARIES})
 
 #############
 ## Install ##

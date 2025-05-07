@@ -1,0 +1,18 @@
+ll:
+  services:
+    diff_drive:
+      wheel_distance_m: 0.45
+      ticks_per_m: 1195.0
+    imu:
+      axis_config: "+Z+X+Y"
+    power:
+      battery_empty_voltage: 21.0
+      battery_critical_voltage: 20.0
+      battery_full_voltage: 28.5
+      battery_critical_high_voltage: 29.4
+      charge_critical_high_voltage: 29.4
+      charge_critical_high_current: 3.9
+
+xbot_positioning:
+  antenna_offset_x: 0.18
+  antenna_offset_y: 0.0

@@ -17,12 +17,15 @@
 //
 #include "DockingBehavior.h"
 
+#include <mower_msgs/Power.h>
+
 #include "PerimeterDocking.h"
 
 extern ros::ServiceClient dockingPointClient;
 extern actionlib::SimpleActionClient<mbf_msgs::MoveBaseAction> *mbfClient;
 extern actionlib::SimpleActionClient<mbf_msgs::ExePathAction> *mbfClientExePath;
 extern mower_msgs::Status getStatus();
+extern mower_msgs::Power getPower();
 
 extern void stopMoving();
 extern bool setGPS(bool enabled);
@@ -119,6 +122,7 @@ bool DockingBehavior::dock_straight() {
     r.sleep();
 
     const auto last_status = getStatus();
+    const auto last_power = getPower();
     auto mbfState = mbfClientExePath->getState();
 
     if (aborted) {
@@ -133,8 +137,8 @@ bool DockingBehavior::dock_straight() {
       case actionlib::SimpleClientGoalState::ACTIVE:
       case actionlib::SimpleClientGoalState::PENDING:
         // currently moving. Cancel as soon as we're in the station
-        if (last_status.v_charge > 5.0) {
-          ROS_INFO_STREAM("Got a voltage of " << last_status.v_charge << " V. Cancelling docking.");
+        if (last_power.v_charge > 5.0) {
+          ROS_INFO_STREAM("Got a voltage of " << last_power.v_charge << " V. Cancelling docking.");
           ros::Duration(config.docking_extra_time).sleep();
           mbfClientExePath->cancelGoal();
           stopMoving();
@@ -144,8 +148,8 @@ bool DockingBehavior::dock_straight() {
         break;
       case actionlib::SimpleClientGoalState::SUCCEEDED:
         // we stopped moving because the path has ended. check, if we have docked successfully
-        ROS_INFO_STREAM("Docking stopped, because we reached end pose. Voltage was " << last_status.v_charge << " V.");
-        if (last_status.v_charge > 5.0) {
+        ROS_INFO_STREAM("Docking stopped, because we reached end pose. Voltage was " << last_power.v_charge << " V.");
+        if (last_power.v_charge > 5.0) {
           mbfClientExePath->cancelGoal();
           dockingSuccess = true;
           stopMoving();
@@ -172,7 +176,7 @@ std::string DockingBehavior::state_name() {
 
 Behavior *DockingBehavior::execute() {
   // Check if already docked (e.g. carried to base during emergency) and skip
-  if (getStatus().v_charge > 5.0) {
+  if (getPower().v_charge > 5.0) {
     ROS_INFO_STREAM("Already inside docking station, going directly to idle.");
     stopMoving();
     return &IdleBehavior::DOCKED_INSTANCE;
@@ -279,6 +283,7 @@ bool DockingBehavior::redirect_joystick() {
 uint8_t DockingBehavior::get_sub_state() {
   return 1;
 }
+
 uint8_t DockingBehavior::get_state() {
   return mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_AUTONOMOUS;
 }

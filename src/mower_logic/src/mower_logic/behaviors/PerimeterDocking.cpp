@@ -1,5 +1,7 @@
 #include "PerimeterDocking.h"
 
+#include <mower_msgs/Power.h>
+
 #include "IdleBehavior.h"
 #include "mower_msgs/Perimeter.h"
 #include "mower_msgs/PerimeterControlSrv.h"
@@ -20,6 +22,7 @@
 extern ros::NodeHandle* n;
 extern ros::Publisher cmd_vel_pub;
 extern mower_msgs::Status getStatus();
+extern mower_msgs::Power getPower();
 extern void setGPS(bool enabled);
 
 static ros::Subscriber perimeterSubscriber;
@@ -225,7 +228,7 @@ Behavior* PerimeterDockingBehavior::arrived() {
     ROS_WARN("Travelled %.f meters before reaching the station", travelled);
     return &IdleBehavior::INSTANCE;
   }
-  if (getStatus().v_charge > 5.0) {
+  if (getPower().v_charge > 5.0) {
     chargeSeen++;
     if (chargeSeen >= 2) {
       chargeSeen = 0;

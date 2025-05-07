@@ -1,0 +1,52 @@
+ll:
+  bind_ip: "172.16.78.1"
+
+  services:
+    sound:
+      language: "en"
+      volume: -1
+    gps:
+      baud_rate: 921600
+      protocol: "UBX"
+      datum_height: 0
+    imu:
+      axis_config: "+X-Y-Z"
+    power:
+      battery_critical_high_voltage: -1
+      charge_critical_high_voltage: -1
+      charge_critical_high_current: -1
+
+xbot_positioning:
+  max_gps_accuracy: 0.2
+  debug: false
+
+ntrip_client:
+  reconnect_attempt_max: 5
+  reconnect_attempt_wait_seconds: 99999
+
+mower_logic:
+  automatic_mode: 0
+  docking_approach_distance: 1.5
+  docking_extra_time: 0
+  docking_retry_count: 4
+  docking_redock: false
+  outline_overlap_count: 0
+  mow_angle_offset: 0
+  mow_angle_offset_is_absolute: false
+  mow_angle_increment: 0
+  gps_wait_time: 10.0
+  gps_timeout: 10.0
+  rain_mode: 0
+  rain_delay_minutes: 30
+  rain_check_seconds: 20
+  cu_rain_threshold: -1
+  undock_angled_distance: 0.0
+  undock_angle: 0.0
+  undock_fixed_angle: true
+  undock_use_curve: true
+  emergency_lift_period: -1
+  emergency_tilt_period: -1
+  ignore_charging_current: false
+
+xbot_monitoring:
+  external_mqtt_enable: false
