@@ -38,6 +38,9 @@
         <param name="mower_comms/language" value="$(optenv OM_LANGUAGE en)"/>
         <param name="mower_comms/volume" value="$(optenv OM_VOLUME -1)"/>
         <param name="mower_comms/background_sounds" value="$(optenv OM_BACKGROUND_SOUNDS False)"/>
+        <param if="$(eval optenv('OM_XESC_LEFT_PORT')!='')" name="mower_comms/left_xesc/serial_port" value="$(optenv OM_XESC_LEFT_PORT)"/>
+        <param if="$(eval optenv('OM_XESC_RIGHT_PORT')!='')" name="mower_comms/right_xesc/serial_port" value="$(optenv OM_XESC_RIGHT_PORT)"/>
+        <param if="$(eval optenv('OM_XESC_MOWER_PORT')!='')" name="mower_comms/mower_xesc/serial_port" value="$(optenv OM_XESC_MOWER_PORT)"/>
 
 
         <!-- xbot_driver_gps -->

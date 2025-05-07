@@ -1,2 +1,2 @@
-serial_port: "/dev/ttyAMA1"
+serial_port: "/dev/ttyAMA2"
 baudrate: 921600
