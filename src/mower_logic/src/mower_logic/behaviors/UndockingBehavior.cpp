@@ -54,6 +54,12 @@ Behavior *UndockingBehavior::execute() {
 
   nav_msgs::Path path;
 
+  ros::Time start_wait_time = ros::Time::now();
+  ros::Rate loop_rate(100);
+  while (ros::ok() && (ros::Time::now() - start_wait_time) < ros::Duration(config.undocking_waiting_time)) {
+    loop_rate.sleep();
+  }
+
   geometry_msgs::PoseStamped docking_pose_stamped_front;
   docking_pose_stamped_front.pose = pose.pose.pose;
   docking_pose_stamped_front.header = pose.header;
