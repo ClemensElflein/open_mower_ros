@@ -3,6 +3,8 @@
 #include <libfyaml.h>
 #include <ros/console.h>
 
+#include <xbot-service-interface/HeatshrinkEncode.hpp>
+
 static void fy_error_handler(struct fy_diag *diag, void *user, const char *buf, size_t len) {
   // Error token is printed with a leading newline, which doesn'twork well with ROS logging.
   if (buf[0] == '\n') {
@@ -47,10 +49,12 @@ bool InputServiceInterface::OnConfigurationRequested(uint16_t service_id) {
     return true;
   }
 
+  std::vector<uint8_t> compressed = HeatshrinkEncode(reinterpret_cast<uint8_t *>(json_str), strlen(json_str));
+  free(json_str);
+
   StartTransaction(true);
-  SetRegisterInputConfigs(json_str, strlen(json_str));
+  SetRegisterInputConfigs(compressed.data(), compressed.size());
   CommitTransaction();
 
-  free(json_str);
   return true;
 }
