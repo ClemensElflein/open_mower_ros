@@ -26,6 +26,8 @@
 #include <ros/ros.h>
 #include <rtcm_msgs/Message.h>
 #include <sensor_msgs/Imu.h>
+#include <spdlog/sinks/callback_sink.h>
+#include <spdlog/spdlog.h>
 
 #include "../../../services/service_ids.h"
 #include "DiffDriveServiceInterface.h"
@@ -98,8 +100,28 @@ bool setMowEnabled(mower_msgs::MowerControlSrvRequest &req, mower_msgs::MowerCon
   return true;
 }
 
+static void spdlog_cb(const spdlog::details::log_msg &msg) {
+  ros::console::Level level = ros::console::Level::Info;
+  switch (msg.level) {
+    case spdlog::level::level_enum::trace:
+    case spdlog::level::level_enum::debug: level = ros::console::Level::Debug; break;
+    case spdlog::level::level_enum::info: break;
+    case spdlog::level::level_enum::warn: level = ros::console::Level::Warn; break;
+    case spdlog::level::level_enum::err: level = ros::console::Level::Error; break;
+    case spdlog::level::level_enum::critical: level = ros::console::Level::Fatal; break;
+    case spdlog::level::level_enum::off: return;
+  }
+  ROS_LOG(level, ROSCONSOLE_DEFAULT_NAME, "%.*s", static_cast<int>(msg.payload.size()), msg.payload.data());
+}
+
 int main(int argc, char **argv) {
   ros::init(argc, argv, "mower_comms_v2");
+
+  {
+    auto sink = std::make_shared<spdlog::sinks::callback_sink_mt>(spdlog_cb);
+    auto logger = std::make_shared<spdlog::logger>("", std::move(sink));
+    spdlog::set_default_logger(logger);
+  }
 
   ros::NodeHandle n;
   ros::NodeHandle paramNh("/ll");
