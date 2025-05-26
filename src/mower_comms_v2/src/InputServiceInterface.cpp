@@ -50,6 +50,8 @@ bool InputServiceInterface::OnConfigurationRequested(uint16_t service_id) {
   }
 
   std::vector<uint8_t> compressed = HeatshrinkEncode(reinterpret_cast<uint8_t *>(json_str), strlen(json_str));
+  ROS_INFO_STREAM("Input config JSON has " << strlen(json_str) << " bytes, compressed to " << compressed.size()
+                                           << " bytes");
   free(json_str);
 
   StartTransaction(true);
