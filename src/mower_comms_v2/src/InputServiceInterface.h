@@ -10,6 +10,8 @@ class InputServiceInterface : public InputServiceInterfaceBase {
   }
 
   bool OnConfigurationRequested(uint16_t service_id) override;
+  void OnActiveInputsChanged(const uint64_t& new_value) override;
+  void OnInputEventChanged(const uint8_t* new_value, uint32_t length) override;
 
  private:
   std::string config_file_;

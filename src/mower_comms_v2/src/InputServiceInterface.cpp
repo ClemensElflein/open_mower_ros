@@ -60,3 +60,25 @@ bool InputServiceInterface::OnConfigurationRequested(uint16_t service_id) {
 
   return true;
 }
+
+void InputServiceInterface::OnActiveInputsChanged(const uint64_t &new_value) {
+  ROS_WARN_STREAM("Active Inputs bitmask: " << new_value);
+}
+
+std::string to_string(InputServiceInterface::InputEventType type) {
+#define ENUM_TO_STRING_CASE(name) \
+  case InputServiceInterface::InputEventType::name: return #name;
+  switch (type) {
+    ENUM_TO_STRING_CASE(ACTIVE)
+    ENUM_TO_STRING_CASE(INACTIVE)
+    ENUM_TO_STRING_CASE(SHORT)
+    ENUM_TO_STRING_CASE(LONG)
+    default: return "Unknown";
+  }
+}
+
+void InputServiceInterface::OnInputEventChanged(const uint8_t *new_value, uint32_t length) {
+  const uint8_t idx = new_value[0];
+  const InputEventType type = static_cast<InputEventType>(new_value[1]);
+  ROS_WARN_STREAM("Event for input #" << static_cast<int>(idx) << ": " << to_string(type));
+}
