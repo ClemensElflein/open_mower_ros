@@ -28,6 +28,7 @@
 #include <sensor_msgs/Imu.h>
 #include <spdlog/sinks/callback_sink.h>
 #include <spdlog/spdlog.h>
+#include <std_msgs/String.h>
 
 #include "../../../services/service_ids.h"
 #include "DiffDriveServiceInterface.h"
@@ -46,6 +47,7 @@ ros::Publisher status_left_esc_pub;
 ros::Publisher status_right_esc_pub;
 ros::Publisher emergency_pub;
 ros::Publisher actual_twist_pub;
+ros::Publisher action_pub;
 
 ros::Publisher sensor_imu_pub;
 
@@ -137,6 +139,7 @@ int main(int argc, char **argv) {
   // ros::Subscriber high_level_status_sub = n.subscribe("/mower_logic/current_state", 0, highLevelStatusReceived);
   ros::Timer publish_timer = n.createTimer(ros::Duration(0.5), sendEmergencyHeartbeatTimerTask);
   ros::Timer publish_timer_2 = n.createTimer(ros::Duration(5.0), sendMowerEnabledTimerTask);
+  action_pub = n.advertise<std_msgs::String>("xbot/action", 1);
 
   std::string bind_ip = "0.0.0.0";
   paramNh.getParam("bind_ip", bind_ip);
@@ -250,7 +253,7 @@ int main(int argc, char **argv) {
   // Input service
   {
     std::string config_file = paramNh.param<std::string>("services/input/config_file", "");
-    input_service = std::make_unique<InputServiceInterface>(xbot::service_ids::INPUT, ctx, config_file);
+    input_service = std::make_unique<InputServiceInterface>(xbot::service_ids::INPUT, ctx, config_file, action_pub);
     input_service->Start();
   }
 

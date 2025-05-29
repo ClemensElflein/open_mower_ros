@@ -2,6 +2,7 @@
 
 #include <libfyaml.h>
 #include <ros/console.h>
+#include <std_msgs/String.h>
 
 #include <xbot-service-interface/HeatshrinkEncode.hpp>
 
@@ -85,6 +86,8 @@ bool InputServiceInterface::OnConfigurationRequested(uint16_t service_id) {
 }
 
 void InputServiceInterface::OnActiveInputsChanged(const uint64_t &new_value) {
+  static uint64_t prev_value = 0;
+  if (new_value == prev_value) return;
   ROS_WARN_STREAM("Active Inputs bitmask: " << new_value);
   for (size_t idx = 0; idx < 64; ++idx) {
     if (new_value & (uint64_t(1) << idx)) {
@@ -92,27 +95,42 @@ void InputServiceInterface::OnActiveInputsChanged(const uint64_t &new_value) {
       ROS_WARN_STREAM("\"" << std::string(input["name"]) << "\" is active");
     }
   }
+  prev_value = new_value;
 }
 
-std::string to_string(InputServiceInterface::InputEventType type) {
-#define ENUM_TO_STRING_CASE(name) \
-  case InputServiceInterface::InputEventType::name: return #name;
-  switch (type) {
-    ENUM_TO_STRING_CASE(ACTIVE)
-    ENUM_TO_STRING_CASE(INACTIVE)
-    ENUM_TO_STRING_CASE(SHORT)
-    ENUM_TO_STRING_CASE(LONG)
-    default: return "Unknown";
+bool InputServiceInterface::TriggerActionForContext(json &actions, std::string context) {
+  auto it_action = actions.find(context);
+  if (it_action != actions.end()) {
+    ROS_INFO_STREAM("Triggering " << *it_action);
+    std_msgs::String action_msg;
+    action_msg.data = *it_action;
+    action_pub_.publish(action_msg);
+    return true;
+  } else {
+    return false;
   }
 }
 
 void InputServiceInterface::OnInputEventChanged(const uint8_t *new_value, uint32_t length) {
-  const uint8_t idx = new_value[0];
+  // TODO: Determine context from high level status.
+  const std::string context{"area_recording"};
+
+  // Check if we want to handle this event.
   const InputEventType type = static_cast<InputEventType>(new_value[1]);
+  std::string duration;
+  switch (type) {
+    case InputEventType::SHORT: duration = "short"; break;
+    case InputEventType::LONG: duration = "long"; break;
+    default: return;
+  }
+
+  // Look up the actions for this input.
+  const uint8_t idx = new_value[0];
   json &input = inputs_[idx];
-  ROS_WARN_STREAM("Event for \"" << std::string(input["name"]) << "\": " << to_string(type));
   auto it_actions = input.find("actions");
   if (it_actions != input.end()) {
-    ROS_WARN_STREAM("The following actions are available: " << it_actions->dump());
+    if (TriggerActionForContext(*it_actions, context + "/" + duration)) return;
+    if (TriggerActionForContext(*it_actions, context)) return;
   }
+  ROS_WARN_STREAM("No action found for \"" << std::string(input["name"]) << "\", " << context + "/" << duration);
 }

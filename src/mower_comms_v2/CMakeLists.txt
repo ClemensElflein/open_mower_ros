@@ -11,6 +11,7 @@ find_package(catkin REQUIRED COMPONENTS
         mower_msgs
         sensor_msgs
         roscpp
+        std_msgs
         xesc_msgs
         xbot_msgs
         robot_localization
