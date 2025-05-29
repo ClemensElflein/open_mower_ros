@@ -49,10 +49,33 @@ bool InputServiceInterface::OnConfigurationRequested(uint16_t service_id) {
     return true;
   }
 
-  std::vector<uint8_t> compressed = HeatshrinkEncode(reinterpret_cast<uint8_t *>(json_str), strlen(json_str));
-  ROS_INFO_STREAM("Input config JSON has " << strlen(json_str) << " bytes, compressed to " << compressed.size()
-                                           << " bytes");
+  // Parse the JSON to a DOM structure so we can access it later.
+  config_ = json::parse(json_str);
   free(json_str);
+
+  // Build an index to access the config for a specific input more easily.
+  size_t next_idx = 0;
+  inputs_.clear();
+  for (auto &drivers : config_.items()) {
+    for (auto &input : drivers.value()) {
+      inputs_.push_back(input);
+    }
+  }
+
+  // We don't want and need to send the actions to the firmware, so create a copy and remove.
+  json config_without_actions(config_);
+  for (auto &drivers : config_without_actions.items()) {
+    for (auto &input : drivers.value()) {
+      input.erase("actions");
+    }
+  }
+  std::string config_without_actions_str = config_without_actions.dump(2);
+
+  std::vector<uint8_t> compressed =
+      HeatshrinkEncode(reinterpret_cast<uint8_t *>(const_cast<char *>(config_without_actions_str.c_str())),
+                       config_without_actions_str.size());
+  ROS_INFO_STREAM("Input config JSON has " << config_without_actions_str.size() << " bytes, compressed to "
+                                           << compressed.size() << " bytes");
 
   StartTransaction(true);
   SetRegisterInputConfigs(compressed.data(), compressed.size());
@@ -63,6 +86,12 @@ bool InputServiceInterface::OnConfigurationRequested(uint16_t service_id) {
 
 void InputServiceInterface::OnActiveInputsChanged(const uint64_t &new_value) {
   ROS_WARN_STREAM("Active Inputs bitmask: " << new_value);
+  for (size_t idx = 0; idx < 64; ++idx) {
+    if (new_value & (uint64_t(1) << idx)) {
+      json &input = inputs_[idx];
+      ROS_WARN_STREAM("\"" << std::string(input["name"]) << "\" is active");
+    }
+  }
 }
 
 std::string to_string(InputServiceInterface::InputEventType type) {
@@ -80,5 +109,10 @@ std::string to_string(InputServiceInterface::InputEventType type) {
 void InputServiceInterface::OnInputEventChanged(const uint8_t *new_value, uint32_t length) {
   const uint8_t idx = new_value[0];
   const InputEventType type = static_cast<InputEventType>(new_value[1]);
-  ROS_WARN_STREAM("Event for input #" << static_cast<int>(idx) << ": " << to_string(type));
+  json &input = inputs_[idx];
+  ROS_WARN_STREAM("Event for \"" << std::string(input["name"]) << "\": " << to_string(type));
+  auto it_actions = input.find("actions");
+  if (it_actions != input.end()) {
+    ROS_WARN_STREAM("The following actions are available: " << it_actions->dump());
+  }
 }

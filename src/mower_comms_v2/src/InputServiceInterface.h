@@ -3,6 +3,8 @@
 
 #include <InputServiceInterfaceBase.hpp>
 
+using json = nlohmann::ordered_json;
+
 class InputServiceInterface : public InputServiceInterfaceBase {
  public:
   InputServiceInterface(uint16_t service_id, const xbot::serviceif::Context& ctx, std::string config_file)
@@ -15,6 +17,8 @@ class InputServiceInterface : public InputServiceInterfaceBase {
 
  private:
   std::string config_file_;
+  json config_;
+  std::vector<std::reference_wrapper<json>> inputs_;
 };
 
 #endif  // INPUTSERVICEINTERFACE_H
