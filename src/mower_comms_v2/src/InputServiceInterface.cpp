@@ -51,20 +51,20 @@ bool InputServiceInterface::OnConfigurationRequested(uint16_t service_id) {
   }
 
   // Parse the JSON to a DOM structure so we can access it later.
-  config_ = json::parse(json_str);
+  json config = json::parse(json_str);
   free(json_str);
 
   // Build an index to access the config for a specific input more easily.
   size_t next_idx = 0;
   inputs_.clear();
-  for (auto &drivers : config_.items()) {
-    for (auto &input : drivers.value()) {
+  for (auto &drivers : config.items()) {
+    for (auto input : drivers.value()) {
       inputs_.push_back(input);
     }
   }
 
   // We don't want and need to send the actions to the firmware, so create a copy and remove.
-  json config_without_actions(config_);
+  json config_without_actions(config);
   for (auto &drivers : config_without_actions.items()) {
     for (auto &input : drivers.value()) {
       input.erase("actions");

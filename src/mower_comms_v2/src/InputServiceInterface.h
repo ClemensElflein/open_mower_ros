@@ -20,8 +20,7 @@ class InputServiceInterface : public InputServiceInterfaceBase {
 
  private:
   std::string config_file_;
-  json config_;
-  std::vector<std::reference_wrapper<json>> inputs_;
+  std::vector<json> inputs_;
   ros::Publisher action_pub_;
 
   bool TriggerActionForContext(json& actions, std::string context);
