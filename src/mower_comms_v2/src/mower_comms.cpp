@@ -91,6 +91,10 @@ void rtcmReceived(const rtcm_msgs::Message &msg) {
   rtcm_buffer.clear();
 }
 
+void actionReceived(const std_msgs::String::ConstPtr &action) {
+  input_service->OnAction(action->data);
+}
+
 void sendEmergencyHeartbeatTimerTask(const ros::TimerEvent &) {
   emergency_service->Heartbeat();
 }
@@ -140,6 +144,7 @@ int main(int argc, char **argv) {
   ros::Timer publish_timer = n.createTimer(ros::Duration(0.5), sendEmergencyHeartbeatTimerTask);
   ros::Timer publish_timer_2 = n.createTimer(ros::Duration(5.0), sendMowerEnabledTimerTask);
   action_pub = n.advertise<std_msgs::String>("xbot/action", 1);
+  ros::Subscriber action_sub = n.subscribe("xbot/action", 0, actionReceived, ros::TransportHints().tcpNoDelay(true));
 
   std::string bind_ip = "0.0.0.0";
   paramNh.getParam("bind_ip", bind_ip);

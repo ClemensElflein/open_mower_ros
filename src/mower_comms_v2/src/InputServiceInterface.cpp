@@ -59,6 +59,8 @@ bool InputServiceInterface::OnConfigurationRequested(uint16_t service_id) {
   inputs_.clear();
   for (auto &drivers : config.items()) {
     for (auto input : drivers.value()) {
+      input["_idx"] = next_idx++;
+      input["_driver"] = drivers.key();
       inputs_.push_back(input);
     }
   }
@@ -133,4 +135,23 @@ void InputServiceInterface::OnInputEventChanged(const uint8_t *new_value, uint32
     if (TriggerActionForContext(*it_actions, context)) return;
   }
   ROS_WARN_STREAM("No action found for \"" << std::string(input["name"]) << "\", " << context + "/" << duration);
+}
+
+void InputServiceInterface::OnAction(std::string raw_payload) {
+  const char *prefix = "mower_comms_v2/simulate_input||";
+  if (raw_payload.rfind(prefix, 0) == std::string::npos) return;
+  const std::string name = raw_payload.substr(strlen(prefix));
+  for (const json &input : inputs_) {
+    if (input["_driver"] == "simulated" && input.contains("name") && input["name"] == name) {
+      uint8_t bit = input["_idx"];
+      uint64_t mask = 1 << bit;
+      StartTransaction();
+      // TODO: Add some delay, allow multiple keys at once.
+      SendSimulatedInputs(mask);
+      SendSimulatedInputs(0);
+      CommitTransaction();
+      return;
+    }
+  }
+  ROS_ERROR_STREAM("No simulated input with name \"" << name << "\" found");
 }
