@@ -68,7 +68,7 @@ bool setEmergencyStop(mower_msgs::EmergencyStopSrvRequest &req, mower_msgs::Emer
   // after initialization whereas the service is created during intialization
   if (!emergency_service) return false;
 
-  emergency_service->SetEmergency(req.emergency);
+  emergency_service->SetHighLevelEmergency(req.emergency);
   return true;
 }
 
