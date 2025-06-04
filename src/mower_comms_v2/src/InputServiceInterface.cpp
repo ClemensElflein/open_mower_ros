@@ -65,19 +65,19 @@ bool InputServiceInterface::OnConfigurationRequested(uint16_t service_id) {
     }
   }
 
-  // We don't want and need to send the actions to the firmware, so create a copy and remove.
-  json config_without_actions(config);
-  for (auto &drivers : config_without_actions.items()) {
+  // We don't want and need to send the names and actions to the firmware, so create a copy and remove.
+  json config_for_firmware(config);
+  for (auto &drivers : config_for_firmware.items()) {
     for (auto &input : drivers.value()) {
+      input.erase("name");
       input.erase("actions");
     }
   }
-  std::string config_without_actions_str = config_without_actions.dump(2);
+  std::string config_for_firmware_str = config_for_firmware.dump(2);
 
-  std::vector<uint8_t> compressed =
-      HeatshrinkEncode(reinterpret_cast<uint8_t *>(const_cast<char *>(config_without_actions_str.c_str())),
-                       config_without_actions_str.size());
-  ROS_INFO_STREAM("Input config JSON has " << config_without_actions_str.size() << " bytes, compressed to "
+  std::vector<uint8_t> compressed = HeatshrinkEncode(
+      reinterpret_cast<uint8_t *>(const_cast<char *>(config_for_firmware_str.c_str())), config_for_firmware_str.size());
+  ROS_INFO_STREAM("Input config JSON has " << config_for_firmware_str.size() << " bytes, compressed to "
                                            << compressed.size() << " bytes");
 
   StartTransaction(true);
