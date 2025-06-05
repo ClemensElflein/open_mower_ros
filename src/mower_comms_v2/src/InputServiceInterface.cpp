@@ -143,13 +143,12 @@ void InputServiceInterface::OnAction(std::string raw_payload) {
   const std::string name = raw_payload.substr(strlen(prefix));
   for (const json &input : inputs_) {
     if (input["_driver"] == "simulated" && input.contains("name") && input["name"] == name) {
-      uint8_t bit = input["_idx"];
+      uint8_t bit = input["bit"];
       uint64_t mask = 1 << bit;
-      StartTransaction();
-      // TODO: Add some delay, allow multiple keys at once.
       SendSimulatedInputs(mask);
+      // TODO: Use a better way to delay, allow multiple keys at once.
+      usleep(300'000);
       SendSimulatedInputs(0);
-      CommitTransaction();
       return;
     }
   }
