@@ -22,8 +22,6 @@ Currently, the following repositories are included:
 
 OpenMower requires ROS Noetic. ([installation instruction](http://wiki.ros.org/noetic/Installation)) There is no distributed release package yet, for development and test purpose it's best to build the workspace on your own.
 
-By default, OpenMower is supposed to run on an ARM-based Raspberry boards: https://x-tech.online/2022/01/installing-ros-noetic-on-a-headless-raspberry-pi-4-with-ubuntu-20-04/
-
 #### Fetch Dependencies
 Before building, you need to fetch this project's dependencies. The best way to do this is by using rosdep:
 
