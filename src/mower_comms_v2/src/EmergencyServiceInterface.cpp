@@ -39,12 +39,33 @@ void EmergencyServiceInterface::OnServiceDisconnected(uint16_t service_id) {
   PublishEmergencyState();
 }
 
+static std::string ReasonToString(uint16_t reason) {
+#define CHECK_REASON(r)              \
+  if (reason & EmergencyReason::r) { \
+    if (!first) str << ", ";         \
+    str << #r;                       \
+    first = false;                   \
+  }
+
+  std::ostringstream str;
+  bool first = true;
+  CHECK_REASON(LATCH)
+  CHECK_REASON(TIMEOUT_INPUTS)
+  CHECK_REASON(STOP)
+  CHECK_REASON(LIFT)
+  CHECK_REASON(TILT)
+  CHECK_REASON(COLLISION)
+  CHECK_REASON(TIMEOUT_HIGH_LEVEL)
+  CHECK_REASON(HIGH_LEVEL)
+  return str.str();
+}
+
 void EmergencyServiceInterface::PublishEmergencyState() {
   mower_msgs::Emergency emergency{};
   const uint16_t reason = latest_emergency_reason_;
   emergency.stamp = ros::Time::now();
   emergency.latched_emergency = reason != 0;
   emergency.active_emergency = reason != 0;
-  emergency.reason = std::to_string(reason);
+  emergency.reason = ReasonToString(reason);
   publisher_.publish(emergency);
 }
