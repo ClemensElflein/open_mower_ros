@@ -1,3 +1,7 @@
+//
+// Created by clemens on 25.07.24.
+//
+
 #ifndef EMERGENCYSERVICEINTERFACE_H
 #define EMERGENCYSERVICEINTERFACE_H
 
@@ -5,29 +9,38 @@
 
 #include <EmergencyServiceInterfaceBase.hpp>
 
+namespace sc = std::chrono;
+
 class EmergencyServiceInterface : public EmergencyServiceInterfaceBase {
  public:
   EmergencyServiceInterface(uint16_t service_id, const xbot::serviceif::Context& ctx, const ros::Publisher& publisher)
-      : EmergencyServiceInterfaceBase(service_id, ctx), publisher_(publisher) {
+      : EmergencyServiceInterfaceBase(service_id, ctx), publisher(publisher) {
   }
 
-  bool SetHighLevelEmergency(bool new_value);
+  bool SetEmergency(bool new_value);
   void Heartbeat();
 
  protected:
-  void OnEmergencyReasonChanged(const uint16_t& new_value) override;
+  void OnEmergencyActiveChanged(const uint8_t& new_value) override;
+  void OnEmergencyLatchChanged(const uint8_t& new_value) override;
+  void OnEmergencyReasonChanged(const char* new_value, uint32_t length) override;
 
  private:
+  void OnServiceConnected(uint16_t service_id) override;
+  void OnTransactionEnd() override;
   void OnServiceDisconnected(uint16_t service_id) override;
 
-  void SendHighLevelEmergencyHelper(uint16_t add, uint16_t clear = 0);
   void PublishEmergencyState();
 
-  const ros::Publisher& publisher_;
+  std::recursive_mutex state_mutex_{};
+
+  const ros::Publisher& publisher;
 
   // keep track of high level emergency
-  std::atomic<uint16_t> high_level_emergency_reason_{0};
-  std::atomic<uint16_t> latest_emergency_reason_{EmergencyReason::TIMEOUT_HIGH_LEVEL};
+  bool latched_emergency_ = true;
+  bool active_low_level_emergency_ = true;
+  bool active_high_level_emergency_ = true;
+  std::string latest_emergency_reason_ = "NONE";
 };
 
 #endif  // EMERGENCYSERVICEINTERFACE_H

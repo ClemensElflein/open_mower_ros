@@ -1,75 +1,55 @@
+//
+// Created by clemens on 26.07.24.
+//
+
 #include "emergency_service.hpp"
 
-#include <xbot-service/Lock.hpp>
-#include <xbot-service/portable/system.hpp>
-
-#include "../../services.hpp"
-
-using xbot::service::Lock;
+bool EmergencyService::OnStart() {
+  robot_.SetEmergency(true, "Boot");
+  return true;
+}
 
 void EmergencyService::OnStop() {
-  // We won't be getting further updates from high level, so set that flag immediately.
-  UpdateEmergency(EmergencyReason::TIMEOUT_HIGH_LEVEL);
+  robot_.SetEmergency(true, "Service Stopped");
 }
 
-uint32_t EmergencyService::OnLoop(uint32_t now_micros, uint32_t) {
-  return CheckTimeouts(now_micros);
-}
+void EmergencyService::tick() {
+  /*// Get the current emergency state
+  chMtxLock(&mower_status_mutex);
+  uint32_t status_copy = mower_status;
+  chMtxUnlock(&mower_status_mutex);
+  bool emergency_latch = (status_copy & MOWER_FLAG_EMERGENCY_LATCH) != 0;
+  bool emergency_active = (status_copy & MOWER_FLAG_EMERGENCY_ACTIVE) != 0;
+  // Check timeout, but only overwrite if no emergency is currently active
+  // reasoning is that we want to keep the original reason and not overwrite
+  // with "timeout"
+  if (!emergency_latch &&
+      chVTTimeElapsedSinceX(last_clear_emergency_message_) > TIME_S2I(1)) {
+    emergency_reason = "Timeout";
+    // set the emergency and notify services
+    chMtxLock(&mower_status_mutex);
+    mower_status |= MOWER_FLAG_EMERGENCY_LATCH;
+    chMtxUnlock(&mower_status_mutex);
+    chEvtBroadcastFlags(&mower_events, MOWER_EVT_EMERGENCY_CHANGED);
+    // The last flags did not have emergency yet, so need to set it here as well
+    emergency_latch = true;
+  }*/
 
-void EmergencyService::OnHighLevelEmergencyChanged(const uint16_t* new_value, uint32_t length) {
-  (void)length;
-  {
-    Lock lk(&mtx_);
-    last_high_level_emergency_message_ = xbot::service::system::getTimeMicros();
-  }
-  UpdateEmergency(new_value[0], new_value[1]);
-}
+  bool emergency_active, emergency_latch;
+  robot_.GetEmergencyState(emergency_active, emergency_latch, emergency_reason);
 
-inline bool TimeoutReached(uint32_t duration, uint32_t delay, uint32_t& block_time) {
-  if (duration >= delay) {
-    return true;
-  } else {
-    block_time = std::min(block_time, delay - duration);
-    return false;
-  }
-}
-
-uint32_t EmergencyService::CheckTimeouts(uint32_t now) {
-  uint16_t reasons = 0;
-  uint32_t block_time = UINT32_MAX;
-  {
-    Lock lk{&mtx_};
-    if (TimeoutReached(now - last_high_level_emergency_message_, 1'000'000, block_time)) {
-      reasons |= EmergencyReason::TIMEOUT_HIGH_LEVEL;
-    }
-  }
-  constexpr uint16_t potential_reasons = EmergencyReason::TIMEOUT_HIGH_LEVEL;
-  UpdateEmergency(reasons, potential_reasons);
-  return block_time;
-}
-
-void EmergencyService::UpdateEmergency(uint16_t add, uint16_t clear) {
-  {
-    Lock lk{&mtx_};
-    uint16_t old_reason = reasons_;
-    reasons_ &= ~clear;
-    reasons_ |= add;
-    if (reasons_ == old_reason) {
-      return;
-    }
-  }
-  // Note: The firmware triggers an EMERGENCY_CHANGED event at this point.
-  SendStatus();
-}
-
-bool EmergencyService::HasActiveEmergency() {
-  Lock lk{&mtx_};
-  return reasons_ != 0;
-}
-
-void EmergencyService::SendStatus() {
-  xbot::service::Lock lk{&mtx_};
   StartTransaction();
-  SendEmergencyReason(reasons_);
+  SendEmergencyActive(emergency_active);
+
+  SendEmergencyLatch(emergency_latch);
+  SendEmergencyReason(emergency_reason.c_str(), emergency_reason.length());
   CommitTransaction();
+}
+
+void EmergencyService::OnSetEmergencyChanged(const uint8_t& new_value) {
+  if (new_value) {
+    robot_.SetEmergency(true, "High Level");
+  } else {
+    robot_.ResetEmergency();
+  }
 }
