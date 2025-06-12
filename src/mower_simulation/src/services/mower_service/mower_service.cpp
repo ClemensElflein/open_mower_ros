@@ -1,6 +1,8 @@
-#include "mower_service.hpp"
+//
+// Created by clemens on 31.07.24.
+//
 
-#include "../../services.hpp"
+#include "mower_service.hpp"
 
 bool MowerService::OnStart() {
   mower_running_ = false;
@@ -8,8 +10,11 @@ bool MowerService::OnStart() {
 }
 
 void MowerService::tick() {
-  const bool emergency = emergency_service.HasActiveEmergency();
   StartTransaction();
+  bool emergency;
+  bool unused1;
+  std::string unused2;
+  robot_.GetEmergencyState(unused1, emergency, unused2);
   bool running = !emergency && mower_running_;
   SendMowerRunning(running);
   SendRainDetected(false);

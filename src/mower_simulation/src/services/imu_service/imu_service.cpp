@@ -1,12 +1,14 @@
-#include "imu_service.hpp"
+//
+// Created by clemens on 31.07.24.
+//
 
-#include "../../services.hpp"
+#include "imu_service.hpp"
 
 void ImuService::tick() {
   double axes[9]{};
 
   double unused;
-  robot.GetTwist(unused, axes[5]);
+  robot_.GetTwist(unused, axes[5]);
 
   SendAxes(axes, 9);
 }

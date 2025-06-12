@@ -1,3 +1,7 @@
+//
+// Created by clemens on 26.07.24.
+//
+
 #ifndef EMERGENCY_SERVICE_HPP
 #define EMERGENCY_SERVICE_HPP
 
@@ -5,32 +9,32 @@
 
 #include <EmergencyServiceBase.hpp>
 
+#include "../../SimRobot.h"
+
 using namespace xbot::service;
 
 class EmergencyService : public EmergencyServiceBase {
+ private:
  public:
-  explicit EmergencyService(uint16_t service_id) : EmergencyServiceBase(service_id) {
+  explicit EmergencyService(uint16_t service_id, SimRobot &robot) : EmergencyServiceBase(service_id), robot_(robot) {
   }
 
-  bool HasActiveEmergency();
-
  protected:
+  bool OnStart() override;
   void OnStop() override;
-  uint32_t OnLoop(uint32_t now_micros, uint32_t last_tick_micros) override;
-  void OnHighLevelEmergencyChanged(const uint16_t *new_value, uint32_t length) override;
 
  private:
-  uint32_t CheckTimeouts(uint32_t now);
-  void SendStatus();
-  ServiceSchedule status_schedule_{*this, 1'000'000,
-                                   XBOT_FUNCTION_FOR_METHOD(EmergencyService, &EmergencyService::SendStatus, this)};
+  void tick();
+  ManagedSchedule tick_schedule_{scheduler_, IsRunning(), 100'000,
+                                 XBOT_FUNCTION_FOR_METHOD(EmergencyService, &EmergencyService::tick, this)};
 
-  XBOT_MUTEX_TYPEDEF mtx_;
+  SimRobot &robot_;
 
-  void UpdateEmergency(uint16_t add, uint16_t clear = 0);
+  ros::Time last_clear_emergency_message_{0};
+  std::string emergency_reason{"Boot"};
 
-  uint16_t reasons_ = EmergencyReason::TIMEOUT_INPUTS | EmergencyReason::TIMEOUT_HIGH_LEVEL;
-  uint32_t last_high_level_emergency_message_ = 0;
+ protected:
+  void OnSetEmergencyChanged(const uint8_t &new_value) override;
 };
 
 #endif  // EMERGENCY_SERVICE_HPP

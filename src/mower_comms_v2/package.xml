@@ -24,7 +24,6 @@
     <exec_depend>roscpp</exec_depend>
     <depend>xesc_msgs</depend>
     <depend>nmea_msgs</depend>
-    <depend>std_msgs</depend>
 
 
     <!-- The export tag contains other, unspecified, tags -->
