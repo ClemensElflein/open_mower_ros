@@ -4,6 +4,7 @@
 #include <ros/console.h>
 #include <std_msgs/String.h>
 
+#include <optional>
 #include <xbot-service-interface/HeatshrinkEncode.hpp>
 
 static void fy_error_handler(struct fy_diag *diag, void *user, const char *buf, size_t len) {
@@ -40,19 +41,24 @@ static char *yaml_file_to_json_str(const char *yaml_file) {
   return json_str;
 }
 
-bool InputServiceInterface::OnConfigurationRequested(uint16_t service_id) {
-  if (config_file_.empty()) {
+static std::optional<json> LoadConfig(std::string config_file) {
+  if (config_file.empty()) {
     ROS_ERROR_STREAM("Input config file not specified");
-    return true;
+    return {};
   }
-  char *json_str = yaml_file_to_json_str(config_file_.c_str());
+  char *json_str = yaml_file_to_json_str(config_file.c_str());
   if (!json_str) {
-    return true;
+    return {};
   }
 
   // Parse the JSON to a DOM structure so we can access it later.
   json config = json::parse(json_str);
   free(json_str);
+  return config;
+}
+
+bool InputServiceInterface::OnConfigurationRequested(uint16_t service_id) {
+  json config = LoadConfig(config_file_).value_or(json::object());
 
   // Build an index to access the config for a specific input more easily.
   size_t next_idx = 0;
