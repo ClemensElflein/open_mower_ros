@@ -128,6 +128,8 @@
         <param name="mower_logic/undock_angle" value="$(optenv OM_UNDOCK_ANGLE 0.0)"/>
         <param name="mower_logic/undock_fixed_angle" value="$(optenv OM_UNDOCK_FIXED_ANGLE True)"/>
         <param name="mower_logic/undock_use_curve" value="$(optenv OM_UNDOCK_USE_CURVE True)"/>
+        <param name="mower_logic/docking_waiting_time" value="$(optenv OM_DOCKING_WAIT_TIME 0.0)"/>
+        <param name="mower_logic/undocking_waiting_time" value="$(optenv OM_UNDOCKING_WAIT_TIME 0.0)"/>
         <param name="mower_logic/emergency_lift_period" value="$(optenv OM_EMERGENCY_LIFT_PERIOD -1)"/>
         <param name="mower_logic/emergency_tilt_period" value="$(optenv OM_EMERGENCY_TILT_PERIOD -1)"/>
         <param name="mower_logic/emergency_input_config" value="$(optenv OM_EMERGENCY_INPUT_CONFIG)"/>

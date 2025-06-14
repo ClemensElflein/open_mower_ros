@@ -151,6 +151,9 @@ export OM_UNDOCK_DISTANCE=2.0
 #
 # If true will use a curved second stage undock move, if false will use a straight undock move.
 # export OM_UNDOCK_USE_CURVE=True
+#
+# Time to wait (s) before before starting to undock.
+export OM_UNDOCKING_WAIT_TIME=0.0
 
 # Docking:
 #
@@ -169,6 +172,9 @@ export OM_DOCKING_RETRY_COUNT=4
 #
 # Whether to attempt redocking if the voltage is no longer detected after docking.
 export OM_DOCKING_REDOCK=False
+#
+# Time to wait (s) at OM_DOCKING_APPROACH_DISTANCE before starting to dock.
+export OM_DOCKING_WAIT_TIME=0.0
 
 # Uncomment, if you want to use the perimeter sensor of your Mowgli-type mower
 # for docking. Set it to 1 or 2 dependig on the signal selected on the docking

@@ -61,6 +61,12 @@ bool DockingBehavior::approach_docking_point() {
 
     nav_msgs::Path path;
 
+    ros::Time start_wait_time = ros::Time::now();
+    ros::Rate loop_rate(100);
+    while (ros::ok() && (ros::Time::now() - start_wait_time) < ros::Duration(config.docking_waiting_time)) {
+      loop_rate.sleep();
+    }
+
     int dock_point_count = config.docking_approach_distance * 10.0;
     for (int i = 0; i <= dock_point_count; i++) {
       geometry_msgs::PoseStamped docking_pose_stamped_front = docking_pose_stamped;
