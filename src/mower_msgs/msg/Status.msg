@@ -8,7 +8,7 @@ time stamp
 # Initialized or not
 uint8 mower_status
 bool raspberry_pi_power
-bool gps_power
+bool is_charging
 bool esc_power
 bool rain_detected
 bool sound_module_available
