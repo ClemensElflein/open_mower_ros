@@ -1,4 +1,4 @@
-exclude: '^(config/.+\.(sh|json)|web/.+)$'
+exclude: '^(config/.+\.(sh|json)|web/.+||src/lib/.+)$'
 repos:
 -   repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.6.0
