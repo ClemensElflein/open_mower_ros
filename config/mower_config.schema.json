@@ -480,7 +480,7 @@
           "type": "number",
           "default": 30,
           "title": "Rain delay minutes",
-          "description": "How long to wait after rain to resume mowing when mode is \"Dock Until Dry\"",
+          "description": "How long to wait after rain to resume mowing when mode is \"Dock Until Dry\" (minimum value is 30)",
           "x-environment-variable": "OM_RAIN_DELAY_MINUTES"
         },
         "advanced": {

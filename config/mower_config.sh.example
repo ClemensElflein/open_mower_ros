@@ -251,6 +251,7 @@ export OM_RAIN_MODE=0
 
 # Rain delay
 # How long to wait after rain to resume mowing when mode is "Dock Until Dry"
+# Minimum is 30
 export OM_RAIN_DELAY_MINUTES=30
 
 # Rain threshold (Stock-CoverUI limited parameter)
