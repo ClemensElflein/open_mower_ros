@@ -1,6 +1,3 @@
-[submodule "src/lib/slic3r_coverage_planner"]
-	path = src/lib/slic3r_coverage_planner
-	url = https://github.com/ClemensElflein/slic3r_coverage_planner.git
 [submodule "src/lib/ntrip_client"]
 	path = src/lib/ntrip_client
 	url = https://github.com/xtech/ntrip_client.git
