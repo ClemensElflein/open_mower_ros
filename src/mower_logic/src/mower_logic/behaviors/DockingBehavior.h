@@ -28,12 +28,15 @@
 #include "mower_msgs/Status.h"
 #include "ros/ros.h"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.h"
+#include "xbot_msgs/ActionInfo.h"
 
 class DockingBehavior : public Behavior {
  public:
   static DockingBehavior INSTANCE;
 
  private:
+  std::vector<xbot_msgs::ActionInfo> actions;
+
   uint retryCount;
   bool inApproachMode;
   geometry_msgs::PoseStamped docking_pose_stamped;
@@ -43,6 +46,8 @@ class DockingBehavior : public Behavior {
   bool dock_straight();
 
  public:
+  DockingBehavior();
+
   std::string state_name() override;
 
   Behavior *execute() override;

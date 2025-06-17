@@ -265,7 +265,7 @@ bool MowingBehavior::execute_mowing_plan() {
       paused = true;
       mowerEnabled = false;
       u_int8_t last_requested_pause_flags = 0;
-      while (requested_pause_flag)  // while emergency and/or manual pause not asked to continue, we wait
+      while (requested_pause_flag && !aborted)  // while emergency and/or manual pause not asked to continue, we wait
       {
         if (last_requested_pause_flags != requested_pause_flag) {
           update_actions();
@@ -290,7 +290,7 @@ bool MowingBehavior::execute_mowing_plan() {
     }
     if (paused) {
       paused_time = ros::Time::now();
-      while (!this->hasGoodGPS())  // while no good GPS we wait
+      while (!this->hasGoodGPS() && !aborted)  // while no good GPS we wait
       {
         ROS_INFO_STREAM("MowingBehavior: PAUSED (" << (ros::Time::now() - paused_time).toSec()
                                                    << "s) (waiting for GPS)");

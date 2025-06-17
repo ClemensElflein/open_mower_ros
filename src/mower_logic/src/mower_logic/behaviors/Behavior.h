@@ -15,6 +15,8 @@
 #ifndef SRC_BEHAVIOR_H
 #define SRC_BEHAVIOR_H
 
+#include <actionlib/client/simple_action_client.h>
+
 #include <atomic>
 #include <memory>
 
@@ -84,7 +86,7 @@ class Behavior {
     requested_pause_flag |= reason;
   }
 
-  void start(mower_logic::MowerLogicConfig &c, std::shared_ptr<sSharedState> s) {
+  void start(mower_logic::MowerLogicConfig& c, std::shared_ptr<sSharedState> s) {
     ROS_INFO_STREAM("");
     ROS_INFO_STREAM("");
     ROS_INFO_STREAM("--------------------------------------");
@@ -101,11 +103,32 @@ class Behavior {
     enter();
   }
 
+  template <typename ActionSpec>
+  actionlib::SimpleClientGoalState sendGoalAndWaitUnlessAborted(
+      actionlib::SimpleActionClient<ActionSpec>* client, const typename ActionSpec::_action_goal_type::_goal_type& goal,
+      double poll_rate = 10) {
+    ros::Rate rate(poll_rate);
+    client->sendGoal(goal);
+
+    while (true) {
+      rate.sleep();
+
+      auto state = client->getState();
+      if (aborted) {
+        client->cancelGoal();
+        return state;
+      }
+      if (state.isDone()) {
+        return state;
+      }
+    }
+  }
+
   /**
    * Execute the behavior. This call should block until the behavior is executed fully.
    * @returns the pointer to the next behavior (can return itself).
    */
-  virtual Behavior *execute() = 0;
+  virtual Behavior* execute() = 0;
 
   /**
    * Called ONCE before state exits
