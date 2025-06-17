@@ -1,6 +1,3 @@
-[submodule "src/lib/xesc_ros"]
-	path = src/lib/xesc_ros
-	url = https://github.com/ClemensElflein/xesc_ros.git
 [submodule "src/lib/slic3r_coverage_planner"]
 	path = src/lib/slic3r_coverage_planner
 	url = https://github.com/ClemensElflein/slic3r_coverage_planner.git
