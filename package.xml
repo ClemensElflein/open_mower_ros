@@ -40,6 +40,8 @@
     <run_depend>std_msgs</run_depend>
     <run_depend>tf2_eigen</run_depend>
 
-    <export><mbf_costmap_core plugin="${prefix}/mbf_plugin.xml"/></export>
-
+    <export>
+        <mbf_costmap_core plugin="${prefix}/mbf_plugin.xml"/>
+        <nav_core plugin="${prefix}/recovery_plugin.xml" />
+    </export>
 </package>
