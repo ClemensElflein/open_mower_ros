@@ -1,0 +1,47 @@
+<package>
+    <name>ftc_local_planner</name>
+    <version>1.0.1</version>
+    <description>A simple FTC Planner implementation</description>
+    <author>Clemens Elflein</author>
+    <maintainer email="clemens.elflein+ros@gmail.com">Clemens Elflein</maintainer>
+    <license>BSD</license>
+
+    <buildtool_depend>catkin</buildtool_depend>
+    <build_depend>cmake_modules</build_depend>
+    <build_depend>costmap_2d</build_depend>
+    <build_depend>dynamic_reconfigure</build_depend>
+    <build_depend>eigen</build_depend>
+    <build_depend>nav_core</build_depend>
+    <build_depend>nav_msgs</build_depend>
+    <build_depend>pluginlib</build_depend>
+    <build_depend>pcl_conversions</build_depend>
+    <build_depend>roscpp</build_depend>
+    <build_depend>tf</build_depend>
+    <build_depend>tf2_geometry_msgs</build_depend>
+    <build_depend>tf2_ros</build_depend>
+    <build_depend>mbf_costmap_core</build_depend>
+    <build_depend>message_runtime</build_depend>
+    <build_depend>std_msgs</build_depend>
+    <build_depend>message_generation</build_depend>
+    <build_depend>tf2_eigen</build_depend>
+
+    <run_depend>tf2_ros</run_depend>
+    <run_depend>tf2_geometry_msgs</run_depend>
+    <run_depend>costmap_2d</run_depend>
+    <run_depend>dynamic_reconfigure</run_depend>
+    <run_depend>eigen</run_depend>
+    <run_depend>nav_core</run_depend>
+    <run_depend>nav_msgs</run_depend>
+    <run_depend>pluginlib</run_depend>
+    <run_depend>roscpp</run_depend>
+    <run_depend>tf</run_depend>
+    <run_depend>mbf_costmap_core</run_depend>
+    <run_depend>message_runtime</run_depend>
+    <run_depend>std_msgs</run_depend>
+    <run_depend>tf2_eigen</run_depend>
+
+    <export>
+        <mbf_costmap_core plugin="${prefix}/mbf_plugin.xml"/>
+        <nav_core plugin="${prefix}/recovery_plugin.xml" />
+    </export>
+</package>

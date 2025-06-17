@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>vesc_driver</name>
+  <version>1.0.0</version>
+  <description>
+    ROS device driver for VESC open source motor driver.
+  </description>
+  <maintainer email="SBGRP-git@g.softbank.co.jp">SoftBank Corp.</maintainer>
+  <author email="boulet@ll.mit.edu">Michael T. Boulet</author>
+  <author email="yuki.st16@gmail.com">Yuki Onishi</author>
+  <license>Apache 2.0</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>xesc_interface</depend>
+  <depend>pluginlib</depend>
+  <depend>roscpp</depend>
+  <depend>std_msgs</depend>
+  <depend>xesc_msgs</depend>
+  <depend>serial</depend>
+
+</package>

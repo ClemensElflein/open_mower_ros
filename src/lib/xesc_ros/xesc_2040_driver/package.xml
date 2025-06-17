@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>xesc_2040_driver</name>
+  <version>1.0.0</version>
+  <description>
+    ROS device driver for xESC open source motor driver.
+  </description>
+  <maintainer email="clemens.elflein@gmail.com">Clemens Elflein</maintainer>
+  <author email="clemens.elflein@gmail.com">Clemens Elflein</author>
+  <license>Apache 2.0</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>xesc_interface</depend>
+  <depend>pluginlib</depend>
+  <depend>roscpp</depend>
+  <depend>std_msgs</depend>
+  <depend>xesc_msgs</depend>
+  <depend>serial</depend>
+
+</package>
