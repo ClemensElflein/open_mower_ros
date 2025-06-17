@@ -1,0 +1,3 @@
+string node_prefix                  # The prefix for the node registering / receiving the action. This is useful if multiple nodes are listening for actions and you want to make sure that the IDs don't collide
+xbot_msgs/ActionInfo[] actions      # The list of available actions
+---

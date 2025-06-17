@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>xbot_msgs</name>
+  <version>0.0.0</version>
+  <description>The xbot_msgs package</description>
+
+
+  <maintainer email="clemens.elflein@gmail.com">Clemens Elflein</maintainer>
+  <license>MIT</license>
+
+  <url type="website">https://github.com/ClemensElflein</url>
+
+  <build_depend>message_generation</build_depend>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <export>
+  </export>
+</package>
