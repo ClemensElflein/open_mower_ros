@@ -219,7 +219,7 @@ void publishStatus() {
   }
 
   status_msg.raspberry_pi_power = (last_ll_status.status_bitmask & 0b00000010) != 0;
-  status_msg.gps_power = (last_ll_status.status_bitmask & 0b00000100) != 0;
+  status_msg.is_charging = (last_ll_status.status_bitmask & 0b00000100) != 0;
   status_msg.esc_power = (last_ll_status.status_bitmask & 0b00001000) != 0;
   status_msg.rain_detected = (last_ll_status.status_bitmask & 0b00010000) != 0;
   status_msg.sound_module_available = (last_ll_status.status_bitmask & 0b00100000) != 0;
