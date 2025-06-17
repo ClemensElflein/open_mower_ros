@@ -1,9 +1,6 @@
 [submodule "src/lib/ntrip_client"]
 	path = src/lib/ntrip_client
 	url = https://github.com/xtech/ntrip_client.git
-[submodule "src/lib/xbot_msgs"]
-	path = src/lib/xbot_msgs
-	url = https://github.com/ClemensElflein/xbot_msgs.git
 [submodule "src/lib/xbot_driver_gps"]
 	path = src/lib/xbot_driver_gps
 	url = https://github.com/ClemensElflein/xbot_driver_gps.git
