@@ -488,7 +488,7 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
         fill->endpoints_overlap = 0;
         fill->density = 1.0;
         fill->dont_connect = false;
-        fill->dont_adjust = false;
+        fill->dont_adjust = true;
         fill->min_spacing = req.distance;
         fill->complete = false;
         fill->link_max_length = 0;
