@@ -3,33 +3,36 @@
     I.e. the raw data comms to the Low Level Board, the GPS, etc.
 -->
 <launch>
-    <group unless="$(optenv OM_NO_COMMS False)">
-        <!-- TODO: Add parameter for simulation -->
-        <group unless="$(optenv OM_V2 False)">
-            <!-- Comms v1 -->
-            <node pkg="mower_comms_v1" type="mower_comms_v1" name="mower_comms" unless="$(optenv OM_NO_COMMS False)"
-                  output="screen">
-            </node>
-            <!-- GPS driver only for v1 builds -->
-            <node pkg="xbot_driver_gps" type="driver_gps_node" name="xbot_driver_gps"
-                  output="screen"
-                  clear_params="true"
-                  respawn="true"
-                  respawn_delay="5">
-                <remap from="/rtcm" to="/ll/position/gps/rtcm"/>
-                <remap from="/nmea" to="/ll/position/gps/nmea"/>
-                <remap from="~xb_pose" to="/ll/position/gps"/>
-                <remap from="~wheel_ticks" to="/mower/wheel_ticks"/>
-            </node>
+    <!-- TODO: Add parameter for simulation -->
+    <group unless="$(optenv OM_V2 False)">
+        <!-- Comms v1 -->
+        <node pkg="mower_comms_v1" type="mower_comms_v1" name="mower_comms" unless="$(optenv OM_NO_COMMS False)"
+                output="screen">
+        </node>
+        <!-- GPS driver only for v1 builds -->
+        <node pkg="xbot_driver_gps" type="driver_gps_node" name="xbot_driver_gps"
+                output="screen"
+                clear_params="true"
+                respawn="true"
+                respawn_delay="5"
+                unless="$(optenv OM_NO_GPS False)">
+            <remap from="/rtcm" to="/ll/position/gps/rtcm"/>
+            <remap from="/nmea" to="/ll/position/gps/nmea"/>
+            <remap from="~xb_pose" to="/ll/position/gps"/>
+            <remap from="~wheel_ticks" to="/mower/wheel_ticks"/>
+        </node>
 
-        </group>
-        <group if="$(optenv OM_V2 False)">
+    </group>
+
+    <group if="$(optenv OM_V2 False)">
+        <group unless="$(optenv OM_NO_COMMS False)">
             <!-- Use V2 Comms -->
             <node pkg="mower_comms_v2" type="mower_comms_v2" name="mower_comms_v2" output="screen">
             </node>
         </group>
-
-        <!-- NTRIP for both: v1 and v2 -->
+    </group>
+    <group unless="$(optenv OM_NO_GPS False)">
+    <!-- NTRIP for both: v1 and v2 -->
         <include if="$(optenv OM_USE_NTRIP True)" file="$(find open_mower)/launch/include/_ntrip_client.launch"/>
     </group>
 
