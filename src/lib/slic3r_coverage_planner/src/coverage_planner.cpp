@@ -284,7 +284,9 @@ slic3r_coverage_planner::Path determinePathForOutline(std_msgs::Header &header, 
             auto dir = isObstacle ? lastPoint - pt : pt - lastPoint;
 
             double orientation = atan2(dir.y, dir.x);
-            tf2::Quaternion q(0.0, 0.0, orientation);
+            tf2::Quaternion q;
+            q.setRPY(0.0, 0.0, orientation);
+
 
             geometry_msgs::PoseStamped pose;
             pose.header = header;
@@ -600,7 +602,8 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
 
             auto dir = pt - *lastPoint;
             double orientation = atan2(dir.y, dir.x);
-            tf2::Quaternion q(0.0, 0.0, orientation);
+            tf2::Quaternion q;
+            q.setRPY(0.0, 0.0, orientation);
 
             geometry_msgs::PoseStamped pose;
             pose.header = header;
