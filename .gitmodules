@@ -10,3 +10,7 @@
 [submodule "services"]
 	path = services
 	url = https://github.com/xtech/definitions-open-mower.git
+[submodule "src/lib/mavros"]
+	path = src/lib/mavros
+	url = https://github.com/mavlink/mavros.git
+	branch = master
