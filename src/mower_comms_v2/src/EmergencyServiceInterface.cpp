@@ -44,8 +44,24 @@ void EmergencyServiceInterface::OnEmergencyLatchChanged(const uint8_t& new_value
   }
 }
 
-void EmergencyServiceInterface::OnEmergencyReasonChanged(const char* new_value, uint32_t length) {
-  latest_emergency_reason_ = std::string{new_value, length};
+void EmergencyServiceInterface::OnEmergencyReasonChanged(const uint16_t &new_value) {
+  static const std::map<uint16_t, std::string> reason_map = {
+      {0, "LATCH"},
+      {1, "TIMEOUT_INPUTS"},
+      {2, "STOP"},
+      {3, "LIFT"},
+      {4, "LIFT_MULTIPLE"},
+      {5, "COLLISION"},
+      {6, "TIMEOUT_HIGH_LEVEL"},
+      {7, "HIGH_LEVEL"}
+  };
+
+  auto it = reason_map.find(new_value);
+  if (it != reason_map.end()) {
+    latest_emergency_reason_ = it->second;
+  } else {
+    latest_emergency_reason_ = "UNKNOWN";
+  }
 }
 
 void EmergencyServiceInterface::OnTransactionEnd() {
