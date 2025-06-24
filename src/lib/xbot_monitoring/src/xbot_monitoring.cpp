@@ -369,6 +369,7 @@ void robot_state_callback(const xbot_msgs::RobotState::ConstPtr &msg) {
     j["current_path_index"] = msg->current_path_index;
     j["emergency"] = msg->emergency;
     j["is_charging"] = msg->is_charging;
+    j["rain_detected"] = msg->rain_detected;
     j["pose"]["x"] = msg->robot_pose.pose.pose.position.x;
     j["pose"]["y"] = msg->robot_pose.pose.pose.position.y;
     j["pose"]["heading"] = msg->robot_pose.vehicle_heading;
