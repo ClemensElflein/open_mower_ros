@@ -25,7 +25,7 @@
     <arg name="snapshot_duration" value="$(optenv OM_SNAPSHOT_DURATION 1200)" />
     <arg name="snapshot_memory" value="$(optenv OM_SNAPSHOT_MEMORY_PER_TOPIC 0.0)" />
 
-    <node if="$(eval arg('snapshot_duration') > 0 and arg('snapshot_memory') > 0)" name="snapshot" pkg="rosbag_snapshot" type="snapshot" args="" subst_value="true">
+    <node if="$(eval arg('snapshot_duration') > 0 and arg('snapshot_memory') > 0)" name="snapshot" pkg="rosbag_snapshot" type="snapshot" args="">
         <param name="default_duration_limit" value="$(arg snapshot_duration)" />  <!-- Maximum time difference between newest and oldest message, seconds, overrides -d flag -->
         <param name="default_memory_limit" value="$(arg snapshot_memory)" />  <!-- Maximum memory used by messages in each topic's buffer, MB, override -s flag -->
         <param name="clear_buffer" value="false" />  <!-- No option / true will clear the buffer after writing to bag. False will not clear buffer -->
