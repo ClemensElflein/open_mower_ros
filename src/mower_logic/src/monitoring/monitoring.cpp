@@ -107,6 +107,7 @@ void status_received(StatusPtr &msg) {
       sc_pair.second.data_pub.publish(sensor_data);
     }
   }
+  state.rain_detected = msg->rain_detected;
 }
 
 void high_level_status(const mower_msgs::HighLevelStatus::ConstPtr &msg) {

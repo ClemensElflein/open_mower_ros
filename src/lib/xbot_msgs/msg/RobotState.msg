@@ -2,6 +2,7 @@
 float32 battery_percentage
 bool emergency
 bool is_charging
+bool rain_detected
 float32 gps_percentage
 float32 current_action_progress
 string current_state                # Like "Cleaning"
