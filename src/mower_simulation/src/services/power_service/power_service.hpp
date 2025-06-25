@@ -1,20 +1,17 @@
-//
-// Created by clemens on 09.09.24.
-//
-
 #ifndef POWER_SERVICE_HPP
 #define POWER_SERVICE_HPP
 
 #include <PowerServiceBase.hpp>
 
-#include "../../SimRobot.h"
-
 using namespace xbot::service;
 
 class PowerService : public PowerServiceBase {
  public:
-  explicit PowerService(uint16_t service_id, SimRobot &robot) : PowerServiceBase(service_id), robot_(robot) {
+  explicit PowerService(uint16_t service_id) : PowerServiceBase(service_id) {
   }
+
+ protected:
+  void OnChargingAllowedChanged(const uint8_t &new_value) override;
 
  private:
   static constexpr auto CHARGE_STATUS_ERROR = "Error";
@@ -27,14 +24,9 @@ class PowerService : public PowerServiceBase {
   static constexpr auto CHARGE_STATUS_CV = "Taper Charge (CV)";
   static constexpr auto CHARGE_STATUS_TOP_OFF = "Top Off";
   static constexpr auto CHARGE_STATUS_DONE = "Done";
-  SimRobot &robot_;
 
   void tick();
-  ManagedSchedule tick_schedule_{scheduler_, IsRunning(), 200'000,
-                                 XBOT_FUNCTION_FOR_METHOD(PowerService, &PowerService::tick, this)};
-
- protected:
-  void OnChargingAllowedChanged(const uint8_t &new_value) override;
+  ServiceSchedule tick_schedule_{*this, 200'000, XBOT_FUNCTION_FOR_METHOD(PowerService, &PowerService::tick, this)};
 };
 
 #endif  // POWER_SERVICE_HPP
