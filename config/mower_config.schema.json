@@ -308,6 +308,20 @@
           "description": "Whether to attempt redocking if the voltage is no longer detected after docking.",
           "x-environment-variable": "OM_DOCKING_REDOCK"
         },
+        "OM_DOCKING_WAIT_TIME": {
+          "type": "number",
+          "title": "Wait before docking",
+          "default": 0,
+          "description": "Time to wait (s) at OM_DOCKING_APPROACH_DISTANCE before starting to dock.",
+          "x-environment-variable": "OM_DOCKING_WAIT_TIME"
+        },
+        "OM_UNDOCKING_WAIT_TIME": {
+          "type": "number",
+          "title": "Wait before undocking",
+          "default": 0,
+          "description": "Time to wait in dock (s) before before starting to undock",
+          "x-environment-variable": "OM_UNDOCKING_WAIT_TIME"
+        },
         "OM_UNDOCK_DISTANCE": {
           "type": "number",
           "title": "Undock Distance",
@@ -443,6 +457,23 @@
           "description": "Set to true to record your session for debugging. Recordings will be stored in $HOME. Only enable for testing, otherwise your SD card will get full soon.",
           "x-environment-variable": "OM_ENABLE_RECORDING_ALL"
         },
+        "OM_SNAPSHOT_MEMORY_PER_TOPIC": {
+          "type": "number",
+          "default": 0.0,
+          "title": "Snapshot Buffer Memory per Topic",
+          "description": "Sets the maximum memory used per topic (in MB) by the Snapshot Buffer. The Snapshot Buffer stores a recent history of all messages sent, and can be dumped to disk using save_snapshot.sh. It is independent of OM_ENABLE_RECORDING",
+          "x-environment-variable": "OM_SNAPSHOT_MEMORY_PER_TOPIC",
+          "examples": [
+            5.0
+          ]
+        },
+        "OM_SNAPSHOT_DURATION": {
+          "type": "number",
+          "default": 1200,
+          "title": "Snapshot Buffer ",
+          "description": "Sets the maximum age (in seconds) of messages to store in the Snapshot Buffer. The Snapshot Buffer stores a recent history of all messages sent, and can be dumped to disk using save_snapshot.sh. It is independent of OM_ENABLE_RECORDING",
+          "x-environment-variable": "OM_SNAPSHOT_DURATION"
+        },
         "OM_RAIN_MODE": {
           "type": "string",
           "enum": [
@@ -466,7 +497,7 @@
           "type": "number",
           "default": 30,
           "title": "Rain delay minutes",
-          "description": "How long to wait after rain to resume mowing when mode is \"Dock Until Dry\"",
+          "description": "How long to wait after rain to resume mowing when mode is \"Dock Until Dry\" (minimum value is 30)",
           "x-environment-variable": "OM_RAIN_DELAY_MINUTES"
         },
         "advanced": {

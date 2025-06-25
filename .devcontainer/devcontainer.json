@@ -9,9 +9,11 @@
         "ms-azuretools.vscode-docker",
         "ms-python.python",
         "ms-vscode.cpptools",
+        "ms-vscode.cpptools-extension-pack",
         "ms-iot.vscode-ros"
       ]
     }
   },
-  "remoteUser": "dev"
+  "remoteUser": "dev",
+  "postCreateCommand": "echo 'source /opt/ros/noetic/setup.bash' >> ~/.bashrc"
 }

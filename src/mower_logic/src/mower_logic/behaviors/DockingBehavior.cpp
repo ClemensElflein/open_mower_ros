@@ -1,19 +1,16 @@
 // Created by Clemens Elflein on 2/21/22.
-// Copyright (c) 2022 Clemens Elflein. All rights reserved.
+// Copyright (c) 2022 Clemens Elflein and OpenMower contributors. All rights reserved.
 //
-// This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License.
+// This file is part of OpenMower.
 //
-// Feel free to use the design in your private/educational projects, but don't try to sell the design or products based
-// on it without getting my consent first.
+// OpenMower is free software: you can redistribute it and/or modify it under the terms of the GNU General Public
+// License as published by the Free Software Foundation, version 3 of the License.
 //
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
+// OpenMower is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied
+// warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 //
+// You should have received a copy of the GNU General Public License along with OpenMower. If not, see
+// <https://www.gnu.org/licenses/>.
 //
 #include "DockingBehavior.h"
 
@@ -30,7 +27,19 @@ extern mower_msgs::Power getPower();
 extern void stopMoving();
 extern bool setGPS(bool enabled);
 
+extern void registerActions(std::string prefix, const std::vector<xbot_msgs::ActionInfo> &actions);
+
 DockingBehavior DockingBehavior::INSTANCE;
+
+DockingBehavior::DockingBehavior() {
+  xbot_msgs::ActionInfo abort_docking_action;
+  abort_docking_action.action_id = "abort_docking";
+  abort_docking_action.enabled = true;
+  abort_docking_action.action_name = "Stop Docking";
+
+  actions.clear();
+  actions.push_back(abort_docking_action);
+}
 
 bool DockingBehavior::approach_docking_point() {
   ROS_INFO_STREAM("Calculating approach path");
@@ -50,8 +59,9 @@ bool DockingBehavior::approach_docking_point() {
     mbf_msgs::MoveBaseGoal moveBaseGoal;
     moveBaseGoal.target_pose = docking_approach_point;
     moveBaseGoal.controller = "FTCPlanner";
-    auto result = mbfClient->sendGoalAndWait(moveBaseGoal);
-    if (result.state_ != result.SUCCEEDED) {
+
+    auto result = sendGoalAndWaitUnlessAborted(mbfClient, moveBaseGoal);
+    if (aborted || result.state_ != result.SUCCEEDED) {
       return false;
     }
   }
@@ -60,6 +70,12 @@ bool DockingBehavior::approach_docking_point() {
     mbf_msgs::ExePathGoal exePathGoal;
 
     nav_msgs::Path path;
+
+    ros::Time start_wait_time = ros::Time::now();
+    ros::Rate loop_rate(100);
+    while (ros::ok() && (ros::Time::now() - start_wait_time) < ros::Duration(config.docking_waiting_time)) {
+      loop_rate.sleep();
+    }
 
     int dock_point_count = config.docking_approach_distance * 10.0;
     for (int i = 0; i <= dock_point_count; i++) {
@@ -76,8 +92,8 @@ bool DockingBehavior::approach_docking_point() {
     exePathGoal.controller = "FTCPlanner";
     ROS_INFO_STREAM("Executing Docking Approach");
 
-    auto approachResult = mbfClientExePath->sendGoalAndWait(exePathGoal);
-    if (approachResult.state_ != approachResult.SUCCEEDED) {
+    auto approachResult = sendGoalAndWaitUnlessAborted(mbfClientExePath, exePathGoal);
+    if (aborted || approachResult.state_ != approachResult.SUCCEEDED) {
       return false;
     }
   }
@@ -183,11 +199,23 @@ Behavior *DockingBehavior::execute() {
   }
 
   while (!isGPSGood) {
+    if (aborted) {
+      ROS_INFO_STREAM("Docking aborted.");
+      stopMoving();
+      return &IdleBehavior::INSTANCE;
+    }
+
     ROS_WARN_STREAM("Waiting for good GPS");
     ros::Duration(1.0).sleep();
   }
 
   bool approachSuccess = approach_docking_point();
+
+  if (aborted) {
+    ROS_INFO_STREAM("Docking aborted.");
+    stopMoving();
+    return &IdleBehavior::INSTANCE;
+  }
 
   if (!approachSuccess) {
     ROS_ERROR("Error during docking approach.");
@@ -212,6 +240,12 @@ Behavior *DockingBehavior::execute() {
   if (PerimeterSearchBehavior::configured(config)) return &PerimeterSearchBehavior::INSTANCE;
 
   bool docked = dock_straight();
+
+  if (aborted) {
+    ROS_INFO_STREAM("Docking aborted.");
+    stopMoving();
+    return &IdleBehavior::INSTANCE;
+  }
 
   if (!docked) {
     ROS_ERROR("Error during docking.");
@@ -245,9 +279,18 @@ void DockingBehavior::enter() {
   docking_pose_stamped.pose = get_docking_point_srv.response.docking_pose;
   docking_pose_stamped.header.frame_id = "map";
   docking_pose_stamped.header.stamp = ros::Time::now();
+
+  for (auto &a : actions) {
+    a.enabled = true;
+  }
+  registerActions("mower_logic:docking", actions);
 }
 
 void DockingBehavior::exit() {
+  for (auto &a : actions) {
+    a.enabled = false;
+  }
+  registerActions("mower_logic:docking", actions);
 }
 
 void DockingBehavior::reset() {
@@ -268,6 +311,7 @@ void DockingBehavior::command_home() {
 }
 
 void DockingBehavior::command_start() {
+  this->abort();
 }
 
 void DockingBehavior::command_s1() {
@@ -289,4 +333,8 @@ uint8_t DockingBehavior::get_state() {
 }
 
 void DockingBehavior::handle_action(std::string action) {
+  if (action == "mower_logic:docking/abort_docking") {
+    ROS_INFO_STREAM("Got abort docking command");
+    command_start();
+  }
 }

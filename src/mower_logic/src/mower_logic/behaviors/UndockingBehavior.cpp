@@ -1,19 +1,16 @@
 // Created by Clemens Elflein on 2/21/22.
-// Copyright (c) 2022 Clemens Elflein. All rights reserved.
+// Copyright (c) 2022 Clemens Elflein and OpenMower contributors. All rights reserved.
 //
-// This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License.
+// This file is part of OpenMower.
 //
-// Feel free to use the design in your private/educational projects, but don't try to sell the design or products based
-// on it without getting my consent first.
+// OpenMower is free software: you can redistribute it and/or modify it under the terms of the GNU General Public
+// License as published by the Free Software Foundation, version 3 of the License.
 //
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
+// OpenMower is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied
+// warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 //
+// You should have received a copy of the GNU General Public License along with OpenMower. If not, see
+// <https://www.gnu.org/licenses/>.
 //
 #include "UndockingBehavior.h"
 
@@ -32,8 +29,20 @@ extern void stopMoving();
 extern bool isGpsGood();
 extern bool setGPS(bool enabled);
 
+extern void registerActions(std::string prefix, const std::vector<xbot_msgs::ActionInfo> &actions);
+
 UndockingBehavior UndockingBehavior::INSTANCE(&MowingBehavior::INSTANCE);
 UndockingBehavior UndockingBehavior::RETRY_INSTANCE(&DockingBehavior::INSTANCE);
+
+UndockingBehavior::UndockingBehavior() {
+  xbot_msgs::ActionInfo abort_undocking_action;
+  abort_undocking_action.action_id = "abort_undocking";
+  abort_undocking_action.enabled = true;
+  abort_undocking_action.action_name = "Stop Undocking";
+
+  actions.clear();
+  actions.push_back(abort_undocking_action);
+}
 
 std::string UndockingBehavior::state_name() {
   return "UNDOCKING";
@@ -53,6 +62,12 @@ Behavior *UndockingBehavior::execute() {
   mbf_msgs::ExePathGoal exePathGoal;
 
   nav_msgs::Path path;
+
+  ros::Time start_wait_time = ros::Time::now();
+  ros::Rate loop_rate(100);
+  while (ros::ok() && (ros::Time::now() - start_wait_time) < ros::Duration(config.undocking_waiting_time)) {
+    loop_rate.sleep();
+  }
 
   geometry_msgs::PoseStamped docking_pose_stamped_front;
   docking_pose_stamped_front.pose = pose.pose.pose;
@@ -104,7 +119,13 @@ Behavior *UndockingBehavior::execute() {
   exePathGoal.tolerance_from_action = true;
   exePathGoal.controller = "DockingFTCPlanner";
 
-  auto result = mbfClientExePath->sendGoalAndWait(exePathGoal);
+  auto result = sendGoalAndWaitUnlessAborted(mbfClientExePath, exePathGoal);
+
+  if (aborted) {
+    ROS_INFO_STREAM("Undocking aborted.");
+    stopMoving();
+    return &IdleBehavior::INSTANCE;
+  }
 
   bool success = result.state_ == actionlib::SimpleClientGoalState::SUCCEEDED;
 
@@ -144,9 +165,18 @@ void UndockingBehavior::enter() {
     ROS_INFO_STREAM("Currently inside the docking station, we set the robot's pose to the docks pose.");
     setRobotPose(docking_pose_stamped.pose);
   }
+
+  for (auto &a : actions) {
+    a.enabled = true;
+  }
+  registerActions("mower_logic:undocking", actions);
 }
 
 void UndockingBehavior::exit() {
+  for (auto &a : actions) {
+    a.enabled = false;
+  }
+  registerActions("mower_logic:undocking", actions);
 }
 
 void UndockingBehavior::reset() {
@@ -193,6 +223,7 @@ UndockingBehavior::UndockingBehavior(Behavior *next) {
 }
 
 void UndockingBehavior::command_home() {
+  this->abort();
 }
 
 void UndockingBehavior::command_start() {
@@ -217,4 +248,8 @@ uint8_t UndockingBehavior::get_state() {
 }
 
 void UndockingBehavior::handle_action(std::string action) {
+  if (action == "mower_logic:undocking/abort_undocking") {
+    ROS_INFO_STREAM("Got abort undocking command");
+    command_home();
+  }
 }

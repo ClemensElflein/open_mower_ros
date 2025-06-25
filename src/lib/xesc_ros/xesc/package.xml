@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>xesc</name>
+  <version>1.0.0</version>
+  <description>
+    Metapackage of XESC packages.
+  </description>
+  <maintainer email="clemens1@familie-elflein.de">Clemens Elflein</maintainer>
+  <author email="clemens1@familie-elflein.de">Clemens Elflein</author>
+  <license>Apache 2.0</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <exec_depend>xesc_msgs</exec_depend>
+  <exec_depend>xesc_driver</exec_depend>
+
+  <export>
+    <metapackage/>
+  </export>
+
+</package>

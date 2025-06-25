@@ -1,3 +1,7 @@
+//
+// Created by clemens on 29.11.24.
+//
+
 #ifndef SIMROBOT_H
 #define SIMROBOT_H
 
@@ -10,11 +14,16 @@
 
 class SimRobot {
  public:
-  void Start(ros::NodeHandle &nh);
+  explicit SimRobot(ros::NodeHandle &nh);
+  void Start();
 
   void GetPosition(double &x, double &y);
   void GetTwist(double &vx, double &vr);
 
+  void ResetEmergency();
+  void SetEmergency(bool active, const std::string &reason);
+
+  void GetEmergencyState(bool &active, bool &latch, std::string &reason);
   void SetControlTwist(double linear, double angular);
   void GetPosition(double &x, double &y, double &heading);
 
@@ -48,7 +57,13 @@ class SimRobot {
   double pos_y_ = 0;
   double pos_heading_ = 0;
 
+  // Current Emergency State
+  bool emergency_active_ = false;
+  // Latched Emergency
+  bool emergency_latch_ = false;
+  std::string emergency_reason_{"Boot"};
   ros::Time last_update_{0};
+  ros::NodeHandle nh_;
 
   bool is_charging_ = false;
   ros::Time charging_started_time;

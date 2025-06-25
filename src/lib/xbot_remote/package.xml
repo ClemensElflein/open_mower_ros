@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>xbot_remote</name>
+  <version>0.0.0</version>
+  <description>The xbot_remote package</description>
+  <maintainer email="clemens.elflein@googlemail.com">Clemens Elflein</maintainer>
+  <license>MIT</license>
+
+  <url type="website">https://github.com/ClemensElflein</url>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>xbot_msgs</build_depend>
+  <build_depend>roscpp</build_depend>
+  <build_depend>libwebsocketpp-dev</build_depend>
+  <build_export_depend>xbot_msgs</build_export_depend>
+  <build_export_depend>roscpp</build_export_depend>
+  <exec_depend>xbot_msgs</exec_depend>
+  <exec_depend>roscpp</exec_depend>
+  <depend>geometry_msgs</depend>
+  <depend>std_msgs</depend>
+
+
+  <!-- The export tag contains other, unspecified, tags -->
+  <export>
+    <!-- Other tools can request additional information be placed here -->
+
+  </export>
+</package>

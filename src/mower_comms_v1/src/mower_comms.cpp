@@ -1,20 +1,17 @@
 //
 // Created by Clemens Elflein on 15.03.22.
-// Copyright (c) 2022 Clemens Elflein. All rights reserved.
+// Copyright (c) 2022 Clemens Elflein and OpenMower contributors. All rights reserved.
 //
-// This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License.
+// This file is part of OpenMower.
 //
-// Feel free to use the design in your private/educational projects, but don't try to sell the design or products based
-// on it without getting my consent first.
+// OpenMower is free software: you can redistribute it and/or modify it under the terms of the GNU General Public
+// License as published by the Free Software Foundation, version 3 of the License.
 //
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
+// OpenMower is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied
+// warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 //
+// You should have received a copy of the GNU General Public License along with OpenMower. If not, see
+// <https://www.gnu.org/licenses/>.
 //
 #include <dynamic_reconfigure/client.h>
 #include <geometry_msgs/Twist.h>
@@ -219,7 +216,7 @@ void publishStatus() {
   }
 
   status_msg.raspberry_pi_power = (last_ll_status.status_bitmask & 0b00000010) != 0;
-  status_msg.gps_power = (last_ll_status.status_bitmask & 0b00000100) != 0;
+  status_msg.is_charging = (last_ll_status.status_bitmask & 0b00000100) != 0;
   status_msg.esc_power = (last_ll_status.status_bitmask & 0b00001000) != 0;
   status_msg.rain_detected = (last_ll_status.status_bitmask & 0b00010000) != 0;
   status_msg.sound_module_available = (last_ll_status.status_bitmask & 0b00100000) != 0;

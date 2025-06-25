@@ -1,0 +1,7 @@
+<library path="lib/libbackward_forward_recovery">
+  <class name="ftc_local_planner/BackwardForwardRecovery" type="ftc_local_planner::BackwardForwardRecovery" base_class_type="nav_core::RecoveryBehavior">
+    <description>
+      A simple recovery behavior plugin to try driving directly backwards and forwards.
+    </description>
+  </class>
+</library>

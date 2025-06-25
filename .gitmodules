@@ -1,30 +1,9 @@
-[submodule "src/lib/xesc_ros"]
-	path = src/lib/xesc_ros
-	url = https://github.com/ClemensElflein/xesc_ros.git
-[submodule "src/lib/ftc_local_planner"]
-	path = src/lib/ftc_local_planner
-	url = https://github.com/ClemensElflein/ftc_local_planner.git
-[submodule "src/lib/slic3r_coverage_planner"]
-	path = src/lib/slic3r_coverage_planner
-	url = https://github.com/ClemensElflein/slic3r_coverage_planner.git
 [submodule "src/lib/ntrip_client"]
 	path = src/lib/ntrip_client
 	url = https://github.com/xtech/ntrip_client.git
-[submodule "src/lib/xbot_msgs"]
-	path = src/lib/xbot_msgs
-	url = https://github.com/ClemensElflein/xbot_msgs.git
 [submodule "src/lib/xbot_driver_gps"]
 	path = src/lib/xbot_driver_gps
 	url = https://github.com/ClemensElflein/xbot_driver_gps.git
-[submodule "src/lib/xbot_positioning"]
-	path = src/lib/xbot_positioning
-	url = https://github.com/ClemensElflein/xbot_positioning.git
-[submodule "src/lib/xbot_monitoring"]
-	path = src/lib/xbot_monitoring
-	url = https://github.com/ClemensElflein/xbot_monitoring
-[submodule "src/lib/xbot_remote"]
-	path = src/lib/xbot_remote
-	url = https://github.com/ClemensElflein/xbot_remote
 [submodule "src/lib/xbot_framework"]
 	path = src/lib/xbot_framework
 	url = https://github.com/xtech/xbot_framework.git

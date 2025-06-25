@@ -60,10 +60,6 @@ export OM_MOWER_ESC_TYPE="xesc_mini"
 # Currently supported: ps3, steam_stick, steam_touch, xbox360
 export OM_MOWER_GAMEPAD="xbox360"
 
-# Set to true to record your session.
-# Output will be stored in your $HOME
-# export OM_ENABLE_RECORDING_ALL=False
-
 # Ignore Charging Current
 # If you're affected by a wrong IC2 sourcing, read here https://openmower.de/docs/versions/errata/ic2-is-wrong/
 # for more details, you can disable the wrong charging current reading by disabling the charging protection via:
@@ -151,6 +147,9 @@ export OM_UNDOCK_DISTANCE=2.0
 #
 # If true will use a curved second stage undock move, if false will use a straight undock move.
 # export OM_UNDOCK_USE_CURVE=True
+#
+# Time to wait (s) before before starting to undock.
+export OM_UNDOCKING_WAIT_TIME=0.0
 
 # Docking:
 #
@@ -169,6 +168,9 @@ export OM_DOCKING_RETRY_COUNT=4
 #
 # Whether to attempt redocking if the voltage is no longer detected after docking.
 export OM_DOCKING_REDOCK=False
+#
+# Time to wait (s) at OM_DOCKING_APPROACH_DISTANCE before starting to dock.
+export OM_DOCKING_WAIT_TIME=0.0
 
 # Uncomment, if you want to use the perimeter sensor of your Mowgli-type mower
 # for docking. Set it to 1 or 2 dependig on the signal selected on the docking
@@ -230,7 +232,7 @@ export OM_ENABLE_MOWER=true
 
 # Set the automatic start value based on required behaviour
 #  2 - AUTO - mow whenever possible
-#  1 - SEMIAUTO - mow the entire map once then wait for manual start atgain
+#  1 - SEMIAUTO - mow the entire map once then wait for manual start again
 #  0 - MANUAL - mowing requires manual start (default if unset)
 export OM_AUTOMATIC_MODE=0
 
@@ -245,6 +247,7 @@ export OM_RAIN_MODE=0
 
 # Rain delay
 # How long to wait after rain to resume mowing when mode is "Dock Until Dry"
+# Minimum is 30
 export OM_RAIN_DELAY_MINUTES=30
 
 # Rain threshold (Stock-CoverUI limited parameter)
@@ -293,7 +296,7 @@ export OM_RAIN_DELAY_MINUTES=30
 ################################
 ##    External MQTT Broker    ##
 ################################
-# Set thes in order to publish status data to your external MQTT broker.
+# Set these in order to publish status data to your external MQTT broker.
 # This is for use with smart home.
 
 # export OM_MQTT_ENABLE=False
@@ -302,6 +305,25 @@ export OM_RAIN_DELAY_MINUTES=30
 # export OM_MQTT_USER=""
 # export OM_MQTT_PASSWORD=""
 # export OM_MQTT_TOPIC_PREFIX="openmower"
+
+
+################################
+##     Debugging Settings     ##
+################################
+
+# Set to true to record your session.
+# Output will be stored in your $HOME
+# export OM_ENABLE_RECORDING_ALL=False
+
+# OM_SNAPSHOT options can be used to enable an in-memory buffer of all recent
+# ROS messages for debugging. If something goes wrong, you can dump a
+# a snapshot to disk to reconstruct what happened and debug further,
+# using `$ ./utils/scripts/save_snapshot.sh output_file.bag`.
+# Note that this mechanism is entirely separate from OM_ENABLE_RECORDING_*.
+
+# Memory usage is measured in MB, and duration is measured in seconds.
+# export OM_SNAPSHOT_MEMORY_PER_TOPIC=5.0
+# export OM_SNAPSHOT_DURATION=1200
 
 
 # source the default values for the hardware platform.

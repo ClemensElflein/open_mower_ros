@@ -1,19 +1,16 @@
 // Created by Clemens Elflein on 2/21/22.
-// Copyright (c) 2022 Clemens Elflein. All rights reserved.
+// Copyright (c) 2022 Clemens Elflein and OpenMower contributors. All rights reserved.
 //
-// This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License.
+// This file is part of OpenMower.
 //
-// Feel free to use the design in your private/educational projects, but don't try to sell the design or products based
-// on it without getting my consent first.
+// OpenMower is free software: you can redistribute it and/or modify it under the terms of the GNU General Public
+// License as published by the Free Software Foundation, version 3 of the License.
 //
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
+// OpenMower is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied
+// warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 //
+// You should have received a copy of the GNU General Public License along with OpenMower. If not, see
+// <https://www.gnu.org/licenses/>.
 //
 #include "MowingBehavior.h"
 
@@ -268,7 +265,7 @@ bool MowingBehavior::execute_mowing_plan() {
       paused = true;
       mowerEnabled = false;
       u_int8_t last_requested_pause_flags = 0;
-      while (requested_pause_flag)  // while emergency and/or manual pause not asked to continue, we wait
+      while (requested_pause_flag && !aborted)  // while emergency and/or manual pause not asked to continue, we wait
       {
         if (last_requested_pause_flags != requested_pause_flag) {
           update_actions();
@@ -293,7 +290,7 @@ bool MowingBehavior::execute_mowing_plan() {
     }
     if (paused) {
       paused_time = ros::Time::now();
-      while (!this->hasGoodGPS())  // while no good GPS we wait
+      while (!this->hasGoodGPS() && !aborted)  // while no good GPS we wait
       {
         ROS_INFO_STREAM("MowingBehavior: PAUSED (" << (ros::Time::now() - paused_time).toSec()
                                                    << "s) (waiting for GPS)");
