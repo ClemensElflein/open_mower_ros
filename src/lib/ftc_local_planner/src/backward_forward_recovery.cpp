@@ -3,16 +3,18 @@
 #include <ros/ros.h>
 #include <tf2/utils.h>
 #include <geometry_msgs/PoseStamped.h>
+#include <cmath>
 
 namespace ftc_local_planner
 {
 
 BackwardForwardRecovery::BackwardForwardRecovery() 
-  : initialized_(false), 
+  : initialized_(false),
     max_distance_(0.5),
-    linear_vel_(0.3), 
-    check_frequency_(10.0), 
+    linear_vel_(0.3),
+    check_frequency_(10.0),
     max_cost_threshold_(costmap_2d::INSCRIBED_INFLATED_OBSTACLE-10),
+    obstacle_check_distance_(0.5),
     timeout_(ros::Duration(3.0)) {}
 
 void BackwardForwardRecovery::initialize(std::string name, tf2_ros::Buffer* tf,
@@ -34,6 +36,7 @@ void BackwardForwardRecovery::initialize(std::string name, tf2_ros::Buffer* tf,
     int temp_threshold;
     private_nh.param("max_cost_threshold", temp_threshold, static_cast<int>(costmap_2d::INSCRIBED_INFLATED_OBSTACLE-10));
     max_cost_threshold_ = static_cast<unsigned char>(temp_threshold);
+    private_nh.param("obstacle_check_distance", obstacle_check_distance_, 0.5);
 
     double timeout_seconds;
     private_nh.param("timeout", timeout_seconds, 3.0);
@@ -90,9 +93,9 @@ bool BackwardForwardRecovery::attemptMove(double distance, bool forward)
       current_pose.pose.position.y - start_pose.pose.position.y
     );
 
-    if (!isPositionValid(current_pose.pose.position.x, current_pose.pose.position.y))
+    if (!isPathClear(current_pose.pose, forward))
     {
-      ROS_WARN("Reached maximum allowed cost after moving %.2f meters", moved_distance);
+      ROS_WARN("Obstacle too close after moving %.2f meters", moved_distance);
       cmd_vel.linear.x = 0;
       cmd_vel_pub_.publish(cmd_vel);
       return false;
@@ -114,15 +117,37 @@ bool BackwardForwardRecovery::attemptMove(double distance, bool forward)
   }
 }
 
-bool BackwardForwardRecovery::isPositionValid(double x, double y)
+bool BackwardForwardRecovery::isPathClear(const geometry_msgs::Pose& pose, bool forward)
 {
-  unsigned int mx, my;
-  if (local_costmap_->getCostmap()->worldToMap(x, y, mx, my))
+  double yaw = tf2::getYaw(pose.orientation);
+  if (!forward)
   {
-    unsigned char cost = local_costmap_->getCostmap()->getCost(mx, my);
-    return (cost <= max_cost_threshold_);
+    yaw += M_PI;
   }
-  return false;
+
+  double resolution = local_costmap_->getCostmap()->getResolution();
+  unsigned int steps = std::ceil(obstacle_check_distance_ / resolution);
+
+  for (unsigned int i = 1; i <= steps; ++i)
+  {
+    double dist = i * resolution;
+    double x = pose.position.x + dist * std::cos(yaw);
+    double y = pose.position.y + dist * std::sin(yaw);
+
+    unsigned int mx, my;
+    if (!local_costmap_->getCostmap()->worldToMap(x, y, mx, my))
+    {
+      return false;
+    }
+
+    unsigned char cost = local_costmap_->getCostmap()->getCost(mx, my);
+    if (cost > max_cost_threshold_)
+    {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 }  // namespace ftc_local_planner
