@@ -6,6 +6,7 @@
 #include <tf2_ros/buffer.h>
 #include <base_local_planner/costmap_model.h>
 #include <geometry_msgs/Twist.h>
+#include <geometry_msgs/Pose.h>
 #include <string>
 
 namespace ftc_local_planner
@@ -22,7 +23,7 @@ public:
 
 private:
   bool attemptMove(double distance, bool forward);
-  bool isPositionValid(double x, double y);
+  bool isPathClear(const geometry_msgs::Pose& pose, bool forward);
 
   std::string name_;
   bool initialized_;     
@@ -33,6 +34,7 @@ private:
   double linear_vel_;
   double check_frequency_;
   unsigned char max_cost_threshold_;
+  double obstacle_check_distance_;
   ros::Duration timeout_;
 };
 
