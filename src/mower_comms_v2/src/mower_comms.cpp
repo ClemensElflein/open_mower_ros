@@ -92,7 +92,7 @@ void sendMowerEnabledTimerTask(const ros::TimerEvent &e) {
   mower_service->Tick();
 }
 
-bool setMowEnabled(mower_msgs::MowerControlSrvRequest &req, mower_msgs::MowerControlSrvRequest &res) {
+bool setMowEnabled(mower_msgs::MowerControlSrvRequest &req, mower_msgs::MowerControlSrvResponse &res) {
   mower_service->SetMowerEnabled(req.mow_enabled);
   return true;
 }
