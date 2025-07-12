@@ -1,7 +1,3 @@
-//
-// Created by clemens on 29.11.24.
-//
-
 #include "SimRobot.h"
 
 #include <nav_msgs/Odometry.h>
@@ -9,22 +5,21 @@
 
 #include <boost/thread/pthread/thread_data.hpp>
 
+#include "services.hpp"
+
 constexpr double SimRobot::BATTERY_VOLTS_MIN;
 constexpr double SimRobot::BATTERY_VOLTS_MAX;
 constexpr double SimRobot::CHARGE_CURRENT;
 constexpr double SimRobot::CHARGE_VOLTS;
 
-SimRobot::SimRobot(ros::NodeHandle& nh) : nh_{nh} {
-}
-
-void SimRobot::Start() {
+void SimRobot::Start(ros::NodeHandle& nh) {
   std::lock_guard<std::mutex> lk{state_mutex_};
   if (started_) {
     return;
   }
   started_ = true;
-  actual_position_publisher_ = nh_.advertise<nav_msgs::Odometry>("actual_position", 50);
-  timer_ = nh_.createTimer(ros::Duration(0.1), &SimRobot::SimulationStep, this);
+  actual_position_publisher_ = nh.advertise<nav_msgs::Odometry>("actual_position", 50);
+  timer_ = nh.createTimer(ros::Duration(0.1), &SimRobot::SimulationStep, this);
   timer_.start();
 }
 
@@ -34,26 +29,6 @@ void SimRobot::GetTwist(double& vx, double& vr) {
   vr = vr_;
   vx += linear_speed_noise(generator);
   vr += angular_speed_noise(generator);
-}
-
-void SimRobot::ResetEmergency() {
-  std::lock_guard<std::mutex> lk{state_mutex_};
-  emergency_active_ = false;
-  emergency_latch_ = false;
-}
-
-void SimRobot::SetEmergency(bool active, const std::string& reason) {
-  std::lock_guard<std::mutex> lk{state_mutex_};
-  emergency_active_ = active;
-  emergency_latch_ |= active;
-  emergency_reason_ = reason;
-}
-
-void SimRobot::GetEmergencyState(bool& active, bool& latch, std::string& reason) {
-  std::lock_guard<std::mutex> lk{state_mutex_};
-  active = emergency_active_;
-  latch = emergency_latch_;
-  reason = emergency_reason_;
 }
 
 void SimRobot::SetControlTwist(double linear, double angular) {
@@ -93,7 +68,7 @@ void SimRobot::SimulationStep(const ros::TimerEvent& te) {
   std::lock_guard<std::mutex> lk{state_mutex_};
   const auto now = ros::Time::now();
   // Update Position if not in emergency mode
-  if (!emergency_latch_) {
+  if (!emergency_service.HasActiveEmergency()) {
     double time_diff_s = (now - last_update_).toSec();
     double delta_x = (vx_ * cos(pos_heading_)) * time_diff_s;
     double delta_y = (vx_ * sin(pos_heading_)) * time_diff_s;
