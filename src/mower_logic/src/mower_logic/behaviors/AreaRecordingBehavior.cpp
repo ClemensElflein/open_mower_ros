@@ -474,7 +474,9 @@ bool AreaRecordingBehavior::getDockingPosition(geometry_msgs::Pose &pos) {
     pos.position = odom_ptr->pose.pose.position;
 
     double yaw = atan2(pos.position.y - first_docking_pos.position.y, pos.position.x - first_docking_pos.position.x);
-    tf2::Quaternion docking_orientation(0.0, 0.0, yaw);
+    tf2::Quaternion docking_orientation;
+    docking_orientation.setRPY(0.0, 0.0, yaw);
+
     pos.orientation = tf2::toMsg(docking_orientation);
 
     update_actions();

@@ -23,7 +23,7 @@ class EmergencyServiceInterface : public EmergencyServiceInterfaceBase {
  protected:
   void OnEmergencyActiveChanged(const uint8_t& new_value) override;
   void OnEmergencyLatchChanged(const uint8_t& new_value) override;
-  void OnEmergencyReasonChanged(const char* new_value, uint32_t length) override;
+  void OnEmergencyReasonChanged(const uint16_t &new_value) override;
 
  private:
   void OnServiceConnected(uint16_t service_id) override;

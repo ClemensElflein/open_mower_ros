@@ -114,7 +114,8 @@ void onImu(const sensor_msgs::Imu::ConstPtr &msg) {
     odometry.pose.pose.position.x = x.x_pos();
     odometry.pose.pose.position.y = x.y_pos();
     odometry.pose.pose.position.z = 0;
-    tf2::Quaternion q(0.0, 0.0, x.theta());
+    tf2::Quaternion q;
+    q.setRPY(0.0, 0.0, x.theta());
     odometry.pose.pose.orientation = tf2::toMsg(q);
 
     geometry_msgs::TransformStamped odom_trans;
