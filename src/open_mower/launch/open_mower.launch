@@ -9,12 +9,12 @@
     </include>
 
 
-    <node pkg="mower_map" type="mower_map_service" name="map_service" output="screen"/>
-    <node pkg="mower_logic" type="mower_logic" name="mower_logic" output="screen">
+    <node pkg="mower_map" type="mower_map_service" name="map_service" output="screen" respawn="true" respawn_delay="10"/>
+    <node pkg="mower_logic" type="mower_logic" name="mower_logic" output="screen" respawn="true" respawn_delay="10">
     </node>
-    <node pkg="slic3r_coverage_planner" type="slic3r_coverage_planner" name="slic3r_coverage_planner" output="screen"/>
+    <node pkg="slic3r_coverage_planner" type="slic3r_coverage_planner" name="slic3r_coverage_planner" output="screen" respawn="true" respawn_delay="10"/>
 
-    <node pkg="twist_mux" type="twist_mux" name="twist_mux" output="screen">
+    <node pkg="twist_mux" type="twist_mux" name="twist_mux" output="screen" respawn="true" respawn_delay="10">
         <remap from="cmd_vel_out" to="/ll/cmd_vel"/>
 
         <rosparam file="$(find open_mower)/params/twist_mux_topics.yaml" command="load"/>
