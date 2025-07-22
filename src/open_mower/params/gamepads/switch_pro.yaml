@@ -1,0 +1,96 @@
+# Install bluez (i.e apt-get install bluez)
+# Run bluetoothctl
+# Inside bluetoothctl run:
+#   power on
+#   agent on
+#   default-agent
+#   scan on
+##  Find your controller and note down your MAC address (AA:BB:CC:DD:EE:FF) (It's probably named "Pro Controller")
+# Put controller in paring mode (small button beside the USB-C Port)
+# Inside bluetoothctl run:
+#    pair AA:BB:CC:DD:EE:FF
+#    trust AA:BB:CC:DD:EE:FF
+#    connect AA:BB:CC:DD:EE:FF
+#
+# Controller shall now be connected and ready to be used.
+
+
+# Switch Pro Controller mapping:
+
+#Buttons:
+#A = 1
+#B = 0
+#Y = 3
+#X = 2
+#Home = 11
+#+ = 10
+#- = 9
+#Capture = 4
+#R = 6
+#ZR = 8
+#L = 5
+#ZL = 7
+
+#Axes:
+#Left stick hor = 0
+#Left stick vert = 1
+#Right stick hor = 2
+#Right stick vert = 3
+#D-Pad horizone = 4
+#D-Pad Vertical = 5
+
+teleop:
+  move:
+    type: topic
+    message_type: geometry_msgs/Twist
+    topic_name: joy_vel
+    deadman_buttons: [0] # B button
+    axis_mappings:
+      -
+        axis: 1
+        target: linear.x
+        scale: 1
+      -
+        axis: 0
+        target: angular.z
+        scale: 1
+
+  record_polygon:
+    type: topic
+    message_type: std_msgs/Bool
+    topic_name: record_polygon
+    deadman_buttons: [1] # A button
+    message_value:
+      -
+        target: data
+        value: 1
+
+  record_dock:
+    type: topic
+    message_type: std_msgs/Bool
+    topic_name: record_dock
+    deadman_buttons: [3] # Y button
+    message_value:
+      -
+        target: data
+        value: 1
+
+  record_mowing:
+    type: topic
+    message_type: std_msgs/Bool
+    topic_name: record_mowing
+    deadman_buttons: [2, 9] # X + Minus buttons
+    message_value:
+      -
+        target: data
+        value: 1
+
+  record_navigation:
+    type: topic
+    message_type: std_msgs/Bool
+    topic_name: record_navigation
+    deadman_buttons: [2, 10] # X + Plus buttons
+    message_value:
+      -
+        target: data
+        value: 1

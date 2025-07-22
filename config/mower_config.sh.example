@@ -57,7 +57,7 @@ export OM_MOWER="YardForce500"
 export OM_MOWER_ESC_TYPE="xesc_mini"
 
 # Select your gamepad
-# Currently supported: ps3, steam_stick, steam_touch, xbox360
+# Currently supported: ps3, shield, steam_stick, steam_touch, switch_pro, xbox360
 export OM_MOWER_GAMEPAD="xbox360"
 
 # Ignore Charging Current
