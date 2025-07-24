@@ -42,11 +42,11 @@ void EmergencyService::tick() {
   SendEmergencyActive(emergency_active);
 
   SendEmergencyLatch(emergency_latch);
-  SendEmergencyReason(emergency_reason.c_str(), emergency_reason.length());
+  SendEmergencyReason(static_cast<uint16_t>(EmergencyReason::LIFT));
   CommitTransaction();
 }
 
-void EmergencyService::OnSetEmergencyChanged(const uint8_t& new_value) {
+void EmergencyService::OnSetEmergencyChanged(const uint8_t &new_value) {
   if (new_value) {
     robot_.SetEmergency(true, "High Level");
   } else {

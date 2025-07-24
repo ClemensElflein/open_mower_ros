@@ -6,15 +6,20 @@ ENV DEBIAN_FRONTEND=noninteractive
 #   - git
 #   - mosquitto broker
 #   - nginx (remove default site to free up port 80)
+#   - python3-catkin-pkg / catkin tools
+#   - ros-noetic-catkin (for catkin_init_workspace)
 RUN apt-get update && apt-get install --yes \
     git \
     mosquitto python3.8-venv \
-    nginx && rm -rf /var/www /etc/nginx/sites-enabled/* \
-    rm -rf /var/lib/apt/lists/*
+    nginx \
+    python3-catkin-pkg python3-catkin-tools python3-osrf-pycommon \
+    ros-${ROS_DISTRO}-catkin \
+    && rm -rf /var/www /etc/nginx/sites-enabled/* \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install our configs
-COPY --link ./docker/assets/mosquitto.conf /etc/mosquitto/mosquitto.conf
-COPY --link ./docker/assets/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --link ../docker/assets/mosquitto.conf /etc/mosquitto/mosquitto.conf
+COPY --link ../docker/assets/nginx.conf /etc/nginx/conf.d/default.conf
 
 # Update rosdep
 RUN rosdep update --rosdistro $ROS_DISTRO
@@ -35,6 +40,7 @@ RUN rosdep install --from-paths src --ignore-src --simulate | \
     sed --expression '1d' | sort | tr -d '\n' | sed --expression 's/  apt-get install//g' > apt-install_list && \
     apt-get update && apt-get install --no-install-recommends --yes $(cat apt-install_list) libasio-dev && \
     rm -rf /var/lib/apt/lists/* apt-install_list
+
 RUN bash -c "source /opt/ros/$ROS_DISTRO/setup.bash && catkin_make"
 RUN bash -c "source /opt/ros/$ROS_DISTRO/setup.bash && source /opt/slic3r_coverage_planner_workspace/devel/setup.bash && catkin_make -DCMAKE_INSTALL_PREFIX=/opt/prebuilt/slic3r_coverage_planner install"
 
@@ -61,30 +67,39 @@ RUN --mount=type=bind,source=src,target=src \
 
 # We can't derive this from "dependencies" because "dependencies" will be rebuilt every time, but apt install should only be done if needed
 FROM base AS assemble
+SHELL ["/bin/bash", "-c"]
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-#Fetch the slic3r built earlier, this only changes if slic3r was changed (probably never)
+# Fetch the slic3r built earlier, this only changes if slic3r was changed (probably never)
 COPY --link --from=slic3r /opt/prebuilt/slic3r_coverage_planner /opt/prebuilt/slic3r_coverage_planner
 
-#Fetch the list of packages, this only changes if new dependencies have been added (only sometimes)
+# Fetch the list of packages, this only changes if new dependencies have been added (only sometimes)
 COPY --link --from=dependencies /apt-install_list /apt-install_list
 RUN apt-get update && \
     apt-get install --no-install-recommends --yes $(cat /apt-install_list) libasio-dev && \
     rm -rf /var/lib/apt/lists/*
 
-COPY --link ./ /opt/open_mower_ros
+COPY --link ../ /opt/open_mower_ros
 
-#delete prebuilt libs (so that they won't shadow the preinstalled ones)
+# Delete prebuilt libs (so that they won't shadow the preinstalled ones)
 RUN rm -rf /opt/open_mower_ros/src/lib/slic3r_coverage_planner /apt-install_list
 
 WORKDIR /opt/open_mower_ros
 
-RUN bash -c "source /opt/ros/$ROS_DISTRO/setup.bash && cd /opt/open_mower_ros/src && catkin_init_workspace && cd .. && source /opt/prebuilt/slic3r_coverage_planner/setup.bash && catkin_make -DCATKIN_BLACKLIST_PACKAGES=slic3r_coverage_planner"
+# Cleanup any previous build artifacts (just in case)
+RUN rm -rf build devel
 
-RUN echo "export OM_SOFTWARE_VERSION=$(git describe --tags || git describe --always || echo "v0.0.0")" > version_info.env
+# Build the ROS workspace
+RUN source /opt/ros/${ROS_DISTRO}/setup.bash && \
+    source /opt/prebuilt/slic3r_coverage_planner/setup.bash && \
+    catkin_make -DCATKIN_BLACKLIST_PACKAGES=slic3r_coverage_planner
 
-COPY ./docker/openmower_entrypoint.sh /openmower_entrypoint.sh
+# Store version info
+RUN echo "export OM_SOFTWARE_VERSION=$(git describe --tags || git describe --always || echo \"v0.0.0\")" > version_info.env
+
+# Install entrypoint script
+COPY ../docker/openmower_entrypoint.sh /openmower_entrypoint.sh
 RUN chmod +x /openmower_entrypoint.sh
 
 ENTRYPOINT ["/openmower_entrypoint.sh"]

@@ -3,6 +3,8 @@
 // Copyright (c) 2022 Clemens Elflein. All rights reserved.
 //
 #include <filesystem>
+#include <stdlib.h> 
+#include <algorithm>
 
 #include "ros/ros.h"
 #include <memory>
@@ -31,6 +33,8 @@ ros::Publisher cmd_vel_pub;
 
 // Create a server endpoint
 server echo_server;
+const double VxMax = 1.6;
+const double VzMax = 1.0;
 
 // Define a callback to handle incoming messages
 void on_message(server* s, websocketpp::connection_hdl hdl, message_ptr msg) {
@@ -39,13 +43,32 @@ void on_message(server* s, websocketpp::connection_hdl hdl, message_ptr msg) {
 
         ROS_INFO_STREAM_THROTTLE(0.5, "vx:" << json["vx"] << " vr: " << json["vz"]);
         geometry_msgs::Twist t;
-        t.linear.x = json["vx"];
-        t.angular.z = json["vz"];
+
+        /*get percentage */
+        double vx = json["vx"].get<double>();
+        double vz = json["vz"].get<double>();
+
+        t.linear.x = vx / VxMax;
+        t.angular.z = vz / VzMax;
+
+        // square curve
+        t.linear.x *= std::abs(t.linear.x);
+        t.angular.z *= std::abs(t.angular.z);
+
+        // clamp to [-1, 1]
+        t.linear.x = std::clamp(t.linear.x, -1.0, 1.0);
+        t.angular.z = std::clamp(t.angular.z, -1.0, 1.0);
+
+        // scale to Vmax
+        t.linear.x *= 0.4;
+        t.angular.z *= 3.2;
+
         cmd_vel_pub.publish(t);
     } catch (std::exception &e) {
         ROS_ERROR_STREAM("Exception during remote decoding: " << e.what());
     }
 }
+
 
 void* server_thread(void* arg) {
     try {
@@ -78,6 +101,7 @@ void* server_thread(void* arg) {
         std::cout << "other exception" << std::endl;
         exit(1);
     }
+    return nullptr;
 }
 
 int main(int argc, char **argv) {
