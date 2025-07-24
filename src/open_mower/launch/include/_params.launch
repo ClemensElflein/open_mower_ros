@@ -28,10 +28,9 @@
         <rosparam unless="$(eval env('OM_MOWER')=='CUSTOM')"
                   ns="mower_comms"
                   file="$(find open_mower)/params/hardware_specific/$(env OM_MOWER)/comms_$(env OM_MOWER_ESC_TYPE)_params.yaml"/>
-        <rosparam if="$(eval env('OM_MOWER')=='CUSTOM')"
-                  ns="mower_comms"
-                  file="$(env HOME)/mower_params/comms_params.yaml"/>
-
+       <rosparam if="$(eval (env('OM_MOWER')=='CUSTOM') and (optenv('OM_NO_COMMS').lower() != 'true'))"
+              ns="mower_comms"
+              file="$(env HOME)/mower_params/comms_params.yaml"/>
         <param name="mower_comms/wheel_ticks_per_m" value="$(env OM_WHEEL_TICKS_PER_M)"/>
         <param name="mower_comms/wheel_distance_m" value="$(env OM_WHEEL_DISTANCE_M)"/>
         <param name="mower_comms/dfp_is_5v" value="$(optenv OM_DFP_IS_5V False)"/>
