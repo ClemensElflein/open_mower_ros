@@ -51,8 +51,10 @@
           "title": "Gamepad",
           "enum": [
             "ps3",
+            "shield",
             "steam_stick",
             "steam_touch",
+            "switch_pro",
             "xbox360"
           ],
           "default": "xbox360",
