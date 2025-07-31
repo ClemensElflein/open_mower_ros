@@ -572,7 +572,7 @@ int main(int argc, char **argv) {
     }
 
     external_mqtt_hostname = paramNh.param("external_mqtt_hostname", std::string(""));
-    external_mqtt_port = paramNh.param("external_mqtt_port", std::to_string(1883));
+    external_mqtt_port = std::to_string(paramNh.param("external_mqtt_port", 1883));
     external_mqtt_username = paramNh.param("external_mqtt_username", std::string(""));
     external_mqtt_password = paramNh.param("external_mqtt_password", std::string(""));
 
