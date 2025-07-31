@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.16 FATAL_ERROR)
 project(mower_comms_v2)
 
-## Compile as C++11, supported in ROS Kinetic and newer
-# add_compile_options(-std=c++11)
+## Compile as C++17
+add_compile_options(-std=c++17)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -11,6 +11,7 @@ find_package(catkin REQUIRED COMPONENTS
         mower_msgs
         sensor_msgs
         roscpp
+        std_msgs
         xesc_msgs
         xbot_msgs
         robot_localization
@@ -171,6 +172,8 @@ add_executable(mower_comms_v2
         src/MowerServiceInterface.h
         src/ImuServiceInterface.cpp
         src/ImuServiceInterface.h
+        src/InputServiceInterface.cpp
+        src/InputServiceInterface.h
         src/PowerServiceInterface.cpp
         src/PowerServiceInterface.h
         src/GpsServiceInterface.cpp
@@ -183,10 +186,11 @@ target_add_service_interface(mower_comms_v2 DiffDriveServiceInterface ${CMAKE_CU
 target_add_service_interface(mower_comms_v2 MowerServiceInterface ${CMAKE_CURRENT_SOURCE_DIR}/../../services/mower_service.json)
 target_add_service_interface(mower_comms_v2 PowerServiceInterface ${CMAKE_CURRENT_SOURCE_DIR}/../../services/power_service.json)
 target_add_service_interface(mower_comms_v2 GpsServiceInterface ${CMAKE_CURRENT_SOURCE_DIR}/../../services/gps_service.json)
+target_add_service_interface(mower_comms_v2 InputServiceInterface ${CMAKE_CURRENT_SOURCE_DIR}/../../services/input_service.json)
 
-
+add_subdirectory(lib/libfyaml)
 add_dependencies(mower_comms_v2 ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
-target_link_libraries(mower_comms_v2 PUBLIC ${catkin_LIBRARIES} ${GeographicLib_LIBRARIES})
+target_link_libraries(mower_comms_v2 PUBLIC ${catkin_LIBRARIES} ${GeographicLib_LIBRARIES} fyaml)
 
 #############
 ## Install ##
