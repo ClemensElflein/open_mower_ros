@@ -50,6 +50,8 @@
 #include "slic3r_coverage_planner/PlanPath.h"
 #include "std_msgs/String.h"
 #include "xbot_msgs/AbsolutePose.h"
+#include "xbot_msgs/ActionRequest.h"
+#include "xbot_msgs/ActionResponse.h"
 #include "xbot_msgs/RegisterActionsSrv.h"
 #include "xbot_positioning/GPSControlSrv.h"
 #include "xbot_positioning/SetPoseSrv.h"
@@ -64,7 +66,7 @@ dynamic_reconfigure::Server<mower_logic::MowerLogicConfig> *reconfigServer;
 actionlib::SimpleActionClient<mbf_msgs::MoveBaseAction> *mbfClient;
 actionlib::SimpleActionClient<mbf_msgs::ExePathAction> *mbfClientExePath;
 
-ros::Publisher cmd_vel_pub, high_level_state_publisher;
+ros::Publisher cmd_vel_pub, high_level_state_publisher, action_response_pub;
 mower_logic::MowerLogicConfig last_config;
 ll::PowerConfig last_power_config;
 
@@ -613,16 +615,21 @@ bool highLevelCommand(mower_msgs::HighLevelControlSrvRequest &req, mower_msgs::H
   return true;
 }
 
-void actionReceived(const std_msgs::String::ConstPtr &action) {
-  if (action->data == "mower_logic/reset_emergency") {
+void actionReceived(const xbot_msgs::ActionRequest::ConstPtr &request) {
+  xbot_msgs::ActionResponse response;
+  response.action_id = request->action_id;
+  response.request_id = request->request_id;
+
+  if (request->action_id == "mower_logic/reset_emergency") {
     ROS_WARN_STREAM("Got reset emergency action.");
     setEmergencyMode(false);
-    return;
+  } else if (currentBehavior) {
+    if (!currentBehavior->handle_action(request->action_id, request->payload, response.response)) {
+      return;
+    }
   }
 
-  if (currentBehavior) {
-    currentBehavior->handle_action(action->data);
-  }
+  action_response_pub.publish(response);
 }
 
 void joyVelReceived(const geometry_msgs::Twist::ConstPtr &joy_vel) {
@@ -693,6 +700,7 @@ int main(int argc, char **argv) {
 
   ros::Subscriber joy_cmd = n->subscribe("/joy_vel", 0, joyVelReceived, ros::TransportHints().tcpNoDelay(true));
   ros::Subscriber action = n->subscribe("xbot/action", 0, actionReceived, ros::TransportHints().tcpNoDelay(true));
+  action_response_pub = n->advertise<xbot_msgs::ActionResponse>("xbot/action_response", 100);
 
   ros::ServiceServer high_level_control_srv = n->advertiseService("mower_service/high_level_control", highLevelCommand);
 

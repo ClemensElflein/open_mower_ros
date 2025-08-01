@@ -247,9 +247,12 @@ uint8_t UndockingBehavior::get_state() {
   return mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_AUTONOMOUS;
 }
 
-void UndockingBehavior::handle_action(std::string action) {
+bool UndockingBehavior::handle_action(const std::string &action, const std::string &payload, std::string &response) {
   if (action == "mower_logic:undocking/abort_undocking") {
     ROS_INFO_STREAM("Got abort undocking command");
     command_home();
+  } else {
+    return false;
   }
+  return true;
 }
