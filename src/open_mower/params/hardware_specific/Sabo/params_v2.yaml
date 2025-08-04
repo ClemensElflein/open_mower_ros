@@ -14,7 +14,7 @@ ll:
       charge_critical_high_current: 3.9
       charge_current: 3.0
     input:
-      config_file: ../open_mower_ros/src/open_mower/params/hardware_specific/Sabo/inputs.yaml
+      config_file: /opt/open_mower_ros/src/open_mower/params/hardware_specific/Sabo/inputs.yaml
 
 xbot_positioning:
   antenna_offset_x: 0.18
