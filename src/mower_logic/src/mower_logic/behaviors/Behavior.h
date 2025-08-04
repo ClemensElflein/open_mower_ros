@@ -31,8 +31,6 @@ enum pauseType { PAUSE_MANUAL = 0b1, PAUSE_EMERGENCY = 0b10 };
 struct sSharedState {
   // True, if the semiautomatic task is still in progress
   bool active_semiautomatic_task;
-  // True, if the user has manually paused the mowing. We should then wait for the user to continue
-  bool semiautomatic_task_paused;
 };
 
 /**
