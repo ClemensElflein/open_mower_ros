@@ -350,7 +350,7 @@ void subscribe_to_sensor(std::string topic) {
             break;
         }
         default: {
-            ROS_ERROR_STREAM("Inavlid Sensor Data Type: " << (int) sensor.value_type);
+            ROS_ERROR_STREAM("Invalid Sensor Data Type: " << (int) sensor.value_type);
         }
     }
 }
