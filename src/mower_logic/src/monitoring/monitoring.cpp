@@ -291,8 +291,17 @@ void registerSensors() {
 
     sc_pair.second.si_pub =
         n->advertise<xbot_msgs::SensorInfo>("xbot_monitoring/sensors/" + sc_pair.first + "/info", 1, true);
-    sc_pair.second.data_pub =
-        n->advertise<xbot_msgs::SensorDataDouble>("xbot_monitoring/sensors/" + sc_pair.first + "/data", 10);
+    switch (sc_pair.second.si.value_type) {
+      case xbot_msgs::SensorInfo::TYPE_DOUBLE:
+        sc_pair.second.data_pub =
+            n->advertise<xbot_msgs::SensorDataDouble>("xbot_monitoring/sensors/" + sc_pair.first + "/data", 10);
+        break;
+      case xbot_msgs::SensorInfo::TYPE_STRING:
+        sc_pair.second.data_pub =
+            n->advertise<xbot_msgs::SensorDataString>("xbot_monitoring/sensors/" + sc_pair.first + "/data", 10);
+        break;
+      default: ROS_ERROR_STREAM("Invalid Sensor Data Type: " << (int)sc_pair.second.si.value_type);
+    }
     sc_pair.second.si_pub.publish(sc_pair.second.si);
   }
 }

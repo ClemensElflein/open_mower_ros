@@ -31,6 +31,7 @@ extern ros::ServiceClient dockingPointClient;
 extern mower_msgs::Status getStatus();
 extern mower_msgs::Power getPower();
 extern mower_logic::MowerLogicConfig getConfig();
+extern void setConfig(mower_logic::MowerLogicConfig);
 extern ll::PowerConfig getPowerConfig();
 extern dynamic_reconfigure::Server<mower_logic::MowerLogicConfig> *reconfigServer;
 
@@ -76,9 +77,8 @@ Behavior *IdleBehavior::execute() {
     const auto last_power = getPower();
 
     const bool automatic_mode = last_config.automatic_mode == eAutoMode::AUTO;
-    const bool active_semiautomatic_task = last_config.automatic_mode == eAutoMode::SEMIAUTO &&
-                                           shared_state->active_semiautomatic_task &&
-                                           !shared_state->semiautomatic_task_paused;
+    const bool active_semiautomatic_task =
+        last_config.automatic_mode == eAutoMode::SEMIAUTO && shared_state->active_semiautomatic_task;
     const bool rain_delay = last_config.rain_mode == 2 && ros::Time::now() < rain_resume;
     if (rain_delay) {
       ROS_INFO_STREAM_THROTTLE(300, "Rain delay: " << int((rain_resume - ros::Time::now()).toSec() / 60) << " minutes");
@@ -158,7 +158,10 @@ void IdleBehavior::command_home() {
 
 void IdleBehavior::command_start() {
   // We got start, so we can reset the last manual pause
-  shared_state->semiautomatic_task_paused = false;
+  auto config = getConfig();
+  config.manual_pause_mowing = false;
+  setConfig(config);
+
   manual_start_mowing = true;
 }
 

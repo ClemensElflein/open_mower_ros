@@ -1,0 +1,96 @@
+# Install bluez (i.e apt-get install bluez)
+# Run bluetoothctl
+# Inside bluetoothctl run:
+#   power on
+#   agent on
+#   default-agent
+#   scan on
+##  Find your controller and note down your MAC address (AA:BB:CC:DD:EE:FF) (It's probably named "N*IDIA Controller v01.04 or something similar")
+# Put controller in paring mode (Hold the big Green button in the middle of the controller until the blue LED flashes)
+# Inside bluetoothctl run:
+#    pair AA:BB:CC:DD:EE:FF
+#    trust AA:BB:CC:DD:EE:FF
+#    connect AA:BB:CC:DD:EE:FF
+#
+# Controller shall now be connected and ready to be used.
+
+
+# Shield Controller mapping:
+
+#Shield Controller:
+#Buttons:
+#A = 0
+#B = 1
+#Y = 3
+#X = 2
+#Back = None
+#Play = 6
+#Circle = None
+#R = 5
+#L = 4
+
+#Axes:
+#Left stick hor = 0
+#Left stick vert = 1
+#Right stick hor = 2
+#Right stick vert = 5
+#D-Pad horizone = 8
+#D-Pad Vertical = 9
+#R2 = 4 + 6
+#L2 = 3 + 7
+
+teleop:
+  move:
+    type: topic
+    message_type: geometry_msgs/Twist
+    topic_name: joy_vel
+    deadman_buttons: [0] # A button
+    axis_mappings:
+      -
+        axis: 1
+        target: linear.x
+        scale: 1
+      -
+        axis: 0
+        target: angular.z
+        scale: 1
+
+  record_polygon:
+    type: topic
+    message_type: std_msgs/Bool
+    topic_name: record_polygon
+    deadman_buttons: [1] # B button
+    message_value:
+      -
+        target: data
+        value: 1
+
+  record_dock:
+    type: topic
+    message_type: std_msgs/Bool
+    topic_name: record_dock
+    deadman_buttons: [2] # X button
+    message_value:
+      -
+        target: data
+        value: 1
+
+  record_mowing:
+    type: topic
+    message_type: std_msgs/Bool
+    topic_name: record_mowing
+    deadman_buttons: [3, 4] # Y + L1 buttons
+    message_value:
+      -
+        target: data
+        value: 1
+
+  record_navigation:
+    type: topic
+    message_type: std_msgs/Bool
+    topic_name: record_navigation
+    deadman_buttons: [3, 6] # Y + Play buttons
+    message_value:
+      -
+        target: data
+        value: 1

@@ -1,0 +1,5 @@
+<launch>
+    <node pkg="slic3r_coverage_planner" type="slic3r_coverage_planner" name="slic3r_coverage_planner" output="screen">
+        <param name="visualize_plan" value="false"/>
+    </node>
+</launch>

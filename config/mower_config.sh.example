@@ -57,7 +57,7 @@ export OM_MOWER="YardForce500"
 export OM_MOWER_ESC_TYPE="xesc_mini"
 
 # Select your gamepad
-# Currently supported: ps3, steam_stick, steam_touch, xbox360
+# Currently supported: ps3, shield, steam_stick, steam_touch, switch_pro, xbox360
 export OM_MOWER_GAMEPAD="xbox360"
 
 # Ignore Charging Current
@@ -255,6 +255,14 @@ export OM_RAIN_DELAY_MINUTES=30
 # As higher, as more dry, defaults to 700.
 #export OM_CU_RAIN_THRESHOLD=700
 
+# ESC shutdown max pitch
+# The ESCs can be placed in a low power mode to reduce power usage/heat while in the dock or
+# during emergency.
+# However this disables breaking which could allow the mower to move if on a slope.
+# If non-zero this enables shutdown and sets the maximum pitch angle in degree where shutdown
+# should be allowed.
+#export OM_SHUTDOWN_ESC_MAX_PITCH=30
+
 # Hall / Emergency input configuration
 #
 # This is an expert configuration option, use it only for custom builds!
@@ -291,7 +299,6 @@ export OM_RAIN_DELAY_MINUTES=30
 # Tilt period, to filter uneven ground
 # Period (ms) for a single wheel to be lifted in order to count as emergency (0 = disable)
 #export OM_EMERGENCY_TILT_PERIOD="2500"
-
 
 ################################
 ##    External MQTT Broker    ##

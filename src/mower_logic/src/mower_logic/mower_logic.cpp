@@ -889,7 +889,6 @@ int main(int argc, char **argv) {
   // initialise the shared state object to be passed into the behaviors
   auto shared_state = std::make_shared<sSharedState>();
   shared_state->active_semiautomatic_task = false;
-  shared_state->semiautomatic_task_paused = false;
 
   // Behavior execution loop
   while (ros::ok()) {
