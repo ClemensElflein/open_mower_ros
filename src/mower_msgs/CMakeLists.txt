@@ -3,8 +3,16 @@ project(mower_msgs)
 
 find_package(catkin REQUIRED COMPONENTS
         std_msgs
+        actionlib_msgs
+        slic3r_coverage_planner
+        geometry_msgs
+        nav_msgs
         message_generation)
 
+add_action_files(
+        FILES
+        MowPaths.action
+)
 
 add_message_files(
         FILES
@@ -31,6 +39,8 @@ add_service_files(
 generate_messages(
         DEPENDENCIES
         std_msgs
+        actionlib_msgs
+        slic3r_coverage_planner
 )
 
 catkin_package()
