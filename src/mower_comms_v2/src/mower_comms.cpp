@@ -237,9 +237,11 @@ int main(int argc, char **argv) {
   ROS_INFO_STREAM("Datum: " << datum_lat << ", " << datum_long << ", " << datum_height);
   gps_position_pub = n.advertise<xbot_msgs::AbsolutePose>("ll/position/gps", 1);
   nmea_pub = n.advertise<nmea_msgs::Sentence>("ll/position/gps/nmea", 1);
-  gps_service =
-      std::make_unique<GpsServiceInterface>(xbot::service_ids::GPS, ctx, gps_position_pub, nmea_pub, datum_lat,
-                                            datum_long, datum_height, baud_rate, protocol, gps_port_index);
+  bool absolute_coords = true;
+  paramNh.getParam("services/gps/absolute_coords", absolute_coords);
+  gps_service = std::make_unique<GpsServiceInterface>(xbot::service_ids::GPS, ctx, gps_position_pub, nmea_pub,
+                                                      datum_lat, datum_long, datum_height, baud_rate, protocol,
+                                                      gps_port_index, absolute_coords);
   gps_service->Start();
 
   ros::spin();
