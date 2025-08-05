@@ -223,9 +223,9 @@ void visualizeAreas() {
 void buildMap() {
   // First, calculate the size of the map by finding the min and max values for x and y.
   float minX = FLT_MAX;
-  float maxX = FLT_MIN;
+  float maxX = -FLT_MAX;
   float minY = FLT_MAX;
-  float maxY = FLT_MIN;
+  float maxY = -FLT_MAX;
 
   // loop through all areas and calculate a size where everything fits
   for (const auto &area : mowing_areas) {
