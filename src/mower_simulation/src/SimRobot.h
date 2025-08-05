@@ -80,7 +80,7 @@ class SimRobot {
    * Generate some noise
    */
   std::default_random_engine generator{};
-  std::normal_distribution<double> position_noise{0.0, 0.03};
+  std::normal_distribution<double> position_noise{0.0, 0.005};
   std::normal_distribution<double> heading_noise{0.0, 0.01};
   std::normal_distribution<double> linear_speed_noise{0.0, 0.02};
   std::normal_distribution<double> angular_speed_noise{0.0, 0.02};
