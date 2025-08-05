@@ -9,6 +9,8 @@
     <include file="$(find open_mower)/launch/include/_teleop.launch"/>
     <include file="$(find open_mower)/launch/include/_localization.launch"/>
 
+    <rosparam file="$(find open_mower)/params/simulation_params.yaml"/>
+
     <!--    <arg name="battery_empty_voltage" value="$(env OM_BATTERY_EMPTY_VOLTAGE)" />-->
     <!--    <arg name="battery_critical_voltage" value="$(optenv OM_BATTERY_CRITICAL_VOLTAGE)" />-->
 
