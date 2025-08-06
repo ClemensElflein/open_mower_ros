@@ -4,6 +4,11 @@ ll:
     gps:
       absolute_coords: false
 
+mower_logic:
+  gps_wait_time: 2.0
+  docking_approach_distance: 1.0
+  undock_distance: 1.0
+
 xbot_positioning:
   antenna_offset_x: 0.0
   antenna_offset_y: 0.0
