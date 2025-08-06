@@ -3,3 +3,7 @@ ll:
   services:
     gps:
       absolute_coords: false
+
+xbot_positioning:
+  antenna_offset_x: 0.0
+  antenna_offset_y: 0.0
