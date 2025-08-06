@@ -69,7 +69,7 @@ class SimRobot {
   bool is_charging_ = false;
   ros::Time charging_started_time;
   double charger_volts_ = 0;
-  double battery_volts_ = BATTERY_VOLTS_MIN;
+  double battery_volts_ = BATTERY_VOLTS_MAX;
   double charge_current_ = 0;
   std::string charger_state_{"Unknown"};
 
