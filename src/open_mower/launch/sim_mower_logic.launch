@@ -15,10 +15,16 @@
     <!--    <arg name="battery_critical_voltage" value="$(optenv OM_BATTERY_CRITICAL_VOLTAGE)" />-->
 
     <node name="rviz" pkg="rviz" type="rviz" args="-d $(find open_mower)/rviz/sim_mower_logic.rviz" required="true" if="$(optenv OM_START_RVIZ True)"/>
+    <node pkg="rqt_reconfigure" type="rqt_reconfigure" name="rqt_reconfigure" if="$(optenv OM_START_RVIZ True)"/>
     <node pkg="mower_map" type="mower_map_service" name="mower_map" required="true"/>
     <node pkg="mower_logic" type="mower_logic" name="mower_logic" output="screen" respawn="true" respawn_delay="10"/>
     <node pkg="slic3r_coverage_planner" type="slic3r_coverage_planner" name="slic3r_coverage_planner" output="screen"
           required="true"/>
+
+    <node name="converter1" pkg="mower_utils" type="xbot_pose_converter" required="true">
+        <param name="topic" value="/ll/position/gps"/>
+        <param name="frame" value="map"/>
+    </node>
 
     <node pkg="twist_mux" type="twist_mux" name="twist_mux" output="screen">
         <remap from="cmd_vel_out" to="/ll/cmd_vel"/>
