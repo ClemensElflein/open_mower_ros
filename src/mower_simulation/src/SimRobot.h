@@ -26,8 +26,9 @@ class SimRobot {
   void GetEmergencyState(bool &active, bool &latch, std::string &reason);
   void SetControlTwist(double linear, double angular);
   void GetPosition(double &x, double &y, double &heading);
+  void SetPosition(const double x, const double y, const double heading);
 
-  void SetDockingPose(double x, double y, double heading);
+  void SetDockingPose(const double x, const double y, const double heading);
 
   void GetIsCharging(bool &charging, double &seconds_since_start, std::string &charging_status, double &charger_volts,
                      double &battery_volts, double &charging_current);

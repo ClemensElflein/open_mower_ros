@@ -80,6 +80,20 @@ void SimRobot::GetPosition(double& x, double& y, double& heading) {
   }
 }
 
+void SimRobot::SetPosition(const double x, const double y, const double heading) {
+  std::lock_guard<std::mutex> lk{state_mutex_};
+  pos_x_ = x;
+  pos_y_ = y;
+  pos_heading_ = heading;
+}
+
+void SimRobot::SetDockingPose(const double x, const double y, const double heading) {
+  std::lock_guard<std::mutex> lk{state_mutex_};
+  docking_pos_x_ = x;
+  docking_pos_y_ = y;
+  docking_pos_heading_ = heading;
+}
+
 void SimRobot::GetIsCharging(bool& charging, double& seconds_since_start, std::string& charging_status,
                              double& charger_volts, double& battery_volts, double& charging_current) {
   std::lock_guard<std::mutex> lk{state_mutex_};
