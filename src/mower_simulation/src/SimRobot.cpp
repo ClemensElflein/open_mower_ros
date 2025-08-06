@@ -6,6 +6,8 @@
 
 #include <nav_msgs/Odometry.h>
 #include <spdlog/spdlog.h>
+#include <tf2/LinearMath/Quaternion.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
 #include <boost/thread/pthread/thread_data.hpp>
 
@@ -152,11 +154,13 @@ void SimRobot::SimulationStep(const ros::TimerEvent& te) {
   last_update_ = now;
 
   {
-    actual_position_.header.frame_id = "odom";
+    actual_position_.header.frame_id = "map";
     actual_position_.header.seq++;
     actual_position_.header.stamp = ros::Time::now();
     actual_position_.pose.pose.position.x = pos_x_;
     actual_position_.pose.pose.position.y = pos_y_;
+    tf2::Quaternion q_mag(0.0, 0.0, pos_heading_);
+    actual_position_.pose.pose.orientation = tf2::toMsg(q_mag);
     actual_position_publisher_.publish(actual_position_);
   }
 
