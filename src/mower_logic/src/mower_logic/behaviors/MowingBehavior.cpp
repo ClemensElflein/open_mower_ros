@@ -644,7 +644,7 @@ MowingBehavior::MowingBehavior() {
   restore_checkpoint();
 }
 
-void MowingBehavior::handle_action(std::string action) {
+bool MowingBehavior::handle_action(const std::string &action, const std::string &payload, std::string &response) {
   if (action == "mower_logic:mowing/pause") {
     ROS_INFO_STREAM("got pause command");
     this->requestPause();
@@ -660,8 +660,11 @@ void MowingBehavior::handle_action(std::string action) {
   } else if (action == "mower_logic:mowing/skip_path") {
     ROS_INFO_STREAM("got skip_path command");
     skip_path = true;
+  } else {
+    return false;
   }
   update_actions();
+  return true;
 }
 
 void MowingBehavior::checkpoint() {
