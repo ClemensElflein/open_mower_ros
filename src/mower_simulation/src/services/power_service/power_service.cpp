@@ -1,14 +1,12 @@
-//
-// Created by clemens on 09.09.24.
-//
-
 #include "power_service.hpp"
+
+#include "../../services.hpp"
 
 void PowerService::tick() {
   bool is_charging;
   double charging_time, charge_volts, battery_volts, charge_current;
   std::string charge_state;
-  robot_.GetIsCharging(is_charging, charging_time, charge_state, charge_volts, battery_volts, charge_current);
+  robot.GetIsCharging(is_charging, charging_time, charge_state, charge_volts, battery_volts, charge_current);
 
   // Send the sensor values
   StartTransaction();
