@@ -8,6 +8,8 @@
 #include <spdlog/spdlog.h>
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <tf2_ros/transform_broadcaster.h>
+#include <xbot_msgs/AbsolutePose.h>
 
 #include <boost/thread/pthread/thread_data.hpp>
 
@@ -25,9 +27,23 @@ void SimRobot::Start() {
     return;
   }
   started_ = true;
-  actual_position_publisher_ = nh_.advertise<nav_msgs::Odometry>("actual_position", 50);
+  gps_service_ = nh_.advertiseService("/xbot_positioning/set_gps_state", &SimRobot::OnSetGpsState, this);
+  pose_service_ = nh_.advertiseService("/xbot_positioning/set_robot_pose", &SimRobot::OnSetPose, this);
+  odometry_pub_ = nh_.advertise<nav_msgs::Odometry>("odom_out", 50);
+  xbot_absolute_pose_pub_ = nh_.advertise<xbot_msgs::AbsolutePose>("xb_pose_out", 50);
   timer_ = nh_.createTimer(ros::Duration(0.1), &SimRobot::SimulationStep, this);
   timer_.start();
+}
+
+bool SimRobot::OnSetGpsState(xbot_positioning::GPSControlSrvRequest& req,
+                             xbot_positioning::GPSControlSrvResponse& res) {
+  gps_enabled_ = req.gps_enabled;
+  return true;
+}
+
+bool SimRobot::OnSetPose(xbot_positioning::SetPoseSrvRequest& req, xbot_positioning::SetPoseSrvResponse& res) {
+  // Ignored, because calling this service won't move a real mower either, it just improves the estimation.
+  return true;
 }
 
 void SimRobot::GetTwist(double& vx, double& vr) {
@@ -165,18 +181,50 @@ void SimRobot::SimulationStep(const ros::TimerEvent& te) {
     charge_current_ = 0.0;
   }
 
-  last_update_ = now;
+  PublishPosition();
 
-  {
-    actual_position_.header.frame_id = "map";
-    actual_position_.header.seq++;
-    actual_position_.header.stamp = ros::Time::now();
-    actual_position_.pose.pose.position.x = pos_x_;
-    actual_position_.pose.pose.position.y = pos_y_;
-    tf2::Quaternion q_mag(0.0, 0.0, pos_heading_);
-    actual_position_.pose.pose.orientation = tf2::toMsg(q_mag);
-    actual_position_publisher_.publish(actual_position_);
-  }
+  last_update_ = now;
+}
+
+void SimRobot::PublishPosition() {
+  nav_msgs::Odometry odometry;
+  geometry_msgs::TransformStamped odom_trans;
+  xbot_msgs::AbsolutePose xb_absolute_pose_msg;
+  static tf2_ros::TransformBroadcaster transform_broadcaster;
+
+  odometry.header.seq++;
+  odometry.header.stamp = ros::Time::now();
+  odometry.header.frame_id = "map";
+  odometry.child_frame_id = "base_link";
+  odometry.pose.pose.position.x = pos_x_;
+  odometry.pose.pose.position.y = pos_y_;
+  tf2::Quaternion q_mag(0.0, 0.0, pos_heading_);
+  odometry.pose.pose.orientation = tf2::toMsg(q_mag);
+
+  odom_trans.header = odometry.header;
+  odom_trans.child_frame_id = odometry.child_frame_id;
+  odom_trans.transform.translation.x = odometry.pose.pose.position.x;
+  odom_trans.transform.translation.y = odometry.pose.pose.position.y;
+  odom_trans.transform.translation.z = odometry.pose.pose.position.z;
+  odom_trans.transform.rotation = odometry.pose.pose.orientation;
+
+  xb_absolute_pose_msg.header = odometry.header;
+  xb_absolute_pose_msg.sensor_stamp = 0;
+  xb_absolute_pose_msg.received_stamp = 0;
+  xb_absolute_pose_msg.source = xbot_msgs::AbsolutePose::SOURCE_SENSOR_FUSION;
+  xb_absolute_pose_msg.flags = xbot_msgs::AbsolutePose::FLAG_SENSOR_FUSION_RECENT_ABSOLUTE_POSE |
+                               xbot_msgs::AbsolutePose::FLAG_SENSOR_FUSION_DEAD_RECKONING;
+  xb_absolute_pose_msg.orientation_valid = true;
+  xb_absolute_pose_msg.motion_vector_valid = false;
+  xb_absolute_pose_msg.position_accuracy = gps_enabled_ ? 0.05 : 999;
+  xb_absolute_pose_msg.orientation_accuracy = 0.01;
+  xb_absolute_pose_msg.pose = odometry.pose;
+  xb_absolute_pose_msg.vehicle_heading = pos_heading_;
+  xb_absolute_pose_msg.motion_heading = pos_heading_;
+
+  odometry_pub_.publish(odometry);
+  transform_broadcaster.sendTransform(odom_trans);
+  xbot_absolute_pose_pub_.publish(xb_absolute_pose_msg);
 
   spdlog::debug("Position: x:{}, y:{}, heading:{}", pos_x_, pos_y_, pos_heading_);
 }
