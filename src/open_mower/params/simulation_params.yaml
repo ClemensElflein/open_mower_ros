@@ -1,0 +1,10 @@
+ll:
+  bind_ip: 0.0.0.0
+  services:
+    gps:
+      absolute_coords: false
+
+mower_logic:
+  gps_wait_time: 2.0
+  docking_approach_distance: 1.0
+  undock_distance: 1.0

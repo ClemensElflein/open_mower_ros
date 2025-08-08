@@ -17,13 +17,14 @@ GpsServiceInterface::GpsServiceInterface(uint16_t service_id, const xbot::servic
                                          const ros::Publisher& absolute_pose_publisher,
                                          const ros::Publisher& nmea_publisher, double datum_lat, double datum_long,
                                          double datum_height, uint32_t baud_rate, const std::string& protocol,
-                                         uint8_t port_index)
+                                         uint8_t port_index, bool absolute_coords)
     : GpsServiceInterfaceBase(service_id, ctx),
       absolute_pose_publisher_(absolute_pose_publisher),
       nmea_publisher_(nmea_publisher),
       baud_rate_(baud_rate),
       protocol_(protocol),
-      port_index_(port_index) {
+      port_index_(port_index),
+      absolute_coords_(absolute_coords) {
   RobotLocalization::NavsatConversions::LLtoUTM(datum_lat, datum_long, datum_n_, datum_e_, datum_zone_);
   datum_u_ = datum_height;
 }
@@ -108,13 +109,24 @@ void GpsServiceInterface::OnPositionChanged(const double* new_value, uint32_t le
     ROS_INFO_STREAM("OnPositionChanged called with length " << length);
     return;
   }
-  SendNMEA(new_value[0], new_value[1]);
-  double e, n;
-  std::string zone;
-  RobotLocalization::NavsatConversions::LLtoUTM(new_value[0], new_value[1], n, e, zone);
-  pose_msg_.pose.pose.position.x = e - datum_e_;
-  pose_msg_.pose.pose.position.y = n - datum_n_;
-  pose_msg_.pose.pose.position.z = new_value[2] - datum_u_;
+  if (absolute_coords_) {
+    SendNMEA(new_value[0], new_value[1]);
+    double e, n;
+    std::string zone;
+    RobotLocalization::NavsatConversions::LLtoUTM(new_value[0], new_value[1], n, e, zone);
+    pose_msg_.pose.pose.position.x = e - datum_e_;
+    pose_msg_.pose.pose.position.y = n - datum_n_;
+    pose_msg_.pose.pose.position.z = new_value[2] - datum_u_;
+  } else {
+    double n = new_value[1] + datum_n_;
+    double e = new_value[0] + datum_e_;
+    double lat, lng;
+    RobotLocalization::NavsatConversions::UTMtoLL(n, e, datum_zone_, lat, lng);
+    SendNMEA(lat, lng);
+    pose_msg_.pose.pose.position.x = new_value[0];
+    pose_msg_.pose.pose.position.y = new_value[1];
+    pose_msg_.pose.pose.position.z = new_value[2];
+  }
 }
 
 void GpsServiceInterface::OnPositionHorizontalAccuracyChanged(const double& new_value) {

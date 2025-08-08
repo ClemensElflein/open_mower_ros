@@ -7,6 +7,8 @@
 
 #include <nav_msgs/Odometry.h>
 #include <ros/ros.h>
+#include <xbot_positioning/GPSControlSrv.h>
+#include <xbot_positioning/SetPoseSrv.h>
 
 #include <mutex>
 #include <random>
@@ -17,7 +19,6 @@ class SimRobot {
   explicit SimRobot(ros::NodeHandle &nh);
   void Start();
 
-  void GetPosition(double &x, double &y);
   void GetTwist(double &vx, double &vr);
 
   void ResetEmergency();
@@ -26,11 +27,15 @@ class SimRobot {
   void GetEmergencyState(bool &active, bool &latch, std::string &reason);
   void SetControlTwist(double linear, double angular);
   void GetPosition(double &x, double &y, double &heading);
+  void SetPosition(const double x, const double y, const double heading);
 
-  void SetDockingPose(double x, double y, double heading);
+  void SetDockingPose(const double x, const double y, const double heading);
 
   void GetIsCharging(bool &charging, double &seconds_since_start, std::string &charging_status, double &charger_volts,
                      double &battery_volts, double &charging_current);
+
+  bool OnSetPose(xbot_positioning::SetPoseSrvRequest &req, xbot_positioning::SetPoseSrvResponse &res);
+  bool OnSetGpsState(xbot_positioning::GPSControlSrvRequest &req, xbot_positioning::GPSControlSrvResponse &res);
 
  private:
   // 7 cells
@@ -68,26 +73,29 @@ class SimRobot {
   bool is_charging_ = false;
   ros::Time charging_started_time;
   double charger_volts_ = 0;
-  double battery_volts_ = BATTERY_VOLTS_MIN;
+  double battery_volts_ = BATTERY_VOLTS_MAX;
   double charge_current_ = 0;
   std::string charger_state_{"Unknown"};
 
   // Timer for simulation
   ros::Timer timer_;
   void SimulationStep(const ros::TimerEvent &te);
+  void PublishPosition();
 
   /*
    * Generate some noise
    */
   std::default_random_engine generator{};
-  std::normal_distribution<double> position_noise{0.0, 0.03};
+  std::normal_distribution<double> position_noise{0.0, 0.005};
   std::normal_distribution<double> heading_noise{0.0, 0.01};
   std::normal_distribution<double> linear_speed_noise{0.0, 0.02};
   std::normal_distribution<double> angular_speed_noise{0.0, 0.02};
 
-  // Debugging
-  nav_msgs::Odometry actual_position_{};
-  ros::Publisher actual_position_publisher_{};
+  ros::ServiceServer gps_service_;
+  ros::ServiceServer pose_service_;
+  ros::Publisher odometry_pub_{};
+  ros::Publisher xbot_absolute_pose_pub_{};
+  bool gps_enabled_ = true;
 };
 
 #endif  // SIMROBOT_H

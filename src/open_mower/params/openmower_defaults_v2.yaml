@@ -9,6 +9,7 @@ ll:
       baud_rate: 921600
       protocol: "UBX"
       datum_height: 0
+      absolute_coords: true
     imu:
       axis_config: "+X-Y-Z"
     power:
