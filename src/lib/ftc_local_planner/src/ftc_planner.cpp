@@ -510,8 +510,21 @@ namespace ftc_local_planner
 
         if (current_state == FOLLOWING)
         {
+            // reduce angular error gain if there is a large lateral error
+            double ang_gain_factor = 1.0;
+            if(config.lateral_priority_distance > 0) {
+                if(abs(lat_error) >= config.lateral_priority_distance) {
+                    ang_gain_factor = 1;
+                } else {
+                    ang_gain_factor = (config.lateral_priority_distance - abs(lat_error))/config.lateral_priority_distance;
+                }
 
-            double ang_speed = angle_error * config.kp_ang + i_angle_error * config.ki_ang + d_angle * config.kd_ang +
+                if(ang_gain_factor < 0.1) {
+                    ang_gain_factor = 0.1;
+                }
+            }
+
+            double ang_speed = ang_gain_factor * (angle_error * config.kp_ang + i_angle_error * config.ki_ang + d_angle * config.kd_ang) +
                                lat_error * config.kp_lat + i_lat_error * config.ki_lat + d_lat * config.kd_lat;
 
             if (ang_speed > config.max_cmd_vel_ang)
