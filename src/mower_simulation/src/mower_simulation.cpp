@@ -69,6 +69,20 @@ int main(int argc, char **argv) {
 
   SimRobot robot{paramNh};
 
+  // Move the robot to the docking station.
+  // TODO: Use a better way to make sure that the docking position is loaded.
+  sleep(3);
+  mower_map::GetDockingPointSrv get_docking_point_srv;
+  docking_point_client.call(get_docking_point_srv);
+  const auto &docking_pose = get_docking_point_srv.response.docking_pose;
+  tf2::Quaternion quat;
+  tf2::fromMsg(docking_pose.orientation, quat);
+  tf2::Matrix3x3 m(quat);
+  double roll, pitch, yaw;
+  m.getRPY(roll, pitch, yaw);
+  robot.SetDockingPose(docking_pose.position.x, docking_pose.position.y, yaw);
+  robot.SetPosition(docking_pose.position.x, docking_pose.position.y, yaw);
+
   EmergencyService emergency_service{xbot::service_ids::EMERGENCY, robot};
   DiffDriveService diff_drive_service{xbot::service_ids::DIFF_DRIVE, robot};
   MowerService mower_service{xbot::service_ids::MOWER, robot};
