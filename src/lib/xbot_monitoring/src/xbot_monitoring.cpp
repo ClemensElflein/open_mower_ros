@@ -62,6 +62,10 @@ ros::Publisher cmd_vel_pub;
 ros::Publisher action_pub;
 ros::Publisher rpc_request_pub;
 
+// Datum
+double datum_lat, datum_long, datum_height;
+bool has_datum = false;
+
 // properties for external mqtt
 bool external_mqtt_enable = false;
 std::string external_mqtt_username = "";
@@ -467,13 +471,18 @@ void publish_map_overlay() {
 void map_callback(const std_msgs::String::ConstPtr &msg) {
     try {
         map = json::parse(msg->data);
+        // TODO: If it wasn't for the datum, we could just pass the JSON string directly to MQTT.
+        if (has_datum) {
+            map["datum"]["lat"] = datum_lat;
+            map["datum"]["long"] = datum_long;
+            map["datum"]["height"] = datum_height;
+        }
         has_map = true;
         publish_map();
     } catch (const json::exception &e) {
         ROS_ERROR_STREAM("Error processing map JSON: " << e.what());
     }
 }
-
 
 void map_overlay_callback(const xbot_msgs::MapOverlay::ConstPtr &msg) {
     // Build a JSON and publish it
@@ -607,6 +616,11 @@ int main(int argc, char **argv) {
     if(version_string.empty()) {
         version_string = "UNKNOWN VERSION";
     }
+
+    has_datum = true;
+    has_datum &= n->getParam("/ll/services/gps/datum_lat", datum_lat);
+    has_datum &= n->getParam("/ll/services/gps/datum_long", datum_long);
+    has_datum &= n->getParam("/ll/services/gps/datum_height", datum_height);
 
     external_mqtt_enable = paramNh.param("external_mqtt_enable", false);
     external_mqtt_topic_prefix = paramNh.param("external_mqtt_topic_prefix", std::string(""));
