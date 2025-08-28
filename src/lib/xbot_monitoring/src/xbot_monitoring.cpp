@@ -48,6 +48,10 @@ std::mutex mqtt_callback_mutex;
 ros::Publisher cmd_vel_pub;
 ros::Publisher action_pub;
 
+// Datum
+double datum_lat, datum_long, datum_height;
+bool has_datum = true;
+
 // properties for external mqtt
 bool external_mqtt_enable = false;
 std::string external_mqtt_username = "";
@@ -428,6 +432,12 @@ void map_callback(const xbot_msgs::Map::ConstPtr &msg) {
     // Build a JSON and publish it
     json j;
 
+    if (has_datum) {
+        j["datum"]["lat"] = datum_lat;
+        j["datum"]["long"] = datum_long;
+        j["datum"]["height"] = datum_height;
+    }
+
     j["docking_pose"]["x"] = msg->dockX;
     j["docking_pose"]["y"] = msg->dockY;
     j["docking_pose"]["heading"] = msg->dockHeading;
@@ -562,6 +572,18 @@ int main(int argc, char **argv) {
     version_string = paramNh.param("software_version", std::string("UNKNOWN VERSION"));
     if(version_string.empty()) {
         version_string = "UNKNOWN VERSION";
+    }
+
+    has_datum = true;
+    has_datum &= n->getParam("/xbot_driver_gps/datum_lat", datum_lat);
+    has_datum &= n->getParam("/xbot_driver_gps/datum_long", datum_long);
+    has_datum &= n->getParam("/xbot_driver_gps/datum_height", datum_height);
+
+    if (!has_datum) {
+        has_datum = true;
+        has_datum &= n->getParam("/ll/services/gps/datum_lat", datum_lat);
+        has_datum &= n->getParam("/ll/services/gps/datum_long", datum_long);
+        has_datum &= n->getParam("/ll/services/gps/datum_height", datum_height);
     }
 
     external_mqtt_enable = paramNh.param("external_mqtt_enable", false);
