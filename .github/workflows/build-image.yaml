@@ -17,6 +17,15 @@ on:
           - all
           - osv1
           - osv2
+      arch:
+        description: 'Which architecture to build (amd64/arm64 or all)'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - amd64
+          - arm64
   push:
     branches:
       - 'main'
@@ -105,7 +114,7 @@ jobs:
             ghcr.io/${{ env.REPOSITORY_LC }}
 
       - name: Select metadata labels
-        if: github.event_name != 'workflow_dispatch' || inputs.variant == 'all' || inputs.variant == matrix.variant
+        if: github.event_name != 'workflow_dispatch' || ((inputs.variant == 'all' || inputs.variant == matrix.variant) && (inputs.arch == 'all' || inputs.arch == matrix.docker_build_arch))
         run: |
           if [ "${{ matrix.variant }}" = "osv2" ]; then
             echo "META_LABELS=${{ steps.meta_osv2.outputs.labels }}" >> ${GITHUB_ENV}
@@ -115,12 +124,12 @@ jobs:
 
       # https://github.com/docker/setup-buildx-action
       - name: Set up Docker Buildx
-        if: github.event_name != 'workflow_dispatch' || inputs.variant == 'all' || inputs.variant == matrix.variant
+        if: github.event_name != 'workflow_dispatch' || ((inputs.variant == 'all' || inputs.variant == matrix.variant) && (inputs.arch == 'all' || inputs.arch == matrix.docker_build_arch))
         id: buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Login to GHCR
-        if: (github.event_name != 'pull_request') && (github.event_name != 'workflow_dispatch' || inputs.variant == 'all' || inputs.variant == matrix.variant)
+        if: (github.event_name != 'pull_request') && (github.event_name != 'workflow_dispatch' || ((inputs.variant == 'all' || inputs.variant == matrix.variant) && (inputs.arch == 'all' || inputs.arch == matrix.docker_build_arch)))
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -128,7 +137,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push
-        if: github.event_name != 'workflow_dispatch' || inputs.variant == 'all' || inputs.variant == matrix.variant
+        if: github.event_name != 'workflow_dispatch' || ((inputs.variant == 'all' || inputs.variant == matrix.variant) && (inputs.arch == 'all' || inputs.arch == matrix.docker_build_arch))
         id: build-and-push
         uses: docker/build-push-action@v6
         with:
@@ -142,14 +151,14 @@ jobs:
           cache-to: type=gha,scope=${{ matrix.os }},mode=max
 
       - name: Export digest
-        if: github.event_name != 'workflow_dispatch' || inputs.variant == 'all' || inputs.variant == matrix.variant
+        if: github.event_name != 'workflow_dispatch' || ((inputs.variant == 'all' || inputs.variant == matrix.variant) && (inputs.arch == 'all' || inputs.arch == matrix.docker_build_arch))
         run: |
           mkdir -p /tmp/digests
           digest="${{ steps.build-and-push.outputs.digest }}"
           touch "/tmp/digests/${digest#sha256:}"
 
       - name: Upload digest
-        if: github.event_name != 'workflow_dispatch' || inputs.variant == 'all' || inputs.variant == matrix.variant
+        if: github.event_name != 'workflow_dispatch' || ((inputs.variant == 'all' || inputs.variant == matrix.variant) && (inputs.arch == 'all' || inputs.arch == matrix.docker_build_arch))
         uses: actions/upload-artifact@v4
         with:
           name: digests-${{ env.BUILD_ARCH }}-${{ matrix.variant }}
