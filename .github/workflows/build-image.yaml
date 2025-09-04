@@ -245,10 +245,17 @@ jobs:
         if: github.event_name != 'workflow_dispatch' || inputs.variant == 'all' || inputs.variant == matrix.variant
         working-directory: /tmp/digests
         run: |
-          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+          echo "Found digest files:" && ls -la || true
+          if [ "$(ls -1 | wc -l)" -eq 0 ]; then
+            echo "No digests found, skipping manifest creation for ${{ matrix.variant }}"
+            exit 0
+          fi
+          TAG_ARGS=$(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON")
+          echo "Creating manifest with tags: $TAG_ARGS"
+          docker buildx imagetools create ${TAG_ARGS} \
             $(printf 'ghcr.io/${{ env.REPOSITORY_LC }}@sha256:%s ' *)
 
       - name: Inspect image
         if: github.event_name != 'workflow_dispatch' || inputs.variant == 'all' || inputs.variant == matrix.variant
         run: |
-          docker buildx imagetools inspect ghcr.io/${{ env.REPOSITORY_LC }}:$(jq -r '.tags[0]' <<< "$DOCKER_METADATA_OUTPUT_JSON")
+          docker buildx imagetools inspect $(jq -r '.tags[0]' <<< "$DOCKER_METADATA_OUTPUT_JSON")
