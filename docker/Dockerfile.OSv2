@@ -71,9 +71,10 @@ RUN bash -c "source /opt/ros/$ROS_DISTRO/setup.bash && cd /opt/open_mower_ros/sr
 
 RUN echo "export OM_SOFTWARE_VERSION=$(git describe --tags || git describe --always || echo \"v0.0.0\")" > version_info.env
 
-COPY ./docker/openmower_entrypoint.sh /openmower_entrypoint.sh
+RUN mkdir -p /config
+COPY ./docker/assets/rosconsole.config /config/rosconsole.config
+COPY ./docker/openmower_entrypoint_osv2.sh /openmower_entrypoint.sh
 RUN chmod +x /openmower_entrypoint.sh
 
 ENTRYPOINT ["/openmower_entrypoint.sh"]
-# No nginx/mosquitto here; leave that to OSv2 compose
 CMD ["bash", "-c", "roslaunch open_mower open_mower.launch --screen"]
