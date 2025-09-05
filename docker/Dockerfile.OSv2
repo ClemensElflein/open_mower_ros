@@ -73,8 +73,8 @@ RUN echo "export OM_SOFTWARE_VERSION=$(git describe --tags || git describe --alw
 
 RUN mkdir -p /config
 COPY ./docker/assets/rosconsole.config /config/rosconsole.config
-COPY ./docker/openmower_entrypoint_osv2.sh /openmower_entrypoint.sh
+COPY ./docker/openmower_entrypoint.sh /openmower_entrypoint.sh
 RUN chmod +x /openmower_entrypoint.sh
 
-ENTRYPOINT ["/openmower_entrypoint.sh"]
+ENTRYPOINT ["/openmower_entrypoint.sh", "osv2"]
 CMD ["bash", "-c", "roslaunch open_mower open_mower.launch --screen"]

@@ -87,5 +87,5 @@ RUN echo "export OM_SOFTWARE_VERSION=$(git describe --tags || git describe --alw
 COPY ./docker/openmower_entrypoint.sh /openmower_entrypoint.sh
 RUN chmod +x /openmower_entrypoint.sh
 
-ENTRYPOINT ["/openmower_entrypoint.sh"]
+ENTRYPOINT ["/openmower_entrypoint.sh", "osv1"]
 CMD ["bash", "-c", "service nginx start; service mosquitto start; roslaunch open_mower open_mower.launch --screen"]
