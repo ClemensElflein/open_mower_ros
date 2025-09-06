@@ -87,6 +87,15 @@ RUN groupadd --gid ${USER_GID} ${USERNAME} \
     && useradd --uid ${USER_UID} --gid ${USER_GID} --create-home --shell /bin/bash ${USERNAME} \
     && chown -R ${USER_UID}:${USER_GID} /config /home/${USERNAME}
 
+# Prefix the user's existing PS1 with blue [<stack>] for interactive shells
+RUN cat <<'EOF' >> /home/${USERNAME}/.bashrc && chown ${USER_UID}:${USER_GID} /home/${USERNAME}/.bashrc
+# OpenMower: prefix prompt with stack name
+if [ -n "${PS1:-}" ] && [ "${IN_STACK_SHELL:-}" = "1" ]; then
+    stack="${OM_STACK:-openmower}"
+    export PS1="\[\e[1;34m\][${stack}]\[\e[0m\] $PS1"
+fi
+EOF
+
 USER ${USERNAME}
 
 ENTRYPOINT ["/openmower_entrypoint.sh", "osv2"]
