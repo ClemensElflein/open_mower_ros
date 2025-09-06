@@ -79,5 +79,15 @@ RUN chmod 0644 /etc/profile.d/40-openmower.sh \
 COPY ./docker/openmower_entrypoint.sh /openmower_entrypoint.sh
 RUN chmod +x /openmower_entrypoint.sh
 
+# Create openmower runtime user so that we can run the container non-root
+ARG USERNAME=openmower
+ARG USER_UID=1000
+ARG USER_GID=1000
+RUN groupadd --gid ${USER_GID} ${USERNAME} \
+    && useradd --uid ${USER_UID} --gid ${USER_GID} --create-home --shell /bin/bash ${USERNAME} \
+    && chown -R ${USER_UID}:${USER_GID} /config /home/${USERNAME}
+
+USER ${USERNAME}
+
 ENTRYPOINT ["/openmower_entrypoint.sh", "osv2"]
 CMD ["bash", "-c", "roslaunch open_mower open_mower.launch --screen"]
