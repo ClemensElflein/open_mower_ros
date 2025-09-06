@@ -73,9 +73,6 @@ RUN echo "export OM_SOFTWARE_VERSION=$(git describe --tags || git describe --alw
 
 RUN mkdir -p /config
 COPY ./docker/assets/rosconsole.config /config/rosconsole.config
-COPY ./docker/assets/openmower_profile.sh /etc/profile.d/40-openmower.sh
-RUN chmod 0644 /etc/profile.d/40-openmower.sh \
-    && printf '\n# OpenMower: source ROS/catkin env for interactive shells\nsource /etc/profile.d/40-openmower.sh\n' >> /etc/bash.bashrc
 COPY ./docker/openmower_entrypoint.sh /openmower_entrypoint.sh
 RUN chmod +x /openmower_entrypoint.sh
 
@@ -87,14 +84,15 @@ RUN groupadd --gid ${USER_GID} ${USERNAME} \
     && useradd --uid ${USER_UID} --gid ${USER_GID} --create-home --shell /bin/bash ${USERNAME} \
     && chown -R ${USER_UID}:${USER_GID} /config /home/${USERNAME}
 
-# Prefix the user's existing PS1 with blue [<stack>] for interactive shells
-RUN cat <<'EOF' >> /home/${USERNAME}/.bashrc && chown ${USER_UID}:${USER_GID} /home/${USERNAME}/.bashrc
-# OpenMower: prefix prompt with stack name
-if [ -n "${PS1:-}" ] && [ "${IN_STACK_SHELL:-}" = "1" ]; then
-    stack="${OM_STACK:-openmower}"
-    export PS1="\[\e[1;34m\][${stack}]\[\e[0m\] $PS1"
-fi
-EOF
+# Append our bashrc extension to user's .bashrc
+COPY ./docker/assets/openmower-bashrc.sh /tmp/openmower-bashrc.sh
+RUN set -eux; \
+    BRC="/home/${USERNAME}/.bashrc"; \
+    touch "$BRC"; \
+    chown ${USER_UID}:${USER_GID} "$BRC"; \
+    printf '\n# OpenMower bashrc extension\n' >> "$BRC"; \
+    cat /tmp/openmower-bashrc.sh >> "$BRC"; \
+    rm -f /tmp/openmower-bashrc.sh
 
 USER ${USERNAME}
 
