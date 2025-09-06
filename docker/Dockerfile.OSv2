@@ -73,6 +73,9 @@ RUN echo "export OM_SOFTWARE_VERSION=$(git describe --tags || git describe --alw
 
 RUN mkdir -p /config
 COPY ./docker/assets/rosconsole.config /config/rosconsole.config
+COPY ./docker/assets/openmower_profile.sh /etc/profile.d/40-openmower.sh
+RUN chmod 0644 /etc/profile.d/40-openmower.sh \
+    && printf '\n# OpenMower: source ROS/catkin env for interactive shells\nsource /etc/profile.d/40-openmower.sh\n' >> /etc/bash.bashrc
 COPY ./docker/openmower_entrypoint.sh /openmower_entrypoint.sh
 RUN chmod +x /openmower_entrypoint.sh
 
