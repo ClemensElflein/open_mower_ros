@@ -16,16 +16,14 @@ Currently, the following repositories are included:
 - **teb_local_planner**: The local planner which allows the robot to avoid obstacles and follow the global path using kinematic constraints.
 - **xesc_ros**: The ROS interface for the xESC motor controllers.
 
-## Container images: OSv1 vs OSv2
+## Container images: Default vs Legacy
 
-If your robot runs OpenMower OS v1 (OSv1): use the standard image. It includes everything you need, including the built‑in web server (nginx) and the MQTT broker (mosquitto).
+If your robot runs the latest OpenMower OS (v2): use the images without prefix or suffix (e.g. `latest`, `v1.2.3`).
+These images only contain the OpenMower ROS stack and expect the OS to provide web and MQTT services (for example via your system’s compose setup).
 
-If your robot runs OpenMower OS v2 (OSv2): use a image with `-osv2` suffix. It focuses on the OpenMower ROS stack only and expects the OS to provide web and MQTT services (for example via your system’s compose setup).
-
-Short technical note
-
-- OSv1 image contains nginx and mosquitto and exposes them inside the container.
-- OSv2 image does not contain these services; it only runs the OpenMower launch. Your OS or compose file should run nginx/mosquitto next to it.
+If your robot runs an old version of OpenMower OS v1 (Legacy): use the legacy image.
+The OS doesn't provide web and MQTT services, so the image contains nginx and mosquitto to provide these services inside the container.
+The Docker images have a `-legacy` suffix or `releases-` prefix: (e.g. `releases-edge`, `v1.2.3-legacy`).
 
 ## Getting started
 

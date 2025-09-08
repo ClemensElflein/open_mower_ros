@@ -14,7 +14,7 @@ void GpsService::tick() {
   robot.GetTwist(vx, vr);
   robot.GetPosition(xyz[0], xyz[1], headingAndAccuracy[0]);
   SendPosition(xyz, 3);
-  SendMotionHeadingAndAccuracy(headingAndAccuracy, 2);
+  // SendMotionHeadingAndAccuracy(headingAndAccuracy, 2);
   double motion_vector_enu[3]{};
   motion_vector_enu[0] = vx * cos(headingAndAccuracy[0]);
   motion_vector_enu[1] = vx * sin(headingAndAccuracy[0]);
