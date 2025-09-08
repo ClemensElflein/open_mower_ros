@@ -210,7 +210,7 @@ jobs:
             latest=true                    # <-- only here
       # Default, carries semver (v1.2.3) and PR/branch tags without suffix
       - name: Docker meta (Default)
-        if: (matrix.variant == 'default') && (github.event_name != 'workflow_dispatch' || inputs.variant == 'all' || inputs.variant == matrix.variant)
+        if: (matrix.variant == 'default') && (github.event_name != 'workflow_dispatch' || inputs.variant == 'all' || inputs.variant == matrix.variant) && !((github.event_name == 'push') && (github.ref == 'refs/heads/main'))
         id: meta_default
         uses: docker/metadata-action@v5
         with:
