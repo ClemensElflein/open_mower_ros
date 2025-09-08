@@ -8,6 +8,24 @@ on:
         description: 'Clean build without cache'
         default: false
         type: boolean
+      variant:
+        description: 'Which variant to build (default/legacy or all)'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - default
+          - legacy
+      arch:
+        description: 'Which architecture to build (amd64/arm64 or all)'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - amd64
+          - arm64
   push:
     branches:
       - 'main'
@@ -28,19 +46,28 @@ concurrency:
 permissions:
   packages: write
 
-
-
 jobs:
   build:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ ubuntu-24.04-arm, ubuntu-24.04 ]
         include:
           - os: ubuntu-24.04-arm
             docker_build_arch: arm64
+            variant: legacy
+            dockerfile: ./docker/Dockerfile.Legacy
           - os: ubuntu-24.04
             docker_build_arch: amd64
+            variant: legacy
+            dockerfile: ./docker/Dockerfile.Legacy
+          - os: ubuntu-24.04-arm
+            docker_build_arch: arm64
+            variant: default
+            dockerfile: ./docker/Dockerfile
+          - os: ubuntu-24.04
+            docker_build_arch: amd64
+            variant: default
+            dockerfile: ./docker/Dockerfile
     steps:
       - name: Prepare
         env:
@@ -66,20 +93,43 @@ jobs:
       - uses: pre-commit/action@v3.0.1
 
       - name: Docker meta
-        id: meta
+        if: matrix.variant == 'default'
+        id: meta_default
         uses: docker/metadata-action@v5
         with:
-          # list of Docker images to use as base name for tags
           images: |
             ghcr.io/${{ env.REPOSITORY_LC }}
+          flavor: |
+            latest=false
+
+      - name: Docker meta (Legacy)
+        if: matrix.variant == 'legacy'
+        id: meta_legacy
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ghcr.io/${{ env.REPOSITORY_LC }}
+          flavor: |
+            latest=false
+            suffix=-legacy
+
+      - name: Select metadata labels
+        if: github.event_name != 'workflow_dispatch' || ((inputs.variant == 'all' || inputs.variant == matrix.variant) && (inputs.arch == 'all' || inputs.arch == matrix.docker_build_arch))
+        run: |
+          if [ "${{ matrix.variant }}" = "default" ]; then
+            echo "META_LABELS=${{ steps.meta_default.outputs.labels }}" >> ${GITHUB_ENV}
+          else
+            echo "META_LABELS=${{ steps.meta_legacy.outputs.labels }}" >> ${GITHUB_ENV}
+          fi
 
       # https://github.com/docker/setup-buildx-action
       - name: Set up Docker Buildx
+        if: github.event_name != 'workflow_dispatch' || ((inputs.variant == 'all' || inputs.variant == matrix.variant) && (inputs.arch == 'all' || inputs.arch == matrix.docker_build_arch))
         id: buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Login to GHCR
-        if: github.event_name != 'pull_request'
+        if: (github.event_name != 'pull_request') && (github.event_name != 'workflow_dispatch' || ((inputs.variant == 'all' || inputs.variant == matrix.variant) && (inputs.arch == 'all' || inputs.arch == matrix.docker_build_arch)))
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -87,39 +137,45 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push
+        if: github.event_name != 'workflow_dispatch' || ((inputs.variant == 'all' || inputs.variant == matrix.variant) && (inputs.arch == 'all' || inputs.arch == matrix.docker_build_arch))
         id: build-and-push
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./docker/Dockerfile
+          file: ${{ matrix.dockerfile }}
           platforms: ${{ matrix.docker_build_arch }}
           no-cache: ${{ inputs.clean_build == true || false }}
-          labels: ${{ steps.meta.outputs.labels }}
+          labels: ${{ env.META_LABELS }}
           outputs: type=image,name=ghcr.io/${{ env.REPOSITORY_LC }},push-by-digest=true,name-canonical=true,push=${{ github.event_name != 'pull_request' }}
           cache-from: type=gha,scope=${{ matrix.os }}
           cache-to: type=gha,scope=${{ matrix.os }},mode=max
 
       - name: Export digest
+        if: github.event_name != 'workflow_dispatch' || ((inputs.variant == 'all' || inputs.variant == matrix.variant) && (inputs.arch == 'all' || inputs.arch == matrix.docker_build_arch))
         run: |
           mkdir -p /tmp/digests
           digest="${{ steps.build-and-push.outputs.digest }}"
           touch "/tmp/digests/${digest#sha256:}"
 
       - name: Upload digest
+        if: github.event_name != 'workflow_dispatch' || ((inputs.variant == 'all' || inputs.variant == matrix.variant) && (inputs.arch == 'all' || inputs.arch == matrix.docker_build_arch))
         uses: actions/upload-artifact@v4
         with:
-          name: digests-${{ env.BUILD_ARCH }}
+          name: digests-${{ env.BUILD_ARCH }}-${{ matrix.variant }}
           path: /tmp/digests/*
           if-no-files-found: error
           retention-days: 1
-
-
 
   merge:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
     needs:
       - build
+    strategy:
+      matrix:
+        include:
+          - variant: default
+          - variant: legacy
     steps:
       - name: Prepare
         env:
@@ -128,22 +184,38 @@ jobs:
           echo "REPOSITORY_LC=${REPOSITORY,,}" >> ${GITHUB_ENV}
 
       - name: Download digests
+        if: github.event_name != 'workflow_dispatch' || inputs.variant == 'all' || inputs.variant == matrix.variant
         uses: actions/download-artifact@v4
         with:
           path: /tmp/digests
-          pattern: digests-*
+          pattern: digests-*-${{ matrix.variant }}
           merge-multiple: true
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-
-      - name: Docker meta
-        id: meta
+      # Default (MAIN ONLY): `latest` on commits to main
+      - name: Docker meta (Default - main)
+        if: >
+          (matrix.variant == 'default') &&
+          (github.event_name == 'push') &&
+          (github.ref == 'refs/heads/main')
+        id: meta_default_main
         uses: docker/metadata-action@v5
         with:
-          # generate Docker tags based on the following events/attributes
+          images: ghcr.io/${{ env.REPOSITORY_LC }}
           tags: |
-            type=edge,branch=main,prefix=releases-
+            type=edge,branch=main          # e.g. main
+            type=sha                       # sha-<short>
+          flavor: |
+            latest=true                    # <-- only here
+      # Default, carries semver (v1.2.3) and PR/branch tags without suffix
+      - name: Docker meta (Default)
+        if: (matrix.variant == 'default') && (github.event_name != 'workflow_dispatch' || inputs.variant == 'all' || inputs.variant == matrix.variant)
+        id: meta_default
+        uses: docker/metadata-action@v5
+        with:
+          tags: |
+            type=edge,branch=main
             type=schedule
             type=ref,event=branch
             type=ref,event=pr
@@ -152,8 +224,30 @@ jobs:
             type=semver,pattern={{major}}
             type=sha
           images: ghcr.io/${{ env.REPOSITORY_LC }}
+          flavor: |
+            latest=false
+
+      # Legacy — all tags suffixed with -legacy, no `latest`
+      - name: Docker meta (Legacy)
+        if: (matrix.variant == 'legacy') && (github.event_name != 'workflow_dispatch' || inputs.variant == 'all' || inputs.variant == matrix.variant)
+        id: meta_legacy
+        uses: docker/metadata-action@v5
+        with:
+          tags: |
+            type=edge,branch=main,prefix=releases-
+            type=schedule,suffix=-legacy
+            type=ref,event=branch,suffix=-legacy
+            type=ref,event=pr,suffix=-legacy
+            type=semver,pattern={{version}},suffix=-legacy
+            type=semver,pattern={{major}}.{{minor}},suffix=-legacy
+            type=semver,pattern={{major}},suffix=-legacy
+            type=sha,suffix=-legacy
+          images: ghcr.io/${{ env.REPOSITORY_LC }}
+          flavor: |
+            latest=false
 
       - name: Login to GHCR
+        if: github.event_name != 'workflow_dispatch' || inputs.variant == 'all' || inputs.variant == matrix.variant
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -161,11 +255,20 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create manifest list and push
+        if: github.event_name != 'workflow_dispatch' || inputs.variant == 'all' || inputs.variant == matrix.variant
         working-directory: /tmp/digests
         run: |
-          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+          echo "Found digest files:" && ls -la || true
+          if [ "$(ls -1 | wc -l)" -eq 0 ]; then
+            echo "No digests found, skipping manifest creation for ${{ matrix.variant }}"
+            exit 0
+          fi
+          TAG_ARGS=$(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON")
+          echo "Creating manifest with tags: $TAG_ARGS"
+          docker buildx imagetools create ${TAG_ARGS} \
             $(printf 'ghcr.io/${{ env.REPOSITORY_LC }}@sha256:%s ' *)
 
       - name: Inspect image
+        if: github.event_name != 'workflow_dispatch' || inputs.variant == 'all' || inputs.variant == matrix.variant
         run: |
-          docker buildx imagetools inspect ghcr.io/${{ env.REPOSITORY_LC }}:${{ steps.meta.outputs.version }}
+          docker buildx imagetools inspect $(jq -r '.tags[0]' <<< "$DOCKER_METADATA_OUTPUT_JSON")
