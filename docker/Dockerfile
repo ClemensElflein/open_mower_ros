@@ -6,6 +6,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install --yes \
     git \
     python3.8-venv \
+    sudo \
     && rm -rf /var/lib/apt/lists/*
 
 # Update rosdep
@@ -83,16 +84,8 @@ ARG USER_GID=1000
 RUN groupadd --gid ${USER_GID} ${USERNAME} \
     && useradd --uid ${USER_UID} --gid ${USER_GID} --create-home --shell /bin/bash ${USERNAME} \
     && chown -R ${USER_UID}:${USER_GID} /config /home/${USERNAME}
-
-# Append our bashrc extension to user's .bashrc
-COPY ./docker/assets/openmower-bashrc.sh /tmp/openmower-bashrc.sh
-RUN set -eux; \
-    BRC="/home/${USERNAME}/.bashrc"; \
-    touch "$BRC"; \
-    chown ${USER_UID}:${USER_GID} "$BRC"; \
-    printf '\n# OpenMower bashrc extension\n' >> "$BRC"; \
-    cat /tmp/openmower-bashrc.sh >> "$BRC"; \
-    rm -f /tmp/openmower-bashrc.sh
+RUN usermod -aG sudo ${USERNAME}
+RUN echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${USERNAME} && chmod 0440 /etc/sudoers.d/${USERNAME}
 
 USER ${USERNAME}
 
