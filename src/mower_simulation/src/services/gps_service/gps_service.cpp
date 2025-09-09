@@ -1,6 +1,8 @@
-#include "gps_service.hpp"
+//
+// Created by clemens on 02.08.24.
+//
 
-#include "../../services.hpp"
+#include "gps_service.hpp"
 
 void GpsService::tick() {
   StartTransaction();
@@ -11,10 +13,10 @@ void GpsService::tick() {
   double headingAndAccuracy[2];
   headingAndAccuracy[1] = M_PI / 10.0;
   double vx, vr;
-  robot.GetTwist(vx, vr);
-  robot.GetPosition(xyz[0], xyz[1], headingAndAccuracy[0]);
+  robot_.GetTwist(vx, vr);
+  robot_.GetPosition(xyz[0], xyz[1], headingAndAccuracy[0]);
   SendPosition(xyz, 3);
-  // SendMotionHeadingAndAccuracy(headingAndAccuracy, 2);
+  SendMotionHeadingAndAccuracy(headingAndAccuracy, 2);
   double motion_vector_enu[3]{};
   motion_vector_enu[0] = vx * cos(headingAndAccuracy[0]);
   motion_vector_enu[1] = vx * sin(headingAndAccuracy[0]);
