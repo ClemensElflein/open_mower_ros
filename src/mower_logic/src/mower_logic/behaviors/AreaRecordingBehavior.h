@@ -136,7 +136,7 @@ class AreaRecordingBehavior : public Behavior {
 
   uint8_t get_state() override;
 
-  void handle_action(std::string action) override;
+  bool handle_action(const std::string &action, const std::string &payload, std::string &response) override;
 };
 
 #endif  // SRC_AREA_RECORDING_BEHAVIOR_H
