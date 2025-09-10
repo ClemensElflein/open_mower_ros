@@ -15,6 +15,13 @@ if [[ "$MODE" == "osv1" ]]; then
     source /config/mower_config.sh
 fi
 
+# If a legacy OS user pulls a non-legacy OS image, OM_MOWER is not set.
+if [[ -z "${OM_MOWER:-}" ]]; then
+    echo "[openmower-entrypoint] ERROR: OM_MOWER is not set." >&2
+    echo "[openmower-entrypoint] Hint: If you're running the legacy OS (dated before Sep 2025), change OM_VERSION to a version prefixed with 'releases-' or suffixed with '-legacy'." >&2
+    exit 2
+fi
+
 # source the hardware specific default environment (default wheel ticks, antenna position etc)
 source "$(rospack find open_mower)/params/hardware_specific/$OM_MOWER/default_environment.sh"
 
