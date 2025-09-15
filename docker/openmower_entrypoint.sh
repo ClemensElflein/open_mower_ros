@@ -19,6 +19,7 @@ if [[ "$MODE" == "osv1" ]]; then
     else
         export HARDWARE_PLATFORM=1
     fi
+    export OM_LEGACY_CONFIG_MODE=True
 fi
 
 # source the hardware specific default environment (default wheel ticks, antenna position etc)
