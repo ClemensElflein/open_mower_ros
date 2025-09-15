@@ -21,6 +21,7 @@ if [[ "$MODE" == "osv1" ]]; then
     fi
     export OM_LEGACY_CONFIG_MODE=True
     export ESC_TYPE=$OM_MOWER_ESC_TYPE
+    export MOWER=$OM_MOWER
 fi
 
 # If a legacy OS user pulls a non-legacy OS image, OM_MOWER is not set.
@@ -31,7 +32,7 @@ if [[ -z "${OM_MOWER:-}" ]]; then
 fi
 
 # source the hardware specific default environment (default wheel ticks, antenna position etc)
-source "$(rospack find open_mower)/params/hardware_specific/$OM_MOWER/default_environment.sh"
+source "$(rospack find open_mower)/params/hardware_specific/$MOWER/default_environment.sh"
 
 source /opt/open_mower_ros/version_info.env
 
