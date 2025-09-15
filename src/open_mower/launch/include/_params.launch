@@ -5,13 +5,22 @@
     For v2 it loads the parameters into the parameter server via yaml file
 -->
 <launch>
-    <group if="$(optenv OM_V2 False)">
+    <group unless="$(optenv OM_LEGACY_CONFIG_MODE False)">
+    	<!-- OSV2 - params are stored as .yaml -->
         <!-- v2 params -->
         <group if="$(eval env('OM_MOWER')=='CUSTOM')">
             <!-- If it is a custom robot, don't load any pre-defined params, let the user load whatever they want -->
             <rosparam if="$(eval env('OM_MOWER')=='CUSTOM')" file="$(env HOME)/mower_params/custom_params.yaml"/>
         </group>
         <group unless="$(eval env('OM_MOWER')=='CUSTOM')">
+            <!-- v1 comms parameters for v1 platform (serial ports etc), we don't need it for v2 -->
+	    <group if="$(eval env('HARDWARE_PLATFORM') == '1')">
+	        <rosparam ns="mower_comms"
+                  file="$(find open_mower)/params/hardware_specific/$(env OM_MOWER)/comms_general_params.yaml"/>
+	        <rosparam ns="mower_comms"
+                  file="$(find open_mower)/params/hardware_specific/$(env OM_MOWER)/comms_$(env ESC_TYPE)_params.yaml"/>
+	    </group>
+
             <!-- This is the default case: We have a predefined mower model and let the user override -->
             <rosparam file="$(find open_mower)/params/openmower_defaults_v2.yaml"/>
             <rosparam file="$(find open_mower)/params/hardware_specific/$(env OM_MOWER)/params_v2.yaml"/>
@@ -19,15 +28,15 @@
         </group>
     </group>
 
-    <group unless="$(optenv OM_V2 False)">
-        <!-- V1 params -->
+    <group if="$(optenv OM_LEGACY_CONFIG_MODE False)">
+        <!-- V1 hardware with v1 OS (params are stored as environment variables) -->
         <!-- mower_comms -->
         <rosparam unless="$(eval env('OM_MOWER')=='CUSTOM')"
                   ns="mower_comms"
                   file="$(find open_mower)/params/hardware_specific/$(env OM_MOWER)/comms_general_params.yaml"/>
         <rosparam unless="$(eval env('OM_MOWER')=='CUSTOM')"
                   ns="mower_comms"
-                  file="$(find open_mower)/params/hardware_specific/$(env OM_MOWER)/comms_$(env OM_MOWER_ESC_TYPE)_params.yaml"/>
+                  file="$(find open_mower)/params/hardware_specific/$(env OM_MOWER)/comms_$(env ESC_TYPE)_params.yaml"/>
        <rosparam if="$(eval (env('OM_MOWER')=='CUSTOM') and (optenv('OM_NO_COMMS').lower() != 'true'))"
               ns="mower_comms"
               file="$(env HOME)/mower_params/comms_params.yaml"/>

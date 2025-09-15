@@ -13,6 +13,14 @@ fi
 
 if [[ "$MODE" == "osv1" ]]; then
     source /config/mower_config.sh
+    # If OM_V2 is set (to anything), set HARDWARE_PLATFORM=2, else 1
+    if [[ -n ${OM_V2+x} ]]; then
+        export HARDWARE_PLATFORM=2
+    else
+        export HARDWARE_PLATFORM=1
+    fi
+    export OM_LEGACY_CONFIG_MODE=True
+    export ESC_TYPE=$OM_MOWER_ESC_TYPE
 fi
 
 # If a legacy OS user pulls a non-legacy OS image, OM_MOWER is not set.

@@ -34,7 +34,7 @@
           "description": "The type of mower you're using. This sets physical properties like antenna position and wheel ticks per meter. Use CUSTOM for a custom mower buiold.",
           "x-environment-variable": "OM_MOWER"
         },
-        "OM_MOWER_ESC_TYPE": {
+        "ESC_TYPE": {
           "type": "string",
           "title": "ESC Type",
           "enum": [
@@ -45,7 +45,7 @@
           ],
           "default": "xesc_mini",
           "description": "Select which ESC (speed controller) type you are using. Use xesc_mini if unsure.",
-          "x-environment-variable": "OM_MOWER_ESC_TYPE"
+          "x-environment-variable": "ESC_TYPE"
         },
         "OM_MOWER_GAMEPAD": {
           "type": "string",
