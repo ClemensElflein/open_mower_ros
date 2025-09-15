@@ -13,6 +13,12 @@ fi
 
 if [[ "$MODE" == "osv1" ]]; then
     source /config/mower_config.sh
+    # If OM_V2 is set (to anything), set HARDWARE_PLATFORM=2, else 1
+    if [[ -n ${OM_V2+x} ]]; then
+        export HARDWARE_PLATFORM=2
+    else
+        export HARDWARE_PLATFORM=1
+    fi
 fi
 
 # source the hardware specific default environment (default wheel ticks, antenna position etc)
