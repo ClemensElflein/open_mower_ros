@@ -24,9 +24,9 @@ if [[ "$MODE" == "osv1" ]]; then
     export MOWER=$OM_MOWER
 fi
 
-# If a legacy OS user pulls a non-legacy OS image, OM_MOWER is not set.
-if [[ -z "${OM_MOWER:-}" ]]; then
-    echo "ERROR: OM_MOWER is not set." >&2
+# If a legacy OS user pulls a non-legacy OS image, MOWER is not set.
+if [[ -z "${MOWER:-}" ]]; then
+    echo "ERROR: MOWER is not set." >&2
     echo "Hint: If you're running a legacy OpenMowerOS (dated before Sep 2025), change OM_VERSION to a version prefixed with 'releases-' or suffixed with '-legacy'." >&2
     exit 2
 fi
