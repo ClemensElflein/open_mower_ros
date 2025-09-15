@@ -13,13 +13,13 @@ fi
 
 if [[ "$MODE" == "osv1" ]]; then
     source /config/mower_config.sh
-    # If OM_V2 is set (to anything), set HARDWARE_PLATFORM=2, else 1
+    # If OM_V2 is set (to anything), set HARDWARE_PLATFORM=2 and new (yaml-based) config, else 1 and environment config
     if [[ -n ${OM_V2+x} ]]; then
         export HARDWARE_PLATFORM=2
     else
         export HARDWARE_PLATFORM=1
+        export OM_LEGACY_CONFIG_MODE=True
     fi
-    export OM_LEGACY_CONFIG_MODE=True
     export ESC_TYPE=$OM_MOWER_ESC_TYPE
     export MOWER=$OM_MOWER
 fi
