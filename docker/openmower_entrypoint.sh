@@ -20,6 +20,7 @@ if [[ "$MODE" == "osv1" ]]; then
         export HARDWARE_PLATFORM=1
     fi
     export OM_LEGACY_CONFIG_MODE=True
+    export ESC_TYPE=$OM_MOWER_ESC_TYPE
 fi
 
 # source the hardware specific default environment (default wheel ticks, antenna position etc)
