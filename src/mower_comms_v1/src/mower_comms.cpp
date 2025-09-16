@@ -706,11 +706,11 @@ int main(int argc, char **argv) {
 
   ros::NodeHandle n;
   ros::NodeHandle paramNh("~");
-  ros::NodeHandle leftParamNh("~/left_xesc");
-  ros::NodeHandle mowerParamNh("~/mower_xesc");
-  ros::NodeHandle rightParamNh("~/right_xesc");
+  ros::NodeHandle leftParamNh("~/services/diff_drive/left_xesc");
+  ros::NodeHandle mowerParamNh("~/services/diff_drive/mower_xesc");
+  ros::NodeHandle rightParamNh("~/services/diff_drive/right_xesc");
   ros::NodeHandle mowerLogicParamNh("/mower_logic");
-  ros::NodeHandle powerParamNh("/ll/services/power");
+  ros::NodeHandle powerParamNh("~/services/power");
 
   highLevelClient = n.serviceClient<mower_msgs::HighLevelControlSrv>("mower_service/high_level_control");
 
@@ -728,8 +728,8 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  paramNh.getParam("wheel_ticks_per_m", wheel_ticks_per_m);
-  paramNh.getParam("wheel_distance_m", wheel_distance_m);
+  paramNh.getParam("services/diff_drive/ticks_per_m", wheel_ticks_per_m);
+  paramNh.getParam("services/diff_drive/wheel_distance_m", wheel_distance_m);
 
   ROS_INFO_STREAM("Wheel ticks [1/m]: " << wheel_ticks_per_m);
   ROS_INFO_STREAM("Wheel distance [m]: " << wheel_distance_m);
@@ -739,12 +739,12 @@ int main(int argc, char **argv) {
   // Some generic settings from param server (non- dynamic)
   llhl_config.options.ignore_charging_current =
       paramNh.param("/mower_logic/ignore_charging_current", false) ? OptionState::ON : OptionState::OFF;
-  llhl_config.options.dfp_is_5v = paramNh.param("dfp_is_5v", false) ? OptionState::ON : OptionState::OFF;
-  llhl_config.volume = paramNh.param("volume", -1);
+  llhl_config.options.dfp_is_5v = paramNh.param("services/sound/dfp_is_5v", false) ? OptionState::ON : OptionState::OFF;
+  llhl_config.volume = paramNh.param("services/sound/volume", -1);
   llhl_config.options.background_sounds =
-      paramNh.param("background_sounds", false) ? OptionState::ON : OptionState::OFF;
+      paramNh.param("services/sound/background_sounds", false) ? OptionState::ON : OptionState::OFF;
   // ISO-639-1 (2 char) language code
-  strncpy(llhl_config.language, paramNh.param<std::string>("language", "en").c_str(), 2);
+  strncpy(llhl_config.language, paramNh.param<std::string>("services/sound/language", "en").c_str(), 2);
 
   // Setup XESC interfaces
   if (mowerParamNh.hasParam("xesc_type")) {
