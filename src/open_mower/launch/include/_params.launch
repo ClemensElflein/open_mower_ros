@@ -10,7 +10,7 @@
         <!-- v2 params -->
         <group if="$(eval env('MOWER')=='CUSTOM')">
             <!-- If it is a custom robot, don't load any pre-defined params, let the user load whatever they want -->
-            <rosparam if="$(eval env('MOWER')=='CUSTOM')" file="$(env HOME)/mower_params/custom_params.yaml"/>
+            <rosparam if="$(eval env('MOWER')=='CUSTOM')" file="$(env PARAMS_PATH)/custom_params.yaml"/>
         </group>
         <group unless="$(eval env('MOWER')=='CUSTOM')">
             <!-- v1 comms parameters for v1 platform (serial ports etc), we don't need it for v2 -->
@@ -24,7 +24,7 @@
             <!-- This is the default case: We have a predefined mower model and let the user override -->
             <rosparam file="$(find open_mower)/params/openmower_defaults_v2.yaml"/>
             <rosparam file="$(find open_mower)/params/hardware_specific/$(env MOWER)/params_v2.yaml"/>
-            <rosparam file="$(env HOME)/mower_params.yaml"/>
+            <rosparam file="$(env PARAMS_PATH)/mower_params.yaml"/>
         </group>
     </group>
 
@@ -39,7 +39,7 @@
                   file="$(find open_mower)/params/hardware_specific/$(env MOWER)/comms_$(env ESC_TYPE)_params.yaml"/>
        <rosparam if="$(eval (env('MOWER')=='CUSTOM') and (optenv('OM_NO_COMMS').lower() != 'true'))"
               ns="ll"
-              file="$(env HOME)/mower_params/comms_params.yaml"/>
+              file="$(env PARAMS_PATH)/comms_params.yaml"/>
         <param name="ll/services/diff_drive/ticks_per_m" value="$(env OM_WHEEL_TICKS_PER_M)"/>
         <param name="ll/services/diff_drive/wheel_distance_m" value="$(env OM_WHEEL_DISTANCE_M)"/>
         <param name="ll/services/sound/dfp_is_5v" value="$(optenv OM_DFP_IS_5V False)"/>
@@ -54,7 +54,7 @@
         <!-- xbot_driver_gps -->
         <rosparam if="$(eval env('MOWER')=='CUSTOM')"
                   ns="xbot_driver_gps"
-                  file="$(env HOME)/mower_params/gps_params.yaml"/>
+                  file="$(env PARAMS_PATH)/gps_params.yaml"/>
         <rosparam unless="$(eval env('MOWER')=='CUSTOM')"
                   ns="xbot_driver_gps"
                   file="$(find open_mower)/params/hardware_specific/$(env MOWER)/comms_gps_params.yaml"/>

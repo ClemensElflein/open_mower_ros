@@ -24,6 +24,10 @@ if [[ "$MODE" == "osv1" ]]; then
     export MOWER=$OM_MOWER
     # source the hardware specific default environment (default wheel ticks, antenna position etc)
     source "$(rospack find open_mower)/params/hardware_specific/$MOWER/default_environment.sh"
+
+    # Set the recording path to $HOME for OSv1 to match the old behavior
+    export RECORDINGS_PATH=$HOME
+    export PARAMS_PATH=$HOME
 fi
 
 source /opt/open_mower_ros/version_info.env
