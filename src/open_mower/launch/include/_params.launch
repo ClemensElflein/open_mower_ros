@@ -15,9 +15,9 @@
         <group unless="$(eval env('MOWER')=='CUSTOM')">
             <!-- v1 comms parameters for v1 platform (serial ports etc), we don't need it for v2 -->
 	    <group if="$(eval env('HARDWARE_PLATFORM') == '1')">
-	        <rosparam ns="mower_comms"
+	        <rosparam ns="ll"
                   file="$(find open_mower)/params/hardware_specific/$(env MOWER)/comms_general_params.yaml"/>
-	        <rosparam ns="mower_comms"
+	        <rosparam ns="ll/services/diff_drive"
                   file="$(find open_mower)/params/hardware_specific/$(env MOWER)/comms_$(env ESC_TYPE)_params.yaml"/>
 	    </group>
 
@@ -32,23 +32,23 @@
         <!-- V1 hardware with v1 OS (params are stored as environment variables) -->
         <!-- mower_comms -->
         <rosparam unless="$(eval env('MOWER')=='CUSTOM')"
-                  ns="mower_comms"
+                  ns="ll"
                   file="$(find open_mower)/params/hardware_specific/$(env MOWER)/comms_general_params.yaml"/>
         <rosparam unless="$(eval env('MOWER')=='CUSTOM')"
-                  ns="mower_comms"
+                  ns="ll/services/diff_drive"
                   file="$(find open_mower)/params/hardware_specific/$(env MOWER)/comms_$(env ESC_TYPE)_params.yaml"/>
        <rosparam if="$(eval (env('MOWER')=='CUSTOM') and (optenv('OM_NO_COMMS').lower() != 'true'))"
-              ns="mower_comms"
+              ns="ll"
               file="$(env HOME)/mower_params/comms_params.yaml"/>
-        <param name="mower_comms/wheel_ticks_per_m" value="$(env OM_WHEEL_TICKS_PER_M)"/>
-        <param name="mower_comms/wheel_distance_m" value="$(env OM_WHEEL_DISTANCE_M)"/>
-        <param name="mower_comms/dfp_is_5v" value="$(optenv OM_DFP_IS_5V False)"/>
-        <param name="mower_comms/language" value="$(optenv OM_LANGUAGE en)"/>
-        <param name="mower_comms/volume" value="$(optenv OM_VOLUME -1)"/>
-        <param name="mower_comms/background_sounds" value="$(optenv OM_BACKGROUND_SOUNDS False)"/>
-        <param if="$(eval optenv('OM_XESC_LEFT_PORT')!='')" name="mower_comms/left_xesc/serial_port" value="$(optenv OM_XESC_LEFT_PORT)"/>
-        <param if="$(eval optenv('OM_XESC_RIGHT_PORT')!='')" name="mower_comms/right_xesc/serial_port" value="$(optenv OM_XESC_RIGHT_PORT)"/>
-        <param if="$(eval optenv('OM_XESC_MOWER_PORT')!='')" name="mower_comms/mower_xesc/serial_port" value="$(optenv OM_XESC_MOWER_PORT)"/>
+        <param name="ll/services/diff_drive/ticks_per_m" value="$(env OM_WHEEL_TICKS_PER_M)"/>
+        <param name="ll/services/diff_drive/wheel_distance_m" value="$(env OM_WHEEL_DISTANCE_M)"/>
+        <param name="ll/services/sound/dfp_is_5v" value="$(optenv OM_DFP_IS_5V False)"/>
+        <param name="ll/services/sound/language" value="$(optenv OM_LANGUAGE en)"/>
+        <param name="ll/services/sound/volume" value="$(optenv OM_VOLUME -1)"/>
+        <param name="ll/services/sound/background_sounds" value="$(optenv OM_BACKGROUND_SOUNDS False)"/>
+        <param if="$(eval optenv('OM_XESC_LEFT_PORT')!='')" name="ll/services/diff_drive/left_xesc/serial_port" value="$(optenv OM_XESC_LEFT_PORT)"/>
+        <param if="$(eval optenv('OM_XESC_RIGHT_PORT')!='')" name="ll/services/diff_drive/right_xesc/serial_port" value="$(optenv OM_XESC_RIGHT_PORT)"/>
+        <param if="$(eval optenv('OM_XESC_MOWER_PORT')!='')" name="ll/services/diff_drive/mower_xesc/serial_port" value="$(optenv OM_XESC_MOWER_PORT)"/>
 
 
         <!-- xbot_driver_gps -->
