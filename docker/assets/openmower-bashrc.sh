@@ -1,11 +1,5 @@
 # This get extend user's ~/.bashrc
 
-# Interactive shells PS1 prefix opt-in via STACK_SHELL=1 to avoid non-interactive side effects.
-if [ -n "${PS1:-}" ] && [ "${STACK_SHELL:-}" = "1" ]; then
-    stack="${STACK_NAME:-openmower}"
-    export PS1="\[\e[1;34m\][${stack}]\[\e[0m\] $PS1"
-fi
-
 # Source ROS and the workspace overlay (if present)
 if [ -f "/opt/ros/$ROS_DISTRO/setup.bash" ]; then
     . "/opt/ros/$ROS_DISTRO/setup.bash"
