@@ -728,7 +728,7 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  paramNh.getParam("services/diff_drive/wheel_ticks_per_m", wheel_ticks_per_m);
+  paramNh.getParam("services/diff_drive/ticks_per_m", wheel_ticks_per_m);
   paramNh.getParam("services/diff_drive/wheel_distance_m", wheel_distance_m);
 
   ROS_INFO_STREAM("Wheel ticks [1/m]: " << wheel_ticks_per_m);
