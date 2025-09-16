@@ -11,6 +11,14 @@ if [[ -n "$MODE" ]]; then
     shift
 fi
 
+# If a legacy OS user pulls a non-legacy OS image, MOWER is not set.
+if [[ -z "${MOWER:-}" ]]; then
+    echo "ERROR: MOWER is not set." >&2
+    echo "Hint: If you're running a legacy OpenMowerOS (dated before Sep 2025), change OM_VERSION to a version prefixed with 'releases-' or suffixed with '-legacy'." >&2
+    exit 2
+fi
+
+
 if [[ "$MODE" == "osv1" ]]; then
     source /config/mower_config.sh
     # If OM_V2 is truthy, set HARDWARE_PLATFORM=2 and new (yaml-based) config, else 1 and environment config
@@ -22,17 +30,14 @@ if [[ "$MODE" == "osv1" ]]; then
     fi
     export ESC_TYPE=$OM_MOWER_ESC_TYPE
     export MOWER=$OM_MOWER
+    # source the hardware specific default environment (default wheel ticks, antenna position etc)
+    source "$(rospack find open_mower)/params/hardware_specific/$MOWER/default_environment.sh"
+
+    # Set the recording path to $HOME for OSv1 to match the old behavior
+    export RECORDINGS_PATH=$HOME
+    export PARAMS_PATH=$HOME
 fi
 
-# If a legacy OS user pulls a non-legacy OS image, MOWER is not set.
-if [[ -z "${MOWER:-}" ]]; then
-    echo "ERROR: MOWER is not set." >&2
-    echo "Hint: If you're running a legacy OpenMowerOS (dated before Sep 2025), change OM_VERSION to a version prefixed with 'releases-' or suffixed with '-legacy'." >&2
-    exit 2
-fi
-
-# source the hardware specific default environment (default wheel ticks, antenna position etc)
-source "$(rospack find open_mower)/params/hardware_specific/$MOWER/default_environment.sh"
 
 source /opt/open_mower_ros/version_info.env
 
