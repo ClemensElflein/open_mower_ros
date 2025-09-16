@@ -7,7 +7,7 @@
     <!-- v1 if HARDWARE_PLATFORM == 1 -->
     <group if="$(eval env('HARDWARE_PLATFORM') == '1')">
         <!-- Comms v1 -->
-        <node pkg="mower_comms_v1" type="mower_comms_v1" name="mower_comms" unless="$(optenv OM_NO_COMMS False)"
+        <node pkg="mower_comms_v1" type="mower_comms_v1" name="ll" unless="$(optenv OM_NO_COMMS False)"
                 output="screen" respawn="true" respawn_delay="10">
         </node>
         <!-- GPS driver only for v1 builds -->
