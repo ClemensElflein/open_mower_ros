@@ -3,7 +3,13 @@ set -e
 
 # setup ros environment
 source "/opt/ros/$ROS_DISTRO/setup.bash"
-source /opt/open_mower_ros/devel/setup.bash
+
+# Prefer install space (slim OSv2 image) if present, else fall back to devel
+if [[ -f /opt/open_mower_install/setup.bash ]]; then
+    source /opt/open_mower_install/setup.bash
+    elif [[ -f /opt/open_mower_ros/devel/setup.bash ]]; then
+    source /opt/open_mower_ros/devel/setup.bash
+fi
 
 # First arg should be mode now (osv1 or osv2)
 MODE="$1"
@@ -11,15 +17,13 @@ if [[ -n "$MODE" ]]; then
     shift
 fi
 
-# If a legacy OS user pulls a non-legacy OS image, MOWER is not set.
-if [[ -z "${MOWER:-}" ]]; then
-    echo "ERROR: MOWER is not set." >&2
-    echo "Hint: If you're running a legacy OpenMowerOS (dated before Sep 2025), change OM_VERSION to a version prefixed with 'releases-' or suffixed with '-legacy'." >&2
-    exit 2
-fi
-
-
 if [[ "$MODE" == "osv1" ]]; then
+    # For legacy OS (osv1) we expect MOWER environment to be defined
+    if [[ -z "${MOWER:-}" ]]; then
+        echo "ERROR: MOWER is not set." >&2
+        echo "Hint: If you're running a legacy OpenMowerOS (dated before Sep 2025), change OM_VERSION to a version prefixed with 'releases-' or suffixed with '-legacy'." >&2
+        exit 2
+    fi
     source /config/mower_config.sh
     # If OM_V2 is truthy, set HARDWARE_PLATFORM=2 and new (yaml-based) config, else 1 and environment config
     if [[ "${OM_V2,,}" =~ ^(true|1|yes)$ ]]; then
@@ -39,7 +43,11 @@ if [[ "$MODE" == "osv1" ]]; then
 fi
 
 
-source /opt/open_mower_ros/version_info.env
+if [[ -f /opt/open_mower_install/version_info.env ]]; then
+    source /opt/open_mower_install/version_info.env
+    elif [[ -f /opt/open_mower_ros/version_info.env ]]; then
+    source /opt/open_mower_ros/version_info.env
+fi
 
 # OSv2 debugging get controlled via env var DEBUG and has the ROSCONSOLE_CONFIG_FILE embedded
 shopt -s nocasematch

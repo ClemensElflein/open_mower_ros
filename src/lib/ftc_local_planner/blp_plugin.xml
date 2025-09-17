@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<library path="lib">
+  <class name="ftc_local_planner/FTCPlanner" type="ftc_local_planner::FTCPlanner" base_class_type="mbf_costmap_core::CostmapController">
+    <description>FTC local planner plugin.</description>
+  </class>
+  <class name="ftc_local_planner/BackwardForwardRecovery" type="ftc_local_planner::BackwardForwardRecovery" base_class_type="nav_core::RecoveryBehavior">
+    <description>Backward/Forward recovery behavior for navigation.</description>
+  </class>
+</library>
