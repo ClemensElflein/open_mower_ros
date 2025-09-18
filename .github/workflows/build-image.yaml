@@ -107,8 +107,9 @@ jobs:
         run: |
           build_arch=${{ matrix.docker_build_arch }}
           echo "BUILD_ARCH=${build_arch//\//-}" >> ${GITHUB_ENV}
-
-          echo "REPOSITORY_LC=${REPOSITORY,,}" >> ${GITHUB_ENV}
+          # Lowercase ghcr image name: ghcr.io/<owner>/<repo>
+          repo_lc=${REPOSITORY,,}
+          echo "REPOSITORY_LC=${repo_lc}" >> ${GITHUB_ENV}
 
       # Get the repository's code
       - name: Checkout
@@ -220,7 +221,7 @@ jobs:
             RUNTIME_EXTENDED_PRUNE=${{ matrix.variant == 'osv2' && '1' || '0' }}
             RUNTIME_HEAVY_PRUNE=${{ matrix.variant == 'osv2' && '1' || '0' }}
             RUNTIME_PRUNE_TOOLCHAIN=${{ matrix.variant == 'osv2' && '1' || '0' }}
-          outputs: type=image,name=ghcr.io/${{ github.repository_owner }}/openmower_ros,push-by-digest=true,name-canonical=true,push=${{ github.event_name != 'pull_request' }}
+          outputs: type=image,name=ghcr.io/${{ env.REPOSITORY_LC }},push-by-digest=true,name-canonical=true,push=${{ github.event_name != 'pull_request' }}
           cache-from: type=gha,scope=${{ matrix.os }}
           cache-to: type=gha,scope=${{ matrix.os }},mode=max
 
