@@ -198,11 +198,16 @@ target_link_libraries(xbot_pose_converter ${catkin_LIBRARIES})
 # )
 
 ## Mark other files for installation (e.g. launch and bag files, etc.)
-# install(FILES
-#   # myfile1
-#   # myfile2
-#   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
-# )
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/launch)
+  install(DIRECTORY launch
+          DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+          FILES_MATCHING PATTERN "*.launch" PATTERN "*.xml" PATTERN "*.yaml" PATTERN "*.rviz" PATTERN "*.py" PATTERN "*.sh" PATTERN "*.json")
+endif()
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/rviz)
+  install(DIRECTORY rviz
+          DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+          FILES_MATCHING PATTERN "*.rviz")
+endif()
 
 #############
 ## Testing ##

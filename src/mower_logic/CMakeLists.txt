@@ -205,19 +205,29 @@ target_link_libraries(monitoring ${catkin_LIBRARIES})
 #   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 # )
 
-## Mark executables for installation
-## See http://docs.ros.org/melodic/api/catkin/html/howto/format1/building_executables.html
-# install(TARGETS ${PROJECT_NAME}_node
-#   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-# )
+## Install binaries
+install(TARGETS mower_logic monitoring
+        RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 
-## Mark libraries for installation
-## See http://docs.ros.org/melodic/api/catkin/html/howto/format1/building_libraries.html
-# install(TARGETS ${PROJECT_NAME}
-#   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-#   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-#   RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION}
-# )
+## Install cfg (dynamic reconfigure definitions)
+install(DIRECTORY cfg
+        DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+        FILES_MATCHING PATTERN "*.cfg"
+        )
+
+## Install any params or launch if they exist
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/launch)
+  install(DIRECTORY launch
+          DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+          FILES_MATCHING PATTERN "*.launch" PATTERN "*.xml" PATTERN "*.yaml" PATTERN "*.rviz" PATTERN "*.json"
+          )
+endif()
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/params)
+  install(DIRECTORY params
+          DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+          FILES_MATCHING PATTERN "*.yaml" PATTERN "*.sh"
+          )
+endif()
 
 ## Mark cpp header files for installation
 # install(DIRECTORY include/${PROJECT_NAME}/

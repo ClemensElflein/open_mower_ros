@@ -1,14 +1,16 @@
 #!/bin/bash
 set -e
 
-# setup ros environment
+# Setup ros environment
 source "/opt/ros/$ROS_DISTRO/setup.bash"
 
-# Prefer install space (slim OSv2 image) if present, else fall back to devel
-if [[ -f /opt/open_mower_install/setup.bash ]]; then
+# Prefer install space if present, else fall back to devel
+if [ -f /opt/open_mower_install/setup.bash ]; then
     source /opt/open_mower_install/setup.bash
-    elif [[ -f /opt/open_mower_ros/devel/setup.bash ]]; then
+    elif [ -f /opt/open_mower_ros/devel/setup.bash ]; then
     source /opt/open_mower_ros/devel/setup.bash
+else
+    echo "WARN: No install or devel 'setup.bash' found."
 fi
 
 # First arg should be mode now (osv1 or osv2)

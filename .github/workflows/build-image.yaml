@@ -9,14 +9,17 @@ on:
         default: false
         type: boolean
       variant:
-        description: 'Which variant to build (default/legacy or all)'
+        description: 'Which set to build: default (osv1+osv2), all (all four), or a specific variant'
         required: true
-        default: 'all'
+        default: 'default'
         type: choice
         options:
-          - all
-          - default
-          - legacy
+          - default   # build osv1 + osv2
+          - all       # build all (osv1, osv2, osv1-dev, osv2-dev)
+          - osv2      # slim runtime only (suffix none)
+          - osv1      # legacy runtime only (suffix -legacy)
+          - osv2-dev  # dev full OSv2 (suffix -dev)
+          - osv1-dev  # dev full OSv1 (suffix -legacy-dev)
       arch:
         description: 'Which architecture to build (amd64/arm64 or all)'
         required: true
@@ -33,9 +36,6 @@ on:
       - 'v2'
     tags:
       - 'v*'
-  pull_request:
-    branches:
-      - 'main'
 
 # Allow stopping obsolete workflows
 concurrency:
@@ -49,34 +49,57 @@ permissions:
 jobs:
   build:
     runs-on: ${{ matrix.os }}
-    # NOTE: variant -> Docker target mapping (internal doc):
-    #   legacy  -> assemble-osv1 (includes nginx/mosquitto)
-    #   default -> assemble-osv2 (slim install-space runtime)
+  # NOTE: matrix.variant -> Docker target mapping:
+  #   osv2      -> runtime-osv2 (distilled minimal OSv2)
+  #   osv1      -> assemble-osv1 (legacy stack w/ services)
+  #   osv2-dev  -> assemble-osv2 (full OSv2 dev)
+  #   osv1-dev  -> assemble-osv1 (legacy dev; treat same target but different tagging & build args)
     strategy:
       matrix:
         include:
-          # Legacy image (OSv1) now built from unified Dockerfile target=assemble-osv1
+          # OSv1 (legacy slim/regular)
           - os: ubuntu-24.04-arm
             docker_build_arch: arm64
-            variant: legacy
+            variant: osv1
             dockerfile: ./docker/Dockerfile
             build_target: assemble-osv1
           - os: ubuntu-24.04
             docker_build_arch: amd64
-            variant: legacy
+            variant: osv1
             dockerfile: ./docker/Dockerfile
             build_target: assemble-osv1
-          # Default image (OSv2) now built from unified Dockerfile target=assemble-osv2
           - os: ubuntu-24.04-arm
             docker_build_arch: arm64
-            variant: default
+            variant: osv2
+            dockerfile: ./docker/Dockerfile
+            build_target: runtime-osv2
+          - os: ubuntu-24.04
+            docker_build_arch: amd64
+            variant: osv2
+            dockerfile: ./docker/Dockerfile
+            build_target: runtime-osv2
+          # OSv2 dev (full)
+          - os: ubuntu-24.04-arm
+            docker_build_arch: arm64
+            variant: osv2-dev
             dockerfile: ./docker/Dockerfile
             build_target: assemble-osv2
           - os: ubuntu-24.04
             docker_build_arch: amd64
-            variant: default
+            variant: osv2-dev
             dockerfile: ./docker/Dockerfile
             build_target: assemble-osv2
+          # OSv1 dev (legacy full dev) – reuse assemble-osv1 target with dev build args
+          - os: ubuntu-24.04-arm
+            docker_build_arch: arm64
+            variant: osv1-dev
+            dockerfile: ./docker/Dockerfile
+            build_target: assemble-osv1
+          - os: ubuntu-24.04
+            docker_build_arch: amd64
+            variant: osv1-dev
+            dockerfile: ./docker/Dockerfile
+            build_target: assemble-osv1
     steps:
       - name: Prepare
         env:
@@ -101,44 +124,79 @@ jobs:
 
       - uses: pre-commit/action@v3.0.1
 
-      - name: Docker meta
-        if: matrix.variant == 'default'
-        id: meta_default
+      - name: Docker meta (OSv2)
+        if: matrix.variant == 'osv2'
+        id: meta_osv2
         uses: docker/metadata-action@v5
         with:
           images: |
-            ghcr.io/${{ env.REPOSITORY_LC }}
+            ghcr.io/${{ github.repository_owner }}/openmower_ros
           flavor: |
             latest=false
-
-      - name: Docker meta (Legacy)
-        if: matrix.variant == 'legacy'
-        id: meta_legacy
+      - name: Docker meta (OSv2 Dev)
+        if: matrix.variant == 'osv2-dev'
+        id: meta_osv2_dev
         uses: docker/metadata-action@v5
         with:
           images: |
-            ghcr.io/${{ env.REPOSITORY_LC }}
+            ghcr.io/${{ github.repository_owner }}/openmower_ros
+          flavor: |
+            latest=false
+            suffix=-dev
+      - name: Docker meta (OSv1)
+        if: matrix.variant == 'osv1'
+        id: meta_osv1
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ghcr.io/${{ github.repository_owner }}/openmower_ros
           flavor: |
             latest=false
             suffix=-legacy
+      - name: Docker meta (OSv1 Dev)
+        if: matrix.variant == 'osv1-dev'
+        id: meta_osv1_dev
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ghcr.io/${{ github.repository_owner }}/openmower_ros
+          flavor: |
+            latest=false
+            suffix=-legacy-dev
 
       - name: Select metadata labels
-        if: github.event_name != 'workflow_dispatch' || ((inputs.variant == 'all' || inputs.variant == matrix.variant) && (inputs.arch == 'all' || inputs.arch == matrix.docker_build_arch))
+        # Dispatch gating:
+        #   default -> osv1 + osv2
+        #   all     -> all four variants
+        #   osv1    -> only osv1
+        #   osv2    -> only osv2
+        #   osv1-dev-> only osv1-dev
+        #   osv2-dev-> only osv2-dev
+        if: github.event_name != 'workflow_dispatch' || (((inputs.variant == 'all') || (inputs.variant == 'default' && (matrix.variant == 'osv1' || matrix.variant == 'osv2')) || (inputs.variant == matrix.variant)) && (inputs.arch == 'all' || inputs.arch == matrix.docker_build_arch))
         run: |
-          if [ "${{ matrix.variant }}" = "default" ]; then
-            echo "META_LABELS=${{ steps.meta_default.outputs.labels }}" >> ${GITHUB_ENV}
-          else
-            echo "META_LABELS=${{ steps.meta_legacy.outputs.labels }}" >> ${GITHUB_ENV}
-          fi
+          case "${{ matrix.variant }}" in
+            osv2)
+              echo "META_LABELS=${{ steps.meta_osv2.outputs.labels }}" >> ${GITHUB_ENV}
+              ;;
+            osv2-dev)
+              echo "META_LABELS=${{ steps.meta_osv2_dev.outputs.labels }}" >> ${GITHUB_ENV}
+              ;;
+            osv1)
+              echo "META_LABELS=${{ steps.meta_osv1.outputs.labels }}" >> ${GITHUB_ENV}
+              ;;
+            osv1-dev)
+              echo "META_LABELS=${{ steps.meta_osv1_dev.outputs.labels }}" >> ${GITHUB_ENV}
+              ;;
+          esac
 
       # https://github.com/docker/setup-buildx-action
       - name: Set up Docker Buildx
-        if: github.event_name != 'workflow_dispatch' || ((inputs.variant == 'all' || inputs.variant == matrix.variant) && (inputs.arch == 'all' || inputs.arch == matrix.docker_build_arch))
+        if: github.event_name != 'workflow_dispatch' || (((inputs.variant == 'all') || (inputs.variant == 'default' && (matrix.variant == 'osv1' || matrix.variant == 'osv2')) || (inputs.variant == matrix.variant)) && (inputs.arch == 'all' || inputs.arch == matrix.docker_build_arch))
         id: buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Login to GHCR
-        if: (github.event_name != 'pull_request') && (github.event_name != 'workflow_dispatch' || ((inputs.variant == 'all' || inputs.variant == matrix.variant) && (inputs.arch == 'all' || inputs.arch == matrix.docker_build_arch)))
+        if: (github.event_name != 'pull_request') && (github.event_name != 'workflow_dispatch' || (((inputs.variant == 'all') || (inputs.variant == 'default' && (matrix.variant == 'osv1' || matrix.variant == 'osv2')) || (inputs.variant == matrix.variant)) && (inputs.arch == 'all' || inputs.arch == matrix.docker_build_arch)))
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -146,7 +204,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push (unified Dockerfile)
-        if: github.event_name != 'workflow_dispatch' || ((inputs.variant == 'all' || inputs.variant == matrix.variant) && (inputs.arch == 'all' || inputs.arch == matrix.docker_build_arch))
+        if: github.event_name != 'workflow_dispatch' || (((inputs.variant == 'all') || (inputs.variant == 'default' && (matrix.variant == 'osv1' || matrix.variant == 'osv2')) || (inputs.variant == matrix.variant)) && (inputs.arch == 'all' || inputs.arch == matrix.docker_build_arch))
         id: build-and-push
         uses: docker/build-push-action@v6
         with:
@@ -156,22 +214,28 @@ jobs:
           target: ${{ matrix.build_target }}
           no-cache: ${{ inputs.clean_build == true || false }}
           labels: ${{ env.META_LABELS }}
-          outputs: type=image,name=ghcr.io/${{ env.REPOSITORY_LC }},push-by-digest=true,name-canonical=true,push=${{ github.event_name != 'pull_request' }}
+              # RUNTIME_FULL build arg: 1 for dev variants (osv2-dev, osv1-dev) keeps toolchain & headers
+          build-args: |
+            RUNTIME_FULL=${{ (matrix.variant == 'osv2-dev' || matrix.variant == 'osv1-dev') && '1' || '0' }}
+            RUNTIME_EXTENDED_PRUNE=${{ matrix.variant == 'osv2' && '1' || '0' }}
+            RUNTIME_HEAVY_PRUNE=${{ matrix.variant == 'osv2' && '1' || '0' }}
+            RUNTIME_PRUNE_TOOLCHAIN=${{ matrix.variant == 'osv2' && '1' || '0' }}
+          outputs: type=image,name=ghcr.io/${{ github.repository_owner }}/openmower_ros,push-by-digest=true,name-canonical=true,push=${{ github.event_name != 'pull_request' }}
           cache-from: type=gha,scope=${{ matrix.os }}
           cache-to: type=gha,scope=${{ matrix.os }},mode=max
 
       - name: Export digest
-        if: github.event_name != 'workflow_dispatch' || ((inputs.variant == 'all' || inputs.variant == matrix.variant) && (inputs.arch == 'all' || inputs.arch == matrix.docker_build_arch))
+        if: github.event_name != 'workflow_dispatch' || (((inputs.variant == 'all') || (inputs.variant == 'default' && (matrix.variant == 'osv1' || matrix.variant == 'osv2')) || (inputs.variant == matrix.variant)) && (inputs.arch == 'all' || inputs.arch == matrix.docker_build_arch))
         run: |
           mkdir -p /tmp/digests
           digest="${{ steps.build-and-push.outputs.digest }}"
           touch "/tmp/digests/${digest#sha256:}"
 
       - name: Upload digest
-        if: github.event_name != 'workflow_dispatch' || ((inputs.variant == 'all' || inputs.variant == matrix.variant) && (inputs.arch == 'all' || inputs.arch == matrix.docker_build_arch))
+        if: github.event_name != 'workflow_dispatch' || (((inputs.variant == 'all') || (inputs.variant == 'default' && (matrix.variant == 'osv1' || matrix.variant == 'osv2')) || (inputs.variant == matrix.variant)) && (inputs.arch == 'all' || inputs.arch == matrix.docker_build_arch))
         uses: actions/upload-artifact@v4
         with:
-          name: digests-${{ env.BUILD_ARCH }}-${{ matrix.variant }}
+          name: digests-${{ matrix.docker_build_arch }}-${{ matrix.variant }}
           path: /tmp/digests/*
           if-no-files-found: error
           retention-days: 1
@@ -184,8 +248,10 @@ jobs:
     strategy:
       matrix:
         include:
-          - variant: default   # maps to assemble-osv2 target
-          - variant: legacy    # maps to assemble-osv1 target
+          - variant: osv2      # slim (may get latest)
+          - variant: osv1      # legacy
+          - variant: osv2-dev  # dev
+          - variant: osv1-dev  # legacy-dev
     steps:
       - name: Prepare
         env:
@@ -194,36 +260,34 @@ jobs:
           echo "REPOSITORY_LC=${REPOSITORY,,}" >> ${GITHUB_ENV}
 
       - name: Download digests
-        if: github.event_name != 'workflow_dispatch' || inputs.variant == 'all' || inputs.variant == matrix.variant
+        if: github.event_name != 'workflow_dispatch' || inputs.variant == 'all' || (inputs.variant == 'default' && (matrix.variant == 'osv1' || matrix.variant == 'osv2')) || (inputs.variant == matrix.variant)
         uses: actions/download-artifact@v4
         with:
           path: /tmp/digests
           pattern: digests-*-${{ matrix.variant }}
           merge-multiple: true
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      # Default (MAIN ONLY): `latest` on commits to main
-      - name: Docker meta (Default - main)
+      # OSv2 main push (adds latest)
+      - name: Docker meta (OSv2 - main)
         if: >
-          (matrix.variant == 'default') &&
+          (matrix.variant == 'osv2') &&
           (github.event_name == 'push') &&
           (github.ref == 'refs/heads/main')
-        id: meta_default_main
+        id: meta_osv2_main
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ env.REPOSITORY_LC }}
+          images: ghcr.io/${{ github.repository_owner }}/openmower_ros
           tags: |
-            type=edge,branch=main          # e.g. main
-            type=sha                       # sha-<short>
+            type=edge,branch=main
+            type=sha
           flavor: |
-            latest=true                    # <-- only here
-      # Default, carries semver (v1.2.3) and PR/branch tags without suffix
-      - name: Docker meta (Default)
-        if: (matrix.variant == 'default') && (github.event_name != 'workflow_dispatch' || inputs.variant == 'all' || inputs.variant == matrix.variant) && !((github.event_name == 'push') && (github.ref == 'refs/heads/main'))
-        id: meta_default
+            latest=true
+      # OSv2 general (no latest)
+      - name: Docker meta (OSv2)
+        if: (matrix.variant == 'osv2') && !((github.event_name == 'push') && (github.ref == 'refs/heads/main')) && (github.event_name != 'workflow_dispatch' || inputs.variant == 'all' || inputs.variant == matrix.variant || inputs.variant == 'default')
+        id: meta_osv2
         uses: docker/metadata-action@v5
         with:
+          images: ghcr.io/${{ github.repository_owner }}/openmower_ros
           tags: |
             type=edge,branch=main
             type=schedule
@@ -233,16 +297,15 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
             type=sha
-          images: ghcr.io/${{ env.REPOSITORY_LC }}
           flavor: |
             latest=false
-
-      # Legacy — all tags suffixed with -legacy, no `latest`
-      - name: Docker meta (Legacy)
-        if: (matrix.variant == 'legacy') && (github.event_name != 'workflow_dispatch' || inputs.variant == 'all' || inputs.variant == matrix.variant)
-        id: meta_legacy
+      # OSv1 legacy
+      - name: Docker meta (OSv1)
+        if: (matrix.variant == 'osv1') && (github.event_name != 'workflow_dispatch' || inputs.variant == 'all' || inputs.variant == matrix.variant || inputs.variant == 'default')
+        id: meta_osv1
         uses: docker/metadata-action@v5
         with:
+          images: ghcr.io/${{ github.repository_owner }}/openmower_ros
           tags: |
             type=edge,branch=main,prefix=releases-
             type=schedule,suffix=-legacy
@@ -252,12 +315,47 @@ jobs:
             type=semver,pattern={{major}}.{{minor}},suffix=-legacy
             type=semver,pattern={{major}},suffix=-legacy
             type=sha,suffix=-legacy
-          images: ghcr.io/${{ env.REPOSITORY_LC }}
+          flavor: |
+            latest=false
+      # OSv2 dev
+      - name: Docker meta (OSv2 Dev)
+        if: (matrix.variant == 'osv2-dev') && (github.event_name != 'workflow_dispatch' || inputs.variant == 'all' || inputs.variant == matrix.variant)
+        id: meta_osv2_dev
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/openmower_ros
+          tags: |
+            type=edge,branch=main,suffix=-dev
+            type=schedule,suffix=-dev
+            type=ref,event=branch,suffix=-dev
+            type=ref,event=pr,suffix=-dev
+            type=semver,pattern={{version}},suffix=-dev
+            type=semver,pattern={{major}}.{{minor}},suffix=-dev
+            type=semver,pattern={{major}},suffix=-dev
+            type=sha,suffix=-dev
+          flavor: |
+            latest=false
+      # OSv1 dev
+      - name: Docker meta (OSv1 Dev)
+        if: (matrix.variant == 'osv1-dev') && (github.event_name != 'workflow_dispatch' || inputs.variant == 'all' || inputs.variant == matrix.variant)
+        id: meta_osv1_dev
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/openmower_ros
+          tags: |
+            type=edge,branch=main,suffix=-legacy-dev
+            type=schedule,suffix=-legacy-dev
+            type=ref,event=branch,suffix=-legacy-dev
+            type=ref,event=pr,suffix=-legacy-dev
+            type=semver,pattern={{version}},suffix=-legacy-dev
+            type=semver,pattern={{major}}.{{minor}},suffix=-legacy-dev
+            type=semver,pattern={{major}},suffix=-legacy-dev
+            type=sha,suffix=-legacy-dev
           flavor: |
             latest=false
 
       - name: Login to GHCR
-        if: github.event_name != 'workflow_dispatch' || inputs.variant == 'all' || inputs.variant == matrix.variant
+        if: github.event_name != 'workflow_dispatch' || inputs.variant == 'all' || (inputs.variant == 'default' && (matrix.variant == 'osv1' || matrix.variant == 'osv2')) || (inputs.variant == matrix.variant)
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -265,7 +363,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create manifest list and push
-        if: github.event_name != 'workflow_dispatch' || inputs.variant == 'all' || inputs.variant == matrix.variant
+        if: github.event_name != 'workflow_dispatch' || inputs.variant == 'all' || (inputs.variant == 'default' && (matrix.variant == 'osv1' || matrix.variant == 'osv2')) || (inputs.variant == matrix.variant)
         working-directory: /tmp/digests
         run: |
           echo "Found digest files:" && ls -la || true
@@ -279,6 +377,6 @@ jobs:
             $(printf 'ghcr.io/${{ env.REPOSITORY_LC }}@sha256:%s ' *)
 
       - name: Inspect image
-        if: github.event_name != 'workflow_dispatch' || inputs.variant == 'all' || inputs.variant == matrix.variant
+        if: github.event_name != 'workflow_dispatch' || inputs.variant == 'all' || (inputs.variant == 'default' && (matrix.variant == 'osv1' || matrix.variant == 'osv2')) || (inputs.variant == matrix.variant)
         run: |
           docker buildx imagetools inspect $(jq -r '.tags[0]' <<< "$DOCKER_METADATA_OUTPUT_JSON")

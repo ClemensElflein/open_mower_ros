@@ -184,11 +184,15 @@ include_directories(
 # )
 
 ## Mark other files for installation (e.g. launch and bag files, etc.)
-# install(FILES
-#   # myfile1
-#   # myfile2
-#   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
-# )
+install(DIRECTORY launch
+        DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+        FILES_MATCHING PATTERN "*.launch" PATTERN "*.xml" PATTERN "*.yaml" PATTERN "*.rviz" PATTERN "*.py" PATTERN "*.sh" PATTERN "*.cfg" PATTERN "*.json" PATTERN "*.txt"
+        )
+
+install(DIRECTORY params
+        DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+        FILES_MATCHING PATTERN "*.yaml" PATTERN "*.sh"
+        )
 
 #############
 ## Testing ##
