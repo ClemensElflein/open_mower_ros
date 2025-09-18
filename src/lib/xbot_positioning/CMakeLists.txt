@@ -64,3 +64,10 @@ add_executable(xbot_positioning
 
 add_dependencies(xbot_positioning ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
 target_link_libraries(xbot_positioning ${catkin_LIBRARIES})
+
+#############
+## Install ##
+#############
+install(TARGETS xbot_positioning
+        RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)

@@ -44,3 +44,10 @@ add_executable(xbot_remote
 
 add_dependencies(xbot_remote ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
 target_link_libraries(xbot_remote ${catkin_LIBRARIES} nlohmann_json::nlohmann_json websocketpp::websocketpp)
+
+#############
+## Install ##
+#############
+install(TARGETS xbot_remote
+        RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)

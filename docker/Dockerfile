@@ -286,6 +286,16 @@ COPY --link --from=openmower-build /opt/open_mower_install /opt/open_mower_insta
 COPY --link --from=openmower-build /opt/prebuilt/slic3r_coverage_planner /opt/prebuilt/slic3r_coverage_planner
 #COPY --link --from=openmower-build /tmp/runtime_libs.tar /tmp/runtime_libs.tar
 
+# Also install external ROS runtime dependencies resolved via rosdep
+COPY --link --from=dependencies /apt-install_list /apt-install_list
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    set -eux; \
+    apt-get update; \
+    if [ -s /apt-install_list ]; then \
+    xargs -r -a /apt-install_list apt-get install --no-install-recommends -y; \
+    fi; \
+    rm -rf /var/lib/apt/lists/* /var/cache/apt/* /apt-install_list
+
 #RUN if [ -f /tmp/runtime_libs.tar ]; then tar -xf /tmp/runtime_libs.tar -C / || true; fi && rm -f /tmp/runtime_libs.tar || true
 
 # Aggressive but safe runtime prune (no compilers here, remove dev & locales not needed)

@@ -67,3 +67,10 @@ add_executable(heatmap_generator
 
 add_dependencies(heatmap_generator ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
 target_link_libraries(heatmap_generator ${catkin_LIBRARIES})
+
+#############
+## Install ##
+#############
+install(TARGETS xbot_monitoring xbot_sensor_example heatmap_generator
+        RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
