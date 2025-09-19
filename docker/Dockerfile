@@ -205,6 +205,9 @@ find / -type f -name '*.la' -delete 2>/dev/null || true
 rm -rf /var/cache/apt/* /var/lib/apt/lists/*
 EOF
 
+# Ensure temporary directories have correct sticky-bit permissions
+RUN mkdir -p /tmp /var/tmp && chmod 1777 /tmp /var/tmp
+
 
 # Simplified (stabilized) slimming: remove only non-critical weight (docs/locales/static libs).
 # Aggressive apt purging temporarily disabled to avoid removing ROS runtime.
@@ -280,13 +283,16 @@ FROM docker.io/ros:noetic-ros-core-focal AS runtime-osv2
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Copy install artifacts and prebuilt planner
+# Copy install artifacts, prebuilt planner and collected runtime libs from build stage
 COPY --link --from=openmower-build /opt/open_mower_install /opt/open_mower_install
 COPY --link --from=openmower-build /opt/prebuilt/slic3r_coverage_planner /opt/prebuilt/slic3r_coverage_planner
 COPY --link --from=openmower-build /tmp/runtime_libs.tar /tmp/runtime_libs.tar
 
 # Extract runtime libs collected during build
 RUN tar -xf /tmp/runtime_libs.tar -C / && rm -f /tmp/runtime_libs.tar
+
+# Ensure temporary directories have correct sticky-bit permissions
+RUN mkdir -p /tmp /var/tmp && chmod 1777 /tmp /var/tmp
 
 # Aggressive but safe runtime prune (no compilers here, remove dev & locales not needed)
 #RUN bash -euxo pipefail <<'EOF'

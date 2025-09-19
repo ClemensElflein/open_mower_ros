@@ -1,7 +1,20 @@
 #!/bin/bash
 set -e
 
-# Setup ros environment
+# Ensure a writable temp directory exists and is used
+export TMPDIR="${TMPDIR:-/tmp}"
+mkdir -p "$TMPDIR" >/dev/null 2>&1 || true
+chmod 1777 "$TMPDIR" >/dev/null 2>&1 || true
+
+# If /tmp is not writable due to RO rootfs or platform constraints, fallback to a user-owned dir
+if ! mktemp -p "$TMPDIR" setup.sh.XXXXXX >/dev/null 2>&1; then
+    FALLBACK_TMPDIR="${ROS_HOME:-$HOME}/tmp"
+    mkdir -p "$FALLBACK_TMPDIR" >/dev/null 2>&1 || true
+    chmod 1777 "$FALLBACK_TMPDIR" >/dev/null 2>&1 || true
+    export TMPDIR="$FALLBACK_TMPDIR"
+fi
+
+# Setup ros environment (some scripts create temp files)
 source "/opt/ros/$ROS_DISTRO/setup.bash"
 
 # Prefer install space if present, else fall back to devel
