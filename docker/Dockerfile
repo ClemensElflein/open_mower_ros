@@ -100,10 +100,11 @@ echo "[Distill] Collecting transitive runtime libraries (openmower-build)"
 
 ldd_abs() {
     # Print absolute library paths from ldd output (handles both formats)
-    ldd "$1" 2>/dev/null | awk '{
+    # Never fail on non-ELF inputs (ldd exits non-zero there)
+    { ldd "$1" 2>/dev/null || true; } | awk '{
         if ($2 == "=>" && $3 ~ /^\//) { print $3; next }
         if ($1 ~ /^\//) { print $1; next }
-    }' | grep -E '^/'
+    }' | grep -E '^/' || true
 }
 
 WORK=/tmp/rtlib
