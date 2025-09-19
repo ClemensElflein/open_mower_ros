@@ -75,7 +75,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 COPY --link ./ /opt/open_mower_ros
 
 # Delete prebuilt libs (so that they won't shadow the preinstalled ones)
-RUN rm -rf /opt/open_mower_ros/src/lib/slic3r_coverage_planner /apt-install_list
+RUN rm -rf /opt/open_mower_ros/src/lib/slic3r_coverage_planner
 
 WORKDIR /opt/open_mower_ros
 
@@ -91,64 +91,60 @@ EOF
 RUN bash -c 'echo "export OM_SOFTWARE_VERSION=$(git describe --tags || git describe --always || echo v0.0.0)" > version_info.env'
 RUN install -D -m 0644 version_info.env /opt/open_mower_install/version_info.env
 
-# Collect runtime shared library dependencies from the install space here so
-# the distilled runtime stage can import just the needed shared libs without
-# having to apt-install full dependency packages.
+# Build a minimal runtime package list and an extra-libs tar:
+# - Inspect all binaries in /opt/open_mower_install
+# - Map their shared libs to owning Debian packages (dpkg -S)
+# - Write unique package names to /apt-install_runtime-list
+# - Any libs not owned by a package get copied into /tmp/runtime_extra_libs.tar
 RUN bash -exo pipefail <<'EOF'
 set -e
-echo "[Distill] Collecting transitive runtime libraries (openmower-build)"
+echo "[Distill] Deriving runtime packages and extra libs (openmower-build)"
 
 ldd_abs() {
-    # Print absolute library paths from ldd output (handles both formats)
-    # Never fail on non-ELF inputs (ldd exits non-zero there)
     { ldd "$1" 2>/dev/null || true; } | awk '{
         if ($2 == "=>" && $3 ~ /^\//) { print $3; next }
         if ($1 ~ /^\//) { print $1; next }
     }' | grep -E '^/' || true
 }
 
-WORK=/tmp/rtlib
+WORK=/tmp/rtcollect
 rm -rf "$WORK" && mkdir -p "$WORK"
-touch "$WORK/queue" "$WORK/seen" "$WORK/result"
+touch "$WORK/libs" "$WORK/pkgs" "$WORK/extra_libs"
 
-# Seed queue with all potential ELF executables/shared objects from install space
-# We avoid using the 'file' utility to keep the image lean; ldd_abs will no-op on non-ELF files
-find /opt/open_mower_install -type f \( -perm -111 -o -name '*.so' -o -name '*.so.*' \) -print > "$WORK/queue"
+# Gather all dependent libs from install-space binaries
+find /opt/open_mower_install -type f \
+    \( -perm -111 -o -name '*.so' -o -name '*.so.*' \) -print | while read -r bin; do
+    ldd_abs "$bin" || true
+done | sort -u > "$WORK/libs"
 
-while read -r item; do
-    [ -z "$item" ] && continue
-    # Skip if we've processed this item already
-    grep -Fxq "$item" "$WORK/seen" 2>/dev/null && continue
-    echo "$item" >> "$WORK/seen"
-
-    # Collect its direct deps
-    deps=$(ldd_abs "$item")
-    if [ -n "$deps" ]; then
-        # Filter existing files only
-        while read -r dep; do
-            [ -z "$dep" ] && continue
-            [ -e "$dep" ] || continue
-            echo "$dep" >> "$WORK/result"
-            # Enqueue dep for transitive closure if not seen
-            grep -Fxq "$dep" "$WORK/seen" 2>/dev/null || echo "$dep" >> "$WORK/queue"
-            # If dep is symlink, add realpath as well
-            if [ -L "$dep" ]; then
-                rp=$(readlink -f "$dep")
-                [ -n "$rp" ] && [ -e "$rp" ] && echo "$rp" >> "$WORK/result"
-                grep -Fxq "$rp" "$WORK/seen" 2>/dev/null || echo "$rp" >> "$WORK/queue"
-            fi
-        done <<< "$deps"
+# Map libs to dpkg packages; collect unowned libs as extras
+while read -r lib; do
+    [ -z "$lib" ] && continue
+    case "$lib" in
+        /opt/open_mower_install/*) continue ;; # our own install, already copied
+    esac
+    if pkg=$(dpkg-query -S "$lib" 2>/dev/null | head -n1); then
+        # dpkg-query output: 'pkgname: path'
+        pkgname=${pkg%%:*}
+        echo "$pkgname" >> "$WORK/pkgs"
+    else
+        echo "$lib" >> "$WORK/extra_libs"
+        if [ -L "$lib" ]; then
+            rp=$(readlink -f "$lib")
+            [ -n "$rp" ] && [ -e "$rp" ] && echo "$rp" >> "$WORK/extra_libs"
+        fi
     fi
-done < "$WORK/queue"
+done < "$WORK/libs"
 
-sort -u "$WORK/result" > /tmp/runtime_libs_list
-
-if [ -s /tmp/runtime_libs_list ]; then
-    tar -C / -cf /tmp/runtime_libs.tar $(cat /tmp/runtime_libs_list)
-    echo "[Distill] Collected $(wc -l < /tmp/runtime_libs_list) libraries"
+sort -u "$WORK/pkgs" > /apt-install_runtime-list
+sort -u "$WORK/extra_libs" > "$WORK/extra_libs.sorted"
+if [ -s "$WORK/extra_libs.sorted" ]; then
+    tar -C / -cf /tmp/runtime_extra_libs.tar $(cat "$WORK/extra_libs.sorted")
+    echo "[Distill] Extra libs copied: $(wc -l < "$WORK/extra_libs.sorted")"
 else
-    echo "[Distill] No runtime libs list produced (possibly empty install space?)"
+    echo "[Distill] No extra libs outside dpkg ownership"
 fi
+echo "[Distill] Runtime packages: $(wc -l < /apt-install_runtime-list)"
 EOF
 
 ####################################################################################################
@@ -326,16 +322,46 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Copy install artifacts, prebuilt planner and collected runtime libs from build stage
 COPY --link --from=openmower-build /opt/open_mower_install /opt/open_mower_install
 COPY --link --from=openmower-build /opt/prebuilt/slic3r_coverage_planner /opt/prebuilt/slic3r_coverage_planner
-COPY --link --from=openmower-build /tmp/runtime_libs.tar /tmp/runtime_libs.tar
+COPY --link --from=openmower-build /apt-install_runtime-list /apt-install_runtime-list
+COPY --link --from=openmower-build /tmp/runtime_extra_libs.tar /tmp/runtime_extra_libs.tar
 
-# Extract runtime libs collected during build
-RUN tar -xf /tmp/runtime_libs.tar -C / && rm -f /tmp/runtime_libs.tar
+# Install runtime packages and lay down any extra libs not owned by dpkg
+ARG INSTALL_RUNTIME_PACKAGES=1
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked bash -euxo pipefail <<'EOF'
+if [ -f /apt-install_runtime-list ] && [ -s /apt-install_runtime-list ] && [ "${INSTALL_RUNTIME_PACKAGES}" = "1" ]; then
+    apt-get update
+    xargs -r -a /apt-install_runtime-list apt-get install -y --no-install-recommends
+    rm -rf /var/lib/apt/lists/*
+else
+    echo "[Runtime] Skipping runtime package installation (none or disabled)"
+fi
+if [ -f /tmp/runtime_extra_libs.tar ]; then
+    tar -xf /tmp/runtime_extra_libs.tar -C /
+    rm -f /tmp/runtime_extra_libs.tar
+fi
+EOF
 
-# Ensure dynamic linker cache is updated to see copied libraries (incl. ROS paths)
+# Ensure dynamic linker cache is updated to see copied libraries (incl. ROS and our install lib path)
 RUN bash -euxo pipefail <<'EOF'
 echo "/opt/ros/$ROS_DISTRO/lib" > /etc/ld.so.conf.d/ros.conf
-# Default /lib and /usr/lib trees are already configured by base image; just refresh cache
+echo "/opt/open_mower_install/lib" > /etc/ld.so.conf.d/openmower.conf
 ldconfig || true
+EOF
+
+# Optionally install minimal ROS runtime libraries confirmed by audit
+ARG INSTALL_ROS_RUNTIME_DEPS=0
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked bash -euxo pipefail <<'EOF'
+if [ "${INSTALL_ROS_RUNTIME_DEPS}" = "1" ]; then
+    apt-get update
+    apt-get install -y --no-install-recommends \
+        ros-$ROS_DISTRO-tf2-ros \
+        ros-$ROS_DISTRO-dynamic-reconfigure \
+        ros-$ROS_DISTRO-actionlib
+    rm -rf /var/lib/apt/lists/*
+    ldconfig || true
+else
+    echo "[Runtime] Skipping minimal ROS runtime apt packages (INSTALL_ROS_RUNTIME_DEPS!=1)"
+fi
 EOF
 
 # Ensure temporary directories have correct sticky-bit permissions
