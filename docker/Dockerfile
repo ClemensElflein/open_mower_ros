@@ -89,6 +89,27 @@ catkin_make -DCATKIN_BLACKLIST_PACKAGES=slic3r_coverage_planner -DCMAKE_INSTALL_
 EOF
 
 RUN bash -c 'echo "export OM_SOFTWARE_VERSION=$(git describe --tags || git describe --always || echo v0.0.0)" > version_info.env'
+RUN install -D -m 0644 version_info.env /opt/open_mower_install/version_info.env
+
+# Collect runtime shared library dependencies from the install space here so
+# the distilled runtime stage can import just the needed shared libs without
+# having to apt-install full dependency packages.
+RUN bash -exo pipefail <<'EOF'
+set +e
+echo "Collecting runtime library dependencies from install space (openmower-build)"
+find /opt/open_mower_install -type f \( -perm -111 -o -name '*.so' \) -print0 | \
+    xargs -0 -r ldd 2>/dev/null | awk '/=> \/(usr|lib)/ {print $3}' | \
+    grep -E '^/' | sort -u > /tmp/runtime_libs_list
+if [ -s /tmp/runtime_libs_list ]; then
+    # Filter existing only
+    awk '{if (system("[ -f " $1 " ]") == 0) print $1}' /tmp/runtime_libs_list > /tmp/runtime_libs_list.ok
+    mv /tmp/runtime_libs_list.ok /tmp/runtime_libs_list
+    tar -C / -cf /tmp/runtime_libs.tar $(cat /tmp/runtime_libs_list)
+    echo "Collected $(wc -l < /tmp/runtime_libs_list) libraries"
+else
+    echo "No runtime libs list produced (possibly empty install space?)"
+fi
+EOF
 
 ####################################################################################################
 
@@ -184,23 +205,6 @@ find / -type f -name '*.la' -delete 2>/dev/null || true
 rm -rf /var/cache/apt/* /var/lib/apt/lists/*
 EOF
 
-# Collect runtime shared library dependencies (before pruning in later stages)
-RUN bash -exo pipefail <<'EOF'
-set +e
-echo "[Distill] Collecting runtime library dependencies from install space"
-find /opt/open_mower_install -type f \( -perm -111 -o -name '*.so' \) -print0 | \
-    xargs -0 -r ldd 2>/dev/null | awk '/=> \/(usr|lib)/ {print $3}' | \
-    grep -E '^/' | sort -u > /tmp/runtime_libs_list || true
-if [ -s /tmp/runtime_libs_list ]; then
-    # Filter existing only
-    awk '{if (system("[ -f " $1 " ]") == 0) print $1}' /tmp/runtime_libs_list > /tmp/runtime_libs_list.ok || true
-    mv /tmp/runtime_libs_list.ok /tmp/runtime_libs_list
-    tar -C / -cf /tmp/runtime_libs.tar $(cat /tmp/runtime_libs_list) || true
-    echo "[Distill] Collected $(wc -l < /tmp/runtime_libs_list) libraries"
-else
-    echo "[Distill] No runtime libs list produced (possibly empty install space?)"
-fi
-EOF
 
 # Simplified (stabilized) slimming: remove only non-critical weight (docs/locales/static libs).
 # Aggressive apt purging temporarily disabled to avoid removing ROS runtime.
@@ -276,27 +280,13 @@ FROM docker.io/ros:noetic-ros-core-focal AS runtime-osv2
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# This stage aims to be as small as possible. Optionally mark it via RUNTIME_DISTILLED build arg (informational only).
-#ARG RUNTIME_DISTILLED=1
-#ARG RUNTIME_PRUNE_TOOLCHAIN=0
-#ARG FORCE_REMOVE_ICU=0
-
 # Copy install artifacts and prebuilt planner
 COPY --link --from=openmower-build /opt/open_mower_install /opt/open_mower_install
 COPY --link --from=openmower-build /opt/prebuilt/slic3r_coverage_planner /opt/prebuilt/slic3r_coverage_planner
-#COPY --link --from=openmower-build /tmp/runtime_libs.tar /tmp/runtime_libs.tar
+COPY --link --from=openmower-build /tmp/runtime_libs.tar /tmp/runtime_libs.tar
 
-# Also install external ROS runtime dependencies resolved via rosdep
-COPY --link --from=dependencies /apt-install_list /apt-install_list
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    set -eux; \
-    apt-get update; \
-    if [ -s /apt-install_list ]; then \
-    xargs -r -a /apt-install_list apt-get install --no-install-recommends -y; \
-    fi; \
-    rm -rf /var/lib/apt/lists/* /var/cache/apt/* /apt-install_list
-
-#RUN if [ -f /tmp/runtime_libs.tar ]; then tar -xf /tmp/runtime_libs.tar -C / || true; fi && rm -f /tmp/runtime_libs.tar || true
+# Extract runtime libs collected during build
+RUN tar -xf /tmp/runtime_libs.tar -C / && rm -f /tmp/runtime_libs.tar
 
 # Aggressive but safe runtime prune (no compilers here, remove dev & locales not needed)
 #RUN bash -euxo pipefail <<'EOF'
