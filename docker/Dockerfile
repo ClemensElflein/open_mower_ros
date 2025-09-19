@@ -110,9 +110,9 @@ WORK=/tmp/rtlib
 rm -rf "$WORK" && mkdir -p "$WORK"
 touch "$WORK/queue" "$WORK/seen" "$WORK/result"
 
-# Seed queue with all ELF executables and shared objects from install space
-find /opt/open_mower_install -type f \( -perm -111 -o -name '*.so' -o -name '*.so.*' \) -print0 | \
-    xargs -0 -r file | awk -F: '/ELF/ {print $1}' > "$WORK/queue"
+# Seed queue with all potential ELF executables/shared objects from install space
+# We avoid using the 'file' utility to keep the image lean; ldd_abs will no-op on non-ELF files
+find /opt/open_mower_install -type f \( -perm -111 -o -name '*.so' -o -name '*.so.*' \) -print > "$WORK/queue"
 
 while read -r item; do
     [ -z "$item" ] && continue
