@@ -82,7 +82,7 @@ install(TARGETS ftc_local_planner backward_forward_recovery
        LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
        )
        
-install(FILES blp_plugin.xml
+install(FILES blp_plugin.xml mbf_plugin.xml recovery_plugin.xml
     DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
 
