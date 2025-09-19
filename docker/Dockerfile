@@ -95,19 +95,58 @@ RUN install -D -m 0644 version_info.env /opt/open_mower_install/version_info.env
 # the distilled runtime stage can import just the needed shared libs without
 # having to apt-install full dependency packages.
 RUN bash -exo pipefail <<'EOF'
-set +e
-echo "Collecting runtime library dependencies from install space (openmower-build)"
-find /opt/open_mower_install -type f \( -perm -111 -o -name '*.so' \) -print0 | \
-    xargs -0 -r ldd 2>/dev/null | awk '/=> \/(usr|lib)/ {print $3}' | \
-    grep -E '^/' | sort -u > /tmp/runtime_libs_list
+set -e
+echo "[Distill] Collecting transitive runtime libraries (openmower-build)"
+
+ldd_abs() {
+    # Print absolute library paths from ldd output (handles both formats)
+    ldd "$1" 2>/dev/null | awk '{
+        if ($2 == "=>" && $3 ~ /^\//) { print $3; next }
+        if ($1 ~ /^\//) { print $1; next }
+    }' | grep -E '^/'
+}
+
+WORK=/tmp/rtlib
+rm -rf "$WORK" && mkdir -p "$WORK"
+touch "$WORK/queue" "$WORK/seen" "$WORK/result"
+
+# Seed queue with all ELF executables and shared objects from install space
+find /opt/open_mower_install -type f \( -perm -111 -o -name '*.so' -o -name '*.so.*' \) -print0 | \
+    xargs -0 -r file | awk -F: '/ELF/ {print $1}' > "$WORK/queue"
+
+while read -r item; do
+    [ -z "$item" ] && continue
+    # Skip if we've processed this item already
+    grep -Fxq "$item" "$WORK/seen" 2>/dev/null && continue
+    echo "$item" >> "$WORK/seen"
+
+    # Collect its direct deps
+    deps=$(ldd_abs "$item")
+    if [ -n "$deps" ]; then
+        # Filter existing files only
+        while read -r dep; do
+            [ -z "$dep" ] && continue
+            [ -e "$dep" ] || continue
+            echo "$dep" >> "$WORK/result"
+            # Enqueue dep for transitive closure if not seen
+            grep -Fxq "$dep" "$WORK/seen" 2>/dev/null || echo "$dep" >> "$WORK/queue"
+            # If dep is symlink, add realpath as well
+            if [ -L "$dep" ]; then
+                rp=$(readlink -f "$dep")
+                [ -n "$rp" ] && [ -e "$rp" ] && echo "$rp" >> "$WORK/result"
+                grep -Fxq "$rp" "$WORK/seen" 2>/dev/null || echo "$rp" >> "$WORK/queue"
+            fi
+        done <<< "$deps"
+    fi
+done < "$WORK/queue"
+
+sort -u "$WORK/result" > /tmp/runtime_libs_list
+
 if [ -s /tmp/runtime_libs_list ]; then
-    # Filter existing only
-    awk '{if (system("[ -f " $1 " ]") == 0) print $1}' /tmp/runtime_libs_list > /tmp/runtime_libs_list.ok
-    mv /tmp/runtime_libs_list.ok /tmp/runtime_libs_list
     tar -C / -cf /tmp/runtime_libs.tar $(cat /tmp/runtime_libs_list)
-    echo "Collected $(wc -l < /tmp/runtime_libs_list) libraries"
+    echo "[Distill] Collected $(wc -l < /tmp/runtime_libs_list) libraries"
 else
-    echo "No runtime libs list produced (possibly empty install space?)"
+    echo "[Distill] No runtime libs list produced (possibly empty install space?)"
 fi
 EOF
 
@@ -290,6 +329,13 @@ COPY --link --from=openmower-build /tmp/runtime_libs.tar /tmp/runtime_libs.tar
 
 # Extract runtime libs collected during build
 RUN tar -xf /tmp/runtime_libs.tar -C / && rm -f /tmp/runtime_libs.tar
+
+# Ensure dynamic linker cache is updated to see copied libraries (incl. ROS paths)
+RUN bash -euxo pipefail <<'EOF'
+echo "/opt/ros/$ROS_DISTRO/lib" > /etc/ld.so.conf.d/ros.conf
+# Default /lib and /usr/lib trees are already configured by base image; just refresh cache
+ldconfig || true
+EOF
 
 # Ensure temporary directories have correct sticky-bit permissions
 RUN mkdir -p /tmp /var/tmp && chmod 1777 /tmp /var/tmp
