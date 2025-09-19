@@ -319,11 +319,14 @@ FROM docker.io/ros:noetic-ros-core-focal AS runtime-osv2
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Copy install artifacts, prebuilt planner and collected runtime libs from build stage
+# Copy install artifacts, prebuilt planner and runtime artifacts from build stage
 COPY --link --from=openmower-build /opt/open_mower_install /opt/open_mower_install
 COPY --link --from=openmower-build /opt/prebuilt/slic3r_coverage_planner /opt/prebuilt/slic3r_coverage_planner
 COPY --link --from=openmower-build /apt-install_runtime-list /apt-install_runtime-list
 COPY --link --from=openmower-build /tmp/runtime_extra_libs.tar /tmp/runtime_extra_libs.tar
+
+# Ensure temporary directories have correct sticky-bit permissions before any apt
+RUN mkdir -p /tmp /var/tmp && chmod 1777 /tmp /var/tmp
 
 # Install runtime packages and lay down any extra libs not owned by dpkg
 ARG INSTALL_RUNTIME_PACKAGES=1
@@ -363,9 +366,6 @@ else
     echo "[Runtime] Skipping minimal ROS runtime apt packages (INSTALL_ROS_RUNTIME_DEPS!=1)"
 fi
 EOF
-
-# Ensure temporary directories have correct sticky-bit permissions
-RUN mkdir -p /tmp /var/tmp && chmod 1777 /tmp /var/tmp
 
 # Aggressive but safe runtime prune (no compilers here, remove dev & locales not needed)
 #RUN bash -euxo pipefail <<'EOF'
