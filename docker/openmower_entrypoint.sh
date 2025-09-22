@@ -5,9 +5,10 @@ set -e
 source "/opt/ros/$ROS_DISTRO/setup.bash"
 source /opt/open_mower_ros/devel/setup.bash
 
-# First arg should be mode now (osv1 or osv2)
-MODE="$1"
-if [[ -n "$MODE" ]]; then
+# Determine the mode (osv1 or osv2) from the first argument.
+# Default to osv1 if no argument is provided, to maintain compatibility with OSv1's start_ros_bash.sh which calls this entrypoint without arguments.
+MODE="${1:-osv1}"
+if [[ $# -gt 0 ]]; then
     shift
 fi
 
