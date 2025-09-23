@@ -12,6 +12,7 @@
         </node>
         <!-- GPS driver only for v1 builds -->
         <node pkg="xbot_driver_gps" type="driver_gps_node" name="xbot_driver_gps"
+                ns="ll/services/gps"
                 output="screen"
                 clear_params="true"
                 respawn="true"
