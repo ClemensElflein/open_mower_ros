@@ -14,7 +14,6 @@
         <node pkg="xbot_driver_gps" type="driver_gps_node" name="gps"
                 ns="ll/services"
                 output="screen"
-                clear_params="true"
                 respawn="true"
                 respawn_delay="5"
                 unless="$(optenv OM_NO_GPS False)">
