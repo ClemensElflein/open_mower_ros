@@ -19,6 +19,9 @@
                   file="$(find open_mower)/params/hardware_specific/$(env MOWER)/comms_general_params.yaml"/>
 	        <rosparam ns="ll/services/diff_drive"
                   file="$(find open_mower)/params/hardware_specific/$(env MOWER)/comms_$(env ESC_TYPE)_params.yaml"/>
+	        <rosparam
+                  ns="ll/services/gps"
+                  file="$(find open_mower)/params/hardware_specific/$(env MOWER)/comms_gps_params.yaml"/>
 	    </group>
 
             <!-- This is the default case: We have a predefined mower model and let the user override -->
