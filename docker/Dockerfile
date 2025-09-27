@@ -89,7 +89,8 @@ RUN groupadd --gid ${USER_GID} ${USERNAME} \
 COPY ./docker/assets/openmower-bashrc.sh /tmp/openmower-bashrc.sh
 RUN set -eux; \
     BRC="/home/${USERNAME}/.bashrc"; \
-    touch "$BRC"; \
+    # Uncomment force_color_prompt
+    grep -q '^#force_color_prompt=yes' "$BRC" && sed -i 's/^#force_color_prompt=yes/force_color_prompt=yes/' "$BRC"; \
     chown ${USER_UID}:${USER_GID} "$BRC"; \
     printf '\n# OpenMower bashrc extension\n' >> "$BRC"; \
     cat /tmp/openmower-bashrc.sh >> "$BRC"; \
