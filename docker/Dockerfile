@@ -6,6 +6,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install --yes \
     git \
     python3.8-venv \
+    sudo \
     && rm -rf /var/lib/apt/lists/*
 
 # Update rosdep
@@ -95,6 +96,8 @@ RUN set -eux; \
     printf '\n# OpenMower bashrc extension\n' >> "$BRC"; \
     cat /tmp/openmower-bashrc.sh >> "$BRC"; \
     rm -f /tmp/openmower-bashrc.sh
+RUN usermod -aG sudo ${USERNAME}
+RUN echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${USERNAME} && chmod 0440 /etc/sudoers.d/${USERNAME}
 
 USER ${USERNAME}
 

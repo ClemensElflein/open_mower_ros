@@ -1,0 +1,29 @@
+gpio:
+  - name: Front left wheel lift
+    line: GPIO13
+    active: high
+    emergency:
+      reason: lift
+      delay: 2500
+
+  - name: Front right wheel lift
+    line: GPIO12
+    active: high
+    emergency:
+      reason: lift
+      delay: 2500
+
+  - name: Top stop button
+    line: GPIO11
+    active: high
+    emergency:
+      reason: stop
+      delay: 10
+
+# Need to wait for log-debouncing or sensor-heartbeat support
+#  - name: Back-handle stop
+#    line: GPIO10
+#    active: high
+#    emergency:
+#      reason: stop
+#      delay: 50
