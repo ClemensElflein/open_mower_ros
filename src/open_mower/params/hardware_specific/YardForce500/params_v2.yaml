@@ -10,6 +10,8 @@ ll:
       battery_critical_high_voltage: 29.0
       charge_critical_high_voltage: 30.0
       charge_critical_high_current: 1.5
+    input:
+      config_file: /opt/open_mower_ros/src/open_mower/params/hardware_specific/YardForce500/inputs.yaml
 
 xbot_positioning:
   antenna_offset_x: 0.3
