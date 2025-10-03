@@ -1,0 +1,28 @@
+gpio:
+  - name: Front left wheel lift
+    line: GPIO10
+    active: low
+    emergency:
+      reason: lift
+      delay: 2500
+
+  - name: Front right wheel lift
+    line: GPIO11
+    active: low
+    emergency:
+      reason: lift
+      delay: 2500
+
+  - name: Top stop button 1
+    line: GPIO12
+    active: low
+    emergency:
+      reason: stop
+      delay: 10
+
+  - name: Top stop button 2
+    line: GPIO13
+    active: low
+    emergency:
+      reason: stop
+      delay: 10
