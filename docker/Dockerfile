@@ -85,6 +85,17 @@ RUN groupadd --gid ${USER_GID} ${USERNAME} \
     && useradd --uid ${USER_UID} --gid ${USER_GID} --create-home --shell /bin/bash ${USERNAME} \
     && adduser ${USERNAME} dialout \
     && chown -R ${USER_UID}:${USER_GID} /config /home/${USERNAME}
+
+# Append our bashrc extension to user's .bashrc
+COPY ./docker/assets/openmower-bashrc.sh /tmp/openmower-bashrc.sh
+RUN set -eux; \
+    BRC="/home/${USERNAME}/.bashrc"; \
+    # Uncomment force_color_prompt
+    grep -q '^#force_color_prompt=yes' "$BRC" && sed -i 's/^#force_color_prompt=yes/force_color_prompt=yes/' "$BRC"; \
+    chown ${USER_UID}:${USER_GID} "$BRC"; \
+    printf '\n# OpenMower bashrc extension\n' >> "$BRC"; \
+    cat /tmp/openmower-bashrc.sh >> "$BRC"; \
+    rm -f /tmp/openmower-bashrc.sh
 RUN usermod -aG sudo ${USERNAME}
 RUN echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${USERNAME} && chmod 0440 /etc/sudoers.d/${USERNAME}
 

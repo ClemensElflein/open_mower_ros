@@ -1,5 +1,10 @@
 # This get extend user's ~/.bashrc
 
+# Container shell PS1 prefix
+if command -v systemd-detect-virt >/dev/null 2>&1 && systemd-detect-virt -cq; then
+    PS1="🚜 $PS1"
+fi
+
 # Source ROS and the workspace overlay (if present)
 if [ -f "/opt/ros/$ROS_DISTRO/setup.bash" ]; then
     . "/opt/ros/$ROS_DISTRO/setup.bash"
