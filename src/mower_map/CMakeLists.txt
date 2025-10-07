@@ -60,7 +60,6 @@ find_package(catkin REQUIRED
 add_message_files(
         FILES
         MapArea.msg
-        MapAreas.msg
 )
 
 ## Generate services in the 'srv' folder

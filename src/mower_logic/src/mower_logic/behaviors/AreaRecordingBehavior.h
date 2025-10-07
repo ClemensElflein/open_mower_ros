@@ -27,7 +27,6 @@
 #include "geometry_msgs/Twist.h"
 #include "mower_map/AddMowingAreaSrv.h"
 #include "mower_map/MapArea.h"
-#include "mower_map/MapAreas.h"
 #include "mower_map/SetDockingPointSrv.h"
 #include "mower_msgs/EmergencyStopSrv.h"
 #include "mower_msgs/Status.h"
