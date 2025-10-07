@@ -27,7 +27,6 @@
 #include "geometry_msgs/Polygon.h"
 #include "geometry_msgs/PoseStamped.h"
 #include "mower_map/MapArea.h"
-#include "mower_map/MapAreas.h"
 
 // Include Service Messages
 #include "mower_map/AddMowingAreaSrv.h"
@@ -47,7 +46,7 @@
 #include "xbot_msgs/Map.h"
 
 // Publishes the map as occupancy grid
-ros::Publisher map_pub, map_areas_pub;
+ros::Publisher map_pub;
 
 // Publishes the map as markers for rviz
 ros::Publisher map_server_viz_array_pub;
@@ -131,25 +130,13 @@ void publishMapMonitoring() {
  * Publish map visualizations for rviz.
  */
 void visualizeAreas() {
-  mower_map::MapAreas mapAreas;
-
-  mapAreas.mapWidth = map.getSize().x() * map.getResolution();
-  mapAreas.mapHeight = map.getSize().y() * map.getResolution();
   auto mapPos = map.getPosition();
-  mapAreas.mapCenterX = mapPos.x();
-  mapAreas.mapCenterY = mapPos.y();
 
   visualization_msgs::MarkerArray markerArray;
 
   grid_map::Polygon p;
 
-  for (const auto& navigationArea : navigation_areas) {
-    mapAreas.navigationAreas.push_back(navigationArea);
-  }
-
   for (auto mowingArea : mowing_areas) {
-    // Push it to mapAreas
-    mapAreas.mowingAreas.push_back(mowingArea);
     {
       // Create a marker
       fromMessage(mowingArea.area, p);
@@ -208,7 +195,6 @@ void visualizeAreas() {
   }
 
   map_server_viz_array_pub.publish(markerArray);
-  map_areas_pub.publish(mapAreas);
 }
 
 /**
@@ -604,7 +590,6 @@ int main(int argc, char** argv) {
   has_docking_point = false;
   ros::NodeHandle n;
   map_pub = n.advertise<nav_msgs::OccupancyGrid>("mower_map_service/map", 10, true);
-  map_areas_pub = n.advertise<mower_map::MapAreas>("mower_map_service/map_areas", 10, true);
   map_server_viz_array_pub = n.advertise<visualization_msgs::MarkerArray>("mower_map_service/map_viz", 10, true);
   xbot_monitoring_map_pub = n.advertise<xbot_msgs::Map>("xbot_monitoring/map", 10, true);
 
