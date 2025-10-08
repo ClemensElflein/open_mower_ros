@@ -27,23 +27,14 @@
 #include "../../../services/service_ids.h"
 #include "SimRobot.h"
 #include "dynamic_reconfigure/server.h"
-#include "geometry_msgs/PoseWithCovarianceStamped.h"
-#include "geometry_msgs/Twist.h"
 #include "mower_map/GetDockingPointSrv.h"
-#include "mower_msgs/EmergencyStopSrv.h"
-#include "mower_msgs/MowerControlSrv.h"
-#include "mower_msgs/Status.h"
 #include "mower_simulation/MowerSimulationConfig.h"
-#include "nav_msgs/Odometry.h"
 #include "services/diff_drive_service/diff_drive_service.hpp"
 #include "services/emergency_service/emergency_service.hpp"
 #include "services/gps_service/gps_service.hpp"
 #include "services/imu_service/imu_service.hpp"
 #include "services/mower_service/mower_service.hpp"
 #include "services/power_service/power_service.hpp"
-#include "xbot_msgs/AbsolutePose.h"
-#include "xbot_positioning/GPSControlSrv.h"
-#include "xbot_positioning/SetPoseSrv.h"
 
 ros::Publisher status_pub;
 ros::Publisher cmd_vel_pub;
@@ -73,15 +64,16 @@ int main(int argc, char **argv) {
   // TODO: Use a better way to make sure that the docking position is loaded.
   sleep(3);
   mower_map::GetDockingPointSrv get_docking_point_srv;
-  docking_point_client.call(get_docking_point_srv);
-  const auto &docking_pose = get_docking_point_srv.response.docking_pose;
-  tf2::Quaternion quat;
-  tf2::fromMsg(docking_pose.orientation, quat);
-  tf2::Matrix3x3 m(quat);
-  double roll, pitch, yaw;
-  m.getRPY(roll, pitch, yaw);
-  robot.SetDockingPose(docking_pose.position.x, docking_pose.position.y, yaw);
-  robot.SetPosition(docking_pose.position.x, docking_pose.position.y, yaw);
+  if (docking_point_client.call(get_docking_point_srv)) {
+    const auto &docking_pose = get_docking_point_srv.response.docking_pose;
+    tf2::Quaternion quat;
+    tf2::fromMsg(docking_pose.orientation, quat);
+    tf2::Matrix3x3 m(quat);
+    double roll, pitch, yaw;
+    m.getRPY(roll, pitch, yaw);
+    robot.SetDockingPose(docking_pose.position.x, docking_pose.position.y, yaw);
+    robot.SetPosition(docking_pose.position.x, docking_pose.position.y, yaw);
+  }
 
   EmergencyService emergency_service{xbot::service_ids::EMERGENCY, robot};
   DiffDriveService diff_drive_service{xbot::service_ids::DIFF_DRIVE, robot};
