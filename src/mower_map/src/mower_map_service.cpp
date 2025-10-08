@@ -30,10 +30,8 @@
 
 // Include Service Messages
 #include "mower_map/AddMowingAreaSrv.h"
-#include "mower_map/AppendMapSrv.h"
 #include "mower_map/ClearMapSrv.h"
 #include "mower_map/ClearNavPointSrv.h"
-#include "mower_map/ConvertToNavigationAreaSrv.h"
 #include "mower_map/DeleteMowingAreaSrv.h"
 #include "mower_map/GetDockingPointSrv.h"
 #include "mower_map/GetMowingAreaSrv.h"
@@ -405,13 +403,8 @@ void saveMapToFile() {
  * Load the polygons from the bag file and build a map.
  *
  * @param filename The file to load.
- * @param append True to append the loaded map to the current one.
  */
-void readMapFromFile(const std::string& filename, bool append = false) {
-  if (!append) {
-    mowing_areas.clear();
-    navigation_areas.clear();
-  }
+void readMapFromFile(const std::string& filename) {
   rosbag::Bag bag;
   try {
     bag.open(filename);
@@ -500,36 +493,6 @@ bool deleteMowingArea(mower_map::DeleteMowingAreaSrvRequest& req, mower_map::Del
   return true;
 }
 
-bool convertToNavigationArea(mower_map::ConvertToNavigationAreaSrvRequest& req,
-                             mower_map::ConvertToNavigationAreaSrvResponse& res) {
-  ROS_INFO_STREAM("Got convert to nav area call with index: " << req.index);
-
-  if (req.index >= mowing_areas.size()) {
-    ROS_ERROR_STREAM("No mowing area with index: " << req.index);
-    return false;
-  }
-
-  navigation_areas.push_back(mowing_areas[req.index]);
-
-  mowing_areas.erase(mowing_areas.begin() + req.index);
-
-  saveMapToFile();
-  buildMap();
-
-  return true;
-}
-
-bool appendMapFromFile(mower_map::AppendMapSrvRequest& req, mower_map::AppendMapSrvResponse& res) {
-  ROS_INFO_STREAM("Appending maps from: " << req.bagfile);
-
-  readMapFromFile(req.bagfile, true);
-
-  saveMapToFile();
-  buildMap();
-
-  return true;
-}
-
 bool setDockingPoint(mower_map::SetDockingPointSrvRequest& req, mower_map::SetDockingPointSrvResponse& res) {
   ROS_INFO_STREAM("Setting Docking Point");
 
@@ -601,9 +564,6 @@ int main(int argc, char** argv) {
   ros::ServiceServer add_area_srv = n.advertiseService("mower_map_service/add_mowing_area", addMowingArea);
   ros::ServiceServer get_area_srv = n.advertiseService("mower_map_service/get_mowing_area", getMowingArea);
   ros::ServiceServer delete_area_srv = n.advertiseService("mower_map_service/delete_mowing_area", deleteMowingArea);
-  ros::ServiceServer append_maps_srv = n.advertiseService("mower_map_service/append_maps", appendMapFromFile);
-  ros::ServiceServer convert_maps_srv =
-      n.advertiseService("mower_map_service/convert_to_navigation_area", convertToNavigationArea);
   ros::ServiceServer set_docking_point_srv = n.advertiseService("mower_map_service/set_docking_point", setDockingPoint);
   ros::ServiceServer get_docking_point_srv = n.advertiseService("mower_map_service/get_docking_point", getDockingPoint);
   ros::ServiceServer set_nav_point_srv = n.advertiseService("mower_map_service/set_nav_point", setNavPoint);
