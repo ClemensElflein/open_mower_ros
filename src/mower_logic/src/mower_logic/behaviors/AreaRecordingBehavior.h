@@ -92,10 +92,10 @@ class AreaRecordingBehavior : public Behavior {
   visualization_msgs::Marker marker;
 
  private:
-  bool recordNewPolygon(geometry_msgs::Polygon &polygon, xbot_msgs::MapOverlay &resultOverlay);
-  bool getDockingPosition(geometry_msgs::Pose &pos);
-  void pose_received(const xbot_msgs::AbsolutePose::ConstPtr &msg);
-  void joy_received(const sensor_msgs::Joy &joy_msg);
+  bool recordNewPolygon(geometry_msgs::Polygon& polygon, xbot_msgs::MapOverlay& resultOverlay);
+  bool getDockingPosition(geometry_msgs::Pose& pos);
+  void pose_received(const xbot_msgs::AbsolutePose::ConstPtr& msg);
+  void joy_received(const sensor_msgs::Joy& joy_msg);
   void record_dock_received(std_msgs::Bool state_msg);
   void record_polygon_received(std_msgs::Bool state_msg);
   void record_mowing_received(std_msgs::Bool state_msg);
@@ -110,7 +110,7 @@ class AreaRecordingBehavior : public Behavior {
 
   std::string sub_state_name() override;
 
-  Behavior *execute() override;
+  Behavior* execute() override;
 
   void enter() override;
 

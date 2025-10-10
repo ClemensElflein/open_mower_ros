@@ -23,8 +23,8 @@ extern void stopMoving();
 extern void stopBlade();
 extern void setEmergencyMode(bool emergency);
 extern void setGPS(bool enabled);
-extern void setRobotPose(geometry_msgs::Pose &pose);
-extern void registerActions(std::string prefix, const std::vector<xbot_msgs::ActionInfo> &actions);
+extern void setRobotPose(geometry_msgs::Pose& pose);
+extern void registerActions(std::string prefix, const std::vector<xbot_msgs::ActionInfo>& actions);
 extern ros::Time rain_resume;
 
 extern ros::ServiceClient dockingPointClient;
@@ -33,7 +33,7 @@ extern mower_msgs::Power getPower();
 extern mower_logic::MowerLogicConfig getConfig();
 extern void setConfig(mower_logic::MowerLogicConfig);
 extern ll::PowerConfig getPowerConfig();
-extern dynamic_reconfigure::Server<mower_logic::MowerLogicConfig> *reconfigServer;
+extern dynamic_reconfigure::Server<mower_logic::MowerLogicConfig>* reconfigServer;
 
 extern ros::ServiceClient mapClient;
 extern ros::ServiceClient dockingPointClient;
@@ -45,7 +45,7 @@ std::string IdleBehavior::state_name() {
   return "IDLE";
 }
 
-Behavior *IdleBehavior::execute() {
+Behavior* IdleBehavior::execute() {
   // Check, if we have a configured map. If not, print info and go to area recorder
   mower_map::GetMowingAreaSrv mapSrv;
   mapSrv.request.index = 0;
@@ -128,14 +128,14 @@ void IdleBehavior::enter() {
   // disable it, so that we don't start mowing immediately
   manual_start_mowing = false;
 
-  for (auto &a : actions) {
+  for (auto& a : actions) {
     a.enabled = true;
   }
   registerActions("mower_logic:idle", actions);
 }
 
 void IdleBehavior::exit() {
-  for (auto &a : actions) {
+  for (auto& a : actions) {
     a.enabled = false;
   }
   registerActions("mower_logic:idle", actions);

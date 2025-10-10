@@ -10,9 +10,9 @@
 template <typename MESSAGE>
 class StateSubscriber {
  public:
-  explicit StateSubscriber(const std::string &topic);
+  explicit StateSubscriber(const std::string& topic);
 
-  void Start(ros::NodeHandle *n);
+  void Start(ros::NodeHandle* n);
 
   MESSAGE getMessage();
 
@@ -20,7 +20,7 @@ class StateSubscriber {
 
   ros::Time getMessageTime();
 
-  void setMessage(const MESSAGE &message);
+  void setMessage(const MESSAGE& message);
 
  private:
   std::string topic_;
@@ -32,11 +32,11 @@ class StateSubscriber {
 };
 
 template <typename MESSAGE>
-StateSubscriber<MESSAGE>::StateSubscriber(const std::string &topic) : topic_{topic} {
+StateSubscriber<MESSAGE>::StateSubscriber(const std::string& topic) : topic_{topic} {
 }
 
 template <typename MESSAGE>
-void StateSubscriber<MESSAGE>::Start(ros::NodeHandle *n) {
+void StateSubscriber<MESSAGE>::Start(ros::NodeHandle* n) {
   subscriber_ = n->subscribe(topic_, 10, &StateSubscriber::setMessage, this);
 }
 
@@ -59,7 +59,7 @@ ros::Time StateSubscriber<MESSAGE>::getMessageTime() {
 }
 
 template <typename MESSAGE>
-void StateSubscriber<MESSAGE>::setMessage(const MESSAGE &message) {
+void StateSubscriber<MESSAGE>::setMessage(const MESSAGE& message) {
   std::lock_guard<std::mutex> lk{message_mutex_};
   last_message_time_ = ros::Time::now();
   message_ = message;
