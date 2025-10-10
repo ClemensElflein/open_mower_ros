@@ -52,7 +52,7 @@ class PerimeterBase : public Behavior {
 
 class PerimeterFollowBehavior : public PerimeterBase {
  public:
-  Behavior *execute() override;
+  Behavior* execute() override;
 
  protected:
   /**
@@ -62,7 +62,7 @@ class PerimeterFollowBehavior : public PerimeterBase {
   /**
    * @brief We arrived and should continue with the returned Behavior.
    */
-  virtual Behavior *arrived() = 0;
+  virtual Behavior* arrived() = 0;
 };
 
 class PerimeterDockingBehavior : public PerimeterFollowBehavior {
@@ -74,7 +74,7 @@ class PerimeterDockingBehavior : public PerimeterFollowBehavior {
   std::string state_name() override;
 
  protected:
-  Behavior *arrived() override;
+  Behavior* arrived() override;
 };
 
 class PerimeterSearchBehavior : public PerimeterBase {
@@ -83,10 +83,10 @@ class PerimeterSearchBehavior : public PerimeterBase {
   /**
    * Is usage configured?
    */
-  static int configured(const mower_logic::MowerLogicConfig &config);
+  static int configured(const mower_logic::MowerLogicConfig& config);
 
   std::string state_name() override;
-  Behavior *execute() override;
+  Behavior* execute() override;
 };
 
 class PerimeterUndockingBehavior : public PerimeterBase {
@@ -95,10 +95,10 @@ class PerimeterUndockingBehavior : public PerimeterBase {
   /**
    * Is usage configured?
    */
-  static int configured(const mower_logic::MowerLogicConfig &config);
+  static int configured(const mower_logic::MowerLogicConfig& config);
 
   std::string state_name() override;
-  Behavior *execute() override;
+  Behavior* execute() override;
 };
 
 class PerimeterMoveToGpsBehavior : public PerimeterFollowBehavior {
@@ -108,7 +108,7 @@ class PerimeterMoveToGpsBehavior : public PerimeterFollowBehavior {
   void enter() override;
 
  protected:
-  Behavior *arrived() override;
+  Behavior* arrived() override;
 };
 
 #endif  // SRC_PERIMETER_DOCKING_H

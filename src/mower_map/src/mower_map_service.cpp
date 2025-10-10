@@ -77,9 +77,9 @@ grid_map::GridMap map;
  * @param poly input poly
  * @param out result
  */
-void fromMessage(geometry_msgs::Polygon &poly, grid_map::Polygon &out) {
+void fromMessage(geometry_msgs::Polygon& poly, grid_map::Polygon& out) {
   out.removeVertices();
-  for (auto &point : poly.points) {
+  for (auto& point : poly.points) {
     grid_map::Position pos;
     pos.x() = point.x;
     pos.y() = point.y;
@@ -109,14 +109,14 @@ void publishMapMonitoring() {
   m.getRPY(unused1, unused2, yaw);
   xb_map.dockHeading = yaw;
 
-  for (const auto &area : navigation_areas) {
+  for (const auto& area : navigation_areas) {
     xbot_msgs::MapArea xb_area;
     xb_area.name = area.name;
     xb_area.area = area.area;
     xb_area.obstacles = area.obstacles;
     xb_map.navigationAreas.push_back(xb_area);
   }
-  for (const auto &area : mowing_areas) {
+  for (const auto& area : mowing_areas) {
     xbot_msgs::MapArea xb_area;
     xb_area.name = area.name;
     xb_area.area = area.area;
@@ -143,7 +143,7 @@ void visualizeAreas() {
 
   grid_map::Polygon p;
 
-  for (const auto &navigationArea : navigation_areas) {
+  for (const auto& navigationArea : navigation_areas) {
     mapAreas.navigationAreas.push_back(navigationArea);
   }
 
@@ -228,15 +228,15 @@ void buildMap() {
   float maxY = -FLT_MAX;
 
   // loop through all areas and calculate a size where everything fits
-  for (const auto &area : mowing_areas) {
+  for (const auto& area : mowing_areas) {
     for (auto pt : area.area.points) {
       minX = std::min(minX, pt.x);
       maxX = std::max(maxX, pt.x);
       minY = std::min(minY, pt.y);
       maxY = std::max(maxY, pt.y);
     }
-    for (const auto &obstacle : area.obstacles) {
-      for (const auto &pt : obstacle.points) {
+    for (const auto& obstacle : area.obstacles) {
+      for (const auto& pt : obstacle.points) {
         minX = std::min(minX, pt.x);
         maxX = std::max(maxX, pt.x);
         minY = std::min(minY, pt.y);
@@ -244,15 +244,15 @@ void buildMap() {
       }
     }
   }
-  for (const auto &area : navigation_areas) {
+  for (const auto& area : navigation_areas) {
     for (auto pt : area.area.points) {
       minX = std::min(minX, pt.x);
       maxX = std::max(maxX, pt.x);
       minY = std::min(minY, pt.y);
       maxY = std::max(maxY, pt.y);
     }
-    for (const auto &obstacle : area.obstacles) {
-      for (const auto &pt : obstacle.points) {
+    for (const auto& obstacle : area.obstacles) {
+      for (const auto& pt : obstacle.points) {
         minX = std::min(minX, pt.x);
         maxX = std::max(maxX, pt.x);
         minY = std::min(minY, pt.y);
@@ -291,7 +291,7 @@ void buildMap() {
   map.clearAll();
   map["navigation_area"].setConstant(1.0);
 
-  grid_map::Matrix &data = map["navigation_area"];
+  grid_map::Matrix& data = map["navigation_area"];
   for (auto mowingArea : navigation_areas) {
     grid_map::Polygon poly;
     fromMessage(mowingArea.area, poly);
@@ -401,10 +401,10 @@ void saveMapToFile() {
   rosbag::Bag bag;
   bag.open("map.bag", rosbag::bagmode::Write);
 
-  for (auto &area : mowing_areas) {
+  for (auto& area : mowing_areas) {
     bag.write("mowing_areas", ros::Time::now(), area);
   }
-  for (auto &area : navigation_areas) {
+  for (auto& area : navigation_areas) {
     bag.write("navigation_areas", ros::Time::now(), area);
   }
 
@@ -421,7 +421,7 @@ void saveMapToFile() {
  * @param filename The file to load.
  * @param append True to append the loaded map to the current one.
  */
-void readMapFromFile(const std::string &filename, bool append = false) {
+void readMapFromFile(const std::string& filename, bool append = false) {
   if (!append) {
     mowing_areas.clear();
     navigation_areas.clear();
@@ -429,7 +429,7 @@ void readMapFromFile(const std::string &filename, bool append = false) {
   rosbag::Bag bag;
   try {
     bag.open(filename);
-  } catch (rosbag::BagIOException &e) {
+  } catch (rosbag::BagIOException& e) {
     ROS_WARN("Error opening stored mowing areas.");
     return;
   }
@@ -471,7 +471,7 @@ void readMapFromFile(const std::string &filename, bool append = false) {
                             << " navigation areas from file.");
 }
 
-bool addMowingArea(mower_map::AddMowingAreaSrvRequest &req, mower_map::AddMowingAreaSrvResponse &res) {
+bool addMowingArea(mower_map::AddMowingAreaSrvRequest& req, mower_map::AddMowingAreaSrvResponse& res) {
   ROS_INFO_STREAM("Got addMowingArea call");
 
   if (req.isNavigationArea) {
@@ -485,7 +485,7 @@ bool addMowingArea(mower_map::AddMowingAreaSrvRequest &req, mower_map::AddMowing
   return true;
 }
 
-bool getMowingArea(mower_map::GetMowingAreaSrvRequest &req, mower_map::GetMowingAreaSrvResponse &res) {
+bool getMowingArea(mower_map::GetMowingAreaSrvRequest& req, mower_map::GetMowingAreaSrvResponse& res) {
   ROS_INFO_STREAM("Got getMowingArea call with index: " << req.index);
 
   if (req.index >= mowing_areas.size()) {
@@ -498,7 +498,7 @@ bool getMowingArea(mower_map::GetMowingAreaSrvRequest &req, mower_map::GetMowing
   return true;
 }
 
-bool deleteMowingArea(mower_map::DeleteMowingAreaSrvRequest &req, mower_map::DeleteMowingAreaSrvResponse &res) {
+bool deleteMowingArea(mower_map::DeleteMowingAreaSrvRequest& req, mower_map::DeleteMowingAreaSrvResponse& res) {
   ROS_INFO_STREAM("Got delete mowing area call with index: " << req.index);
 
   if (req.index >= mowing_areas.size()) {
@@ -514,8 +514,8 @@ bool deleteMowingArea(mower_map::DeleteMowingAreaSrvRequest &req, mower_map::Del
   return true;
 }
 
-bool convertToNavigationArea(mower_map::ConvertToNavigationAreaSrvRequest &req,
-                             mower_map::ConvertToNavigationAreaSrvResponse &res) {
+bool convertToNavigationArea(mower_map::ConvertToNavigationAreaSrvRequest& req,
+                             mower_map::ConvertToNavigationAreaSrvResponse& res) {
   ROS_INFO_STREAM("Got convert to nav area call with index: " << req.index);
 
   if (req.index >= mowing_areas.size()) {
@@ -533,7 +533,7 @@ bool convertToNavigationArea(mower_map::ConvertToNavigationAreaSrvRequest &req,
   return true;
 }
 
-bool appendMapFromFile(mower_map::AppendMapSrvRequest &req, mower_map::AppendMapSrvResponse &res) {
+bool appendMapFromFile(mower_map::AppendMapSrvRequest& req, mower_map::AppendMapSrvResponse& res) {
   ROS_INFO_STREAM("Appending maps from: " << req.bagfile);
 
   readMapFromFile(req.bagfile, true);
@@ -544,7 +544,7 @@ bool appendMapFromFile(mower_map::AppendMapSrvRequest &req, mower_map::AppendMap
   return true;
 }
 
-bool setDockingPoint(mower_map::SetDockingPointSrvRequest &req, mower_map::SetDockingPointSrvResponse &res) {
+bool setDockingPoint(mower_map::SetDockingPointSrvRequest& req, mower_map::SetDockingPointSrvResponse& res) {
   ROS_INFO_STREAM("Setting Docking Point");
 
   docking_point = req.docking_pose;
@@ -556,7 +556,7 @@ bool setDockingPoint(mower_map::SetDockingPointSrvRequest &req, mower_map::SetDo
   return true;
 }
 
-bool getDockingPoint(mower_map::GetDockingPointSrvRequest &req, mower_map::GetDockingPointSrvResponse &res) {
+bool getDockingPoint(mower_map::GetDockingPointSrvRequest& req, mower_map::GetDockingPointSrvResponse& res) {
   ROS_INFO_STREAM("Getting Docking Point");
 
   res.docking_pose = docking_point;
@@ -564,7 +564,7 @@ bool getDockingPoint(mower_map::GetDockingPointSrvRequest &req, mower_map::GetDo
   return has_docking_point;
 }
 
-bool setNavPoint(mower_map::SetNavPointSrvRequest &req, mower_map::SetNavPointSrvResponse &res) {
+bool setNavPoint(mower_map::SetNavPointSrvRequest& req, mower_map::SetNavPointSrvResponse& res) {
   ROS_INFO_STREAM("Setting Nav Point");
 
   fake_obstacle_pose = req.nav_pose;
@@ -576,7 +576,7 @@ bool setNavPoint(mower_map::SetNavPointSrvRequest &req, mower_map::SetNavPointSr
   return true;
 }
 
-bool clearNavPoint(mower_map::ClearNavPointSrvRequest &req, mower_map::ClearNavPointSrvResponse &res) {
+bool clearNavPoint(mower_map::ClearNavPointSrvRequest& req, mower_map::ClearNavPointSrvResponse& res) {
   ROS_INFO_STREAM("Clearing Nav Point");
 
   if (show_fake_obstacle) {
@@ -588,7 +588,7 @@ bool clearNavPoint(mower_map::ClearNavPointSrvRequest &req, mower_map::ClearNavP
   return true;
 }
 
-bool clearMap(mower_map::ClearMapSrvRequest &req, mower_map::ClearMapSrvResponse &res) {
+bool clearMap(mower_map::ClearMapSrvRequest& req, mower_map::ClearMapSrvResponse& res) {
   ROS_INFO_STREAM("Clearing Map");
 
   mowing_areas.clear();
@@ -599,7 +599,7 @@ bool clearMap(mower_map::ClearMapSrvRequest &req, mower_map::ClearMapSrvResponse
   return true;
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   ros::init(argc, argv, "mower_map_service");
   has_docking_point = false;
   ros::NodeHandle n;
