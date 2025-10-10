@@ -13,11 +13,11 @@ using namespace xbot::service;
 
 class ImuService : public ImuServiceBase {
  public:
-  explicit ImuService(const uint16_t service_id, SimRobot &robot) : ImuServiceBase(service_id), robot_(robot) {
+  explicit ImuService(const uint16_t service_id, SimRobot& robot) : ImuServiceBase(service_id), robot_(robot) {
   }
 
  private:
-  SimRobot &robot_;
+  SimRobot& robot_;
   void tick();
   ManagedSchedule tick_schedule_{scheduler_, IsRunning(), 10'000,
                                  XBOT_FUNCTION_FOR_METHOD(ImuService, &ImuService::tick, this)};
