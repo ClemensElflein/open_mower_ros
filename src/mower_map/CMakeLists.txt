@@ -26,6 +26,7 @@ find_package(catkin REQUIRED
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
+add_subdirectory(../lib/json json EXCLUDE_FROM_ALL)
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
@@ -124,11 +125,6 @@ catkin_package(
         #  CATKIN_DEPENDS other_catkin_pkg
         #  DEPENDS system_lib
 )
-
-# Fetch nlohmann::json. Version 3.12.0 still has some bugs with std::optional.
-include(FetchContent)
-FetchContent_Declare(json URL https://github.com/nlohmann/json/archive/3ed64e502a6371311af3c2f309e6525b2f5f6f18.tar.gz)
-FetchContent_MakeAvailable(json)
 
 ###########
 ## Build ##
