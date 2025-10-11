@@ -16,6 +16,7 @@
 #include "grid_map_ros/GridMapRosConverter.hpp"
 #include "grid_map_ros/PolygonRosConverter.hpp"
 #include "ros/ros.h"
+#include "std_msgs/String.h"
 #include "visualization_msgs/MarkerArray.h"
 
 // Include Messages
@@ -78,6 +79,8 @@ struct MapData {
     navigation_areas.clear();
     docking_stations.clear();
   }
+
+  std::string toJsonString();
 };
 
 // JSON serialization macros
@@ -105,6 +108,11 @@ void from_json(const json& j, DockingStation& data) {
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(MapData, mowing_areas, navigation_areas, docking_stations)
 
+std::string MapData::toJsonString() {
+  json json_data = *this;
+  return json_data.dump(2);
+}
+
 std::string generateNanoId(size_t length = 32) {
   static const char alphabet[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
   thread_local std::mt19937 rng{std::random_device{}()};
@@ -113,6 +121,9 @@ std::string generateNanoId(size_t length = 32) {
   std::generate_n(id.begin(), length, [&]() { return alphabet[dist(rng)]; });
   return id;
 }
+
+// Publishes the map as JSON string
+ros::Publisher json_map_pub;
 
 // Publishes the map as occupancy grid
 ros::Publisher map_pub;
@@ -239,6 +250,10 @@ void publishMapMonitoring() {
   }
 
   xbot_monitoring_map_pub.publish(xb_map);
+
+  std_msgs::String json_map;
+  json_map.data = map_data.toJsonString();
+  json_map_pub.publish(json_map);
 }
 
 /**
@@ -506,12 +521,9 @@ void buildMap() {
  * We don't need to save the grid map, since we can easily build it again after loading.
  */
 void saveMapToFile() {
-  json json_data = map_data;
-
-  // Save to JSON file
   std::ofstream file("map.json");
   if (file.is_open()) {
-    file << json_data.dump(2);  // Pretty print with 2-space indentation
+    file << map_data.toJsonString();
     file.close();
     ROS_INFO("Map saved to map.json");
   } else {
@@ -664,6 +676,7 @@ bool clearMap(mower_map::ClearMapSrvRequest& req, mower_map::ClearMapSrvResponse
 int main(int argc, char** argv) {
   ros::init(argc, argv, "mower_map_service");
   ros::NodeHandle n;
+  json_map_pub = n.advertise<std_msgs::String>("mower_map_service/json_map", 1, true);
   map_pub = n.advertise<nav_msgs::OccupancyGrid>("mower_map_service/map", 10, true);
   map_server_viz_array_pub = n.advertise<visualization_msgs::MarkerArray>("mower_map_service/map_viz", 10, true);
   xbot_monitoring_map_pub = n.advertise<xbot_msgs::Map>("xbot_monitoring/map", 10, true);
