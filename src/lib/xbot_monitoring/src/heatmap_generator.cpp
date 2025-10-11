@@ -10,7 +10,7 @@
 #include "xbot_msgs/AbsolutePose.h"
 #include "grid_map_core/GridMap.hpp"
 #include <grid_map_ros/GridMapRosConverter.hpp>
-#include "xbot_msgs/Map.h"
+#include "xbot_msgs/MapSize.h"
 #include <boost/algorithm/algorithm.hpp>
 #include <boost/algorithm/string/erase.hpp>
 #include <boost/algorithm/string/split.hpp>
@@ -20,9 +20,9 @@ ros::NodeHandle *n;
 
 xbot_msgs::AbsolutePose last_pose{};
 std::unordered_map<std::string, std::pair<grid_map::GridMap, ros::Publisher>> pubsub_map{};
-xbot_msgs::Map lastMap{};
+xbot_msgs::MapSize lastMap{};
 bool has_map = false;
-void onMap(const xbot_msgs::Map &mapInfo) {
+void onMapSize(const xbot_msgs::MapSize &mapInfo) {
     if(!has_map || lastMap.mapCenterY != mapInfo.mapCenterY || lastMap.mapCenterX != mapInfo.mapCenterX || lastMap.mapWidth != mapInfo.mapWidth || lastMap.mapHeight != mapInfo.mapHeight) {
         ROS_INFO("Updated heatmap geometry.");
         for(auto & [key,value] : pubsub_map) {
@@ -78,7 +78,7 @@ int main(int argc, char **argv) {
     ros::Subscriber stateSubscriber = n->subscribe("xbot_positioning/xb_pose", 10, onRobotPos);
 
     // Subscribe to map info
-    ros::Subscriber mapSubscriber = n->subscribe("xbot_monitoring/map", 1, onMap);
+    ros::Subscriber mapSubscriber = n->subscribe("mower_map_service/map_size", 1, onMapSize);
 
     std::vector<ros::Subscriber> sensorSubscribers{};
     for(const auto & sensor_id : sensor_ids)
