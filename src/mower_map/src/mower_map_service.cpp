@@ -36,9 +36,10 @@
 // JSON for map storage
 #include <fstream>
 #include <nlohmann/json.hpp>
-#include <optional>
+#include <random>
+#include <string>
 #include <vector>
-using json = nlohmann::json;
+using json = nlohmann::ordered_json;
 
 // Monitoring
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
@@ -59,44 +60,58 @@ struct MapArea {
   std::vector<Polygon> obstacles;
 };
 
-struct DockingPose {
-  double x;
-  double y;
+struct DockingStation {
+  std::string id;
+  std::string name;
+  bool active;
+  Point position;
   double heading;
 };
 
 struct MapData {
   std::vector<MapArea> mowing_areas;
   std::vector<MapArea> navigation_areas;
-  std::optional<DockingPose> docking_pose;
+  std::vector<DockingStation> docking_stations;
 
   void clear() {
     mowing_areas.clear();
     navigation_areas.clear();
-    docking_pose.reset();
+    docking_stations.clear();
   }
 };
 
 // JSON serialization macros
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Point, x, y)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(MapArea, name, outline, obstacles)
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(DockingPose, x, y, heading)
 
-void to_json(json& j, const MapData& data) {
-  j["mowing_areas"] = data.mowing_areas;
-  j["navigation_areas"] = data.navigation_areas;
-  if (data.docking_pose.has_value()) {
-    j["docking_pose"] = data.docking_pose.value();
-  }
+void to_json(json& j, const DockingStation& data) {
+  j["id"] = data.id;
+  json properties = json::object();
+  if (!data.name.empty()) properties["name"] = data.name;
+  if (!data.active) properties["active"] = data.active;
+  if (!properties.empty()) j["properties"] = properties;
+  j["position"] = data.position;
+  j["heading"] = data.heading;
 }
 
-void from_json(const json& j, MapData& data) {
-  j.at("mowing_areas").get_to(data.mowing_areas);
-  j.at("navigation_areas").get_to(data.navigation_areas);
-  if (j.contains("docking_pose")) {
-    data.docking_pose.emplace();
-    j.at("docking_pose").get_to(data.docking_pose.value());
-  }
+void from_json(const json& j, DockingStation& data) {
+  j.at("id").get_to(data.id);
+  const auto& properties = j.value("properties", json::object());
+  data.name = properties.value("name", "");
+  data.active = properties.value("active", true);
+  j.at("position").get_to(data.position);
+  j.at("heading").get_to(data.heading);
+}
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(MapData, mowing_areas, navigation_areas, docking_stations)
+
+std::string generateNanoId(size_t length = 32) {
+  static const char alphabet[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+  thread_local std::mt19937 rng{std::random_device{}()};
+  thread_local std::uniform_int_distribution<> dist(0, sizeof(alphabet) - 2);
+  std::string id(length, '\0');
+  std::generate_n(id.begin(), length, [&]() { return alphabet[dist(rng)]; });
+  return id;
 }
 
 // Publishes the map as occupancy grid
@@ -196,11 +211,11 @@ void publishMapMonitoring() {
   xb_map.mapCenterX = mapPos.x();
   xb_map.mapCenterY = mapPos.y();
 
-  if (map_data.docking_pose.has_value()) {
-    DockingPose dp = map_data.docking_pose.value();
-    xb_map.dockX = dp.x;
-    xb_map.dockY = dp.y;
-    xb_map.dockHeading = dp.heading;
+  if (!map_data.docking_stations.empty()) {
+    const DockingStation& ds = map_data.docking_stations.front();
+    xb_map.dockX = ds.position.x;
+    xb_map.dockY = ds.position.y;
+    xb_map.dockHeading = ds.heading;
   }
 
   for (const auto& area : map_data.navigation_areas) {
@@ -273,14 +288,14 @@ void visualizeAreas() {
   }
 
   // Visualize Docking Point
-  if (map_data.docking_pose.has_value()) {
-    DockingPose dp = map_data.docking_pose.value();
+  if (!map_data.docking_stations.empty()) {
+    const DockingStation& ds = map_data.docking_stations.front();
     geometry_msgs::Pose docking_pose;
-    docking_pose.position.x = dp.x;
-    docking_pose.position.y = dp.y;
+    docking_pose.position.x = ds.position.x;
+    docking_pose.position.y = ds.position.y;
     docking_pose.position.z = 0.0;
 
-    double heading = dp.heading;
+    double heading = ds.heading;
     tf2::Quaternion q;
     q.setRPY(0.0, 0.0, heading);
     docking_pose.orientation = tf2::toMsg(q);
@@ -581,7 +596,12 @@ bool setDockingPoint(mower_map::SetDockingPointSrvRequest& req, mower_map::SetDo
   double unused1, unused2, heading;
   m.getRPY(unused1, unused2, heading);
 
-  map_data.docking_pose = {req.docking_pose.position.x, req.docking_pose.position.y, heading};
+  map_data.docking_stations.clear();
+  map_data.docking_stations.push_back({.id = generateNanoId(),
+                                       .name = "Docking Station",
+                                       .active = true,
+                                       .position = {req.docking_pose.position.x, req.docking_pose.position.y},
+                                       .heading = heading});
 
   saveMapToFile();
   buildMap();
@@ -592,17 +612,17 @@ bool setDockingPoint(mower_map::SetDockingPointSrvRequest& req, mower_map::SetDo
 bool getDockingPoint(mower_map::GetDockingPointSrvRequest& req, mower_map::GetDockingPointSrvResponse& res) {
   ROS_INFO_STREAM("Getting Docking Point");
 
-  if (!map_data.docking_pose.has_value()) {
+  if (map_data.docking_stations.empty()) {
     return false;
   }
 
-  DockingPose docking_pose = map_data.docking_pose.value();
-  res.docking_pose.position.x = docking_pose.x;
-  res.docking_pose.position.y = docking_pose.y;
+  const DockingStation& ds = map_data.docking_stations.front();
+  res.docking_pose.position.x = ds.position.x;
+  res.docking_pose.position.y = ds.position.y;
   res.docking_pose.position.z = 0.0;
 
   tf2::Quaternion q;
-  q.setRPY(0.0, 0.0, docking_pose.heading);
+  q.setRPY(0.0, 0.0, ds.heading);
   res.docking_pose.orientation = tf2::toMsg(q);
 
   return true;
