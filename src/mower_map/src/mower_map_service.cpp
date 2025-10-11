@@ -45,7 +45,7 @@ using json = nlohmann::ordered_json;
 // Monitoring
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
-#include "xbot_msgs/Map.h"
+#include "xbot_msgs/MapSize.h"
 
 // Struct definitions for JSON serialization
 struct Point {
@@ -131,8 +131,8 @@ ros::Publisher map_pub;
 // Publishes the map as markers for rviz
 ros::Publisher map_server_viz_array_pub;
 
-// Publishes map for monitoring
-ros::Publisher xbot_monitoring_map_pub;
+// Publishes map size for heatmap generator
+ros::Publisher map_size_pub;
 
 // MapData instance - the source of truth for map data
 MapData map_data;
@@ -215,41 +215,13 @@ void fromMessage(geometry_msgs::Polygon& poly, grid_map::Polygon& out) {
  * Publish map to xbot_monitoring
  */
 void publishMapMonitoring() {
-  xbot_msgs::Map xb_map;
-  xb_map.mapWidth = map.getSize().x() * map.getResolution();
-  xb_map.mapHeight = map.getSize().y() * map.getResolution();
+  xbot_msgs::MapSize map_size;
+  map_size.mapWidth = map.getSize().x() * map.getResolution();
+  map_size.mapHeight = map.getSize().y() * map.getResolution();
   auto mapPos = map.getPosition();
-  xb_map.mapCenterX = mapPos.x();
-  xb_map.mapCenterY = mapPos.y();
-
-  if (!map_data.docking_stations.empty()) {
-    const DockingStation& ds = map_data.docking_stations.front();
-    xb_map.dockX = ds.position.x;
-    xb_map.dockY = ds.position.y;
-    xb_map.dockHeading = ds.heading;
-  }
-
-  for (const auto& area : map_data.navigation_areas) {
-    xbot_msgs::MapArea xb_area;
-    xb_area.name = area.name;
-    xb_area.area = internalPolygonToGeometry(area.outline);
-    for (const auto& obstacle : area.obstacles) {
-      xb_area.obstacles.push_back(internalPolygonToGeometry(obstacle));
-    }
-    xb_map.navigationAreas.push_back(xb_area);
-  }
-
-  for (const auto& area : map_data.mowing_areas) {
-    xbot_msgs::MapArea xb_area;
-    xb_area.name = area.name;
-    xb_area.area = internalPolygonToGeometry(area.outline);
-    for (const auto& obstacle : area.obstacles) {
-      xb_area.obstacles.push_back(internalPolygonToGeometry(obstacle));
-    }
-    xb_map.workingArea.push_back(xb_area);
-  }
-
-  xbot_monitoring_map_pub.publish(xb_map);
+  map_size.mapCenterX = mapPos.x();
+  map_size.mapCenterY = mapPos.y();
+  map_size_pub.publish(map_size);
 
   std_msgs::String json_map;
   json_map.data = map_data.toJsonString();
@@ -679,7 +651,7 @@ int main(int argc, char** argv) {
   json_map_pub = n.advertise<std_msgs::String>("mower_map_service/json_map", 1, true);
   map_pub = n.advertise<nav_msgs::OccupancyGrid>("mower_map_service/map", 10, true);
   map_server_viz_array_pub = n.advertise<visualization_msgs::MarkerArray>("mower_map_service/map_viz", 10, true);
-  xbot_monitoring_map_pub = n.advertise<xbot_msgs::Map>("xbot_monitoring/map", 10, true);
+  map_size_pub = n.advertise<xbot_msgs::MapSize>("mower_map_service/map_size", 10, true);
 
   // Load the default map file
   readMapFromFile("map.json");
