@@ -33,7 +33,7 @@ DockingBehavior DockingBehavior::INSTANCE;
 
 DockingBehavior::DockingBehavior() {
   xbot_msgs::ActionInfo abort_docking_action;
-  abort_docking_action.action_id = "abort_docking";
+  abort_docking_action.action_id = "mower_logic:docking/abort_docking";
   abort_docking_action.enabled = true;
   abort_docking_action.action_name = "Stop Docking";
 
@@ -332,9 +332,12 @@ uint8_t DockingBehavior::get_state() {
   return mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_AUTONOMOUS;
 }
 
-void DockingBehavior::handle_action(std::string action) {
+bool DockingBehavior::handle_action(const std::string &action, const std::string &payload, std::string &response) {
   if (action == "mower_logic:docking/abort_docking") {
     ROS_INFO_STREAM("Got abort docking command");
     command_start();
+  } else {
+    return false;
   }
+  return true;
 }
