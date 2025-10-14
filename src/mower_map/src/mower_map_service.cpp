@@ -28,7 +28,6 @@
 #include "mower_map/AddMowingAreaSrv.h"
 #include "mower_map/ClearMapSrv.h"
 #include "mower_map/ClearNavPointSrv.h"
-#include "mower_map/DeleteMowingAreaSrv.h"
 #include "mower_map/GetDockingPointSrv.h"
 #include "mower_map/GetMowingAreaSrv.h"
 #include "mower_map/SetDockingPointSrv.h"
@@ -56,9 +55,11 @@ struct Point {
 typedef std::vector<Point> Polygon;
 
 struct MapArea {
+  std::string id;
   std::string name;
+  std::string type;
+  bool active;
   Polygon outline;
-  std::vector<Polygon> obstacles;
 };
 
 struct DockingStation {
@@ -70,13 +71,19 @@ struct DockingStation {
 };
 
 struct MapData {
-  std::vector<MapArea> mowing_areas;
-  std::vector<MapArea> navigation_areas;
+  std::vector<MapArea> areas;
   std::vector<DockingStation> docking_stations;
 
+  std::vector<MapArea> getMowingAreas() {
+    std::vector<MapArea> result;
+    for (const auto& area : areas) {
+      if (area.type == "mow") result.push_back(area);
+    }
+    return result;
+  }
+
   void clear() {
-    mowing_areas.clear();
-    navigation_areas.clear();
+    areas.clear();
     docking_stations.clear();
   }
 
@@ -85,7 +92,25 @@ struct MapData {
 
 // JSON serialization macros
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Point, x, y)
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(MapArea, name, outline, obstacles)
+
+void to_json(json& j, const MapArea& data) {
+  j["id"] = data.id;
+  json properties = json::object();
+  if (!data.name.empty()) properties["name"] = data.name;
+  properties["type"] = data.type;
+  if (!data.active) properties["active"] = data.active;
+  j["properties"] = properties;
+  j["outline"] = data.outline;
+}
+
+void from_json(const json& j, MapArea& data) {
+  j.at("id").get_to(data.id);
+  const auto& properties = j.value("properties", json::object());
+  data.name = properties.value("name", "");
+  data.type = properties.value("type", "draft");
+  data.active = properties.value("active", true);
+  j.at("outline").get_to(data.outline);
+}
 
 void to_json(json& j, const DockingStation& data) {
   j["id"] = data.id;
@@ -106,7 +131,7 @@ void from_json(const json& j, DockingStation& data) {
   j.at("heading").get_to(data.heading);
 }
 
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(MapData, mowing_areas, navigation_areas, docking_stations)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(MapData, areas, docking_stations)
 
 std::string MapData::toJsonString() {
   json json_data = *this;
@@ -171,13 +196,13 @@ geometry_msgs::Polygon internalPolygonToGeometry(const Polygon& poly) {
 /**
  * Convert a mower_map::MapArea to our internal MapArea struct
  */
-MapArea mowerMapAreaToInternal(const mower_map::MapArea& area) {
+MapArea mowerMapAreaToInternal(const geometry_msgs::Polygon& area, const std::string& type, const std::string& name) {
   MapArea result;
-  result.name = area.name;
-  result.outline = geometryPolygonToInternal(area.area);
-  for (const auto& obstacle : area.obstacles) {
-    result.obstacles.push_back(geometryPolygonToInternal(obstacle));
-  }
+  result.id = generateNanoId();
+  result.type = type;
+  result.name = name;
+  result.active = true;
+  result.outline = geometryPolygonToInternal(area);
   return result;
 }
 
@@ -188,27 +213,15 @@ mower_map::MapArea internalMapAreaToMower(const MapArea& area) {
   mower_map::MapArea result;
   result.name = area.name;
   result.area = internalPolygonToGeometry(area.outline);
-  for (const auto& obstacle : area.obstacles) {
-    result.obstacles.push_back(internalPolygonToGeometry(obstacle));
-  }
   return result;
 }
 
-/**
- * Convert a geometry_msgs::Polygon to a grid_map::Polygon.
- * This is needed in order to add recorded polys to the map.
- *
- * @param poly input poly
- * @param out result
- */
-void fromMessage(geometry_msgs::Polygon& poly, grid_map::Polygon& out) {
-  out.removeVertices();
-  for (auto& point : poly.points) {
-    grid_map::Position pos;
-    pos.x() = point.x;
-    pos.y() = point.y;
-    out.addVertex(pos);
+grid_map::Polygon internalPolygonToGridMap(const Polygon& poly) {
+  grid_map::Polygon result;
+  for (const auto& point : poly) {
+    result.addVertex(grid_map::Position(point.x, point.y));
   }
+  return result;
 }
 
 /**
@@ -236,14 +249,19 @@ void visualizeAreas() {
 
   visualization_msgs::MarkerArray markerArray;
 
-  grid_map::Polygon p;
+  for (const auto& area : map_data.areas) {
+    if (!area.active) continue;
+    if (area.type != "mow" && area.type != "obstacle") continue;
 
-  for (const auto& area : map_data.mowing_areas) {
-    auto area_poly = internalPolygonToGeometry(area.outline);
-    fromMessage(area_poly, p);
     std_msgs::ColorRGBA color;
-    color.g = 1.0;
+    if (area.type == "mow") {
+      color.g = 1.0;
+    } else if (area.type == "obstacle") {
+      color.r = 1.0;
+    }
     color.a = 1.0;
+
+    grid_map::Polygon p = internalPolygonToGridMap(area.outline);
     visualization_msgs::Marker marker;
     grid_map::PolygonRosConverter::toLineMarker(p, color, 0.05, 0, marker);
 
@@ -254,24 +272,6 @@ void visualizeAreas() {
     marker.pose.orientation.w = 1.0;
 
     markerArray.markers.push_back(marker);
-
-    for (const auto& obstacle : area.obstacles) {
-      auto obstacle_poly = internalPolygonToGeometry(obstacle);
-      fromMessage(obstacle_poly, p);
-      std_msgs::ColorRGBA color;
-      color.r = 1.0;
-      color.a = 1.0;
-      visualization_msgs::Marker marker;
-      grid_map::PolygonRosConverter::toLineMarker(p, color, 0.05, 0, marker);
-
-      marker.header.frame_id = "map";
-      marker.ns = "mower_map_service";
-      marker.id = markerArray.markers.size();
-      marker.frame_locked = true;
-
-      marker.pose.orientation.w = 1.0;
-      markerArray.markers.push_back(marker);
-    }
   }
 
   // Visualize Docking Point
@@ -311,22 +311,6 @@ void visualizeAreas() {
 }
 
 /**
- * Set grid map values for all points in a polygon
- *
- * @param polygon The polygon containing points to set
- * @param value The value to set for each point
- * @param map The grid map to use for index calculation
- * @param data The grid map data matrix to modify
- */
-void fillGridMap(const Polygon& polygon, double value, const grid_map::GridMap& map, grid_map::Matrix& data) {
-  for (const auto& point : polygon) {
-    grid_map::Index index;
-    map.getIndex(grid_map::Position(point.x, point.y), index);
-    data(index[0], index[1]) = value;
-  }
-}
-
-/**
  * Uses the polygons stored in MapData to build the final occupancy grid.
  *
  * First, the map is marked as completely occupied. Then navigation_areas and mowing_areas are marked as free.
@@ -343,36 +327,14 @@ void buildMap() {
   float maxY = -FLT_MAX;
 
   // loop through all areas and calculate a size where everything fits
-  for (const auto& area : map_data.mowing_areas) {
+  for (const auto& area : map_data.areas) {
+    if (!area.active) continue;
+    if (area.type != "mow" && area.type != "nav" && area.type != "obstacle") continue;
     for (const auto& point : area.outline) {
       minX = std::min(minX, (float)point.x);
       maxX = std::max(maxX, (float)point.x);
       minY = std::min(minY, (float)point.y);
       maxY = std::max(maxY, (float)point.y);
-    }
-    for (const auto& obstacle : area.obstacles) {
-      for (const auto& point : obstacle) {
-        minX = std::min(minX, (float)point.x);
-        maxX = std::max(maxX, (float)point.x);
-        minY = std::min(minY, (float)point.y);
-        maxY = std::max(maxY, (float)point.y);
-      }
-    }
-  }
-  for (const auto& area : map_data.navigation_areas) {
-    for (const auto& point : area.outline) {
-      minX = std::min(minX, (float)point.x);
-      maxX = std::max(maxX, (float)point.x);
-      minY = std::min(minY, (float)point.y);
-      maxY = std::max(maxY, (float)point.y);
-    }
-    for (const auto& obstacle : area.obstacles) {
-      for (const auto& point : obstacle) {
-        minX = std::min(minX, (float)point.x);
-        maxX = std::max(maxX, (float)point.x);
-        minY = std::min(minY, (float)point.y);
-        maxY = std::max(maxY, (float)point.y);
-      }
     }
   }
 
@@ -384,7 +346,7 @@ void buildMap() {
   minY -= 1.0;
 
   // Check, if the map was empty. If so, we'd create a huge map. Therefore we build an empty 10x10m map instead.
-  if (map_data.mowing_areas.empty() && map_data.navigation_areas.empty()) {
+  if (map_data.areas.empty()) {
     maxX = 5.0;
     minX = -5.0;
     maxY = 5.0;
@@ -407,16 +369,22 @@ void buildMap() {
   map["navigation_area"].setConstant(1.0);
 
   grid_map::Matrix& data = map["navigation_area"];
-  for (const auto& area : map_data.navigation_areas) {
-    fillGridMap(area.outline, 0.0, map, data);
-    for (const auto& obstacle : area.obstacles) {
-      fillGridMap(obstacle, 1.0, map, data);
+  for (const auto& area : map_data.areas) {
+    if (!area.active) continue;
+
+    double value;
+    if (area.type == "mow" || area.type == "nav") {
+      value = 0.0;
+    } else if (area.type == "obstacle") {
+      value = 1.0;
+    } else {
+      continue;
     }
-  }
-  for (const auto& area : map_data.mowing_areas) {
-    fillGridMap(area.outline, 0.0, map, data);
-    for (const auto& obstacle : area.obstacles) {
-      fillGridMap(obstacle, 1.0, map, data);
+
+    grid_map::Polygon poly = internalPolygonToGridMap(area.outline);
+    for (grid_map::PolygonIterator iterator(map, poly); !iterator.isPastEnd(); ++iterator) {
+      const grid_map::Index index(*iterator);
+      data(index[0], index[1]) = value;
     }
   }
 
@@ -518,8 +486,7 @@ void readMapFromFile(const std::string& filename) {
 
       map_data = loaded_data;
 
-      ROS_INFO_STREAM("Loaded " << map_data.mowing_areas.size() << " mowing areas and "
-                                << map_data.navigation_areas.size() << " navigation areas from: " << filename);
+      ROS_INFO_STREAM("Loaded " << map_data.areas.size() << " areas from: " << filename);
     } catch (const std::exception& e) {
       ROS_ERROR_STREAM("Failed to parse " << filename << ": " << e.what());
     }
@@ -530,11 +497,10 @@ void readMapFromFile(const std::string& filename) {
 
 bool addMowingArea(mower_map::AddMowingAreaSrvRequest& req, mower_map::AddMowingAreaSrvResponse& res) {
   ROS_INFO_STREAM("Got addMowingArea call");
-  MapArea area = mowerMapAreaToInternal(req.area);
-  if (req.isNavigationArea) {
-    map_data.navigation_areas.push_back(area);
-  } else {
-    map_data.mowing_areas.push_back(area);
+
+  map_data.areas.push_back(mowerMapAreaToInternal(req.area.area, req.isNavigationArea ? "nav" : "mow", req.area.name));
+  for (const auto& obstacle : req.area.obstacles) {
+    map_data.areas.push_back(mowerMapAreaToInternal(obstacle, "obstacle", ""));
   }
 
   saveMapToFile();
@@ -545,27 +511,19 @@ bool addMowingArea(mower_map::AddMowingAreaSrvRequest& req, mower_map::AddMowing
 bool getMowingArea(mower_map::GetMowingAreaSrvRequest& req, mower_map::GetMowingAreaSrvResponse& res) {
   ROS_INFO_STREAM("Got getMowingArea call with index: " << req.index);
 
-  if (req.index >= map_data.mowing_areas.size()) {
+  auto mowing_areas = map_data.getMowingAreas();
+  if (req.index >= mowing_areas.size()) {
     ROS_ERROR_STREAM("No mowing area with index: " << req.index);
     return false;
   }
 
-  res.area = internalMapAreaToMower(map_data.mowing_areas[req.index]);
-  return true;
-}
+  res.area = internalMapAreaToMower(mowing_areas[req.index]);
 
-bool deleteMowingArea(mower_map::DeleteMowingAreaSrvRequest& req, mower_map::DeleteMowingAreaSrvResponse& res) {
-  ROS_INFO_STREAM("Got delete mowing area call with index: " << req.index);
-
-  if (req.index >= map_data.mowing_areas.size()) {
-    ROS_ERROR_STREAM("No mowing area with index: " << req.index);
-    return false;
+  for (const auto& area : map_data.areas) {
+    if (!area.active || area.type != "obstacle") continue;
+    // TODO: Check whether the obstacle overlaps with the mowing area, maybe cut it to the intersection.
+    res.area.obstacles.push_back(internalPolygonToGeometry(area.outline));
   }
-
-  map_data.mowing_areas.erase(map_data.mowing_areas.begin() + req.index);
-
-  saveMapToFile();
-  buildMap();
 
   return true;
 }
@@ -660,7 +618,6 @@ int main(int argc, char** argv) {
 
   ros::ServiceServer add_area_srv = n.advertiseService("mower_map_service/add_mowing_area", addMowingArea);
   ros::ServiceServer get_area_srv = n.advertiseService("mower_map_service/get_mowing_area", getMowingArea);
-  ros::ServiceServer delete_area_srv = n.advertiseService("mower_map_service/delete_mowing_area", deleteMowingArea);
   ros::ServiceServer set_docking_point_srv = n.advertiseService("mower_map_service/set_docking_point", setDockingPoint);
   ros::ServiceServer get_docking_point_srv = n.advertiseService("mower_map_service/get_docking_point", getDockingPoint);
   ros::ServiceServer set_nav_point_srv = n.advertiseService("mower_map_service/set_nav_point", setNavPoint);
