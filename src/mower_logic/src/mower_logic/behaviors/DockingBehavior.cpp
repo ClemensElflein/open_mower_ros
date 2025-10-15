@@ -19,15 +19,15 @@
 #include "PerimeterDocking.h"
 
 extern ros::ServiceClient dockingPointClient;
-extern actionlib::SimpleActionClient<mbf_msgs::MoveBaseAction> *mbfClient;
-extern actionlib::SimpleActionClient<mbf_msgs::ExePathAction> *mbfClientExePath;
+extern actionlib::SimpleActionClient<mbf_msgs::MoveBaseAction>* mbfClient;
+extern actionlib::SimpleActionClient<mbf_msgs::ExePathAction>* mbfClientExePath;
 extern mower_msgs::Status getStatus();
 extern mower_msgs::Power getPower();
 
 extern void stopMoving();
 extern bool setGPS(bool enabled);
 
-extern void registerActions(std::string prefix, const std::vector<xbot_msgs::ActionInfo> &actions);
+extern void registerActions(std::string prefix, const std::vector<xbot_msgs::ActionInfo>& actions);
 
 DockingBehavior DockingBehavior::INSTANCE;
 
@@ -190,7 +190,7 @@ std::string DockingBehavior::state_name() {
   return "DOCKING";
 }
 
-Behavior *DockingBehavior::execute() {
+Behavior* DockingBehavior::execute() {
   // Check if already docked (e.g. carried to base during emergency) and skip
   if (getPower().v_charge > 5.0) {
     ROS_INFO_STREAM("Already inside docking station, going directly to idle.");
@@ -280,14 +280,14 @@ void DockingBehavior::enter() {
   docking_pose_stamped.header.frame_id = "map";
   docking_pose_stamped.header.stamp = ros::Time::now();
 
-  for (auto &a : actions) {
+  for (auto& a : actions) {
     a.enabled = true;
   }
   registerActions("mower_logic:docking", actions);
 }
 
 void DockingBehavior::exit() {
-  for (auto &a : actions) {
+  for (auto& a : actions) {
     a.enabled = false;
   }
   registerActions("mower_logic:docking", actions);

@@ -8,7 +8,6 @@
 #include <memory>
 #include <boost/regex.hpp>
 #include "xbot_msgs/SensorInfo.h"
-#include "xbot_msgs/Map.h"
 #include "xbot_msgs/SensorDataString.h"
 #include "xbot_msgs/SensorDataDouble.h"
 #include "xbot_msgs/RobotState.h"
@@ -20,7 +19,7 @@
 #include "xbot_msgs/ActionInfo.h"
 #include "xbot_msgs/MapOverlay.h"
 
-using json = nlohmann::json;
+using json = nlohmann::ordered_json;
 
 void publish_sensor_metadata();
 void publish_map();
@@ -47,6 +46,10 @@ std::mutex mqtt_callback_mutex;
 // Publisher for cmd_vel and commands
 ros::Publisher cmd_vel_pub;
 ros::Publisher action_pub;
+
+// Datum
+double datum_lat, datum_long, datum_height;
+bool has_datum = false;
 
 // properties for external mqtt
 bool external_mqtt_enable = false;
@@ -407,7 +410,7 @@ void publish_actions() {
 void publish_map() {
     if(!has_map)
         return;
-    try_publish("map/json", map.dump(), true);
+    try_publish("map/json", map.dump(2), true);
     json data;
     data["d"] = map;
     auto bson = json::to_bson(data);
@@ -424,85 +427,15 @@ void publish_map_overlay() {
     try_publish_binary("map_overlay/bson", bson.data(), bson.size(), true);
 }
 
-void map_callback(const xbot_msgs::Map::ConstPtr &msg) {
-    // Build a JSON and publish it
-    json j;
-
-    j["docking_pose"]["x"] = msg->dockX;
-    j["docking_pose"]["y"] = msg->dockY;
-    j["docking_pose"]["heading"] = msg->dockHeading;
-
-    j["meta"]["mapWidth"] = msg->mapWidth;
-    j["meta"]["mapHeight"] = msg->mapHeight;
-    j["meta"]["mapCenterX"] = msg->mapCenterX;
-    j["meta"]["mapCenterY"] = msg->mapCenterY;
-
-
-    json working_areas_j;
-    for(const auto &area : msg->workingArea) {
-        json area_j;
-        area_j["name"] = area.name;
-        {
-            json outline_poly_j;
-            for (const auto &pt: area.area.points) {
-                json p_j;
-                p_j["x"] = pt.x;
-                p_j["y"] = pt.y;
-                outline_poly_j.push_back(p_j);
-            }
-            area_j["outline"] = outline_poly_j;
-        }
-        json obstacle_polys_j;
-        for(const auto &obstacle : area.obstacles) {
-            json obstacle_poly_j;
-            for(const auto &pt : obstacle.points) {
-                json p_j;
-                p_j["x"] = pt.x;
-                p_j["y"] = pt.y;
-                obstacle_poly_j.push_back(p_j);
-            }
-            obstacle_polys_j.push_back(obstacle_poly_j);
-        }
-        area_j["obstacles"] = obstacle_polys_j;
-        working_areas_j.push_back(area_j);
+void map_callback(const std_msgs::String::ConstPtr &msg) {
+    // TODO: If it wasn't for the datum, we could just pass the JSON string directly to MQTT.
+    map = json::parse(msg->data);
+    if (has_datum) {
+        map["datum"]["lat"] = datum_lat;
+        map["datum"]["long"] = datum_long;
+        map["datum"]["height"] = datum_height;
     }
-    json navigation_areas_j;
-
-    for(const auto &area : msg->navigationAreas) {
-        json area_j;
-        area_j["name"] = area.name;
-        {
-            json outline_poly_j;
-            for (const auto &pt: area.area.points) {
-                json p_j;
-                p_j["x"] = pt.x;
-                p_j["y"] = pt.y;
-                outline_poly_j.push_back(p_j);
-            }
-            area_j["outline"] = outline_poly_j;
-        }
-        json obstacle_polys_j;
-        for(const auto &obstacle : area.obstacles) {
-            json obstacle_poly_j;
-            for(const auto &pt : obstacle.points) {
-                json p_j;
-                p_j["x"] = pt.x;
-                p_j["y"] = pt.y;
-                obstacle_poly_j.push_back(p_j);
-            }
-            obstacle_polys_j.push_back(obstacle_poly_j);
-        }
-        area_j["obstacles"] = obstacle_polys_j;
-        navigation_areas_j.push_back(area_j);
-    }
-
-    j["working_areas"] = working_areas_j;
-    j["navigation_areas"] = navigation_areas_j;
-
-
-    map = j;
     has_map = true;
-
     publish_map();
 }
 
@@ -564,6 +497,11 @@ int main(int argc, char **argv) {
         version_string = "UNKNOWN VERSION";
     }
 
+    has_datum = true;
+    has_datum &= n->getParam("/ll/services/gps/datum_lat", datum_lat);
+    has_datum &= n->getParam("/ll/services/gps/datum_long", datum_long);
+    has_datum &= n->getParam("/ll/services/gps/datum_height", datum_height);
+
     external_mqtt_enable = paramNh.param("external_mqtt_enable", false);
     external_mqtt_topic_prefix = paramNh.param("external_mqtt_topic_prefix", std::string(""));
     if(!external_mqtt_topic_prefix.empty() && external_mqtt_topic_prefix.back() != '/') {
@@ -586,7 +524,7 @@ int main(int argc, char **argv) {
     ros::ServiceServer register_action_service = n->advertiseService("xbot/register_actions", registerActions);
 
     ros::Subscriber robotStateSubscriber = n->subscribe("xbot_monitoring/robot_state", 10, robot_state_callback);
-    ros::Subscriber mapSubscriber = n->subscribe("xbot_monitoring/map", 10, map_callback);
+    ros::Subscriber mapSubscriber = n->subscribe("mower_map_service/json_map", 10, map_callback);
     ros::Subscriber mapOverlaySubscriber = n->subscribe("xbot_monitoring/map_overlay", 10, map_overlay_callback);
 
     cmd_vel_pub = n->advertise<geometry_msgs::Twist>("xbot_monitoring/remote_cmd_vel", 1);
@@ -605,7 +543,7 @@ int main(int argc, char **argv) {
         ros::master::V_TopicInfo topics;
         ros::master::getTopics(topics);
         std::for_each(topics.begin(), topics.end(), [&](const ros::master::TopicInfo &item) {
-            
+
             if (!boost::regex_match(item.name, topic_regex) || active_subscribers.count(item.name) != 0)
                 return;
 
@@ -618,7 +556,7 @@ int main(int argc, char **argv) {
                     // Sensor already known and sensor-info equals?
                     if(exist != 0 && found_sensors[topic] == *msg)
                         return;
-                    
+
                     {
                         // Sensor is new or sensor-info differ from the buffered one
                         std::unique_lock<std::mutex> lk(mqtt_callback_mutex);

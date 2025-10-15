@@ -50,7 +50,7 @@ class DockingBehavior : public Behavior {
 
   std::string state_name() override;
 
-  Behavior *execute() override;
+  Behavior* execute() override;
 
   void enter() override;
 

@@ -12,7 +12,7 @@ using namespace xbot::service;
 
 class GpsService : public GpsServiceBase {
  public:
-  explicit GpsService(uint16_t service_id, SimRobot &robot) : GpsServiceBase(service_id), robot_(robot) {
+  explicit GpsService(uint16_t service_id, SimRobot& robot) : GpsServiceBase(service_id), robot_(robot) {
   }
 
  private:
@@ -21,7 +21,7 @@ class GpsService : public GpsServiceBase {
                                  XBOT_FUNCTION_FOR_METHOD(GpsService, &GpsService::tick, this)};
 
  private:
-  SimRobot &robot_;
+  SimRobot& robot_;
 };
 
 #endif  // GPS_SERVICE_HPP
