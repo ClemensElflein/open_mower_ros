@@ -32,6 +32,7 @@ ExternalProject_Add(
         BUILD_ALWAYS OFF
 
         INSTALL_COMMAND cmake -E echo "Skipping install step."
+        UPDATE_COMMAND ""
 
         CMAKE_CACHE_ARGS
         SOURCE_SUBDIR src
