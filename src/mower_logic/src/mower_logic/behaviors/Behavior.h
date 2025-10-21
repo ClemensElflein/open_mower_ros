@@ -167,7 +167,7 @@ class Behavior {
   virtual uint8_t get_sub_state() = 0;
   virtual uint8_t get_state() = 0;
 
-  virtual void handle_action(std::string action) = 0;
+  virtual bool handle_action(const std::string& action, const std::string& payload, std::string& response) = 0;
 };
 
 #endif  // SRC_BEHAVIOR_H
