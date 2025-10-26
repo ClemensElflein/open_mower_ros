@@ -1,0 +1,9 @@
+#pragma once
+
+namespace xbot_rpc {
+
+static constexpr const char* TOPIC_REQUEST = "/xbot/rpc/request";
+static constexpr const char* TOPIC_RESPONSE = "/xbot/rpc/response";
+static constexpr const char* TOPIC_ERROR = "/xbot/rpc/error";
+
+}  // namespace xbot_rpc

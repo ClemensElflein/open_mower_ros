@@ -19,14 +19,19 @@
 #include "xbot_msgs/RegisterActionsSrv.h"
 #include "xbot_msgs/ActionInfo.h"
 #include "xbot_msgs/MapOverlay.h"
+#include "xbot_rpc/RpcError.h"
+#include "xbot_rpc/RpcRequest.h"
+#include "xbot_rpc/RpcResponse.h"
+#include "xbot_rpc/constants.h"
 
-using json = nlohmann::json;
+using json = nlohmann::ordered_json;
 
 void publish_sensor_metadata();
 void publish_map();
 void publish_map_overlay();
 void publish_actions();
 void publish_version();
+void rpc_request_callback(const std::string &payload);
 
 // Stores registered actions (prefix to vector<action>)
 std::map<std::string, std::vector<xbot_msgs::ActionInfo>> registered_actions;
@@ -47,6 +52,7 @@ std::mutex mqtt_callback_mutex;
 // Publisher for cmd_vel and commands
 ros::Publisher cmd_vel_pub;
 ros::Publisher action_pub;
+ros::Publisher rpc_request_pub;
 
 // properties for external mqtt
 bool external_mqtt_enable = false;
@@ -77,6 +83,7 @@ class MqttCallback : public mqtt::callback {
         client_->subscribe(this->mqtt_topic_prefix + "teleop", 0);
         client_->subscribe(this->mqtt_topic_prefix + "command", 0);
         client_->subscribe(this->mqtt_topic_prefix + "action", 0);
+        client_->subscribe(this->mqtt_topic_prefix + "rpc/request", 0);
     }
 
 public:
@@ -107,6 +114,9 @@ public:
             action_msg.data = ptr->get_payload_str();
             action_pub.publish(action_msg);
             // END: Deprecated code (2/2)
+        } else if (ptr->get_topic() == this->mqtt_topic_prefix + "rpc/request") {
+          std::string payload = ptr->get_payload_str();
+          rpc_request_callback(payload);
         }
     }
 private:
@@ -550,6 +560,62 @@ bool registerActions(xbot_msgs::RegisterActionsSrvRequest &req, xbot_msgs::Regis
     return true;
 }
 
+void rpc_publish_error(const int16_t code, const std::string &message, const nlohmann::basic_json<> &id = nullptr, const nlohmann::basic_json<> &data = nullptr) {
+    json err_resp = {{"jsonrpc", "2.0"},
+                       {"error", {{"code", code}, {"message", message}}},
+                       {"id", id}};
+    if (data != nullptr) {
+        err_resp["error"]["data"] = data;
+    }
+    try_publish("rpc/response", err_resp.dump(2));
+}
+
+void rpc_request_callback(const std::string &payload) {
+    // Parse
+    json req;
+    try {
+      req = json::parse(payload);
+    } catch (const json::parse_error &e) {
+      return rpc_publish_error(xbot_rpc::RpcError::ERROR_INVALID_JSON, "Could not parse request JSON");
+    }
+
+    // Validate
+    if (!req.is_object()) {
+        return rpc_publish_error(xbot_rpc::RpcError::ERROR_INVALID_REQUEST, "Request is not a JSON object");
+    }
+    json id = req.contains("id") ? req["id"] : nullptr;
+    if (id != nullptr && !id.is_string()) {
+        return rpc_publish_error(xbot_rpc::RpcError::ERROR_INVALID_REQUEST, "ID is not a string", id);
+    } else if (!req.contains("jsonrpc") || !req["jsonrpc"].is_string() || req["jsonrpc"] != "2.0") {
+        return rpc_publish_error(xbot_rpc::RpcError::ERROR_INVALID_REQUEST, "Invalid JSON-RPC version");
+    } else if (!req.contains("method") || !req["method"].is_string()) {
+        return rpc_publish_error(xbot_rpc::RpcError::ERROR_INVALID_REQUEST, "Method is not a string", req["id"]);
+    }
+
+    // Forward to the providers as ROS message
+    xbot_rpc::RpcRequest msg;
+    msg.method = req["method"];
+    msg.params = req.contains("params") ? req["params"].dump() : "";
+    msg.id = id != nullptr ? id : "";
+    rpc_request_pub.publish(msg);
+}
+
+void rpc_response_callback(const xbot_rpc::RpcResponse::ConstPtr &msg) {
+    json result;
+    try {
+        result = json::parse(msg->result);
+    } catch (const json::parse_error &e) {
+        return rpc_publish_error(xbot_rpc::RpcError::ERROR_INTERNAL, "Internal error while parsing result JSON", msg->id, msg->result);
+    }
+
+    json j = {{"jsonrpc", "2.0"}, {"result", result}, {"id", msg->id}};
+    try_publish("rpc/response", j.dump(2));
+}
+
+void rpc_error_callback(const xbot_rpc::RpcError::ConstPtr &msg) {
+    rpc_publish_error(msg->code, msg->message, msg->id, msg->data);
+}
+
 int main(int argc, char **argv) {
     ros::init(argc, argv, "xbot_monitoring");
     has_map = false;
@@ -592,6 +658,9 @@ int main(int argc, char **argv) {
     cmd_vel_pub = n->advertise<geometry_msgs::Twist>("xbot_monitoring/remote_cmd_vel", 1);
     action_pub = n->advertise<std_msgs::String>("xbot/action", 1);
 
+    rpc_request_pub = n->advertise<xbot_rpc::RpcRequest>(xbot_rpc::TOPIC_REQUEST, 100);
+    ros::Subscriber rpc_response_sub = n->subscribe(xbot_rpc::TOPIC_RESPONSE, 100, rpc_response_callback);
+    ros::Subscriber rpc_error_sub = n->subscribe(xbot_rpc::TOPIC_ERROR, 100, rpc_error_callback);
 
     ros::AsyncSpinner spinner(1);
     spinner.start();
@@ -605,7 +674,7 @@ int main(int argc, char **argv) {
         ros::master::V_TopicInfo topics;
         ros::master::getTopics(topics);
         std::for_each(topics.begin(), topics.end(), [&](const ros::master::TopicInfo &item) {
-            
+
             if (!boost::regex_match(item.name, topic_regex) || active_subscribers.count(item.name) != 0)
                 return;
 
@@ -618,7 +687,7 @@ int main(int argc, char **argv) {
                     // Sensor already known and sensor-info equals?
                     if(exist != 0 && found_sensors[topic] == *msg)
                         return;
-                    
+
                     {
                         // Sensor is new or sensor-info differ from the buffered one
                         std::unique_lock<std::mutex> lk(mqtt_callback_mutex);

@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>xbot_rpc</name>
+  <version>0.0.0</version>
+  <description>The xbot_rpc package</description>
+
+
+  <maintainer email="clemens.elflein@gmail.com">Clemens Elflein</maintainer>
+  <license>MIT</license>
+
+  <url type="website">https://github.com/ClemensElflein</url>
+
+  <build_depend>message_generation</build_depend>
+  <build_depend>std_msgs</build_depend>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>message_runtime</exec_depend>
+
+  <export>
+  </export>
+</package>
