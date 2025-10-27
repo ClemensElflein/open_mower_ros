@@ -23,6 +23,7 @@
 #include "xbot_rpc/RpcRequest.h"
 #include "xbot_rpc/RpcResponse.h"
 #include "xbot_rpc/constants.h"
+#include "xbot_rpc/provider.h"
 
 using json = nlohmann::ordered_json;
 
@@ -131,6 +132,12 @@ json map;
 json map_overlay;
 bool has_map = false;
 bool has_map_overlay = false;
+
+xbot_rpc::RpcProvider rpc_provider("xbot_monitoring", {{
+    RPC_METHOD("rpc.ping", {
+        return "pong";
+    }),
+}});
 
 void setupMqttClient() {
     // setup mqtt client for app use
@@ -661,6 +668,7 @@ int main(int argc, char **argv) {
     rpc_request_pub = n->advertise<xbot_rpc::RpcRequest>(xbot_rpc::TOPIC_REQUEST, 100);
     ros::Subscriber rpc_response_sub = n->subscribe(xbot_rpc::TOPIC_RESPONSE, 100, rpc_response_callback);
     ros::Subscriber rpc_error_sub = n->subscribe(xbot_rpc::TOPIC_ERROR, 100, rpc_error_callback);
+    rpc_provider.init();
 
     ros::AsyncSpinner spinner(1);
     spinner.start();
