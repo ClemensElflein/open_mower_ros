@@ -26,6 +26,10 @@ class RpcException : public std::exception {
   RpcException(int16_t code, const std::string& message, const nlohmann::basic_json<>& data = nullptr)
       : code(code), message(message), data(data) {
   }
+
+  const char* what() const noexcept override {
+    return message.c_str();
+  }
 };
 
 class RpcProvider {

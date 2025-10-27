@@ -23,6 +23,12 @@ generate_messages(
   DEPENDENCIES std_msgs
 )
 
+catkin_package(
+  INCLUDE_DIRS include
+  LIBRARIES xbot_rpc
+  CATKIN_DEPENDS std_msgs message_runtime
+)
+
 add_subdirectory(../json json EXCLUDE_FROM_ALL)
 
 include_directories(
@@ -48,10 +54,4 @@ install(TARGETS xbot_rpc
 install(DIRECTORY include/${PROJECT_NAME}/
   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
   FILES_MATCHING PATTERN "*.h"
-)
-
-catkin_package(
-  INCLUDE_DIRS include
-  LIBRARIES xbot_rpc
-  CATKIN_DEPENDS std_msgs message_runtime
 )

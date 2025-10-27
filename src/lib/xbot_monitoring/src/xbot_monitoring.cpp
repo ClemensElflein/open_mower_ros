@@ -41,6 +41,7 @@ std::map<std::string, std::vector<xbot_msgs::ActionInfo>> registered_actions;
 
 // Stores registered RPC methods
 std::map<std::string, std::vector<std::string>> registered_methods;
+std::mutex registered_methods_mutex;
 
 // Maps a topic to a subscriber.
 std::map<std::string, ros::Subscriber> active_subscribers;
@@ -143,6 +144,7 @@ xbot_rpc::RpcProvider rpc_provider("xbot_monitoring", {{
         return "pong";
     }),
     RPC_METHOD("rpc.methods", {
+        std::lock_guard<std::mutex> lk(registered_methods_mutex);
         json methods = json::array();
         for (const auto& [_, method_ids] : registered_methods) {
             for (const auto& method_id : method_ids) {
@@ -617,10 +619,13 @@ void rpc_request_callback(const std::string &payload) {
     // Check if the method is registered
     const std::string method = req["method"];
     bool is_registered = false;
-    for (const auto& [_, method_ids] : registered_methods) {
-        if (std::find(method_ids.begin(), method_ids.end(), method) != method_ids.end()) {
-            is_registered = true;
-            break;
+    {
+        std::lock_guard<std::mutex> lk(registered_methods_mutex);
+        for (const auto& [_, method_ids] : registered_methods) {
+            if (std::find(method_ids.begin(), method_ids.end(), method) != method_ids.end()) {
+                is_registered = true;
+                break;
+            }
         }
     }
     if (!is_registered) {
@@ -652,8 +657,9 @@ void rpc_error_callback(const xbot_rpc::RpcError::ConstPtr &msg) {
 }
 
 bool register_methods(xbot_rpc::RegisterMethodsSrvRequest &req, xbot_rpc::RegisterMethodsSrvResponse &res) {
-    ROS_INFO_STREAM("new methods registered: " << req.node_id << " registered " << req.methods.size() << " methods.");
+    std::lock_guard<std::mutex> lk(registered_methods_mutex);
     registered_methods[req.node_id] = req.methods;
+    ROS_INFO_STREAM("new methods registered: " << req.node_id << " registered " << req.methods.size() << " methods.");
     return true;
 }
 

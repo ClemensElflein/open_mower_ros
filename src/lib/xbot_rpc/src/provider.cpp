@@ -7,7 +7,7 @@ namespace xbot_rpc {
 void RpcProvider::init() {
   ros::NodeHandle n;
   request_sub =
-      n.subscribe(TOPIC_REQUEST, 0, &RpcProvider::handleRequest, this, ros::TransportHints().tcpNoDelay(true));
+      n.subscribe(TOPIC_REQUEST, 100, &RpcProvider::handleRequest, this, ros::TransportHints().tcpNoDelay(true));
   response_pub = n.advertise<xbot_rpc::RpcResponse>(TOPIC_RESPONSE, 100);
   error_pub = n.advertise<xbot_rpc::RpcError>(TOPIC_ERROR, 100);
   registration_client = n.serviceClient<xbot_rpc::RegisterMethodsSrv>(SERVICE_REGISTER_METHODS);
