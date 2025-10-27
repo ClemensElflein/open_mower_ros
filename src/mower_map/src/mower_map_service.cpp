@@ -46,6 +46,12 @@ using json = nlohmann::ordered_json;
 
 #include "xbot_msgs/MapSize.h"
 
+// RPC
+#include "xbot_rpc/provider.h"
+
+// Forward declarations
+void saveMapToFile();
+
 // Struct definitions for JSON serialization
 struct Point {
   double x;
@@ -167,6 +173,24 @@ geometry_msgs::Pose fake_obstacle_pose;
 
 // The grid map. This is built from the polygons loaded from the file.
 grid_map::GridMap map;
+
+// clang-format off
+xbot_rpc::RpcProvider rpc_provider("mower_map_service", {{
+  RPC_METHOD("map.replace", {
+    if (!params.contains("map")) {
+      throw xbot_rpc::RpcException(xbot_rpc::RpcError::ERROR_INVALID_PARAMS, "Missing map parameter");
+    }
+    try {
+      map_data = params["map"];
+    } catch (const std::exception& e) {
+      throw xbot_rpc::RpcException(xbot_rpc::RpcError::ERROR_INVALID_PARAMS, "Invalid map: " + std::string(e.what()));
+    }
+    saveMapToFile();
+    ROS_INFO_STREAM("Loaded " << map_data.areas.size() << " areas via RPC and saved to file");
+    return "Successfully stored map (" + std::to_string(map_data.areas.size()) + " areas)";
+  }),
+}});
+// clang-format on
 
 /**
  * Convert a geometry_msgs::Polygon to our internal Polygon struct
@@ -610,6 +634,8 @@ int main(int argc, char** argv) {
   map_pub = n.advertise<nav_msgs::OccupancyGrid>("mower_map_service/map", 10, true);
   map_server_viz_array_pub = n.advertise<visualization_msgs::MarkerArray>("mower_map_service/map_viz", 10, true);
   map_size_pub = n.advertise<xbot_msgs::MapSize>("mower_map_service/map_size", 10, true);
+
+  rpc_provider.init();
 
   // Load the default map file
   readMapFromFile("map.json");
