@@ -36,7 +36,7 @@ class RpcProvider {
   ros::Subscriber request_sub;
   ros::Publisher response_pub;
   ros::Publisher error_pub;
-  ros::ServiceClient actionRegistrationClient;
+  ros::ServiceClient registration_client;
 
   void handleRequest(const xbot_rpc::RpcRequest::ConstPtr& request);
   void publishResponse(const xbot_rpc::RpcRequest::ConstPtr& request, const nlohmann::basic_json<>& response);

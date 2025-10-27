@@ -14,6 +14,7 @@
 #include "xbot_msgs/RobotState.h"
 #include <mqtt/async_client.h>
 #include <nlohmann/json.hpp>
+#include <vector>
 #include "geometry_msgs/Twist.h"
 #include "std_msgs/String.h"
 #include "xbot_msgs/RegisterActionsSrv.h"
@@ -24,6 +25,7 @@
 #include "xbot_rpc/RpcResponse.h"
 #include "xbot_rpc/constants.h"
 #include "xbot_rpc/provider.h"
+#include "xbot_rpc/RegisterMethodsSrv.h"
 
 using json = nlohmann::ordered_json;
 
@@ -36,6 +38,9 @@ void rpc_request_callback(const std::string &payload);
 
 // Stores registered actions (prefix to vector<action>)
 std::map<std::string, std::vector<xbot_msgs::ActionInfo>> registered_actions;
+
+// Stores registered RPC methods
+std::map<std::string, std::vector<std::string>> registered_methods;
 
 // Maps a topic to a subscriber.
 std::map<std::string, ros::Subscriber> active_subscribers;
@@ -136,6 +141,16 @@ bool has_map_overlay = false;
 xbot_rpc::RpcProvider rpc_provider("xbot_monitoring", {{
     RPC_METHOD("rpc.ping", {
         return "pong";
+    }),
+    RPC_METHOD("rpc.methods", {
+        json methods = json::array();
+        for (const auto& [_, method_ids] : registered_methods) {
+            for (const auto& method_id : method_ids) {
+                methods.push_back(method_id);
+            }
+        }
+        std::sort(methods.begin(), methods.end());
+        return methods;
     }),
 }});
 
@@ -599,9 +614,22 @@ void rpc_request_callback(const std::string &payload) {
         return rpc_publish_error(xbot_rpc::RpcError::ERROR_INVALID_REQUEST, "Method is not a string", req["id"]);
     }
 
+    // Check if the method is registered
+    const std::string method = req["method"];
+    bool is_registered = false;
+    for (const auto& [_, method_ids] : registered_methods) {
+        if (std::find(method_ids.begin(), method_ids.end(), method) != method_ids.end()) {
+            is_registered = true;
+            break;
+        }
+    }
+    if (!is_registered) {
+        return rpc_publish_error(xbot_rpc::RpcError::ERROR_METHOD_NOT_FOUND, "Method \"" + method + "\" not found", req["id"]);
+    }
+
     // Forward to the providers as ROS message
     xbot_rpc::RpcRequest msg;
-    msg.method = req["method"];
+    msg.method = method;
     msg.params = req.contains("params") ? req["params"].dump() : "";
     msg.id = id != nullptr ? id : "";
     rpc_request_pub.publish(msg);
@@ -621,6 +649,12 @@ void rpc_response_callback(const xbot_rpc::RpcResponse::ConstPtr &msg) {
 
 void rpc_error_callback(const xbot_rpc::RpcError::ConstPtr &msg) {
     rpc_publish_error(msg->code, msg->message, msg->id, msg->data);
+}
+
+bool register_methods(xbot_rpc::RegisterMethodsSrvRequest &req, xbot_rpc::RegisterMethodsSrvResponse &res) {
+    ROS_INFO_STREAM("new methods registered: " << req.node_id << " registered " << req.methods.size() << " methods.");
+    registered_methods[req.node_id] = req.methods;
+    return true;
 }
 
 int main(int argc, char **argv) {
@@ -668,10 +702,12 @@ int main(int argc, char **argv) {
     rpc_request_pub = n->advertise<xbot_rpc::RpcRequest>(xbot_rpc::TOPIC_REQUEST, 100);
     ros::Subscriber rpc_response_sub = n->subscribe(xbot_rpc::TOPIC_RESPONSE, 100, rpc_response_callback);
     ros::Subscriber rpc_error_sub = n->subscribe(xbot_rpc::TOPIC_ERROR, 100, rpc_error_callback);
-    rpc_provider.init();
+    ros::ServiceServer register_methods_service = n->advertiseService(xbot_rpc::SERVICE_REGISTER_METHODS, register_methods);
 
     ros::AsyncSpinner spinner(1);
     spinner.start();
+
+    rpc_provider.init();
 
     ros::Rate sensor_check_rate(10.0);
 

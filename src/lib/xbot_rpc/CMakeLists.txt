@@ -14,6 +14,11 @@ add_message_files(
         RpcError.msg
 )
 
+add_service_files(
+        FILES
+        RegisterMethodsSrv.srv
+)
+
 generate_messages(
   DEPENDENCIES std_msgs
 )

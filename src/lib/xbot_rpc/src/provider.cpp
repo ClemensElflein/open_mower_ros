@@ -1,6 +1,6 @@
 #include "xbot_rpc/provider.h"
 
-#include "xbot_msgs/RegisterActionsSrv.h"
+#include "xbot_rpc/RegisterMethodsSrv.h"
 
 namespace xbot_rpc {
 
@@ -10,24 +10,25 @@ void RpcProvider::init() {
       n.subscribe(TOPIC_REQUEST, 0, &RpcProvider::handleRequest, this, ros::TransportHints().tcpNoDelay(true));
   response_pub = n.advertise<xbot_rpc::RpcResponse>(TOPIC_RESPONSE, 100);
   error_pub = n.advertise<xbot_rpc::RpcError>(TOPIC_ERROR, 100);
+  registration_client = n.serviceClient<xbot_rpc::RegisterMethodsSrv>(SERVICE_REGISTER_METHODS);
+  publishMethods();
 }
 
 void RpcProvider::publishMethods() {
-  xbot_msgs::RegisterActionsSrv srv;
-  srv.request.node_prefix = node_id;
-  // FIXME: Create a registration message for the methods
-  // srv.request.actions.reserve(actions.size());
-  // for (const auto& action : actions) {
-  //   srv.request.actions.push_back(action.info);
-  // }
+  xbot_rpc::RegisterMethodsSrv srv;
+  srv.request.node_id = node_id;
+  srv.request.methods.reserve(methods.size());
+  for (const auto& [method_id, _] : methods) {
+    srv.request.methods.push_back(method_id);
+  }
 
   ros::Rate retry_delay(1);
   for (int i = 0; i < 10; i++) {
-    if (actionRegistrationClient.call(srv)) {
-      ROS_INFO_STREAM("successfully registered actions for " << node_id);
+    if (registration_client.call(srv)) {
+      ROS_INFO_STREAM("successfully registered methods for " << node_id);
       break;
     }
-    ROS_ERROR_STREAM("Error registering actions for " << node_id << ". Retrying.");
+    ROS_ERROR_STREAM("Error registering methods for " << node_id << ". Retrying.");
     retry_delay.sleep();
   }
 }
