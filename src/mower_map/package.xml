@@ -32,6 +32,7 @@
     <exec_depend>roscpp</exec_depend>
     <exec_depend>geometry_msgs</exec_depend>
     <depend>xbot_msgs</depend>
+    <depend>xbot_rpc</depend>
 
 
     <!-- The export tag contains other, unspecified, tags -->
