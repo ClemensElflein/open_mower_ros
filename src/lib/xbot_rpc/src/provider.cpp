@@ -56,8 +56,8 @@ void RpcProvider::handleRequest(const xbot_rpc::RpcRequest::ConstPtr& request) {
     nlohmann::basic_json<> response = it->second(request->method, params);
     publishResponse(request, response);
   } catch (const RpcException& e) {
-    publishError(request, e.code, e.message, e.data);
-  } catch (std::exception& e) {
+    publishError(request, e.code, e.message);
+  } catch (const std::exception& e) {
     publishError(request, RpcError::ERROR_INTERNAL, std::string("Internal error: ") + e.what());
   }
 }
@@ -73,8 +73,7 @@ void RpcProvider::publishResponse(const xbot_rpc::RpcRequest::ConstPtr& request,
   response_pub.publish(response_msg);
 }
 
-void RpcProvider::publishError(const xbot_rpc::RpcRequest::ConstPtr& request, int16_t code, const std::string& message,
-                               const nlohmann::basic_json<>& data) {
+void RpcProvider::publishError(const xbot_rpc::RpcRequest::ConstPtr& request, int16_t code, const std::string& message) {
   if (request->id.empty()) {
     return;
   }
@@ -82,9 +81,6 @@ void RpcProvider::publishError(const xbot_rpc::RpcRequest::ConstPtr& request, in
   err_msg.id = request->id;
   err_msg.code = code;
   err_msg.message = message;
-  if (data != nullptr) {
-    err_msg.data = data.dump();
-  }
   error_pub.publish(err_msg);
 }
 

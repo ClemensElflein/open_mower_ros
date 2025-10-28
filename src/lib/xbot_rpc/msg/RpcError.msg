@@ -1,6 +1,5 @@
 int16 code
 string message
-string data
 string id
 
 int16 ERROR_INVALID_JSON     = -32700   # Invalid JSON was received by the server.

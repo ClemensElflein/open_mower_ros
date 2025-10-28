@@ -584,13 +584,10 @@ bool registerActions(xbot_msgs::RegisterActionsSrvRequest &req, xbot_msgs::Regis
     return true;
 }
 
-void rpc_publish_error(const int16_t code, const std::string &message, const nlohmann::basic_json<> &id = nullptr, const nlohmann::basic_json<> &data = nullptr) {
+void rpc_publish_error(const int16_t code, const std::string &message, const nlohmann::basic_json<> &id = nullptr) {
     json err_resp = {{"jsonrpc", "2.0"},
                        {"error", {{"code", code}, {"message", message}}},
                        {"id", id}};
-    if (data != nullptr) {
-        err_resp["error"]["data"] = data;
-    }
     try_publish("rpc/response", err_resp.dump(2));
 }
 
@@ -645,7 +642,7 @@ void rpc_response_callback(const xbot_rpc::RpcResponse::ConstPtr &msg) {
     try {
         result = json::parse(msg->result);
     } catch (const json::parse_error &e) {
-        return rpc_publish_error(xbot_rpc::RpcError::ERROR_INTERNAL, "Internal error while parsing result JSON", msg->id, msg->result);
+        return rpc_publish_error(xbot_rpc::RpcError::ERROR_INTERNAL, "Internal error while parsing result JSON: " + std::string(e.what()), msg->id);
     }
 
     json j = {{"jsonrpc", "2.0"}, {"result", result}, {"id", msg->id}};
@@ -653,7 +650,7 @@ void rpc_response_callback(const xbot_rpc::RpcResponse::ConstPtr &msg) {
 }
 
 void rpc_error_callback(const xbot_rpc::RpcError::ConstPtr &msg) {
-    rpc_publish_error(msg->code, msg->message, msg->id, msg->data);
+    rpc_publish_error(msg->code, msg->message, msg->id);
 }
 
 bool register_methods(xbot_rpc::RegisterMethodsSrvRequest &req, xbot_rpc::RegisterMethodsSrvResponse &res) {
