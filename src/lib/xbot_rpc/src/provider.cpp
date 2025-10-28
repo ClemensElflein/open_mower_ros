@@ -11,6 +11,7 @@ void RpcProvider::init() {
   response_pub = n.advertise<xbot_rpc::RpcResponse>(TOPIC_RESPONSE, 100);
   error_pub = n.advertise<xbot_rpc::RpcError>(TOPIC_ERROR, 100);
   registration_client = n.serviceClient<xbot_rpc::RegisterMethodsSrv>(SERVICE_REGISTER_METHODS);
+  registration_client.waitForExistence(ros::Duration(10.0));
   publishMethods();
 }
 
@@ -21,15 +22,8 @@ void RpcProvider::publishMethods() {
   for (const auto& [method_id, _] : methods) {
     srv.request.methods.push_back(method_id);
   }
-
-  ros::Rate retry_delay(1);
-  for (int i = 0; i < 10; i++) {
-    if (registration_client.call(srv)) {
-      ROS_INFO_STREAM("successfully registered methods for " << node_id);
-      break;
-    }
-    ROS_ERROR_STREAM("Error registering methods for " << node_id << ". Retrying.");
-    retry_delay.sleep();
+  if (!registration_client.call(srv)) {
+    ROS_ERROR_STREAM("Error registering methods for " << node_id);
   }
 }
 
