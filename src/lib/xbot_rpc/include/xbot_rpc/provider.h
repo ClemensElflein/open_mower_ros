@@ -9,12 +9,11 @@
 #include <nlohmann/json.hpp>
 
 #define RPC_METHOD(id, body) \
-  { id, [](const std::string& topic, const nlohmann::basic_json<>& params) body }
+  { id, [](const std::string& method, const nlohmann::basic_json<>& params) body }
 
 namespace xbot_rpc {
 
-typedef std::function<nlohmann::basic_json<>(const std::string& topic, const nlohmann::basic_json<>& params)>
-    callback_t;
+typedef std::function<nlohmann::basic_json<>(const std::string& method, const nlohmann::basic_json<>& params)> callback_t;
 
 class RpcException : public std::exception {
  public:
