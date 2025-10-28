@@ -1,0 +1,3 @@
+string node_id       # The ID of the node providing the methods.
+string[] methods     # The list of available methods.
+---
