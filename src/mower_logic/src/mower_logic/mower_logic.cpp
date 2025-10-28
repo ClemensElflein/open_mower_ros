@@ -57,12 +57,12 @@
 ros::ServiceClient pathClient, mapClient, dockingPointClient, gpsClient, mowClient, emergencyClient, pathProgressClient,
     setNavPointClient, clearNavPointClient, clearMapClient, positioningClient, actionRegistrationClient;
 
-ros::NodeHandle *n;
-ros::NodeHandle *paramNh;
+ros::NodeHandle* n;
+ros::NodeHandle* paramNh;
 
-dynamic_reconfigure::Server<mower_logic::MowerLogicConfig> *reconfigServer;
-actionlib::SimpleActionClient<mbf_msgs::MoveBaseAction> *mbfClient;
-actionlib::SimpleActionClient<mbf_msgs::ExePathAction> *mbfClientExePath;
+dynamic_reconfigure::Server<mower_logic::MowerLogicConfig>* reconfigServer;
+actionlib::SimpleActionClient<mbf_msgs::MoveBaseAction>* mbfClient;
+actionlib::SimpleActionClient<mbf_msgs::ExePathAction>* mbfClientExePath;
 
 ros::Publisher cmd_vel_pub, high_level_state_publisher;
 mower_logic::MowerLogicConfig last_config;
@@ -84,7 +84,7 @@ mower_msgs::HighLevelStatus high_level_status;
 
 std::atomic<bool> mowerAllowed;
 
-Behavior *currentBehavior = &IdleBehavior::INSTANCE;
+Behavior* currentBehavior = &IdleBehavior::INSTANCE;
 
 std::vector<xbot_msgs::ActionInfo> rootActions;
 ros::Time last_v_battery_check;
@@ -137,7 +137,7 @@ xbot_msgs::AbsolutePose getPose() {
 
 void setEmergencyMode(bool emergency);
 
-void registerActions(std::string prefix, const std::vector<xbot_msgs::ActionInfo> &actions) {
+void registerActions(std::string prefix, const std::vector<xbot_msgs::ActionInfo>& actions) {
   xbot_msgs::RegisterActionsSrv srv;
   srv.request.node_prefix = prefix;
   srv.request.actions = actions;
@@ -153,7 +153,7 @@ void registerActions(std::string prefix, const std::vector<xbot_msgs::ActionInfo
   }
 }
 
-void setRobotPose(geometry_msgs::Pose &pose) {
+void setRobotPose(geometry_msgs::Pose& pose) {
   // set the robot pose internally as well. othwerise we need to wait for xbot_positioning to send a new one once it has
   // updated the internal pose.
   auto last_pose = pose_state_subscriber.getMessage();
@@ -326,22 +326,22 @@ void setEmergencyMode(bool emergency) {
   }
 }
 
-void updateUI(const ros::TimerEvent &timer_event) {
+void updateUI(const ros::TimerEvent& timer_event) {
   if (currentBehavior == &MowingBehavior::INSTANCE) {
     try {
       high_level_status.current_area = MowingBehavior::INSTANCE.get_current_area();
-    } catch (const std::runtime_error &re) {
+    } catch (const std::runtime_error& re) {
       // specific handling for runtime_error
       ROS_ERROR_STREAM("Error getting current area: " << re.what());
     }
     try {
       high_level_status.current_path = MowingBehavior::INSTANCE.get_current_path();
-    } catch (const std::runtime_error &re) {
+    } catch (const std::runtime_error& re) {
       ROS_ERROR_STREAM("Error getting current path: " << re.what());
     }
     try {
       high_level_status.current_path_index = MowingBehavior::INSTANCE.get_current_path_index();
-    } catch (const std::runtime_error &re) {
+    } catch (const std::runtime_error& re) {
       ROS_ERROR_STREAM("Error getting current path index: " << re.what());
     }
   } else {
@@ -376,7 +376,7 @@ bool isGpsGood() {
 /// @brief Called every 0.5s, used to control BLADE motor via mower_enabled variable and stop any movement in case of
 /// /odom and /mower/status outages
 /// @param timer_event
-void checkSafety(const ros::TimerEvent &timer_event) {
+void checkSafety(const ros::TimerEvent& timer_event) {
   const auto last_status = status_state_subscriber.getMessage();
   const auto last_emergency = emergency_state_subscriber.getMessage();
   const auto last_config = getConfig();
@@ -559,12 +559,12 @@ void checkSafety(const ros::TimerEvent &timer_event) {
   }
 }
 
-void reconfigureCB(mower_logic::MowerLogicConfig &c, uint32_t level) {
+void reconfigureCB(mower_logic::MowerLogicConfig& c, uint32_t level) {
   ROS_INFO_STREAM("om_mower_logic: Setting mower_logic config");
   last_config = c;
 }
 
-bool highLevelCommand(mower_msgs::HighLevelControlSrvRequest &req, mower_msgs::HighLevelControlSrvResponse &res) {
+bool highLevelCommand(mower_msgs::HighLevelControlSrvRequest& req, mower_msgs::HighLevelControlSrvResponse& res) {
   switch (req.command) {
     case mower_msgs::HighLevelControlSrvRequest::COMMAND_HOME:
       ROS_INFO_STREAM("COMMAND_HOME");
@@ -613,7 +613,7 @@ bool highLevelCommand(mower_msgs::HighLevelControlSrvRequest &req, mower_msgs::H
   return true;
 }
 
-void actionReceived(const std_msgs::String::ConstPtr &action) {
+void actionReceived(const std_msgs::String::ConstPtr& action) {
   if (action->data == "mower_logic/reset_emergency") {
     ROS_WARN_STREAM("Got reset emergency action.");
     setEmergencyMode(false);
@@ -625,7 +625,7 @@ void actionReceived(const std_msgs::String::ConstPtr &action) {
   }
 }
 
-void joyVelReceived(const geometry_msgs::Twist::ConstPtr &joy_vel) {
+void joyVelReceived(const geometry_msgs::Twist::ConstPtr& joy_vel) {
   joy_vel_time = ros::Time::now();
   if (currentBehavior && currentBehavior->redirect_joystick()) {
     cmd_vel_pub.publish(joy_vel);
@@ -640,7 +640,7 @@ void buildRootActions() {
   rootActions.push_back(reset_emergency_action);
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   buildRootActions();
 
   ros::init(argc, argv, "mower_logic");
@@ -894,7 +894,7 @@ int main(int argc, char **argv) {
   while (ros::ok()) {
     if (currentBehavior != nullptr) {
       currentBehavior->start(last_config, shared_state);
-      Behavior *newBehavior = currentBehavior->execute();
+      Behavior* newBehavior = currentBehavior->execute();
       currentBehavior->exit();
       currentBehavior = newBehavior;
     } else {

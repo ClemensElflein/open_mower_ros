@@ -42,9 +42,9 @@ ros::Publisher pose_pub;
 ros::Publisher initial_pose_publisher;
 ros::ServiceClient docking_point_client;
 
-dynamic_reconfigure::Server<mower_simulation::MowerSimulationConfig> *reconfig_server;
+dynamic_reconfigure::Server<mower_simulation::MowerSimulationConfig>* reconfig_server;
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   ros::init(argc, argv, "mower_simulation");
 
   ros::NodeHandle n;
@@ -65,7 +65,7 @@ int main(int argc, char **argv) {
   sleep(3);
   mower_map::GetDockingPointSrv get_docking_point_srv;
   if (docking_point_client.call(get_docking_point_srv)) {
-    const auto &docking_pose = get_docking_point_srv.response.docking_pose;
+    const auto& docking_pose = get_docking_point_srv.response.docking_pose;
     tf2::Quaternion quat;
     tf2::fromMsg(docking_pose.orientation, quat);
     tf2::Matrix3x3 m(quat);
