@@ -72,7 +72,7 @@
                value="$(optenv OM_GPS_TCP_PORT 2102)" type="string"/>
         <param name="ll/services/gps/mode" value="absolute" unless="$(env OM_USE_RELATIVE_POSITION)"/>
         <param name="ll/services/gps/mode" value="relative" if="$(env OM_USE_RELATIVE_POSITION)"/>
-        <param name="ll/services/gps/ubx_mode" value="$(eval optenv('OM_GPS_PROTOCOL','UBX')=='UBX')"/>
+        <param name="ll/services/gps/protocol" value="$(optenv OM_GPS_PROTOCOL UBX)"/>
         <param unless="$(optenv OM_USE_RELATIVE_POSITION False)" name="ll/services/gps/datum_lat"
                value="$(env OM_DATUM_LAT)"/>
         <param unless="$(optenv OM_USE_RELATIVE_POSITION False)" name="ll/services/gps/datum_long"
