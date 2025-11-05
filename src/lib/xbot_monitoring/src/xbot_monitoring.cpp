@@ -26,9 +26,11 @@
 #include "xbot_rpc/constants.h"
 #include "xbot_rpc/provider.h"
 #include "xbot_rpc/RegisterMethodsSrv.h"
+#include "capabilities.h"
 
 using json = nlohmann::ordered_json;
 
+void publish_capabilities();
 void publish_sensor_metadata();
 void publish_map();
 void publish_map_overlay();
@@ -74,6 +76,7 @@ class MqttCallback : public mqtt::callback {
 
     void connected(const mqtt::string &string) override {
         ROS_INFO_STREAM("MQTT Connected");
+        publish_capabilities();
         publish_sensor_metadata();
         publish_map();
         publish_map_overlay();
@@ -263,9 +266,13 @@ void publish_version() {
     json version = {
             {"version", version_string}
     };
-    try_publish("version", version.dump(), true);
+    try_publish("version/json", version.dump(), true);
     auto bson = json::to_bson(version);
     try_publish_binary("version", bson.data(), bson.size(), true);
+}
+
+void publish_capabilities() {
+  try_publish("capabilities/json", CAPABILITIES.dump(2), true);
 }
 
 void publish_sensor_metadata() {
