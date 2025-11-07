@@ -51,6 +51,7 @@ using json = nlohmann::ordered_json;
 
 // Forward declarations
 void saveMapToFile();
+void buildMap();
 
 // Struct definitions for JSON serialization
 struct Point {
@@ -187,6 +188,7 @@ xbot_rpc::RpcProvider rpc_provider("mower_map_service", {{
     }
     saveMapToFile();
     ROS_INFO_STREAM("Loaded " << map_data.areas.size() << " areas via RPC and saved to file");
+    buildMap();
     return "Successfully stored map (" + std::to_string(map_data.areas.size()) + " areas)";
   }),
 }});
