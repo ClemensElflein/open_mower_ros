@@ -177,11 +177,11 @@ grid_map::GridMap map;
 // clang-format off
 xbot_rpc::RpcProvider rpc_provider("mower_map_service", {{
   RPC_METHOD("map.replace", {
-    if (!params.contains("map")) {
+    if (!params.is_array() || params.size() != 1) {
       throw xbot_rpc::RpcException(xbot_rpc::RpcError::ERROR_INVALID_PARAMS, "Missing map parameter");
     }
     try {
-      map_data = params["map"];
+      map_data = params[0];
     } catch (const std::exception& e) {
       throw xbot_rpc::RpcException(xbot_rpc::RpcError::ERROR_INVALID_PARAMS, "Invalid map: " + std::string(e.what()));
     }
