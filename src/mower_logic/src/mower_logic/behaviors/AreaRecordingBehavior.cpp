@@ -473,8 +473,9 @@ bool AreaRecordingBehavior::getDockingPosition(geometry_msgs::Pose &pos) {
 
     pos.position = odom_ptr->pose.pose.position;
 
+    tf2::Quaternion docking_orientation;
     double yaw = atan2(pos.position.y - first_docking_pos.position.y, pos.position.x - first_docking_pos.position.x);
-    tf2::Quaternion docking_orientation(0.0, 0.0, yaw);
+    docking_orientation.setRPY(0.0, 0.0, yaw);
     pos.orientation = tf2::toMsg(docking_orientation);
 
     update_actions();
@@ -521,7 +522,8 @@ std::string AreaRecordingBehavior::sub_state_name() {
   }
 }
 
-void AreaRecordingBehavior::handle_action(std::string action) {
+bool AreaRecordingBehavior::handle_action(const std::string &action, const std::string &payload,
+                                          std::string &response) {
   if (action == "mower_logic:area_recording/start_recording") {
     ROS_INFO_STREAM("Got start recording");
     poly_recording_enabled = true;
@@ -583,68 +585,71 @@ void AreaRecordingBehavior::handle_action(std::string action) {
   } else if (action == "mower_logic:area_recording/stop_manual_mowing") {
     ROS_INFO_STREAM("Stopping manual mowing");
     manual_mowing = false;
+  } else {
+    return false;
   }
   update_actions();
+  return true;
 }
 
 AreaRecordingBehavior::AreaRecordingBehavior() {
   xbot_msgs::ActionInfo start_recording_action;
-  start_recording_action.action_id = "start_recording";
+  start_recording_action.action_id = "mower_logic:area_recording/start_recording";
   start_recording_action.enabled = false;
   start_recording_action.action_name = "Start Recording";
 
   xbot_msgs::ActionInfo stop_recording_action;
-  stop_recording_action.action_id = "stop_recording";
+  stop_recording_action.action_id = "mower_logic:area_recording/stop_recording";
   stop_recording_action.enabled = false;
   stop_recording_action.action_name = "Stop Recording";
 
   xbot_msgs::ActionInfo finish_navigation_area_action;
-  finish_navigation_area_action.action_id = "finish_navigation_area";
+  finish_navigation_area_action.action_id = "mower_logic:area_recording/finish_navigation_area";
   finish_navigation_area_action.enabled = false;
   finish_navigation_area_action.action_name = "Save Navigation Area";
 
   xbot_msgs::ActionInfo finish_mowing_area_action;
-  finish_mowing_area_action.action_id = "finish_mowing_area";
+  finish_mowing_area_action.action_id = "mower_logic:area_recording/finish_mowing_area";
   finish_mowing_area_action.enabled = false;
   finish_mowing_area_action.action_name = "Save Mowing Area";
 
   xbot_msgs::ActionInfo exit_recording_mode_action;
-  exit_recording_mode_action.action_id = "exit_recording_mode";
+  exit_recording_mode_action.action_id = "mower_logic:area_recording/exit_recording_mode";
   exit_recording_mode_action.enabled = false;
   exit_recording_mode_action.action_name = "Exit";
 
   xbot_msgs::ActionInfo finish_discard_action;
-  finish_discard_action.action_id = "finish_discard";
+  finish_discard_action.action_id = "mower_logic:area_recording/finish_discard";
   finish_discard_action.enabled = false;
   finish_discard_action.action_name = "Discard Area";
 
   xbot_msgs::ActionInfo record_dock_action;
-  record_dock_action.action_id = "record_dock";
+  record_dock_action.action_id = "mower_logic:area_recording/record_dock";
   record_dock_action.enabled = false;
   record_dock_action.action_name = "Record Docking point";
 
   xbot_msgs::ActionInfo auto_point_collecting_enable_action;
-  auto_point_collecting_enable_action.action_id = "auto_point_collecting_enable";
+  auto_point_collecting_enable_action.action_id = "mower_logic:area_recording/auto_point_collecting_enable";
   auto_point_collecting_enable_action.enabled = false;
   auto_point_collecting_enable_action.action_name = "Enable automatic point collecting";
 
   xbot_msgs::ActionInfo auto_point_collecting_disable_action;
-  auto_point_collecting_disable_action.action_id = "auto_point_collecting_disable";
+  auto_point_collecting_disable_action.action_id = "mower_logic:area_recording/auto_point_collecting_disable";
   auto_point_collecting_disable_action.enabled = false;
   auto_point_collecting_disable_action.action_name = "Disable automatic point collecting";
 
   xbot_msgs::ActionInfo collect_point_action;
-  collect_point_action.action_id = "collect_point";
+  collect_point_action.action_id = "mower_logic:area_recording/collect_point";
   collect_point_action.enabled = false;
   collect_point_action.action_name = "Collect point";
 
   xbot_msgs::ActionInfo start_manual_mowing_action;
-  start_manual_mowing_action.action_id = "start_manual_mowing";
+  start_manual_mowing_action.action_id = "mower_logic:area_recording/start_manual_mowing";
   start_manual_mowing_action.enabled = false;
   start_manual_mowing_action.action_name = "Start manual mowing";
 
   xbot_msgs::ActionInfo stop_manual_mowing_action;
-  stop_manual_mowing_action.action_id = "stop_manual_mowing";
+  stop_manual_mowing_action.action_id = "mower_logic:area_recording/stop_manual_mowing";
   stop_manual_mowing_action.enabled = false;
   stop_manual_mowing_action.action_name = "Stop manual mowing";
 

@@ -29,8 +29,7 @@ enum eAutoMode { MANUAL = 0, SEMIAUTO = 1, AUTO = 2 };
 enum pauseType { PAUSE_MANUAL = 0b1, PAUSE_EMERGENCY = 0b10 };
 
 struct sSharedState {
-  // True, if the semiautomatic task is still in progress
-  bool active_semiautomatic_task;
+  // TODO: Remove if nothing else uses this concept.
 };
 
 /**
@@ -167,7 +166,7 @@ class Behavior {
   virtual uint8_t get_sub_state() = 0;
   virtual uint8_t get_state() = 0;
 
-  virtual void handle_action(std::string action) = 0;
+  virtual bool handle_action(const std::string& action, const std::string& payload, std::string& response) = 0;
 };
 
 #endif  // SRC_BEHAVIOR_H

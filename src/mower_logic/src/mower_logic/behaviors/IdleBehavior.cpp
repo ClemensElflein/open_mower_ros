@@ -14,7 +14,9 @@
 //
 #include "IdleBehavior.h"
 
+#include <actionlib/server/simple_action_server.h>
 #include <mower_logic/PowerConfig.h>
+#include <mower_msgs/MowPathsAction.h>
 #include <mower_msgs/Power.h>
 
 #include "PerimeterDocking.h"
@@ -37,6 +39,10 @@ extern dynamic_reconfigure::Server<mower_logic::MowerLogicConfig> *reconfigServe
 
 extern ros::ServiceClient mapClient;
 extern ros::ServiceClient dockingPointClient;
+
+extern actionlib::SimpleActionServer<mower_msgs::MowPathsAction> *mowPathsServer;
+extern void acceptGoal();
+extern void cancelGoal();
 
 IdleBehavior IdleBehavior::INSTANCE(false);
 IdleBehavior IdleBehavior::DOCKED_INSTANCE(true);
@@ -71,33 +77,40 @@ Behavior *IdleBehavior::execute() {
   while (ros::ok()) {
     stopMoving();
     stopBlade();
+
     const auto last_config = getConfig();
     const auto last_power_config = getPowerConfig();
     const auto last_status = getStatus();
     const auto last_power = getPower();
-
-    const bool automatic_mode = last_config.automatic_mode == eAutoMode::AUTO;
-    const bool active_semiautomatic_task =
-        last_config.automatic_mode == eAutoMode::SEMIAUTO && shared_state->active_semiautomatic_task;
     const bool rain_delay = last_config.rain_mode == 2 && ros::Time::now() < rain_resume;
     if (rain_delay) {
       ROS_INFO_STREAM_THROTTLE(300, "Rain delay: " << int((rain_resume - ros::Time::now()).toSec() / 60) << " minutes");
     }
     const bool mower_ready = last_power.v_battery > last_power_config.battery_full_voltage &&
-                             last_status.mower_motor_temperature < last_config.motor_cold_temperature &&
-                             !last_config.manual_pause_mowing && !rain_delay;
+                             last_status.mower_motor_temperature < last_config.motor_cold_temperature && !rain_delay;
+    const bool start_mowing_when_ready = last_config.automatic_mode != eAutoMode::MANUAL;
+    const bool paused = last_config.manual_pause_mowing;
 
-    if (manual_start_mowing || ((automatic_mode || active_semiautomatic_task) && mower_ready)) {
-      // set the robot's position to the dock if we're actually docked
-      if (last_power.v_charge > 5.0) {
-        if (PerimeterUndockingBehavior::configured(config)) return &PerimeterUndockingBehavior::INSTANCE;
-        ROS_INFO_STREAM("Currently inside the docking station, we set the robot's pose to the docks pose.");
-        setRobotPose(docking_pose_stamped.pose);
-        return &UndockingBehavior::INSTANCE;
+    if (mowPathsServer->isPreemptRequested() && mowPathsServer->isActive()) {
+      cancelGoal();
+    }
+
+    if (mower_ready && start_mowing_when_ready && !paused || manual_start_mowing) {
+      if (mowPathsServer->isNewGoalAvailable()) {
+        acceptGoal();
       }
-      // Not docked, so just mow
-      setGPS(true);
-      return &MowingBehavior::INSTANCE;
+      if (mowPathsServer->isActive()) {
+        // set the robot's position to the dock if we're actually docked
+        if (last_power.v_charge > 5.0) {
+          if (PerimeterUndockingBehavior::configured(config)) return &PerimeterUndockingBehavior::INSTANCE;
+          ROS_INFO_STREAM("Currently inside the docking station, we set the robot's pose to the docks pose.");
+          setRobotPose(docking_pose_stamped.pose);
+          return &UndockingBehavior::INSTANCE;
+        }
+        // Not docked, so just mow
+        setGPS(true);
+        return &MowingBehavior::INSTANCE;
+      }
     }
 
     if (start_area_recorder) {
@@ -163,6 +176,7 @@ void IdleBehavior::command_start() {
   setConfig(config);
 
   manual_start_mowing = true;
+  // TODO: Create new playlist (or resume existing).
 }
 
 void IdleBehavior::command_s1() {
@@ -188,12 +202,12 @@ IdleBehavior::IdleBehavior(bool stayDocked) {
   this->stay_docked = stayDocked;
 
   xbot_msgs::ActionInfo start_mowing_action;
-  start_mowing_action.action_id = "start_mowing";
+  start_mowing_action.action_id = "mower_logic:idle/start_mowing";
   start_mowing_action.enabled = false;
   start_mowing_action.action_name = "Start Mowing";
 
   xbot_msgs::ActionInfo start_area_recording_action;
-  start_area_recording_action.action_id = "start_area_recording";
+  start_area_recording_action.action_id = "mower_logic:idle/start_area_recording";
   start_area_recording_action.enabled = false;
   start_area_recording_action.action_name = "Start Area Recording";
 
@@ -202,12 +216,15 @@ IdleBehavior::IdleBehavior(bool stayDocked) {
   actions.push_back(start_area_recording_action);
 }
 
-void IdleBehavior::handle_action(std::string action) {
+bool IdleBehavior::handle_action(const std::string &action, const std::string &payload, std::string &response) {
   if (action == "mower_logic:idle/start_mowing") {
     ROS_INFO_STREAM("Got start_mowing command");
     command_start();
   } else if (action == "mower_logic:idle/start_area_recording") {
     ROS_INFO_STREAM("Got start_area_recording command");
     command_s1();
+  } else {
+    return false;
   }
+  return true;
 }

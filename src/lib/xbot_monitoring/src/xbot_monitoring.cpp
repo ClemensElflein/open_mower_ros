@@ -19,6 +19,8 @@
 #include "std_msgs/String.h"
 #include "xbot_msgs/RegisterActionsSrv.h"
 #include "xbot_msgs/ActionInfo.h"
+#include "xbot_msgs/ActionRequest.h"
+#include "xbot_msgs/ActionResponse.h"
 #include "xbot_msgs/MapOverlay.h"
 #include "xbot_rpc/RpcError.h"
 #include "xbot_rpc/RpcRequest.h"
@@ -72,6 +74,27 @@ std::string external_mqtt_topic_prefix = "";
 std::string external_mqtt_port = "";
 std::string version_string = "";
 
+// separator for action_id, request_id and payload/response of actions
+const char ACTION_SEP = '|';
+
+xbot_msgs::ActionRequest parse_action_request(const std::string &str) {
+    xbot_msgs::ActionRequest msg;
+    const size_t first_sep = str.find(ACTION_SEP);
+    if (first_sep == std::string::npos) {
+        msg.action_id = str;
+    } else {
+        msg.action_id = str.substr(0, first_sep);
+        const size_t second_sep = str.find(ACTION_SEP, first_sep + 1);
+        if (second_sep == std::string::npos) {
+            msg.request_id = str.substr(first_sep + 1);
+        } else {
+            msg.request_id = str.substr(first_sep + 1, second_sep - first_sep - 1);
+            msg.payload = str.substr(second_sep + 1);
+        }
+    }
+    return msg;
+}
+
 class MqttCallback : public mqtt::callback {
 
     void connected(const mqtt::string &string) override {
@@ -114,15 +137,11 @@ public:
             }
         } else if(ptr->get_topic() == this->mqtt_topic_prefix + "action") {
             ROS_INFO_STREAM("Got action: " + ptr->get_payload());
-            std_msgs::String action_msg;
-            action_msg.data = ptr->get_payload_str();
-            action_pub.publish(action_msg);
+            action_pub.publish(parse_action_request(ptr->get_payload_str()));
         } else if(ptr->get_topic() == this->mqtt_topic_prefix + "/action") {
             // BEGIN: Deprecated code (2/2)
             ROS_WARN_STREAM("Got action on deprecated topic! Change your topic names!: " + ptr->get_payload());
-            std_msgs::String action_msg;
-            action_msg.data = ptr->get_payload_str();
-            action_pub.publish(action_msg);
+            action_pub.publish(parse_action_request(ptr->get_payload_str()));
             // END: Deprecated code (2/2)
         } else if (ptr->get_topic() == this->mqtt_topic_prefix + "rpc/request") {
           std::string payload = ptr->get_payload_str();
@@ -580,6 +599,11 @@ void map_overlay_callback(const xbot_msgs::MapOverlay::ConstPtr &msg) {
     publish_map_overlay();
 }
 
+void action_response_callback(const xbot_msgs::ActionResponse::ConstPtr &msg) {
+    std::string payload = msg->action_id + ACTION_SEP + msg->request_id + ACTION_SEP + msg->response;
+    try_publish("action_response", payload);
+}
+
 
 bool registerActions(xbot_msgs::RegisterActionsSrvRequest &req, xbot_msgs::RegisterActionsSrvResponse &res) {
 
@@ -705,9 +729,10 @@ int main(int argc, char **argv) {
     ros::Subscriber robotStateSubscriber = n->subscribe("xbot_monitoring/robot_state", 10, robot_state_callback);
     ros::Subscriber mapSubscriber = n->subscribe("xbot_monitoring/map", 10, map_callback);
     ros::Subscriber mapOverlaySubscriber = n->subscribe("xbot_monitoring/map_overlay", 10, map_overlay_callback);
+    ros::Subscriber actionResponseSubscriber = n->subscribe("xbot/action_response", 100, action_response_callback);
 
     cmd_vel_pub = n->advertise<geometry_msgs::Twist>("xbot_monitoring/remote_cmd_vel", 1);
-    action_pub = n->advertise<std_msgs::String>("xbot/action", 1);
+    action_pub = n->advertise<xbot_msgs::ActionRequest>("xbot/action", 1);
 
     rpc_request_pub = n->advertise<xbot_rpc::RpcRequest>(xbot_rpc::TOPIC_REQUEST, 100);
     ros::Subscriber rpc_response_sub = n->subscribe(xbot_rpc::TOPIC_RESPONSE, 100, rpc_response_callback);

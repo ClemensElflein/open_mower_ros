@@ -107,6 +107,7 @@ generate_dynamic_reconfigure_options(
         cfg/MowerLogic.cfg
         cfg/MowerOdometry.cfg
         cfg/Power.cfg
+        cfg/Tasklist.cfg
 )
 
 ###################################
@@ -124,6 +125,10 @@ catkin_package(
         #  CATKIN_DEPENDS dynamic_reconfigure ftc_local_planner mbf_msgs mower_map mower_msgs nav_msgs roscpp slic3r_coverage_planner tf2 tf2_geometry_msgs tf2_ros
         #  DEPENDS system_lib
 )
+
+# Fetch JSON
+FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.2/json.tar.xz)
+FetchContent_MakeAvailable(json)
 
 ###########
 ## Build ##
@@ -184,11 +189,15 @@ add_executable(mower_logic
         src/mower_logic/behaviors/AreaRecordingBehavior.cpp
 )
 add_dependencies(mower_logic ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
-target_link_libraries(mower_logic ${catkin_LIBRARIES} ${CRYPTOPP_LIBRARIES})
+target_link_libraries(mower_logic ${catkin_LIBRARIES})
 
 add_executable(monitoring src/monitoring/monitoring.cpp)
 add_dependencies(monitoring ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
 target_link_libraries(monitoring ${catkin_LIBRARIES})
+
+add_executable(tasklist src/tasklist/tasklist.cpp)
+add_dependencies(tasklist ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
+target_link_libraries(tasklist ${catkin_LIBRARIES} ${CRYPTOPP_LIBRARIES} nlohmann_json::nlohmann_json)
 
 
 #############
