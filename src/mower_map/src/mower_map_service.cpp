@@ -19,6 +19,10 @@
 #include "std_msgs/String.h"
 #include "visualization_msgs/MarkerArray.h"
 
+// Rosbag for reading/writing the map to a file
+#include <rosbag/bag.h>
+#include <rosbag/view.h>
+
 // Include Messages
 #include "geometry_msgs/Point32.h"
 #include "geometry_msgs/Polygon.h"
@@ -629,6 +633,91 @@ bool clearMap(mower_map::ClearMapSrvRequest& req, mower_map::ClearMapSrvResponse
   return true;
 }
 
+/**
+ * Helper function to convert legacy map areas from bag file
+ * @param bag The rosbag to read from
+ * @param topic_name The topic name to query (e.g. "mowing_areas" or "navigation_areas")
+ * @param area_type The type to assign to the converted areas (e.g. "mow" or "nav")
+ */
+void convertLegacyAreas(rosbag::Bag& bag, const std::string& topic_name, const std::string& area_type) {
+  rosbag::View view(bag, rosbag::TopicQuery(topic_name));
+  for (rosbag::MessageInstance const m : view) {
+    auto area = m.instantiate<mower_map::MapArea>();
+    if (area) {
+      // Convert main area
+      MapArea main_area;
+      main_area.id = generateNanoId();
+      main_area.name = area->name;
+      main_area.type = area_type;
+      main_area.active = true;
+      main_area.outline = geometryPolygonToInternal(area->area);
+      map_data.areas.push_back(main_area);
+
+      // Convert obstacles as separate areas
+      for (const auto& obstacle : area->obstacles) {
+        MapArea obs_area;
+        obs_area.id = generateNanoId();
+        obs_area.name = "";
+        obs_area.type = "obstacle";
+        obs_area.active = true;
+        obs_area.outline = geometryPolygonToInternal(obstacle);
+        map_data.areas.push_back(obs_area);
+      }
+    }
+  }
+}
+
+void convertLegacyMapToJson() {
+  // Open the legacy bag file
+  rosbag::Bag bag;
+  try {
+    bag.open("map.bag");
+  } catch (rosbag::BagIOException& e) {
+    ROS_ERROR("Error opening legacy map.bag for conversion");
+    return;
+  }
+
+  // Clear the current map_data
+  map_data.clear();
+
+  // Read mowing and navigation areas
+  convertLegacyAreas(bag, "mowing_areas", "mow");
+  convertLegacyAreas(bag, "navigation_areas", "nav");
+
+  // Read docking point
+  {
+    rosbag::View view(bag, rosbag::TopicQuery("docking_point"));
+    for (rosbag::MessageInstance const m : view) {
+      auto pt = m.instantiate<geometry_msgs::Pose>();
+      if (pt) {
+        // Convert quaternion to yaw
+        tf2::Quaternion q;
+        tf2::fromMsg(pt->orientation, q);
+        tf2::Matrix3x3 m(q);
+        double unused1, unused2, yaw;
+        m.getRPY(unused1, unused2, yaw);
+
+        // Create docking station
+        DockingStation ds;
+        ds.id = generateNanoId();
+        ds.name = "Docking Station";
+        ds.active = true;
+        ds.position = {pt->position.x, pt->position.y};
+        ds.heading = yaw;
+        map_data.docking_stations.push_back(ds);
+      }
+    }
+  }
+
+  bag.close();
+
+  // Save the converted data to map.json
+  saveMapToFile();
+
+  ROS_INFO_STREAM("Successfully converted legacy map.bag to map.json with "
+                  << map_data.areas.size() << " areas and " << map_data.docking_stations.size() << " docking stations");
+}
+
 int main(int argc, char** argv) {
   ros::init(argc, argv, "mower_map_service");
   ros::NodeHandle n;
@@ -639,8 +728,14 @@ int main(int argc, char** argv) {
 
   rpc_provider.init();
 
-  // Load the default map file
-  readMapFromFile("map.json");
+  if (!std::filesystem::exists("map.json") && std::filesystem::exists("map.bag")) {
+    // Convert legacy map.bag to map.json
+    ROS_INFO("Found legacy map.bag, converting to map.json...");
+    convertLegacyMapToJson();
+  } else {
+    // Load the default map file
+    readMapFromFile("map.json");
+  }
 
   buildMap();
 
