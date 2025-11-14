@@ -53,6 +53,9 @@ using json = nlohmann::ordered_json;
 // RPC
 #include "xbot_rpc/provider.h"
 
+const std::string MAP_FILE = "map.json";
+const std::string LEGACY_MAP_FILE = "map.bag";
+
 // Forward declarations
 void saveMapToFile();
 void buildMap();
@@ -491,23 +494,21 @@ void buildMap() {
  * We don't need to save the grid map, since we can easily build it again after loading.
  */
 void saveMapToFile() {
-  std::ofstream file("map.json");
+  std::ofstream file(MAP_FILE);
   if (file.is_open()) {
     file << map_data.toJsonString();
     file.close();
-    ROS_INFO("Map saved to map.json");
+    ROS_INFO("Map saved to JSON file");
   } else {
-    ROS_ERROR("Failed to open map.json for writing");
+    ROS_ERROR("Failed to open JSON file for writing");
   }
 }
 
 /**
  * Load the map from a JSON file and build a map.
- *
- * @param filename The file to load.
  */
-void readMapFromFile(const std::string& filename) {
-  std::ifstream json_file(filename);
+void readMapFromFile() {
+  std::ifstream json_file(MAP_FILE);
   if (json_file.is_open()) {
     try {
       json loaded_data;
@@ -516,12 +517,12 @@ void readMapFromFile(const std::string& filename) {
 
       map_data = loaded_data;
 
-      ROS_INFO_STREAM("Loaded " << map_data.areas.size() << " areas from: " << filename);
+      ROS_INFO_STREAM("Loaded " << map_data.areas.size() << " areas from: " << MAP_FILE);
     } catch (const std::exception& e) {
-      ROS_ERROR_STREAM("Failed to parse " << filename << ": " << e.what());
+      ROS_ERROR_STREAM("Failed to parse " << MAP_FILE << ": " << e.what());
     }
   } else {
-    ROS_WARN_STREAM("Could not open map file: " << filename);
+    ROS_WARN_STREAM("Could not open map file: " << MAP_FILE);
   }
 }
 
@@ -668,12 +669,12 @@ void convertLegacyAreas(rosbag::Bag& bag, const std::string& topic_name, const s
 }
 
 void convertLegacyMapToJson() {
-  // Open the legacy bag file
+  // Open the legacy map file
   rosbag::Bag bag;
   try {
-    bag.open("map.bag");
+    bag.open(LEGACY_MAP_FILE);
   } catch (rosbag::BagIOException& e) {
-    ROS_ERROR("Error opening legacy map.bag for conversion");
+    ROS_ERROR_STREAM("Error opening legacy map file for conversion: " << e.what());
     return;
   }
 
@@ -711,10 +712,10 @@ void convertLegacyMapToJson() {
 
   bag.close();
 
-  // Save the converted data to map.json
+  // Save the converted data to JSON file
   saveMapToFile();
 
-  ROS_INFO_STREAM("Successfully converted legacy map.bag to map.json with "
+  ROS_INFO_STREAM("Successfully converted legacy map to JSON with "
                   << map_data.areas.size() << " areas and " << map_data.docking_stations.size() << " docking stations");
 }
 
@@ -728,13 +729,11 @@ int main(int argc, char** argv) {
 
   rpc_provider.init();
 
-  if (!std::filesystem::exists("map.json") && std::filesystem::exists("map.bag")) {
-    // Convert legacy map.bag to map.json
-    ROS_INFO("Found legacy map.bag, converting to map.json...");
+  if (!std::filesystem::exists(MAP_FILE) && std::filesystem::exists(LEGACY_MAP_FILE)) {
+    ROS_INFO("Found legacy map file, converting to JSON...");
     convertLegacyMapToJson();
   } else {
-    // Load the default map file
-    readMapFromFile("map.json");
+    readMapFromFile();
   }
 
   buildMap();
