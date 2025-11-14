@@ -23,7 +23,7 @@ ros::Publisher pose_pub;
 geometry_msgs::PoseWithCovarianceStamped out;
 std::string frame;
 
-void pose_received(const xbot_msgs::AbsolutePose::ConstPtr &msg) {
+void pose_received(const xbot_msgs::AbsolutePose::ConstPtr& msg) {
   out.header = msg->header;
   out.pose = msg->pose;
   out.pose.pose.position.z = 0;
@@ -31,7 +31,7 @@ void pose_received(const xbot_msgs::AbsolutePose::ConstPtr &msg) {
   pose_pub.publish(out);
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   ros::init(argc, argv, "xbot_pose_converter");
 
   ros::NodeHandle n;

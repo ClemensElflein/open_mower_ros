@@ -19,17 +19,17 @@
 #include "tf2_eigen/tf2_eigen.h"
 
 extern ros::ServiceClient dockingPointClient;
-extern actionlib::SimpleActionClient<mbf_msgs::ExePathAction> *mbfClientExePath;
+extern actionlib::SimpleActionClient<mbf_msgs::ExePathAction>* mbfClientExePath;
 extern xbot_msgs::AbsolutePose getPose();
 extern mower_msgs::Status getStatus();
 extern mower_msgs::Power getPower();
 
-extern void setRobotPose(geometry_msgs::Pose &pose);
+extern void setRobotPose(geometry_msgs::Pose& pose);
 extern void stopMoving();
 extern bool isGpsGood();
 extern bool setGPS(bool enabled);
 
-extern void registerActions(std::string prefix, const std::vector<xbot_msgs::ActionInfo> &actions);
+extern void registerActions(std::string prefix, const std::vector<xbot_msgs::ActionInfo>& actions);
 
 UndockingBehavior UndockingBehavior::INSTANCE(&MowingBehavior::INSTANCE);
 UndockingBehavior UndockingBehavior::RETRY_INSTANCE(&DockingBehavior::INSTANCE);
@@ -48,7 +48,7 @@ std::string UndockingBehavior::state_name() {
   return "UNDOCKING";
 }
 
-Behavior *UndockingBehavior::execute() {
+Behavior* UndockingBehavior::execute() {
   static bool rng_seeding_required = true;
 
   // get robot's current pose from odometry.
@@ -166,14 +166,14 @@ void UndockingBehavior::enter() {
     setRobotPose(docking_pose_stamped.pose);
   }
 
-  for (auto &a : actions) {
+  for (auto& a : actions) {
     a.enabled = true;
   }
   registerActions("mower_logic:undocking", actions);
 }
 
 void UndockingBehavior::exit() {
-  for (auto &a : actions) {
+  for (auto& a : actions) {
     a.enabled = false;
   }
   registerActions("mower_logic:undocking", actions);
@@ -218,7 +218,7 @@ bool UndockingBehavior::waitForGPS() {
   return true;
 }
 
-UndockingBehavior::UndockingBehavior(Behavior *next) {
+UndockingBehavior::UndockingBehavior(Behavior* next) {
   this->nextBehavior = next;
 }
 
