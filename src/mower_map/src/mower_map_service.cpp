@@ -631,6 +631,7 @@ bool clearMap(mower_map::ClearMapSrvRequest& req, mower_map::ClearMapSrvResponse
   map_data.clear();
 
   saveMapToFile();
+  buildMap();
   return true;
 }
 
