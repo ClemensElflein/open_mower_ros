@@ -38,6 +38,7 @@
 #include "mower_map/SetNavPointSrv.h"
 
 // JSON for map storage
+#include <filesystem>
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include <random>
@@ -552,7 +553,6 @@ bool getMowingArea(mower_map::GetMowingAreaSrvRequest& req, mower_map::GetMowing
 
   for (const auto& area : map_data.areas) {
     if (!area.active || area.type != "obstacle") continue;
-    // TODO: Check whether the obstacle overlaps with the mowing area, maybe cut it to the intersection.
     res.area.obstacles.push_back(internalPolygonToGeometry(area.outline));
   }
 

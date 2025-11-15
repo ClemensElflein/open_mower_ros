@@ -465,9 +465,13 @@ void publish_map_overlay() {
 }
 
 void map_callback(const std_msgs::String::ConstPtr &msg) {
-    map = json::parse(msg->data);
-    has_map = true;
-    publish_map();
+    try {
+        map = json::parse(msg->data);
+        has_map = true;
+        publish_map();
+    } catch (const json::exception &e) {
+        ROS_ERROR_STREAM("Error processing map JSON: " << e.what());
+    }
 }
 
 
