@@ -361,6 +361,7 @@ void buildMap() {
   float maxY = -FLT_MAX;
 
   // loop through all areas and calculate a size where everything fits
+  bool has_valid_area = false;
   for (const auto& area : map_data.areas) {
     if (!area.active) continue;
     if (area.type != "mow" && area.type != "nav" && area.type != "obstacle") continue;
@@ -369,6 +370,7 @@ void buildMap() {
       maxX = std::max(maxX, (float)point.x);
       minY = std::min(minY, (float)point.y);
       maxY = std::max(maxY, (float)point.y);
+      has_valid_area = true;
     }
   }
 
@@ -380,7 +382,7 @@ void buildMap() {
   minY -= 1.0;
 
   // Check, if the map was empty. If so, we'd create a huge map. Therefore we build an empty 10x10m map instead.
-  if (map_data.areas.empty()) {
+  if (!has_valid_area) {
     maxX = 5.0;
     minX = -5.0;
     maxY = 5.0;
