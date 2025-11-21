@@ -1,9 +1,0 @@
-float64 mapWidth
-float64 mapHeight
-float64 mapCenterX
-float64 mapCenterY
-xbot_msgs/MapArea[] navigationAreas
-xbot_msgs/MapArea[] workingArea
-float64 dockX
-float64 dockY
-float64 dockHeading
