@@ -337,6 +337,7 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
         }
         hole_poly.make_clockwise();
 
+        if (intersection(outline_poly, hole_poly).empty()) continue;
         expoly.holes.push_back(hole_poly);
     }
 
