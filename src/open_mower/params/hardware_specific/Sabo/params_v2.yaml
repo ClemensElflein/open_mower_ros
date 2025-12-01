@@ -3,6 +3,9 @@ ll:
     diff_drive:
       wheel_distance_m: 0.45
       ticks_per_m: 1195.0
+    gps:
+      protocol: "NMEA"
+      baudrate: 921600
     imu:
       axis_config: "+Z+X+Y"
     power:

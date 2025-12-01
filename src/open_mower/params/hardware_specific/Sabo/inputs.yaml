@@ -1,29 +1,76 @@
-gpio:
-  - name: Front left wheel lift
-    line: GPIO13
-    active: high
+sabo:
+  - name: Wheel lift sensor - front lift
+    type: sensor
+    id: lift_fl
     emergency:
       reason: lift
       delay: 2500
 
-  - name: Front right wheel lift
-    line: GPIO12
-    active: high
+  - name: Wheel lift sensor - front right
+    type: sensor
+    id: lift_fr
     emergency:
       reason: lift
       delay: 2500
 
-  - name: Top stop button
-    line: GPIO11
-    active: high
+  - name: Upper emergency stop button
+    type: sensor
+    id: stop_top
     emergency:
       reason: stop
-      delay: 10
+      delay: 50
 
-# Need to wait for log-debouncing or sensor-heartbeat support
-#  - name: Back-handle stop
-#    line: GPIO10
-#    active: high
-#    emergency:
-#      reason: stop
-#      delay: 50
+  - name: Rear handle stopper
+    type: sensor
+    id: stop_rear
+    emergency:
+      reason: stop
+      delay: 50
+
+  - name: Up button
+    type: button
+    id: up
+
+  - name: Down button
+    type: button
+    id: down
+
+  - name: Left button
+    type: button
+    id: left
+
+  - name: Right button
+    type: button
+    id: right
+
+  - name: Ok button
+    type: button
+    id: ok
+
+  - name: Play button
+    type: button
+    id: play
+
+  - name: Select button
+    type: button
+    id: select
+
+  - name: Menu button
+    type: button
+    id: menu
+
+  - name: Back button
+    type: button
+    id: back
+
+  - name: Auto button
+    type: button
+    id: auto
+
+  - name: Mow button
+    type: button
+    id: mow
+
+  - name: Home button
+    type: button
+    id: home
