@@ -34,7 +34,6 @@ class EmergencyService : public EmergencyServiceBase {
   uint16_t emergency_reason = EmergencyReason::LATCH;
 
  protected:
-  void OnSetEmergencyChanged(const uint8_t& new_value) override;
   void OnHighLevelEmergencyChanged(const uint16_t* new_value, uint32_t length) override;
 };
 
