@@ -92,7 +92,7 @@ void sendEmergencyHeartbeatTimerTask(const ros::TimerEvent&) {
   emergency_service->Heartbeat();
 }
 
-void actionReceived(const std_msgs::String::ConstPtr &action) {
+void actionReceived(const std_msgs::String::ConstPtr& action) {
   input_service->OnAction(action->data);
 }
 

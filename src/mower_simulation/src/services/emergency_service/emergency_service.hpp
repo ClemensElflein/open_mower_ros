@@ -35,7 +35,7 @@ class EmergencyService : public EmergencyServiceBase {
 
  protected:
   void OnSetEmergencyChanged(const uint8_t& new_value) override;
-  void OnHighLevelEmergencyChanged(const uint16_t *new_value, uint32_t length) override;
+  void OnHighLevelEmergencyChanged(const uint16_t* new_value, uint32_t length) override;
 };
 
 #endif  // EMERGENCY_SERVICE_HPP

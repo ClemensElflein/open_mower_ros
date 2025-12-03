@@ -21,13 +21,13 @@ class SimRobot {
   explicit SimRobot(ros::NodeHandle& nh);
   void Start();
 
-  void GetPosition(double &x, double &y);
-  void GetTwist(double &vx, double &vr);
+  void GetPosition(double& x, double& y);
+  void GetTwist(double& vx, double& vr);
 
   void ResetEmergency();
-  void SetEmergency(bool active, const uint16_t &reason);
+  void SetEmergency(bool active, const uint16_t& reason);
 
-  void GetEmergencyState(bool &active, bool &latch, uint16_t &reason);
+  void GetEmergencyState(bool& active, bool& latch, uint16_t& reason);
   void SetControlTwist(double linear, double angular);
   void GetPosition(double& x, double& y, double& heading);
   void SetPosition(const double x, const double y, const double heading);
