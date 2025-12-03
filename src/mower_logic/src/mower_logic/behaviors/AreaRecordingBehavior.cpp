@@ -16,10 +16,10 @@
 
 extern ros::ServiceClient dockingPointClient;
 extern ros::ServiceClient emergencyClient;
-extern actionlib::SimpleActionClient<mbf_msgs::MoveBaseAction> *mbfClient;
-extern actionlib::SimpleActionClient<mbf_msgs::ExePathAction> *mbfClientExePath;
-extern ros::NodeHandle *n;
-extern void registerActions(std::string prefix, const std::vector<xbot_msgs::ActionInfo> &actions);
+extern actionlib::SimpleActionClient<mbf_msgs::MoveBaseAction>* mbfClient;
+extern actionlib::SimpleActionClient<mbf_msgs::ExePathAction>* mbfClientExePath;
+extern ros::NodeHandle* n;
+extern void registerActions(std::string prefix, const std::vector<xbot_msgs::ActionInfo>& actions);
 
 extern void stop();
 
@@ -31,7 +31,7 @@ std::string AreaRecordingBehavior::state_name() {
   return "AREA_RECORDING";
 }
 
-Behavior *AreaRecordingBehavior::execute() {
+Behavior* AreaRecordingBehavior::execute() {
   setGPS(true);
   bool error = false;
   ros::Rate inputDelay(ros::Duration().fromSec(0.1));
@@ -187,7 +187,7 @@ void AreaRecordingBehavior::enter() {
 }
 
 void AreaRecordingBehavior::exit() {
-  for (auto &a : actions) {
+  for (auto& a : actions) {
     a.enabled = false;
   }
   registerActions("mower_logic:area_recording", actions);
@@ -218,12 +218,12 @@ bool AreaRecordingBehavior::mower_enabled() {
   return manual_mowing;
 }
 
-void AreaRecordingBehavior::pose_received(const xbot_msgs::AbsolutePose::ConstPtr &msg) {
+void AreaRecordingBehavior::pose_received(const xbot_msgs::AbsolutePose::ConstPtr& msg) {
   last_pose = *msg;
   has_odom = true;
 }
 
-void AreaRecordingBehavior::joy_received(const sensor_msgs::Joy &joy_msg) {
+void AreaRecordingBehavior::joy_received(const sensor_msgs::Joy& joy_msg) {
   if (joy_msg.buttons[1] && !last_joy.buttons[1]) {
     // B was pressed. We toggle recording state
     ROS_INFO_STREAM("B PRESSED");
@@ -315,7 +315,7 @@ void AreaRecordingBehavior::record_mowing_received(std_msgs::Bool state_msg) {
   }
 }
 
-bool AreaRecordingBehavior::recordNewPolygon(geometry_msgs::Polygon &polygon, xbot_msgs::MapOverlay &resultOverlay) {
+bool AreaRecordingBehavior::recordNewPolygon(geometry_msgs::Polygon& polygon, xbot_msgs::MapOverlay& resultOverlay) {
   ROS_INFO_STREAM("recordNewPolygon");
 
   bool success = true;
@@ -349,7 +349,7 @@ bool AreaRecordingBehavior::recordNewPolygon(geometry_msgs::Polygon &polygon, xb
     poly_viz.color = "blue";
     resultOverlay.polygons.push_back(poly_viz);
   }
-  auto &poly_viz = resultOverlay.polygons.back();
+  auto& poly_viz = resultOverlay.polygons.back();
 
   while (true) {
     if (!ros::ok() || aborted) {
@@ -454,7 +454,7 @@ bool AreaRecordingBehavior::recordNewPolygon(geometry_msgs::Polygon &polygon, xb
   return success;
 }
 
-bool AreaRecordingBehavior::getDockingPosition(geometry_msgs::Pose &pos) {
+bool AreaRecordingBehavior::getDockingPosition(geometry_msgs::Pose& pos) {
   if (!has_first_docking_pos) {
     ROS_INFO_STREAM("Recording first docking position");
 
@@ -665,7 +665,7 @@ AreaRecordingBehavior::AreaRecordingBehavior() {
 
 void AreaRecordingBehavior::update_actions() {
   {
-    for (auto &a : actions) {
+    for (auto& a : actions) {
       a.enabled = false;
     }
     if (has_first_docking_pos) {

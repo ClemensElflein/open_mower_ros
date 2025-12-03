@@ -22,6 +22,7 @@
   <depend>grid_map_core</depend>
   <depend>grid_map_ros</depend>
   <depend>grid_map_msgs</depend>
+  <depend>xbot_rpc</depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>

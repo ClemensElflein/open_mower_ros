@@ -32,12 +32,12 @@ extern ros::ServiceClient pathProgressClient;
 extern ros::ServiceClient setNavPointClient;
 extern ros::ServiceClient clearNavPointClient;
 
-extern actionlib::SimpleActionClient<mbf_msgs::MoveBaseAction> *mbfClient;
-extern actionlib::SimpleActionClient<mbf_msgs::ExePathAction> *mbfClientExePath;
+extern actionlib::SimpleActionClient<mbf_msgs::MoveBaseAction>* mbfClient;
+extern actionlib::SimpleActionClient<mbf_msgs::ExePathAction>* mbfClientExePath;
 extern mower_logic::MowerLogicConfig getConfig();
 extern void setConfig(mower_logic::MowerLogicConfig);
 
-extern void registerActions(std::string prefix, const std::vector<xbot_msgs::ActionInfo> &actions);
+extern void registerActions(std::string prefix, const std::vector<xbot_msgs::ActionInfo>& actions);
 
 MowingBehavior MowingBehavior::INSTANCE;
 
@@ -48,7 +48,7 @@ std::string MowingBehavior::state_name() {
   return "MOWING";
 }
 
-Behavior *MowingBehavior::execute() {
+Behavior* MowingBehavior::execute() {
   shared_state->active_semiautomatic_task = true;
 
   while (ros::ok() && !aborted) {
@@ -86,14 +86,14 @@ void MowingBehavior::enter() {
   skip_path = false;
   paused = aborted = false;
 
-  for (auto &a : actions) {
+  for (auto& a : actions) {
     a.enabled = true;
   }
   registerActions("mower_logic:mowing", actions);
 }
 
 void MowingBehavior::exit() {
-  for (auto &a : actions) {
+  for (auto& a : actions) {
     a.enabled = false;
   }
   registerActions("mower_logic:mowing", actions);
@@ -123,7 +123,7 @@ bool MowingBehavior::mower_enabled() {
 }
 
 void MowingBehavior::update_actions() {
-  for (auto &a : actions) {
+  for (auto& a : actions) {
     a.enabled = true;
   }
 
@@ -198,12 +198,12 @@ bool MowingBehavior::create_mowing_plan(int area_index) {
   // TODO: move to slic3r_coverage_planner
   CryptoPP::SHA256 hash;
   byte digest[CryptoPP::SHA256::DIGESTSIZE];
-  for (const auto &path : currentMowingPaths) {
-    for (const auto &pose_stamped : path.path.poses) {
-      hash.Update(reinterpret_cast<const byte *>(&pose_stamped.pose), sizeof(geometry_msgs::Pose));
+  for (const auto& path : currentMowingPaths) {
+    for (const auto& pose_stamped : path.path.poses) {
+      hash.Update(reinterpret_cast<const byte*>(&pose_stamped.pose), sizeof(geometry_msgs::Pose));
     }
   }
-  hash.Final((byte *)&digest[0]);
+  hash.Final((byte*)&digest[0]);
   CryptoPP::HexEncoder encoder;
   std::string mowingPlanDigest = "";
   encoder.Attach(new CryptoPP::StringSink(mowingPlanDigest));
@@ -302,7 +302,7 @@ bool MowingBehavior::execute_mowing_plan() {
       update_actions();
     }
 
-    auto &path = currentMowingPaths[currentMowingPath];
+    auto& path = currentMowingPaths[currentMowingPath];
     ROS_INFO_STREAM("MowingBehavior: Path segment length: " << path.path.poses.size() << " poses.");
 
     // Check if path is empty. If so, directly skip it
@@ -683,7 +683,7 @@ bool MowingBehavior::restore_checkpoint() {
   bool found = false;
   try {
     bag.open("checkpoint.bag");
-  } catch (rosbag::BagIOException &e) {
+  } catch (rosbag::BagIOException& e) {
     // Checkpoint does not exist or is corrupt, start at the very beginning
     currentMowingArea = 0;
     currentMowingPath = 0;

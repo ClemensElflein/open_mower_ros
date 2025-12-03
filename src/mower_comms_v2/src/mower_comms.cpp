@@ -60,7 +60,7 @@ std::unique_ptr<InputServiceInterface> input_service = nullptr;
 
 xbot::serviceif::Context ctx{};
 
-bool setEmergencyStop(mower_msgs::EmergencyStopSrvRequest &req, mower_msgs::EmergencyStopSrvResponse &res) {
+bool setEmergencyStop(mower_msgs::EmergencyStopSrvRequest& req, mower_msgs::EmergencyStopSrvResponse& res) {
   // This should never be the case, also this is no race condition, because callback will only be called
   // after initialization whereas the service is created during intialization
   if (!emergency_service) return false;
@@ -69,12 +69,12 @@ bool setEmergencyStop(mower_msgs::EmergencyStopSrvRequest &req, mower_msgs::Emer
   return true;
 }
 
-void velReceived(const geometry_msgs::Twist::ConstPtr &msg) {
+void velReceived(const geometry_msgs::Twist::ConstPtr& msg) {
   if (!diff_drive_service) return;
   diff_drive_service->SendTwist(msg);
 }
 
-void rtcmReceived(const rtcm_msgs::Message &msg) {
+void rtcmReceived(const rtcm_msgs::Message& msg) {
   if (!gps_service) return;
   static std::vector<uint8_t> rtcm_buffer{};
   static ros::Time last_time_sent{0};
@@ -88,24 +88,24 @@ void rtcmReceived(const rtcm_msgs::Message &msg) {
   rtcm_buffer.clear();
 }
 
+void sendEmergencyHeartbeatTimerTask(const ros::TimerEvent&) {
+  emergency_service->Heartbeat();
+}
+
 void actionReceived(const std_msgs::String::ConstPtr &action) {
   input_service->OnAction(action->data);
 }
 
-void sendEmergencyHeartbeatTimerTask(const ros::TimerEvent &) {
-  emergency_service->Heartbeat();
-}
-
-void sendMowerEnabledTimerTask(const ros::TimerEvent &e) {
+void sendMowerEnabledTimerTask(const ros::TimerEvent& e) {
   mower_service->Tick();
 }
 
-bool setMowEnabled(mower_msgs::MowerControlSrvRequest &req, mower_msgs::MowerControlSrvResponse &res) {
+bool setMowEnabled(mower_msgs::MowerControlSrvRequest& req, mower_msgs::MowerControlSrvResponse& res) {
   mower_service->SetMowerEnabled(req.mow_enabled);
   return true;
 }
 
-static void spdlog_cb(const spdlog::details::log_msg &msg) {
+static void spdlog_cb(const spdlog::details::log_msg& msg) {
   ros::console::Level level = ros::console::Level::Info;
   switch (msg.level) {
     case spdlog::level::level_enum::trace:
@@ -119,7 +119,7 @@ static void spdlog_cb(const spdlog::details::log_msg &msg) {
   ROS_LOG(level, ROSCONSOLE_DEFAULT_NAME, "%.*s", static_cast<int>(msg.payload.size()), msg.payload.data());
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   ros::init(argc, argv, "mower_comms_v2");
 
   {

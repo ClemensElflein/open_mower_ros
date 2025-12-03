@@ -8,7 +8,6 @@
 #include <memory>
 #include <boost/regex.hpp>
 #include "xbot_msgs/SensorInfo.h"
-#include "xbot_msgs/Map.h"
 #include "xbot_msgs/SensorDataString.h"
 #include "xbot_msgs/SensorDataDouble.h"
 #include "xbot_msgs/RobotState.h"

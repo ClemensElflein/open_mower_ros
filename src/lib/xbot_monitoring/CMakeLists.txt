@@ -1,5 +1,4 @@
 cmake_minimum_required(VERSION 3.11)
-include(FetchContent)
 project(xbot_monitoring)
 
 ## Compile as C++17
@@ -14,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
         grid_map_core
         grid_map_ros
         grid_map_msgs
+        xbot_rpc
         )
 
 
@@ -35,9 +35,7 @@ catkin_package(
 
 )
 
-# Fetch JSON
-FetchContent_Declare(json URL https://github.com/nlohmann/json/releases/download/v3.11.2/json.tar.xz)
-FetchContent_MakeAvailable(json)
+add_subdirectory(../json json EXCLUDE_FROM_ALL)
 
 ###########
 ## Build ##

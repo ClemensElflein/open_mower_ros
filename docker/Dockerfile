@@ -90,5 +90,5 @@ RUN echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${USERNAME} && ch
 
 USER ${USERNAME}
 
-ENTRYPOINT ["/openmower_entrypoint.sh", "osv2"]
+ENTRYPOINT ["/openmower_entrypoint.sh"]
 CMD ["bash", "-c", "roslaunch open_mower open_mower.launch --screen"]
