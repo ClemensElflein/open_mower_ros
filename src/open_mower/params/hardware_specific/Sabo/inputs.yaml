@@ -1,5 +1,5 @@
 sabo:
-  - name: Wheel lift sensor - front lift
+  - name: Wheel lift sensor - front left
     type: sensor
     id: lift_fl
     emergency:
