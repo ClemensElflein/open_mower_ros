@@ -5,6 +5,10 @@ set -e
 source "/opt/ros/$ROS_DISTRO/setup.bash"
 source /opt/open_mower_ros/devel/setup.bash
 
+# Ensure stdout and stderr are unbuffered to get logging in real time order
+export ROSCONSOLE_STDOUT_LINE_BUFFERED=1
+export PYTHONUNBUFFERED=1
+
 source /config/mower_config.sh
 # If OM_V2 is truthy, set HARDWARE_PLATFORM=2 and new (yaml-based) config, else 1 and environment config
 if [[ "${OM_V2,,}" =~ ^(true|1|yes)$ ]]; then
@@ -24,4 +28,4 @@ export PARAMS_PATH=$HOME
 
 source /opt/open_mower_ros/version_info.env
 
-exec -- "$@"
+exec stdbuf -oL -eL -- "$@"
