@@ -549,6 +549,10 @@ void rpc_request_callback(const std::string &payload) {
 
     // Check if the method is registered
     const std::string method = req["method"];
+    if (method.compare(0, 5, "meta.") == 0) {
+      // Silently ignore methods that are handled by the meta service.
+      return;
+    }
     bool is_registered = false;
     {
         std::lock_guard<std::mutex> lk(registered_methods_mutex);
