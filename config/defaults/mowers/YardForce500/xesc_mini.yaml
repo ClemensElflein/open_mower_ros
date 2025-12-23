@@ -1,0 +1,9 @@
+motors:
+  left:
+    xesc_type: "xesc_mini"
+
+  right:
+    xesc_type: "xesc_mini"
+
+  mower:
+    xesc_type: "xesc_mini"

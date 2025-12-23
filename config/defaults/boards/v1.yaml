@@ -1,0 +1,13 @@
+ll_serial_port: "/dev/ttyAMA0"
+
+gps:
+  serial:
+    serial_port: /dev/ttyAMA2
+
+motors:
+  mower:
+    serial_port: /dev/ttyAMA4
+  left:
+    serial_port: /dev/ttyAMA5
+  right:
+    serial_port: /dev/ttyAMA3

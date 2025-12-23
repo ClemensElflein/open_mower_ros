@@ -1,0 +1,1185 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "$defs": {
+    "pid": {
+      "type": "object",
+      "properties": {
+        "kp": {
+          "type": "number",
+          "title": "Proportional gain (Kp)",
+          "description": "Response strength relative to the current error.",
+          "minimum": 0.0
+        },
+        "ki": {
+          "type": "number",
+          "title": "Integral gain (Ki)",
+          "description": "Accumulates past errors to eliminate steady-state offset.",
+          "minimum": 0.0
+        },
+        "ki_max": {
+          "type": "number",
+          "title": "Integral limit (KiMax)",
+          "description": "Maximum value for the integral term to prevent excessive accumulation (wind-up).",
+          "minimum": 0.0
+        },
+        "kd": {
+          "type": "number",
+          "title": "Derivative gain (Kd)",
+          "description": "Dampens the response based on the rate of change of the error.",
+          "minimum": 0.0
+        }
+      }
+    },
+    "pids": {
+      "type": "object",
+      "properties": {
+        "lat": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/pid"
+            },
+            {
+              "title": "Lateral",
+              "properties": {
+                "kp": {
+                  "default": 1.0,
+                  "maximum": 250.0
+                },
+                "ki": {
+                  "default": 0.0,
+                  "maximum": 5.0
+                },
+                "ki_max": {
+                  "default": 10.0,
+                  "maximum": 500.0
+                },
+                "kd": {
+                  "default": 0.0,
+                  "maximum": 25.0
+                }
+              }
+            }
+          ]
+        },
+        "lon": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/pid"
+            },
+            {
+              "title": "Longitudinal",
+              "properties": {
+                "kp": {
+                  "default": 1.0,
+                  "maximum": 50.0
+                },
+                "ki": {
+                  "default": 0.0,
+                  "maximum": 1.0
+                },
+                "ki_max": {
+                  "default": 10.0,
+                  "maximum": 100.0
+                },
+                "kd": {
+                  "default": 0.0,
+                  "maximum": 1.0
+                }
+              }
+            }
+          ]
+        },
+        "ang": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/pid"
+            },
+            {
+              "type": "object",
+              "title": "Angular",
+              "properties": {
+                "kp": {
+                  "default": 1.0,
+                  "maximum": 50.0
+                },
+                "ki": {
+                  "default": 0.0,
+                  "maximum": 5.0
+                },
+                "ki_max": {
+                  "default": 10.0,
+                  "maximum": 500.0
+                },
+                "kd": {
+                  "default": 0.0,
+                  "maximum": 5.0
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "ftc": {
+      "title": "FTC",
+      "type": "object",
+      "properties": {
+        "forward_only": {
+          "type": "boolean",
+          "title": "Forward only",
+          "description": "Only allow forward driving.",
+          "default": true,
+          "x-param": "/ftc_local_planner/forward_only"
+        },
+        "speed": {
+          "type": "object",
+          "title": "Speed",
+          "properties": {
+            "control_point": {
+              "type": "object",
+              "title": "Control point",
+              "description": "The control point is moved along the planned path. The mower tries to follow it as closely as possible.",
+              "properties": {
+                "fast": {
+                  "type": "number",
+                  "title": "Fast speed",
+                  "description": "The maximum speed with which the control point is moved along the path if the straight distance is larger than the threshold.",
+                  "default": 0.5,
+                  "minimum": 0,
+                  "maximum": 2.0,
+                  "x-unit": "m/s",
+                  "x-param": "/ftc_local_planner/speed_fast"
+                },
+                "threshold": {
+                  "type": "number",
+                  "title": "Straight distance threshold",
+                  "description": "Minimum straight distance in front of the robot for fast speed to be used.",
+                  "default": 1.5,
+                  "minimum": 0,
+                  "maximum": 5.0,
+                  "x-unit": "m",
+                  "x-param": "/ftc_local_planner/speed_fast_threshold"
+                },
+                "threshold_angle": {
+                  "type": "number",
+                  "title": "Straight line angle threshold",
+                  "description": "Maximum angle between the current pose and the pose on path to still count as straight line.",
+                  "default": 5.0,
+                  "minimum": 0,
+                  "maximum": 45.0,
+                  "x-unit": "°",
+                  "x-param": "/ftc_local_planner/speed_fast_threshold_angle"
+                },
+                "slow": {
+                  "type": "number",
+                  "title": "Slow speed",
+                  "description": "The maximum speed when the conditions for fast speed are not met.",
+                  "default": 0.2,
+                  "minimum": 0,
+                  "maximum": 2.0,
+                  "x-unit": "m/s",
+                  "x-param": "/ftc_local_planner/speed_slow"
+                },
+                "angular": {
+                  "type": "number",
+                  "title": "Angular speed",
+                  "description": "The maximum angular speed with which the control point is moved along the path.",
+                  "default": 20.0,
+                  "minimum": 1.0,
+                  "maximum": 150.0,
+                  "x-unit": "°/s",
+                  "x-param": "/ftc_local_planner/speed_angular"
+                },
+                "acceleration": {
+                  "type": "number",
+                  "title": "Acceleration",
+                  "description": "Acceleration for speed transition.",
+                  "default": 1.0,
+                  "minimum": 0,
+                  "maximum": 10.0,
+                  "x-unit": "m/s²",
+                  "x-param": "/ftc_local_planner/acceleration"
+                }
+              }
+            },
+            "mower": {
+              "type": "object",
+              "title": "Mower",
+              "properties": {
+                "max_cmd_vel_speed": {
+                  "type": "number",
+                  "title": "Max. command velocity speed",
+                  "description": "Maximum speed to send to the controller.",
+                  "default": 2.0,
+                  "minimum": 0.0,
+                  "maximum": 5.0,
+                  "x-unit": "m/s",
+                  "x-param": "/ftc_local_planner/max_cmd_vel_speed"
+                },
+                "max_cmd_vel_ang": {
+                  "type": "number",
+                  "title": "Max. command velocity angular",
+                  "description": "Maximum angular speed to send to the controller.",
+                  "default": 2.0,
+                  "minimum": 0.0,
+                  "maximum": 5.0,
+                  "x-unit": "rad/s",
+                  "x-param": "/ftc_local_planner/max_cmd_vel_ang"
+                },
+                "max_follow_distance": {
+                  "type": "number",
+                  "title": "Max. follow distance",
+                  "description": "Stop controller if the mower is further away than max_follow_distance (i.e. crash detection).",
+                  "default": 1.0,
+                  "minimum": 0.0,
+                  "maximum": 3.0,
+                  "x-unit": "m",
+                  "x-param": "/ftc_local_planner/max_follow_distance"
+                }
+              }
+            }
+          }
+        },
+        "goal": {
+          "type": "object",
+          "title": "Goal",
+          "properties": {
+            "max_distance_error": {
+              "type": "number",
+              "title": "Distance tolerance",
+              "description": "Maximum distance to the goal before considering it reached.",
+              "default": 1.0,
+              "minimum": 0.0,
+              "maximum": 3.0,
+              "x-unit": "m",
+              "x-param": "/ftc_local_planner/max_goal_distance_error"
+            },
+            "max_angle_error": {
+              "type": "number",
+              "title": "Angle tolerance",
+              "description": "Maximum angle deviation from the goal before considering it reached.",
+              "default": 10.0,
+              "minimum": 0.0,
+              "maximum": 360.0,
+              "x-unit": "°",
+              "x-param": "/ftc_local_planner/max_goal_angle_error"
+            },
+            "timeout": {
+              "type": "number",
+              "title": "Timeout",
+              "description": "Maximum time to bring distance and angle deviation within tolerance.",
+              "default": 5.0,
+              "minimum": 0.0,
+              "maximum": 100.0,
+              "x-unit": "s",
+              "x-param": "/ftc_local_planner/goal_timeout"
+            }
+          }
+        },
+        "pid": {
+          "$ref": "#/$defs/pids",
+          "title": "PID",
+          "x-param-prefix": "/move_base_flex/FTCPlanner"
+        }
+      }
+    }
+  },
+  "properties": {
+    "operation": {
+      "type": "object",
+      "title": "Operation",
+      "properties": {
+        "automatic_mode": {
+          "title": "Automatic mode",
+          "description": "Should the mower start automatically?",
+          "default": "MANUAL",
+          "oneOf": [
+            {
+              "const": "MANUAL",
+              "title": "Manual",
+              "description": "Start only on explicit user command.",
+              "x-value": 0
+            },
+            {
+              "const": "SEMIAUTO",
+              "title": "Semi-automatic",
+              "description": "After the start command, the mower will complete one full cycle through the map. It returns to the docking station when battery is low and starts automatically until all areas are mowed.",
+              "x-value": 1
+            },
+            {
+              "const": "AUTO",
+              "title": "Automatic",
+              "description": "Mow continuously while conditions are met (e.g. enough battery, no rain).",
+              "x-value": 2
+            }
+          ],
+          "x-param": "/mower_logic/automatic_mode"
+        },
+        "manual_pause": {
+          "type": "boolean",
+          "title": "Manual pause mowing",
+          "description": "Force the mower to stay in the docking station (and return to it immediately if not already there).",
+          "default": false,
+          "x-param": "/mower_logic/manual_pause_mowing"
+        }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "title": "Coverage",
+      "description": "Settings for coverage planning, i.e. how to come up with the mowing path.",
+      "properties": {
+        "cutting_width": {
+          "type": "number",
+          "title": "Cutting width",
+          "description": "Diameter of the mower disk (including blades) in meters. Can be set smaller than the physical width to create overlap.",
+          "default": 0.14,
+          "minimum": 0.1,
+          "maximum": 2.0,
+          "x-unit": "m",
+          "x-param": "/mower_logic/tool_width"
+        },
+        "outline": {
+          "type": "object",
+          "title": "Outline",
+          "properties": {
+            "count": {
+              "type": "integer",
+              "title": "Laps",
+              "description": "Number of laps to drive around the area and obstacle outlines to cut the edges. It's not recommended to set this below 4.",
+              "default": 3,
+              "minimum": 0,
+              "maximum": 255,
+              "x-param": "/mower_logic/outline_count"
+            },
+            "overlap_count": {
+              "type": "integer",
+              "title": "Overlap",
+              "description": "Number of laps to overlap with the fill.",
+              "default": 0,
+              "minimum": 0,
+              "maximum": 255,
+              "x-param": "/mower_logic/outline_overlap_count"
+            },
+            "offset": {
+              "type": "number",
+              "title": "Offset",
+              "description": "Offset to be applied to the recorded outline. Positive values move the outline inwards (i.e. safety margin).",
+              "default": 0.0,
+              "minimum": -1.0,
+              "maximum": 1.0,
+              "x-unit": "m",
+              "x-param": "/mower_logic/outline_offset"
+            }
+          }
+        },
+        "angle": {
+          "type": "object",
+          "title": "Angle",
+          "properties": {
+            "offset": {
+              "type": "number",
+              "title": "Offset",
+              "description": "Mowing angle offset in degrees. 0 = east, -90 = north.",
+              "default": 0,
+              "minimum": -180,
+              "maximum": 180,
+              "x-unit": "°",
+              "x-param": "/mower_logic/mow_angle_offset"
+            },
+            "is_absolute": {
+              "type": "boolean",
+              "title": "Absolute",
+              "description": " If not absolute, the offset is added to the auto-detected angle which is set by the first two meters of recorded outline.",
+              "default": false,
+              "x-param": "/mower_logic/mow_angle_offset_is_absolute"
+            },
+            "increment": {
+              "type": "number",
+              "title": "Increment",
+              "description": "The increment value will automatically add specified number of degrees to the mowing angle everytime the whole map is finished.",
+              "default": 0,
+              "minimum": 0,
+              "maximum": 180,
+              "x-unit": "°",
+              "x-param": "/mower_logic/mow_angle_increment"
+            }
+          }
+        }
+      }
+    },
+    "navigation": {
+      "type": "object",
+      "title": "Navigation",
+      "properties": {
+        "add_fake_obstacle": {
+          "type": "boolean",
+          "title": "Add fake obstacle",
+          "description": "Add a temporary U-shaped obstacle to the costmap to help the mower approach the first point of the mow path.",
+          "default": false,
+          "x-param": "/mower_logic/add_fake_obstacle"
+        },
+        "first_point": {
+          "type": "object",
+          "title": "First point",
+          "properties": {
+            "attempts": {
+              "type": "integer",
+              "title": "Max. attempts",
+              "description": "Maximum attempts to reach the first point of the mow path before trimming the path (skipping the first few point).",
+              "default": 3,
+              "minimum": 1,
+              "maximum": 10,
+              "x-param": "/mower_logic/max_first_point_attempts"
+            },
+            "trim_attempts": {
+              "type": "integer",
+              "title": "Max. trim attempts",
+              "description": "Maximum trimming attempts before giving up.",
+              "default": 3,
+              "minimum": 1,
+              "maximum": 10,
+              "x-param": "/mower_logic/max_first_point_trim_attempts"
+            }
+          }
+        },
+        "ftc": {
+          "$ref": "#/$defs/ftc"
+        }
+      }
+    },
+    "docking": {
+      "type": "object",
+      "title": "Docking",
+      "description": "The mower drives to an \"approach point\" in front of the docking station (with GPS) and then a straight line forward (without GPS) until it reaches the docking station.",
+      "properties": {
+        "approach_distance": {
+          "type": "number",
+          "title": "Approach distance",
+          "description": "Distance of the approach point from the docking station. Since the mower must be able to drive there, this must be at least the distance from the docking station to a mowing or navigation area, otherwise docking will fail!",
+          "default": 1.5,
+          "minimum": 0,
+          "maximum": 5,
+          "x-unit": "m",
+          "x-param": "/mower_logic/docking_approach_distance"
+        },
+        "distance": {
+          "type": "number",
+          "title": "Max. forward distance",
+          "description": "Maximum distance to drive forward from the approach point towards the docking station.",
+          "default": 2.0,
+          "minimum": 0,
+          "maximum": 100,
+          "x-param": "/mower_logic/docking_distance"
+        },
+        "extra_time": {
+          "type": "number",
+          "title": "Extra time",
+          "description": "Extra time to continue docking after voltage detection. This can be useful to make good contact with the base station. Use carefully.",
+          "default": 0.0,
+          "minimum": 0,
+          "maximum": 1.0,
+          "x-unit": "s",
+          "x-param": "/mower_logic/docking_extra_time"
+        },
+        "attempts": {
+          "type": "integer",
+          "title": "Retry count",
+          "description": "How many times to retry docking before giving up.",
+          "default": 4,
+          "minimum": 0,
+          "maximum": 50,
+          "x-param": "/mower_logic/docking_retry_count"
+        },
+        "redock": {
+          "type": "boolean",
+          "title": "Redock",
+          "description": "Whether to attempt redocking if the charging voltage is no longer detected after successful docking (e.g. due to a loose connection).",
+          "default": false,
+          "x-param": "/mower_logic/docking_redock"
+        },
+        "wait_time": {
+          "type": "number",
+          "title": "Wait time",
+          "description": "Time to wait at the approach point before starting to drive forward.",
+          "default": 0,
+          "minimum": 0,
+          "maximum": 60,
+          "x-unit": "s",
+          "x-param": "/mower_logic/docking_waiting_time"
+        },
+        "perimeter_signal": {
+          "type": "integer",
+          "title": "Perimeter signal",
+          "description": "Use perimeter sensor for docking. Set to 1 or 2 depending on the signal selected on the docking station. This is only supported by Mowgli builds for now.",
+          "default": 0,
+          "minimum": -2,
+          "maximum": 2,
+          "x-param": "/mower_logic/perimeter_signal"
+        },
+        "ftc": {
+          "$ref": "#/$defs/ftc"
+        }
+      }
+    },
+    "undocking": {
+      "type": "object",
+      "title": "Undocking",
+      "description": "The mower first drives back a straight line (first stage). Depending on the settings below, it can then drive another short distance at an angle (second stage) to reduce tracks on the lawn.",
+      "properties": {
+        "distance": {
+          "type": "number",
+          "title": "Straight distance (first stage)",
+          "description": "Distance to drive back straight.",
+          "default": 2.0,
+          "minimum": 0,
+          "maximum": 10,
+          "x-unit": "m",
+          "x-param": "/mower_logic/undock_distance"
+        },
+        "angled_distance": {
+          "type": "number",
+          "title": "Angled distance (second stage)",
+          "description": "Distance to continue driving at an angle.",
+          "default": 0.0,
+          "minimum": 0,
+          "maximum": 10,
+          "x-unit": "m",
+          "x-param": "/mower_logic/undock_angled_distance"
+        },
+        "fixed_angle": {
+          "type": "boolean",
+          "title": "Fixed angle",
+          "description": "If enabled, the angle is fixed at the value below. Otherwise, a random angle is chosen between -angle and +angle.",
+          "default": true,
+          "x-param": "/mower_logic/undock_fixed_angle"
+        },
+        "angle": {
+          "type": "number",
+          "title": "Angle",
+          "description": "Angle for the second stage.",
+          "default": 0.0,
+          "minimum": -90,
+          "maximum": 90,
+          "x-unit": "°",
+          "x-param": "/mower_logic/undock_angle"
+        },
+        "curved": {
+          "type": "boolean",
+          "title": "Use curve",
+          "description": "True to use a curved second stage, false for a straight second stage.",
+          "default": true,
+          "x-param": "/mower_logic/undock_use_curve"
+        },
+        "wait_time": {
+          "type": "number",
+          "title": "Wait time",
+          "description": "Time to wait in the docking station before driving backwards.",
+          "default": 0,
+          "minimum": 0,
+          "maximum": 60,
+          "x-unit": "s",
+          "x-param": "/mower_logic/undocking_waiting_time"
+        }
+      }
+    },
+    "gps": {
+      "type": "object",
+      "title": "GPS",
+      "properties": {
+        "device_type": {
+          "type": "string",
+          "title": "Device type",
+          "description": "Whether communicate with the serial port directly or via TCP port.",
+          "enum": [
+            "serial",
+            "tcp"
+          ],
+          "default": "serial",
+          "x-param": "/ll/services/gps/device_type"
+        },
+        "serial": {
+          "type": "object",
+          "title": "Serial",
+          "properties": {
+            "serial_port": {
+              "type": "string",
+              "title": "Serial port",
+              "description": "Path to the TTY device of the GPS board.",
+              "default": "/dev/ttyACM0",
+              "x-param": "/ll/services/gps/serial_port"
+            },
+            "baudrate": {
+              "type": "integer",
+              "title": "Baudrate",
+              "description": "Baud rate for GPS board.",
+              "default": 38400,
+              "x-param": "/ll/services/gps/baudrate"
+            }
+          }
+        },
+        "tcp": {
+          "type": "object",
+          "title": "TCP",
+          "properties": {
+            "hostname": {
+              "type": "string",
+              "title": "Hostname",
+              "default": "",
+              "x-param": "/ll/services/gps/tcp_host"
+            },
+            "port": {
+              "type": "string",
+              "title": "Port",
+              "default": "",
+              "x-param": "/ll/services/gps/tcp_port"
+            }
+          }
+        },
+        "protocol": {
+          "type": "string",
+          "title": "Protocol",
+          "description": "Protocol used by the GPS board. For u-blox devices use UBX, otherwise NMEA.",
+          "enum": [
+            "UBX",
+            "NMEA"
+          ],
+          "default": "UBX",
+          "x-param": "/ll/services/gps/protocol"
+        },
+        "ntrip": {
+          "type": "object",
+          "title": "NTRIP",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "title": "Enabled",
+              "description": "Disable if using an external radio.",
+              "default": true
+            },
+            "hostname": {
+              "type": "string",
+              "title": "Hostname",
+              "x-param": "/ntrip_client/host"
+            },
+            "port": {
+              "type": "integer",
+              "title": "Port",
+              "default": 2101,
+              "x-param": "/ntrip_client/port"
+            },
+            "mountpoint": {
+              "type": "string",
+              "title": "Mountpoint",
+              "x-param": "/ntrip_client/mountpoint"
+            },
+            "username": {
+              "type": "string",
+              "title": "Username",
+              "x-param": "/ntrip_client/username"
+            },
+            "password": {
+              "type": "string",
+              "title": "Password",
+              "x-param": "/ntrip_client/password"
+            },
+            "reconnect": {
+              "type": "object",
+              "title": "Reconnect",
+              "properties": {
+                "delay": {
+                  "type": "number",
+                  "title": "Delay",
+                  "description": "How long the NTRIP client waits before reconnecting.",
+                  "default": 5,
+                  "x-unit": "s",
+                  "x-param": "/ntrip_client/reconnect_attempt_wait_seconds"
+                },
+                "attempts": {
+                  "type": "integer",
+                  "title": "Max. attempts",
+                  "description": "Maximum number of times the NTRIP client retries.",
+                  "default": 99999,
+                  "x-param": "/ntrip_client/reconnect_attempt_max"
+                }
+              }
+            }
+          }
+        },
+        "datum": {
+          "type": "object",
+          "title": "Datum",
+          "description": "The mower navigates using relative coordinates in meters (based on UTM), rather than absolute GPS coordinates in degrees. This datum is the reference point for the relative coordinate system and should therefore be located close to your docking station.",
+          "properties": {
+            "latitude": {
+              "type": "number",
+              "title": "Latitude",
+              "x-param": "/ll/services/gps/datum_lat"
+            },
+            "longitude": {
+              "type": "number",
+              "title": "Longitude",
+              "x-param": "/ll/services/gps/datum_long"
+            }
+          }
+        },
+        "antenna_offset": {
+          "type": "object",
+          "title": "Antenna offset",
+          "description": "Offset between point of rotation (between the wheels) and antenna.",
+          "properties": {
+            "x": {
+              "type": "number",
+              "title": "Front",
+              "description": "How far the antenna is in front of the point of rotation.",
+              "default": 0.0,
+              "x-param": "/xbot_positioning/antenna_offset_x"
+            },
+            "y": {
+              "type": "number",
+              "title": "Left",
+              "description": "How far the antenna is to the left of the point of rotation.",
+              "default": 0.0,
+              "x-param": "/xbot_positioning/antenna_offset_y"
+            }
+          }
+        },
+        "wait_time": {
+          "type": "number",
+          "title": "Wait time",
+          "description": "Time to wait after good GPS fix before starting to mow. Increase this value if you get inconsistent fixes after undocking and want to let the GPS stabilize.",
+          "default": 10.0,
+          "minimum": 0.0,
+          "maximum": 60.0,
+          "x-unit": "s",
+          "x-param": "/mower_logic/gps_wait_time"
+        },
+        "timeout": {
+          "type": "number",
+          "title": "Timeout",
+          "description": "Time to allow driving without valid GPS. After this time, the mower will pause.",
+          "default": 10.0,
+          "minimum": 0.0,
+          "maximum": 60.0,
+          "x-unit": "s",
+          "x-param": "/mower_logic/gps_timeout"
+        },
+        "max_accuracy": {
+          "type": "number",
+          "title": "Max. position accuracy",
+          "description": "Mowing will pause if the position accuracy is worse than this value.",
+          "default": 0.2,
+          "minimum": 0.01,
+          "maximum": 1.0,
+          "x-unit": "m",
+          "x-param": "/mower_logic/max_position_accuracy"
+        },
+        "ignore_errors": {
+          "type": "boolean",
+          "title": "Ignore errors",
+          "description": "Enable to ignore GPS errors. USE ONLY FOR SIMULATION!",
+          "default": false,
+          "x-param": "/mower_logic/ignore_gps_errors"
+        }
+      }
+    },
+    "emergency": {
+      "type": "object",
+      "title": "Emergency",
+      "properties": {
+        "input_config": {
+          "type": "string",
+          "title": "Input config",
+          "description": "Comma separated list of emergency inputs (halls or stop), where each sensor can be configured in one of the following modes '[!]<I>gnore|<U>nused|<S>top|<L>Lift'.",
+          "default": "",
+          "x-param": "/mower_logic/emergency_input_config"
+        },
+        "lift_period": {
+          "type": "integer",
+          "title": "Lift period",
+          "description": "Period for two or more wheels to be lifted in order to count as emergency (0 = disable).",
+          "default": -1,
+          "x-unit": "ms",
+          "x-param": "/mower_logic/emergency_lift_period"
+        },
+        "tilt_period": {
+          "type": "integer",
+          "title": "Tilt period",
+          "description": "Period for a single wheel to be lifted in order to count as emergency (0 = disable).",
+          "default": -1,
+          "x-unit": "ms",
+          "x-param": "/mower_logic/emergency_tilt_period"
+        }
+      }
+    },
+    "rain": {
+      "type": "object",
+      "title": "Rain",
+      "properties": {
+        "mode": {
+          "title": "Mode",
+          "description": "Choose how the mower responds to rain.",
+          "default": "IGNORE",
+          "oneOf": [
+            {
+              "const": "IGNORE",
+              "title": "Ignore",
+              "description": "Ignore rain and continue mowing.",
+              "x-value": 0
+            },
+            {
+              "const": "DOCK",
+              "title": "Dock",
+              "description": "Dock immediately when rain is detected. If automatic mode is enabled, the mower will continue mowing as soon as the usual criteria are met (e.g. battery is full).",
+              "x-value": 1
+            },
+            {
+              "const": "DOCK_UNTIL_DRY",
+              "title": "Dock until dry",
+              "description": "Dock and wait for at least the time configured below before resuming mowing.",
+              "x-value": 2
+            },
+            {
+              "const": "PAUSE_AUTO",
+              "title": "Dock and pause automatic mode",
+              "description": "Dock and require manual start to resume mowing.",
+              "x-value": 3
+            }
+          ],
+          "x-param": "/mower_logic/rain_mode"
+        },
+        "delay_minutes": {
+          "type": "integer",
+          "title": "Delay minutes",
+          "description": "How long to stay docked after the rain has stopped (i.e. the sensor is below the threshold).",
+          "default": 30,
+          "minimum": 30,
+          "maximum": 1440,
+          "x-unit": "min",
+          "x-param": "/mower_logic/rain_delay_minutes"
+        },
+        "check_seconds": {
+          "type": "integer",
+          "title": "Check seconds",
+          "description": "Rain must be detected continuously for this time to trigger rain_mode.",
+          "default": 20,
+          "minimum": 20,
+          "maximum": 300,
+          "x-unit": "s",
+          "x-param": "/mower_logic/rain_check_seconds"
+        },
+        "threshold": {
+          "type": "integer",
+          "title": "Threshold",
+          "description": "Stock-CoverUI limited rain sensor threshold, below which humidity/dryness value get identified as rain. The higher the value, the more dry.",
+          "default": 700,
+          "x-param": "/mower_logic/cu_rain_threshold"
+        }
+      }
+    },
+    "power": {
+      "type": "object",
+      "title": "Power",
+      "properties": {
+        "battery": {
+          "type": "object",
+          "title": "Battery",
+          "properties": {
+            "voltage": {
+              "type": "object",
+              "title": "Voltage",
+              "properties": {
+                "critical_low": {
+                  "type": "number",
+                  "title": "Critical low voltage",
+                  "description": "Dock immediately when the battery voltage is below this value.",
+                  "default": -1,
+                  "x-unit": "V",
+                  "x-param": "/ll/services/power/battery_critical_voltage"
+                },
+                "empty": {
+                  "type": "number",
+                  "title": "Empty voltage",
+                  "description": "Dock when the battery voltage remains below this value for 20 seconds. Short dips are ignored as long as they stay above the critical low voltage. This voltage is considered as 0% battery level.",
+                  "default": -1,
+                  "x-unit": "V",
+                  "x-param": "/ll/services/power/battery_empty_voltage"
+                },
+                "full": {
+                  "type": "number",
+                  "title": "Full voltage",
+                  "description": "Resume mowing when the battery voltage above this value (and all other criteria are met). This voltage is considered as 100% battery level.",
+                  "default": -1,
+                  "x-unit": "V",
+                  "x-param": "/ll/services/power/battery_full_voltage"
+                },
+                "critical_high": {
+                  "type": "number",
+                  "title": "Critical high voltage",
+                  "description": "Charging is switched off if the battery voltage is above this value.",
+                  "default": -1,
+                  "x-unit": "V",
+                  "x-param": "/ll/services/power/battery_critical_high_voltage"
+                }
+              }
+            }
+          }
+        },
+        "charger": {
+          "type": "object",
+          "title": "Charger",
+          "properties": {
+            "voltage": {
+              "type": "object",
+              "title": "Voltage",
+              "properties": {
+                "critical_high": {
+                  "type": "number",
+                  "title": "Critical high voltage",
+                  "description": "Charging is switched off if the charging voltage is above this value.",
+                  "default": -1,
+                  "x-unit": "V",
+                  "x-param": "/ll/services/power/charge_critical_high_voltage"
+                }
+              }
+            },
+            "current": {
+              "type": "object",
+              "title": "Current",
+              "properties": {
+                "critical_high": {
+                  "type": "number",
+                  "title": "Critical high current",
+                  "description": "Charging is switched off if the charging current is above this value.",
+                  "default": -1,
+                  "x-unit": "A",
+                  "x-param": "/ll/services/power/charge_critical_high_current"
+                },
+                "ignore": {
+                  "type": "boolean",
+                  "title": "Ignore current",
+                  "description": "Enable if you're affected by a wrong IC2 sourcing. Read here https://openmower.de/docs/versions/errata/ic2-is-wrong/ for more details.",
+                  "default": false,
+                  "x-param": "/mower_logic/ignore_charging_current"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "motors": {
+      "type": "object",
+      "title": "Motors",
+      "properties": {
+        "mower": {
+          "type": "object",
+          "title": "Mower motor",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "title": "Enabled",
+              "description": "Enable mower motor. Make sure you have tested the emergency behavior before enabling this!",
+              "default": false,
+              "x-param": "/mower_logic/enable_mower"
+            },
+            "serial_port": {
+              "type": "string",
+              "title": "Serial port",
+              "description": "Path to the serial port for the mower motor ESC.",
+              "default": "/dev/ttyAMA4",
+              "x-param": "/ll/services/diff_drive/mower_xesc/serial_port"
+            },
+            "temperature": {
+              "type": "object",
+              "title": "Temperature",
+              "properties": {
+                "hot": {
+                  "type": "number",
+                  "title": "Motor hot temperature",
+                  "description": "If the mower motor temperature is above this value, the mower will dock and wait for cooldown.",
+                  "default": 70.0,
+                  "minimum": 20.0,
+                  "maximum": 150.0,
+                  "x-unit": "°C",
+                  "x-param": "/mower_logic/motor_hot_temperature"
+                },
+                "cold": {
+                  "type": "number",
+                  "title": "Motor cold temperature",
+                  "description": "After reaching the hot temperature, the mower will stay docked until the mower motor temperature is below this value (and all other criteria are met).",
+                  "default": 40.0,
+                  "minimum": 20.0,
+                  "maximum": 150.0,
+                  "x-unit": "°C",
+                  "x-param": "/mower_logic/motor_cold_temperature"
+                }
+              }
+            }
+          }
+        },
+        "left": {
+          "type": "object",
+          "title": "Left wheel",
+          "properties": {
+            "serial_port": {
+              "type": "string",
+              "title": "Serial port",
+              "description": "Path to the serial port for the left wheel ESC.",
+              "default": "/dev/ttyAMA5",
+              "x-param": "/ll/services/diff_drive/left_xesc/serial_port"
+            }
+          }
+        },
+        "right": {
+          "type": "object",
+          "title": "Right wheel",
+          "properties": {
+            "serial_port": {
+              "type": "string",
+              "title": "Serial port",
+              "description": "Path to the serial port for the right wheel ESC.",
+              "default": "/dev/ttyAMA3",
+              "x-param": "/ll/services/diff_drive/right_xesc/serial_port"
+            }
+          }
+        },
+        "ticks_per_m": {
+          "type": "number",
+          "title": "Wheel ticks per meter",
+          "description": "Number of wheel encoder ticks per meter for the left and right wheel motors.",
+          "default": 1600.0,
+          "x-unit": "1/m",
+          "x-param": "/ll/services/diff_drive/ticks_per_m"
+        },
+        "wheel_distance": {
+          "type": "number",
+          "title": "Wheel distance",
+          "description": "Distance between the two wheels.",
+          "default": 0.325,
+          "x-unit": "m",
+          "x-param": "/ll/services/diff_drive/wheel_distance_m"
+        },
+        "shutdown": {
+          "type": "object",
+          "title": "Shutdown",
+          "properties": {
+            "max_pitch": {
+              "type": "integer",
+              "title": "Max pitch",
+              "description": "Maximum pitch angle where ESC shutdown is permitted (0 to disable ESC shutdown).",
+              "default": 0,
+              "minimum": 0,
+              "maximum": 180,
+              "x-unit": "°",
+              "x-param": "/mower_logic/shutdown_esc_max_pitch"
+            }
+          }
+        }
+      }
+    },
+    "sound": {
+      "type": "object",
+      "title": "Sound",
+      "properties": {
+        "language": {
+          "type": "string",
+          "title": "Language",
+          "description": "Language as ISO-639-1 code string. This is used for sound output.",
+          "enum": [
+            "en",
+            "de"
+          ],
+          "default": "en",
+          "x-param": "/ll/services/sound/language"
+        },
+        "volume": {
+          "type": "integer",
+          "title": "Volume",
+          "description": "Sound volume (0-100 or -1). -1 means the volume is managed by the CoverUI.",
+          "default": -1,
+          "minimum": -1,
+          "maximum": 100,
+          "x-unit": "%",
+          "x-param": "/ll/services/sound/volume"
+        },
+        "background_sounds": {
+          "type": "boolean",
+          "title": "Background sounds",
+          "description": "Enable if the DFPlayer shall also play background sounds (besides the informational advert sounds).",
+          "default": false,
+          "x-param": "/ll/services/sound/background_sounds"
+        },
+        "dfp_is_5v": {
+          "type": "boolean",
+          "title": "DFPlayer is 5V",
+          "description": "Enable if DFPlayer is set to 5V. Important: ONLY enable this, if you are sure that you have done the required modification. Otherwise you might break your Raspberry Pi Pico.",
+          "default": false,
+          "x-param": "/ll/services/sound/dfp_is_5v"
+        }
+      }
+    },
+    "mqtt": {
+      "type": "object",
+      "title": "MQTT",
+      "properties": {
+        "external": {
+          "type": "object",
+          "title": "External",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "title": "Enabled",
+              "description": "Enable publishing to an external MQTT broker.",
+              "x-param": "/xbot_monitoring/external_mqtt_enable"
+            },
+            "hostname": {
+              "type": "string",
+              "title": "Hostname",
+              "x-param": "/xbot_monitoring/external_mqtt_hostname"
+            },
+            "port": {
+              "type": "integer",
+              "title": "Port",
+              "x-param": "/xbot_monitoring/external_mqtt_port"
+            },
+            "username": {
+              "type": "string",
+              "title": "Username",
+              "x-param": "/xbot_monitoring/external_mqtt_username"
+            },
+            "password": {
+              "type": "string",
+              "title": "Password",
+              "x-param": "/xbot_monitoring/external_mqtt_password"
+            },
+            "topic_prefix": {
+              "type": "string",
+              "title": "Topic prefix",
+              "x-param": "/xbot_monitoring/external_mqtt_topic_prefix"
+            }
+          }
+        }
+      }
+    },
+    "monitoring": {
+      "type": "object",
+      "title": "Monitoring",
+      "properties": {
+        "heatmap": {
+          "type": "object",
+          "title": "Heatmap",
+          "properties": {
+            "sensors": {
+              "type": "string",
+              "title": "Heatmap sensor IDs",
+              "description": "Comma-separated list of sensor IDs to use for heatmap generation.",
+              "x-param": "/sensor_ids"
+            }
+          }
+        }
+      }
+    }
+  }
+}

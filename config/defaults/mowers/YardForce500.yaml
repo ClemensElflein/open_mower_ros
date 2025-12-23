@@ -1,0 +1,37 @@
+coverage:
+  cutting_width: 0.14
+
+power:
+  battery:
+    voltage:
+      critical_low: 23.0
+      empty: 24.0
+      full: 28.5
+      critical_high: 29.0
+  charger:
+    voltage:
+      critical_high: 30.0
+    current:
+      critical_high: 1.5
+
+motors:
+  left:
+    motor_pole_pairs: 4 # Just needed for eRPM to RPM calculation
+    has_motor_temp: false
+    motor_current_limit: 0.5
+
+  right:
+    motor_pole_pairs: 4 # Just needed for eRPM to RPM calculation
+    has_motor_temp: false
+
+  mower:
+    motor_pole_pairs: 4 # Just needed for eRPM to RPM calculation
+    has_motor_temp: true
+    min_motor_temp: 0
+    max_motor_temp: 60
+    min_motor_rpm_critical: 2300
+    min_motor_rpm: 2800
+    max_motor_rpm: 3800
+
+  ticks_per_m: 1964.0
+  wheel_distance_m: 0.325

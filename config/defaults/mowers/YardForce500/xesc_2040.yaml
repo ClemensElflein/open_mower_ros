@@ -1,0 +1,45 @@
+motors:
+  left:
+    xesc_type: "xesc_2040"
+    hall_table_0: 255
+    hall_table_1: 5
+    hall_table_2: 3
+    hall_table_3: 4
+    hall_table_4: 1
+    hall_table_5: 6
+    hall_table_6: 2
+    hall_table_7: 255
+    motor_current_limit: 0.5
+    acceleration: 20.0
+    min_pcb_temp: 0
+    max_pcb_temp: 60
+
+  right:
+    xesc_type: "xesc_2040"
+    hall_table_0: 255
+    hall_table_1: 5
+    hall_table_2: 3
+    hall_table_3: 4
+    hall_table_4: 1
+    hall_table_5: 6
+    hall_table_6: 2
+    hall_table_7: 255
+    motor_current_limit: 0.5
+    acceleration: 20.0
+    min_pcb_temp: 0
+    max_pcb_temp: 60
+
+  mower:
+    xesc_type: "xesc_2040"
+    hall_table_0: 255
+    hall_table_1: 3
+    hall_table_2: 1
+    hall_table_3: 2
+    hall_table_4: 5
+    hall_table_5: 4
+    hall_table_6: 6
+    hall_table_7: 255
+    motor_current_limit: 1.0
+    acceleration: 5.0
+    min_pcb_temp: 0
+    max_pcb_temp: 60

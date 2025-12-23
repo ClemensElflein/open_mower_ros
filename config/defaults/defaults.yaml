@@ -1,0 +1,145 @@
+operation:
+  automatic_mode: MANUAL
+  manual_pause: false
+coverage:
+  outline:
+    count: 3
+    overlap_count: 0
+    offset: 0.0
+  angle:
+    offset: 0
+    is_absolute: false
+    increment: 0
+navigation:
+  add_fake_obstacle: false
+  first_point:
+    attempts: 3
+    trim_attempts: 3
+  ftc:
+    forward_only: true
+    speed:
+      control_point:
+        fast: 0.5
+        threshold: 1.5
+        threshold_angle: 5.0
+        slow: 0.2
+        angular: 20.0
+        acceleration: 1.0
+      mower:
+        max_cmd_vel_speed: 2.0
+        max_cmd_vel_ang: 2.0
+        max_follow_distance: 1.0
+    goal:
+      max_distance_error: 1.0
+      max_angle_error: 10.0
+      timeout: 5.0
+    pid:
+      lat:
+        kp: 1.0
+        ki: 0.0
+        ki_max: 10.0
+        kd: 0.0
+      lon:
+        kp: 1.0
+        ki: 0.0
+        ki_max: 10.0
+        kd: 0.0
+      ang:
+        kp: 1.0
+        ki: 0.0
+        ki_max: 10.0
+        kd: 0.0
+docking:
+  approach_distance: 1.5
+  distance: 2.0
+  extra_time: 0.0
+  attempts: 4
+  redock: false
+  wait_time: 0
+  perimeter_signal: 0
+  ftc:
+    forward_only: true
+    speed:
+      control_point:
+        fast: 0.5
+        threshold: 1.5
+        threshold_angle: 5.0
+        slow: 0.2
+        angular: 20.0
+        acceleration: 1.0
+      mower:
+        max_cmd_vel_speed: 2.0
+        max_cmd_vel_ang: 2.0
+        max_follow_distance: 1.0
+    goal:
+      max_distance_error: 1.0
+      max_angle_error: 10.0
+      timeout: 5.0
+    pid:
+      lat:
+        kp: 1.0
+        ki: 0.0
+        ki_max: 10.0
+        kd: 0.0
+      lon:
+        kp: 1.0
+        ki: 0.0
+        ki_max: 10.0
+        kd: 0.0
+      ang:
+        kp: 1.0
+        ki: 0.0
+        ki_max: 10.0
+        kd: 0.0
+undocking:
+  distance: 2.0
+  angled_distance: 0.0
+  fixed_angle: true
+  angle: 0.0
+  curved: true
+  wait_time: 0
+gps:
+  device_type: serial
+  serial:
+    serial_port: /dev/ttyACM0
+    baudrate: 38400
+  protocol: UBX
+  ntrip:
+    enabled: true
+    port: 2101
+    reconnect:
+      delay: 5
+      attempts: 99999
+  antenna_offset:
+    x: 0.0
+    y: 0.0
+  wait_time: 10.0
+  timeout: 10.0
+  max_accuracy: 0.2
+  ignore_errors: false
+emergency:
+  input_config: ""
+  lift_period: -1
+  tilt_period: -1
+rain:
+  mode: IGNORE
+  delay_minutes: 30
+  check_seconds: 20
+  threshold: 700
+power:
+  charger:
+    current:
+      ignore: false
+motors:
+  mower:
+    enabled: false
+    temperature:
+      hot: 70.0
+      cold: 40.0
+  shutdown:
+    max_pitch: 0
+sound:
+  language: en
+  volume: -1
+  background_sounds: false
+  dfp_is_5v: false
