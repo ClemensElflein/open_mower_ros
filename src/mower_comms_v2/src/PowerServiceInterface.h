@@ -32,6 +32,7 @@ class PowerServiceInterface : public PowerServiceInterfaceBase {
   void OnChargingStatusChanged(const char* new_value, uint32_t length) override;
   void OnChargerEnabledChanged(const uint8_t& new_value) override;
   bool OnConfigurationRequested(uint16_t service_id) override;
+  void OnBmsBatteryVoltageChanged(const float& new_value) override;
 
  private:
   void OnTransactionStart(uint64_t timestamp) override;

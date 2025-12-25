@@ -34,6 +34,10 @@ bool PowerServiceInterface::OnConfigurationRequested(uint16_t service_id) {
   return true;
 }
 
+void PowerServiceInterface::OnBmsBatteryVoltageChanged(const float& new_value) {
+  power_msg_.v_battery_bms = new_value;
+}
+
 void PowerServiceInterface::OnTransactionStart(uint64_t timestamp) {
   power_msg_ = {};
   power_msg_.stamp = ros::Time::now();
