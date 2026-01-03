@@ -23,6 +23,40 @@ void PowerServiceInterface::OnChargingStatusChanged(const char* new_value, uint3
 void PowerServiceInterface::OnChargerEnabledChanged(const uint8_t& new_value) {
   power_msg_.charger_enabled = new_value;
 }
+
+void PowerServiceInterface::OnBatteryVoltageBMSChanged(const float& new_value) {
+  power_msg_.v_battery_bms = new_value;
+}
+
+void PowerServiceInterface::OnBatteryCurrentChanged(const float& new_value) {
+  power_msg_.battery_current = new_value;
+}
+
+void PowerServiceInterface::OnBatteryPercentageChanged(const float& new_value) {
+  power_msg_.battery_pct = new_value;
+}
+
+void PowerServiceInterface::OnBatterySoCChanged(const float& new_value) {
+  power_msg_.battery_soc = new_value;
+}
+
+void PowerServiceInterface::OnBatteryTemperatureChanged(const float& new_value) {
+  power_msg_.battery_temp = new_value;
+}
+
+void PowerServiceInterface::OnBatteryStatusChanged(const uint16_t& new_value) {
+  for (const auto& entry : kBatteryStatusBits) {
+    if (new_value & entry.bit) {
+      if (!power_msg_.bms_status.empty()) power_msg_.bms_status += ", ";
+      power_msg_.bms_status += entry.name;
+    }
+  }
+}
+
+void PowerServiceInterface::OnBMSExtraDataChanged(const char* new_value, uint32_t length) {
+  power_msg_.bms_extra_data = std::string(new_value, length);
+}
+
 bool PowerServiceInterface::OnConfigurationRequested(uint16_t service_id) {
   StartTransaction(true);
   SetRegisterBatteryFullVoltage(battery_full_voltage_);
