@@ -50,6 +50,8 @@ sabo:
   - name: Play button
     type: button
     id: play
+    actions:
+      idle/long: "mower_logic:idle/start_mowing"
 
   - name: Select button
     type: button
