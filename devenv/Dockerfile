@@ -1,4 +1,6 @@
-FROM osrf/ros:noetic-desktop-full AS base
+# FROM osrf/ros:noetic-desktop-full AS base
+# Use this for arm64 architecture 
+FROM ros:noetic-ros-base AS base
 ARG MY_UID
 ARG MY_GID
 ARG MY_USER

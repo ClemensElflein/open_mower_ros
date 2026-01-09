@@ -10,9 +10,14 @@ services:
     environment:
       - DISPLAY=${DISPLAY}
       - QT_X11_NO_MITSHM=1
-    # mounts x11, so that we can use GUI apps
+      - RECORDINGS_PATH=/data/recordings
+      - PARAMS_PATH=/data/params
+      - ROS_HOME=/data/ros
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
-      - ../:/workspace:rw
+      - /opt/open_mower_ros/:/opt/open_mower_ros:rw
+      - /home/openmower/ros:/data/ros:rw
+      - /home/openmower/recordings:/data/recordings:rw
+      - /home/openmower/params:/data/params:rw
     user: "${MY_UID:-1000}:${MY_GID:-1000}"
     network_mode: "host"
