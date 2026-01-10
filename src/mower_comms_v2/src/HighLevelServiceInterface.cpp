@@ -19,14 +19,12 @@
 #include <ros/console.h>
 
 void HighLevelServiceInterface::highLevelStatusReceived(const mower_msgs::HighLevelStatus::ConstPtr& msg) {
-  // Map ROS state to enum HighLevelStatus (as defined in JSON)
-  HighLevelStatus state_id;
-  switch (msg->state) {
-    case mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_NULL: state_id = HighLevelStatus::UNKNOWN; break;
-    case mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_IDLE: state_id = HighLevelStatus::IDLE; break;
-    case mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_AUTONOMOUS: state_id = HighLevelStatus::AUTONOMOUS; break;
-    case mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_RECORDING: state_id = HighLevelStatus::RECORDING; break;
-    default: state_id = HighLevelStatus::UNKNOWN; break;
+  // Cast ROS state to enum HighLevelStatus (as defined in JSON)
+  HighLevelStatus state_id = HighLevelStatus::UNKNOWN;
+  if (msg->state >= mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_NULL &&
+      msg->state <= mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_RECORDING) {
+    // Safe static cast because the enum values are identical
+    state_id = static_cast<HighLevelStatus>(msg->state);
   }
   SendStateID(state_id);
 
