@@ -31,6 +31,7 @@
 #include "DiffDriveServiceInterface.h"
 #include "EmergencyServiceInterface.h"
 #include "GpsServiceInterface.h"
+#include "HighLevelServiceInterface.h"
 #include "ImuServiceInterface.h"
 #include "InputServiceInterface.h"
 #include "MowerServiceInterface.h"
@@ -57,6 +58,7 @@ std::unique_ptr<ImuServiceInterface> imu_service = nullptr;
 std::unique_ptr<PowerServiceInterface> power_service = nullptr;
 std::unique_ptr<GpsServiceInterface> gps_service = nullptr;
 std::unique_ptr<InputServiceInterface> input_service = nullptr;
+std::unique_ptr<HighLevelServiceInterface> high_level_service = nullptr;
 
 xbot::serviceif::Context ctx{};
 
@@ -260,6 +262,10 @@ int main(int argc, char** argv) {
     input_service = std::make_unique<InputServiceInterface>(xbot::service_ids::INPUT, ctx, config_file, action_pub);
     input_service->Start();
   }
+
+  // HighLevel service
+  high_level_service = std::make_unique<HighLevelServiceInterface>(xbot::service_ids::HIGH_LEVEL, ctx);
+  high_level_service->Start();
 
   ros::spin();
 
