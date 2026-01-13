@@ -19,13 +19,8 @@
 #include <ros/console.h>
 
 void HighLevelServiceInterface::highLevelStatusReceived(const mower_msgs::HighLevelStatus::ConstPtr& msg) {
-  // Cast ROS state to enum HighLevelStatus (as defined in JSON)
-  HighLevelStatus state_id = HighLevelStatus::UNKNOWN;
-  if (msg->state >= mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_NULL &&
-      msg->state <= mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_RECORDING) {
-    // Safe static cast because the enum values are identical
-    state_id = static_cast<HighLevelStatus>(msg->state);
-  }
+  // Direct cast from ROS state to enum HighLevelStatus
+  HighLevelStatus state_id = static_cast<HighLevelStatus>(msg->state);
   SendStateID(state_id);
 
   // State Name (string)
