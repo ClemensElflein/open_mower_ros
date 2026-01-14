@@ -43,9 +43,7 @@ void HighLevelServiceInterface::highLevelStatusReceived(const mower_msgs::HighLe
 }
 
 void HighLevelServiceInterface::OnActionChanged(const char* new_value, uint32_t length) {
-  // The firmware sent an action string.
-  // We could publish it to a ROS topic for further processing.
-  // For now, just log it.
+  // The firmware sent an action string. For now, just log it.
   ROS_INFO_STREAM("HighLevelService received action: " << std::string(new_value, length));
   // TODO: Implement action handling (e.g., publish to xbot/action topic)
 }
