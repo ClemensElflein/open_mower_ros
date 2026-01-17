@@ -16,14 +16,15 @@ class PowerServiceInterface : public PowerServiceInterfaceBase {
   PowerServiceInterface(uint16_t service_id, const xbot::serviceif::Context& ctx,
                         const ros::Publisher& status_publisher, float battery_full_voltage, float battery_empty_voltage,
                         float battery_critical_voltage, float battery_critical_high_voltage,
-                        float battery_charge_current)
+                        float battery_charge_current, float system_current = 0.0f)
       : PowerServiceInterfaceBase(service_id, ctx),
         status_publisher_(status_publisher),
         battery_full_voltage_(battery_full_voltage),
         battery_empty_voltage_(battery_empty_voltage),
         battery_critical_voltage_(battery_critical_voltage),
         battery_critical_high_voltage_(battery_critical_high_voltage),
-        battery_charge_current_(battery_charge_current) {
+        battery_charge_current_(battery_charge_current),
+        system_current_(system_current) {
   }
 
  protected:
@@ -42,6 +43,8 @@ class PowerServiceInterface : public PowerServiceInterfaceBase {
   void OnBatteryStatusChanged(const uint16_t& new_value) override;
   void OnBMSExtraDataChanged(const char* new_value, uint32_t length) override;
 
+  void OnSystemCurrentChanged(const float& new_value) override;
+
  private:
   void OnTransactionStart(uint64_t timestamp) override;
   void OnTransactionEnd() override;
@@ -53,6 +56,8 @@ class PowerServiceInterface : public PowerServiceInterfaceBase {
   float battery_critical_voltage_;
   float battery_critical_high_voltage_;
   float battery_charge_current_;
+
+  float system_current_;
 };
 
 struct BatteryStatusBitName {

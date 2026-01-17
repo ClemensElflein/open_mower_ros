@@ -57,6 +57,10 @@ void PowerServiceInterface::OnBMSExtraDataChanged(const char* new_value, uint32_
   power_msg_.bms_extra_data = std::string(new_value, length);
 }
 
+void PowerServiceInterface::OnSystemCurrentChanged(const float& new_value) {
+  power_msg_.system_current = new_value;
+}
+
 bool PowerServiceInterface::OnConfigurationRequested(uint16_t service_id) {
   StartTransaction(true);
   SetRegisterBatteryFullVoltage(battery_full_voltage_);
@@ -64,6 +68,7 @@ bool PowerServiceInterface::OnConfigurationRequested(uint16_t service_id) {
   SetRegisterCriticalBatteryLowVoltage(battery_critical_voltage_);
   SetRegisterCriticalBatteryHighVoltage(battery_critical_high_voltage_);
   SetRegisterChargeCurrent(battery_charge_current_);
+  SetRegisterSystemCurrent(system_current_);
   CommitTransaction();
   return true;
 }

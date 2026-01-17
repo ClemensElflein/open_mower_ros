@@ -3,6 +3,7 @@ time stamp
 float32 v_charge
 float32 v_battery
 float32 v_battery_bms
+float32 system_current
 float32 charge_current
 float32 battery_current
 float32 battery_pct
