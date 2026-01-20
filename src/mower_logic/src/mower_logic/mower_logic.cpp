@@ -94,6 +94,8 @@ ros::Time last_rain_check;
 bool rain_detected = true;
 ros::Time rain_resume;
 
+std::shared_ptr<sSharedState> shared_state;
+
 /**
  * Some thread safe methods to get a copy of the logic state
  */
@@ -541,6 +543,9 @@ void checkSafety(const ros::TimerEvent& timer_event) {
     if (!dockingNeeded && rain_detected && last_config.rain_mode) {
       dockingReason << "Rain detected";
       dockingNeeded = true;
+      if (last_config.rain_mode == 1 && shared_state->active_semiautomatic_task) {
+        shared_state->semiautomatic_task_paused = true;
+      }
       if (last_config.rain_mode == 3) {
         auto new_config = getConfig();
         new_config.manual_pause_mowing = true;
@@ -552,7 +557,9 @@ void checkSafety(const ros::TimerEvent& timer_event) {
   }
 
   if (dockingNeeded && currentBehavior != &DockingBehavior::INSTANCE &&
-      currentBehavior != &UndockingBehavior::RETRY_INSTANCE && currentBehavior != &IdleBehavior::INSTANCE &&
+      currentBehavior != &UndockingBehavior::INSTANCE &&
+      currentBehavior != &UndockingBehavior::RETRY_INSTANCE &&
+      currentBehavior != &IdleBehavior::INSTANCE &&
       currentBehavior != &IdleBehavior::DOCKED_INSTANCE) {
     ROS_INFO_STREAM(dockingReason.rdbuf());
     abortExecution();
@@ -887,7 +894,7 @@ int main(int argc, char** argv) {
   setEmergencyMode(false);
 
   // initialise the shared state object to be passed into the behaviors
-  auto shared_state = std::make_shared<sSharedState>();
+  shared_state = std::make_shared<sSharedState>();
   shared_state->active_semiautomatic_task = false;
 
   // Behavior execution loop
