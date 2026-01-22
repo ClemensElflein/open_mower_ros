@@ -84,6 +84,9 @@ Behavior* MowingBehavior::execute() {
 void MowingBehavior::enter() {
   skip_area = false;
   skip_path = false;
+  previous_path = false;
+  restart_path = false;
+  restart_path_segment = false;
   paused = aborted = false;
 
   for (auto& a : actions) {
@@ -354,9 +357,33 @@ bool MowingBehavior::execute_mowing_plan() {
             return true;
           }
           if (skip_path) {
+            ROS_INFO_STREAM("MowingBehavior: (FIRST POINT) SKIP PATH was requested.");
             skip_path = false;
             currentMowingPath++;
             currentMowingPathIndex = 0;
+            return false;
+          }
+          if (previous_path) {
+            ROS_INFO_STREAM("MowingBehavior: (FIRST POINT) PREVIOUS PATH was requested.");
+            previous_path = false;
+            if (currentMowingPath > 0) {
+              currentMowingPath--;
+            }
+            currentMowingPathIndex = 0;
+            return false;
+          }
+          if (restart_path) {
+            ROS_INFO_STREAM("MowingBehavior: (FIRST POINT) RESTART PATH was requested.");
+            restart_path = false;
+            currentMowingPathIndex = 0;
+            return false;
+          }
+          if (restart_path_segment) {
+            ROS_INFO_STREAM("MowingBehavior: (FIRST POINT) RESTART PATH SEGMENT was requested.");
+            restart_path_segment = false;
+            if (currentMowingPathIndex > 0) {
+              currentMowingPathIndex--;
+            }
             return false;
           }
           if (aborted) {
@@ -469,9 +496,33 @@ bool MowingBehavior::execute_mowing_plan() {
             return true;
           }
           if (skip_path) {
+            ROS_INFO_STREAM("MowingBehavior: (MOW) SKIP PATH was requested.");
             skip_path = false;
             currentMowingPath++;
             currentMowingPathIndex = 0;
+            return false;
+          }
+          if (previous_path) {
+            ROS_INFO_STREAM("MowingBehavior: (MOW) PREVIOUS PATH was requested.");
+            previous_path = false;
+            if (currentMowingPath > 0) {
+              currentMowingPath--;
+            }
+            currentMowingPathIndex = 0;
+            return false;
+          }
+          if (restart_path) {
+            ROS_INFO_STREAM("MowingBehavior: (MOW) RESTART PATH was requested.");
+            restart_path = false;
+            currentMowingPathIndex = 0;
+            return false;
+          }
+          if (restart_path_segment) {
+            ROS_INFO_STREAM("MowingBehavior: (MOW) RESTART PATH SEGMENT was requested.");
+            restart_path_segment = false;
+            if (currentMowingPathIndex > 0) {
+              currentMowingPathIndex--;
+            }
             return false;
           }
           if (aborted) {
@@ -635,12 +686,30 @@ MowingBehavior::MowingBehavior() {
   skip_path_action.enabled = false;
   skip_path_action.action_name = "Skip Path";
 
+  xbot_msgs::ActionInfo previous_path_action;
+  previous_path_action.action_id = "previous_path";
+  previous_path_action.enabled = false;
+  previous_path_action.action_name = "Previous Path";
+
+  xbot_msgs::ActionInfo restart_path_action;
+  restart_path_action.action_id = "restart_path";
+  restart_path_action.enabled = false;
+  restart_path_action.action_name = "Restart Path";
+
+  xbot_msgs::ActionInfo restart_path_segment_action;
+  restart_path_segment_action.action_id = "restart_path_segment";
+  restart_path_segment_action.enabled = false;
+  restart_path_segment_action.action_name = "Restart Path Segment";
+
   actions.clear();
   actions.push_back(pause_action);
   actions.push_back(continue_action);
   actions.push_back(abort_mowing_action);
   actions.push_back(skip_area_action);
   actions.push_back(skip_path_action);
+  actions.push_back(previous_path_action);
+  actions.push_back(restart_path_action);
+  actions.push_back(restart_path_segment_action);
   restore_checkpoint();
 }
 
@@ -660,6 +729,15 @@ void MowingBehavior::handle_action(std::string action) {
   } else if (action == "mower_logic:mowing/skip_path") {
     ROS_INFO_STREAM("got skip_path command");
     skip_path = true;
+  } else if (action == "mower_logic:mowing/previous_path") {
+    ROS_INFO_STREAM("got previous_path command");
+    previous_path = true;
+  } else if (action == "mower_logic:mowing/restart_path") {
+    ROS_INFO_STREAM("got restart_path command");
+    restart_path = true;
+  } else if (action == "mower_logic:mowing/restart_path_segment") {
+    ROS_INFO_STREAM("got restart_path_segment command");
+    restart_path_segment = true;
   }
   update_actions();
 }
