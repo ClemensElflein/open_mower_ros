@@ -392,7 +392,7 @@ void checkSafety(const ros::TimerEvent& timer_event) {
   const auto last_good_gps = getLastGoodGPS();
 
   high_level_status.emergency = last_emergency.latched_emergency;
-  high_level_status.is_charging = last_power.v_charge > 10.0;
+  high_level_status.is_charging = last_power.charge_voltage_chg > 10.0 || last_power.charge_voltage_adc > 10.0;
 
   // Initialize to true, if after all checks it is still true then mower should be enabled.
   mowerAllowed = true;
@@ -403,7 +403,7 @@ void checkSafety(const ros::TimerEvent& timer_event) {
       currentBehavior->requestPause(pauseType::PAUSE_EMERGENCY);
       if (currentBehavior == &AreaRecordingBehavior::INSTANCE || currentBehavior == &IdleBehavior::INSTANCE ||
           currentBehavior == &IdleBehavior::DOCKED_INSTANCE) {
-        if (last_power.v_charge > 10.0) {
+        if (high_level_status.is_charging) {
           // emergency and docked and idle or area recording, so it's safe to reset the emergency mode, reset it. It's
           // safe since we won't start moving in this mode.
           setEmergencyMode(false);
@@ -487,7 +487,11 @@ void checkSafety(const ros::TimerEvent& timer_event) {
   // enable the mower (if not aleady) if mowerAllowed is still true after checks and bahavior agrees
   setMowerEnabled(currentBehavior != nullptr && mowerAllowed && currentBehavior->mower_enabled());
 
-  double battery_percent = (last_power.v_battery - last_power_config.battery_empty_voltage) /
+  // Prefer ADC because it's assumed to be more accurate
+  const float last_battery_v =
+      !std::isnan(last_power.battery_voltage_adc) ? last_power.battery_voltage_adc : last_power.battery_voltage_chg;
+
+  double battery_percent = (last_battery_v - last_power_config.battery_empty_voltage) /
                            (last_power_config.battery_full_voltage - last_power_config.battery_empty_voltage);
   if (battery_percent > 1.0) {
     battery_percent = 1.0;
@@ -507,13 +511,13 @@ void checkSafety(const ros::TimerEvent& timer_event) {
   }
 
   // Dock if below critical voltage to avoid BMS undervoltage protection
-  if (!dockingNeeded && (last_power.v_battery < last_power_config.battery_critical_voltage)) {
-    dockingReason << "Battery voltage min critical: " << last_power.v_battery;
+  if (!dockingNeeded && (last_battery_v < last_power_config.battery_critical_voltage)) {
+    dockingReason << "Battery voltage min critical: " << last_battery_v;
     dockingNeeded = true;
   }
 
   // Otherwise take the max battery voltage over 20s to ignore droop during short current spikes
-  max_v_battery_seen = std::max<double>(max_v_battery_seen, last_power.v_battery);
+  max_v_battery_seen = std::max<double>(max_v_battery_seen, last_battery_v);
   if (ros::Time::now() - last_v_battery_check > ros::Duration(20.0)) {
     if (!dockingNeeded && (max_v_battery_seen < last_power_config.battery_empty_voltage)) {
       dockingReason << "Battery average voltage low: " << max_v_battery_seen;

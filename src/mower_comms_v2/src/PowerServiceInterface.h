@@ -28,22 +28,25 @@ class PowerServiceInterface : public PowerServiceInterfaceBase {
   }
 
  protected:
-  void OnChargeVoltageChanged(const float& new_value) override;
+  void OnChargeVoltageCHGChanged(const float& new_value) override;
   void OnChargeCurrentChanged(const float& new_value) override;
-  void OnBatteryVoltageChanged(const float& new_value) override;
+  void OnBatteryVoltageCHGChanged(const float& new_value) override;
   void OnChargingStatusChanged(const char* new_value, uint32_t length) override;
   void OnChargerEnabledChanged(const uint8_t& new_value) override;
-  bool OnConfigurationRequested(uint16_t service_id) override;
-
   void OnBatteryPercentageChanged(const float& new_value) override;
-  void OnBatteryVoltageBMSChanged(const float& new_value) override;
   void OnBatteryCurrentChanged(const float& new_value) override;
+
+  void OnBatteryVoltageBMSChanged(const float& new_value) override;
   void OnBatterySoCChanged(const float& new_value) override;
   void OnBatteryTemperatureChanged(const float& new_value) override;
   void OnBatteryStatusChanged(const uint16_t& new_value) override;
   void OnBMSExtraDataChanged(const char* new_value, uint32_t length) override;
 
-  void OnSystemCurrentChanged(const float& new_value) override;
+  void OnChargeVoltageADCChanged(const float& new_value) override;
+  void OnBatteryVoltageADCChanged(const float& new_value) override;
+  void OnDCDCInputCurrentChanged(const float& new_value) override;
+
+  bool OnConfigurationRequested(uint16_t service_id) override;
 
  private:
   void OnTransactionStart(uint64_t timestamp) override;

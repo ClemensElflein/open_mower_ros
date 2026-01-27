@@ -149,12 +149,16 @@ bool DockingBehavior::dock_straight() {
       waitingForResult = false;
     }
 
+    // Prefer ADC because it's assumed to be more accurate
+    const float last_charge_v =
+        !std::isnan(last_power.charge_voltage_adc) ? last_power.charge_voltage_adc : last_power.charge_voltage_chg;
+
     switch (mbfState.state_) {
       case actionlib::SimpleClientGoalState::ACTIVE:
       case actionlib::SimpleClientGoalState::PENDING:
         // currently moving. Cancel as soon as we're in the station
-        if (last_power.v_charge > 5.0) {
-          ROS_INFO_STREAM("Got a voltage of " << last_power.v_charge << " V. Cancelling docking.");
+        if (last_charge_v > 5.0) {
+          ROS_INFO_STREAM("Got a voltage of " << last_charge_v << " V. Cancelling docking.");
           ros::Duration(config.docking_extra_time).sleep();
           mbfClientExePath->cancelGoal();
           stopMoving();
@@ -164,8 +168,8 @@ bool DockingBehavior::dock_straight() {
         break;
       case actionlib::SimpleClientGoalState::SUCCEEDED:
         // we stopped moving because the path has ended. check, if we have docked successfully
-        ROS_INFO_STREAM("Docking stopped, because we reached end pose. Voltage was " << last_power.v_charge << " V.");
-        if (last_power.v_charge > 5.0) {
+        ROS_INFO_STREAM("Docking stopped, because we reached end pose. Voltage was " << last_charge_v << " V.");
+        if (last_charge_v > 5.0) {
           mbfClientExePath->cancelGoal();
           dockingSuccess = true;
           stopMoving();
@@ -192,7 +196,7 @@ std::string DockingBehavior::state_name() {
 
 Behavior* DockingBehavior::execute() {
   // Check if already docked (e.g. carried to base during emergency) and skip
-  if (getPower().v_charge > 5.0) {
+  if (getPower().charge_voltage_chg > 5.0 || getPower().charge_voltage_adc > 5.0) {
     ROS_INFO_STREAM("Already inside docking station, going directly to idle.");
     stopMoving();
     return &IdleBehavior::DOCKED_INSTANCE;
