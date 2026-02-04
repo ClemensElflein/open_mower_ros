@@ -17,6 +17,7 @@
 #include <mower_logic/PowerConfig.h>
 #include <mower_msgs/Power.h>
 
+#include "../utils.h"
 #include "PerimeterDocking.h"
 
 extern void stopMoving();
@@ -84,11 +85,10 @@ Behavior* IdleBehavior::execute() {
       ROS_INFO_STREAM_THROTTLE(300, "Rain delay: " << int((rain_resume - ros::Time::now()).toSec() / 60) << " minutes");
     }
 
-    // Prefer ADC over charger measurement because accuracy
-    const float last_battery_v =
-        !std::isnan(last_power.battery_voltage_adc) ? last_power.battery_voltage_adc : last_power.battery_voltage_chg;
-    const float last_charge_v =
-        !std::isnan(last_power.charge_voltage_adc) ? last_power.charge_voltage_adc : last_power.charge_voltage_chg;
+    // Use first valid sensor
+    const float last_battery_v = utils::GetFirstValid(
+        {last_power.battery_voltage_adc, last_power.battery_voltage_bms, last_power.battery_voltage_chg});
+    const float last_charge_v = utils::GetFirstValid({last_power.charge_voltage_adc, last_power.charge_voltage_chg});
 
     const bool mower_ready = last_battery_v > last_power_config.battery_full_voltage &&
                              last_status.mower_motor_temperature < last_config.motor_cold_temperature &&

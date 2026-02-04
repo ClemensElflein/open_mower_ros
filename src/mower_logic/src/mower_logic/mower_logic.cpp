@@ -49,6 +49,7 @@
 #include "ros/ros.h"
 #include "slic3r_coverage_planner/PlanPath.h"
 #include "std_msgs/String.h"
+#include "utils.h"
 #include "xbot_msgs/AbsolutePose.h"
 #include "xbot_msgs/RegisterActionsSrv.h"
 #include "xbot_positioning/GPSControlSrv.h"
@@ -487,17 +488,14 @@ void checkSafety(const ros::TimerEvent& timer_event) {
   // enable the mower (if not aleady) if mowerAllowed is still true after checks and bahavior agrees
   setMowerEnabled(currentBehavior != nullptr && mowerAllowed && currentBehavior->mower_enabled());
 
-  // Prefer ADC because it's assumed to be more accurate
-  const float last_battery_v =
-      !std::isnan(last_power.battery_voltage_adc) ? last_power.battery_voltage_adc : last_power.battery_voltage_chg;
+  // Get the best available battery voltage using fallback chain: ADC -> BMS -> CHG
+  const float last_battery_v = utils::GetFirstValid(
+      {last_power.battery_voltage_adc, last_power.battery_voltage_bms, last_power.battery_voltage_chg});
 
   double battery_percent = (last_battery_v - last_power_config.battery_empty_voltage) /
                            (last_power_config.battery_full_voltage - last_power_config.battery_empty_voltage);
-  if (battery_percent > 1.0) {
-    battery_percent = 1.0;
-  } else if (battery_percent < 0.0) {
-    battery_percent = 0.0;
-  }
+  battery_percent = std::max(battery_percent, 0.0);  // Clamp from below to 0.0
+  battery_percent = std::min(battery_percent, 1.0);  // Clamp from above to 1.0
   high_level_status.battery_percent = battery_percent;
 
   // we are in non emergency, check if we should pause. This could be empty battery, rain or hot mower motor etc.

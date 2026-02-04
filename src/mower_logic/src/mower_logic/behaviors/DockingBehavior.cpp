@@ -16,6 +16,7 @@
 
 #include <mower_msgs/Power.h>
 
+#include "../utils.h"
 #include "PerimeterDocking.h"
 
 extern ros::ServiceClient dockingPointClient;
@@ -149,9 +150,8 @@ bool DockingBehavior::dock_straight() {
       waitingForResult = false;
     }
 
-    // Prefer ADC because it's assumed to be more accurate
-    const float last_charge_v =
-        !std::isnan(last_power.charge_voltage_adc) ? last_power.charge_voltage_adc : last_power.charge_voltage_chg;
+    // Use first valid sensor
+    const float last_charge_v = utils::GetFirstValid({last_power.charge_voltage_adc, last_power.charge_voltage_chg});
 
     switch (mbfState.state_) {
       case actionlib::SimpleClientGoalState::ACTIVE:
