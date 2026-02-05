@@ -4,6 +4,8 @@ set -e
 # setup ros environment
 source "/opt/ros/$ROS_DISTRO/setup.bash"
 source /opt/open_mower_ros/devel/setup.bash
+
+# setup om environment
 source /opt/open_mower_ros/version_info.env
 
 # OSv2 debugging get controlled via env var DEBUG and has the ROSCONSOLE_CONFIG_FILE embedded
@@ -19,5 +21,9 @@ case "${DEBUG:-0}" in
     ;;
 esac
 shopt -u nocasematch || true
+
+# Ensure stdout and stderr are unbuffered to get logging in real time order
+export ROSCONSOLE_STDOUT_LINE_BUFFERED=1
+export PYTHONUNBUFFERED=1
 
 exec -- "$@"
