@@ -178,6 +178,8 @@ add_executable(mower_comms_v2
         src/PowerServiceInterface.h
         src/GpsServiceInterface.cpp
         src/GpsServiceInterface.h
+        src/HighLevelServiceInterface.cpp
+        src/HighLevelServiceInterface.h
 )
 
 target_add_service_interface(mower_comms_v2 ImuServiceInterface ${CMAKE_CURRENT_SOURCE_DIR}/../../services/imu_service.json)
@@ -187,6 +189,7 @@ target_add_service_interface(mower_comms_v2 MowerServiceInterface ${CMAKE_CURREN
 target_add_service_interface(mower_comms_v2 PowerServiceInterface ${CMAKE_CURRENT_SOURCE_DIR}/../../services/power_service.json)
 target_add_service_interface(mower_comms_v2 GpsServiceInterface ${CMAKE_CURRENT_SOURCE_DIR}/../../services/gps_service.json)
 target_add_service_interface(mower_comms_v2 InputServiceInterface ${CMAKE_CURRENT_SOURCE_DIR}/../../services/input_service.json)
+target_add_service_interface(mower_comms_v2 HighLevelServiceInterface ${CMAKE_CURRENT_SOURCE_DIR}/../../services/high_level_service.json)
 
 add_subdirectory(lib/libfyaml)
 add_dependencies(mower_comms_v2 ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})

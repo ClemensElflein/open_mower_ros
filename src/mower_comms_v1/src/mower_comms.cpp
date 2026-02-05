@@ -244,8 +244,8 @@ void publishStatus() {
 
   mower_msgs::Power power_msg{};
   power_msg.stamp = status_msg.stamp;
-  power_msg.v_battery = last_ll_status.v_system;
-  power_msg.v_charge = last_ll_status.v_charge;
+  power_msg.battery_voltage_adc = last_ll_status.v_system;
+  power_msg.charge_voltage_adc = last_ll_status.v_charge;
   power_msg.charge_current = last_ll_status.charging_current;
   power_msg.charger_enabled = (last_ll_status.status_bitmask & LL_STATUS_BIT_CHARGING) != 0;
   power_msg.charger_status = "N/A";

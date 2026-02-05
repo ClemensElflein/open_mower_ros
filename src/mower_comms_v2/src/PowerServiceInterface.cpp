@@ -4,16 +4,16 @@
 
 #include "PowerServiceInterface.h"
 
-void PowerServiceInterface::OnChargeVoltageChanged(const float& new_value) {
-  power_msg_.v_charge = new_value;
+void PowerServiceInterface::OnChargeVoltageCHGChanged(const float& new_value) {
+  power_msg_.charge_voltage_chg = new_value;
 }
 
 void PowerServiceInterface::OnChargeCurrentChanged(const float& new_value) {
   power_msg_.charge_current = new_value;
 }
 
-void PowerServiceInterface::OnBatteryVoltageChanged(const float& new_value) {
-  power_msg_.v_battery = new_value;
+void PowerServiceInterface::OnBatteryVoltageCHGChanged(const float& new_value) {
+  power_msg_.battery_voltage_chg = new_value;
 }
 
 void PowerServiceInterface::OnChargingStatusChanged(const char* new_value, uint32_t length) {
@@ -25,7 +25,7 @@ void PowerServiceInterface::OnChargerEnabledChanged(const uint8_t& new_value) {
 }
 
 void PowerServiceInterface::OnBatteryVoltageBMSChanged(const float& new_value) {
-  power_msg_.v_battery_bms = new_value;
+  power_msg_.battery_voltage_bms = new_value;
 }
 
 void PowerServiceInterface::OnBatteryCurrentChanged(const float& new_value) {
@@ -57,6 +57,18 @@ void PowerServiceInterface::OnBMSExtraDataChanged(const char* new_value, uint32_
   power_msg_.bms_extra_data = std::string(new_value, length);
 }
 
+void PowerServiceInterface::OnChargeVoltageADCChanged(const float& new_value) {
+  power_msg_.charge_voltage_adc = new_value;
+}
+
+void PowerServiceInterface::OnBatteryVoltageADCChanged(const float& new_value) {
+  power_msg_.battery_voltage_adc = new_value;
+}
+
+void PowerServiceInterface::OnDCDCInputCurrentChanged(const float& new_value) {
+  power_msg_.dcdc_in_current = new_value;
+}
+
 bool PowerServiceInterface::OnConfigurationRequested(uint16_t service_id) {
   StartTransaction(true);
   SetRegisterBatteryFullVoltage(battery_full_voltage_);
@@ -64,6 +76,7 @@ bool PowerServiceInterface::OnConfigurationRequested(uint16_t service_id) {
   SetRegisterCriticalBatteryLowVoltage(battery_critical_voltage_);
   SetRegisterCriticalBatteryHighVoltage(battery_critical_high_voltage_);
   SetRegisterChargeCurrent(battery_charge_current_);
+  SetRegisterSystemCurrent(system_current_);
   CommitTransaction();
   return true;
 }

@@ -50,6 +50,14 @@ sabo:
   - name: Play button
     type: button
     id: play
+    actions:
+      idle/short: "mower_logic:idle/start_mowing"
+      mowing/short: "mower_logic:mowing/pause"
+      paused/short: "mower_logic:mowing/continue"
+      mowing/long: "mower_logic/reset_emergency"
+      idle/long: "mower_logic/reset_emergency"
+      docking/long: "mower_logic/reset_emergency"
+      area_recording/long: "mower_logic/reset_emergency"
 
   - name: Select button
     type: button
@@ -70,7 +78,16 @@ sabo:
   - name: Mow button
     type: button
     id: mow
+    actions:
+      idle/short: "mower_logic:idle/start_mowing"
+      mowing/short: "mower_logic:mowing/skip_path"
+      paused/short: "mower_logic:mowing/skip_path"
+      mowing/long: "mower_logic:mowing/skip_area"
+      paused/long: "mower_logic:mowing/skip_area"
 
   - name: Home button
     type: button
     id: home
+    actions:
+      mowing/short: "mower_logic:mowing/abort_mowing"
+      paused/short: "mower_logic:mowing/abort_mowing"

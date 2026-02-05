@@ -106,6 +106,13 @@ void InputServiceInterface::OnActiveInputsChanged(const uint64_t& new_value) {
   prev_value = new_value;
 }
 
+void InputServiceInterface::highLevelStatusReceived(const mower_msgs::HighLevelStatus::ConstPtr& msg) {
+  // Map state_name to context string (lowercase)
+  std::string state = msg->state_name;
+  std::transform(state.begin(), state.end(), state.begin(), ::tolower);
+  current_context_ = state;
+}
+
 bool InputServiceInterface::TriggerActionForContext(json& actions, std::string context) {
   auto it_action = actions.find(context);
   if (it_action != actions.end()) {
@@ -120,9 +127,6 @@ bool InputServiceInterface::TriggerActionForContext(json& actions, std::string c
 }
 
 void InputServiceInterface::OnInputEventChanged(const uint8_t* new_value, uint32_t length) {
-  // TODO: Determine context from high level status.
-  const std::string context{"area_recording"};
-
   // Check if we want to handle this event.
   const InputEventType type = static_cast<InputEventType>(new_value[1]);
   std::string duration;
@@ -137,10 +141,11 @@ void InputServiceInterface::OnInputEventChanged(const uint8_t* new_value, uint32
   json& input = inputs_[idx];
   auto it_actions = input.find("actions");
   if (it_actions != input.end()) {
-    if (TriggerActionForContext(*it_actions, context + "/" + duration)) return;
-    if (TriggerActionForContext(*it_actions, context)) return;
+    if (TriggerActionForContext(*it_actions, current_context_ + "/" + duration)) return;
+    if (TriggerActionForContext(*it_actions, current_context_)) return;
   }
-  ROS_WARN_STREAM("No action found for \"" << std::string(input["name"]) << "\", " << context + "/" << duration);
+  ROS_WARN_STREAM("No action found for \"" << std::string(input["name"]) << "\", "
+                                           << current_context_ + "/" + duration);
 }
 
 void InputServiceInterface::OnAction(std::string raw_payload) {
