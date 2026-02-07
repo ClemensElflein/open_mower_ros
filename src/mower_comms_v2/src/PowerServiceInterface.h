@@ -45,6 +45,7 @@ class PowerServiceInterface : public PowerServiceInterfaceBase {
   void OnChargeVoltageADCChanged(const float& new_value) override;
   void OnBatteryVoltageADCChanged(const float& new_value) override;
   void OnDCDCInputCurrentChanged(const float& new_value) override;
+  void OnChargerInputCurrentChanged(const float& new_value) override;
 
   bool OnConfigurationRequested(uint16_t service_id) override;
 

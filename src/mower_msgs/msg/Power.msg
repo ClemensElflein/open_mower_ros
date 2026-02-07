@@ -9,7 +9,8 @@ float32 battery_current
 float32 battery_pct
 float32 battery_soc
 float32 battery_temp
-float32 dcdc_in_current
+float32 dcdc_input_current
+float32 charger_input_current
 string charger_status
 bool charger_enabled
 string bms_status
