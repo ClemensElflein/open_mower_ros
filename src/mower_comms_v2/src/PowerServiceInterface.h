@@ -60,7 +60,6 @@ class PowerServiceInterface : public PowerServiceInterfaceBase {
   float battery_critical_voltage_;
   float battery_critical_high_voltage_;
   float battery_charge_current_;
-
   float system_current_;
 };
 
