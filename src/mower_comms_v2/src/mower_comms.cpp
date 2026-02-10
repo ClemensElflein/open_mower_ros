@@ -214,6 +214,7 @@ int main(int argc, char** argv) {
   float battery_critical_voltage;
   float battery_critical_high_voltage;
   float charge_current = -1;
+  float system_current = -1;
   if (!paramNh.getParam("services/power/battery_full_voltage", battery_full_voltage)) {
     ROS_ERROR("Need to set param: services/power/battery_full_voltage");
     return 1;
@@ -231,9 +232,10 @@ int main(int argc, char** argv) {
     return 1;
   }
   paramNh.getParam("services/power/charge_current", charge_current);
+  paramNh.getParam("services/power/system_current", system_current);
   power_service = std::make_unique<PowerServiceInterface>(
       xbot::service_ids::POWER, ctx, power_pub, battery_full_voltage, battery_empty_voltage, battery_critical_voltage,
-      battery_critical_high_voltage, charge_current);
+      battery_critical_high_voltage, charge_current, system_current);
   power_service->Start();
 
   // GPS service

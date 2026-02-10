@@ -16,7 +16,7 @@ class PowerServiceInterface : public PowerServiceInterfaceBase {
   PowerServiceInterface(uint16_t service_id, const xbot::serviceif::Context& ctx,
                         const ros::Publisher& status_publisher, float battery_full_voltage, float battery_empty_voltage,
                         float battery_critical_voltage, float battery_critical_high_voltage,
-                        float battery_charge_current, float system_current = 0.0f)
+                        float battery_charge_current, float system_current)
       : PowerServiceInterfaceBase(service_id, ctx),
         status_publisher_(status_publisher),
         battery_full_voltage_(battery_full_voltage),
