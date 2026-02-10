@@ -15,7 +15,7 @@ ll:
       battery_critical_high_voltage: 29.0
       charge_critical_high_voltage: 38.0
       charge_critical_high_current: 3.9
-      charge_current: 3.0
+      charge_current: 2.5
     input:
       config_file: /opt/open_mower_ros/src/open_mower/params/hardware_specific/Sabo/inputs.yaml
 

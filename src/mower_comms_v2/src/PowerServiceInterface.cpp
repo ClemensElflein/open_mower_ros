@@ -66,7 +66,11 @@ void PowerServiceInterface::OnBatteryVoltageADCChanged(const float& new_value) {
 }
 
 void PowerServiceInterface::OnDCDCInputCurrentChanged(const float& new_value) {
-  power_msg_.dcdc_in_current = new_value;
+  power_msg_.dcdc_input_current = new_value;
+}
+
+void PowerServiceInterface::OnChargerInputCurrentChanged(const float& new_value) {
+  power_msg_.charger_input_current = new_value;
 }
 
 bool PowerServiceInterface::OnConfigurationRequested(uint16_t service_id) {
