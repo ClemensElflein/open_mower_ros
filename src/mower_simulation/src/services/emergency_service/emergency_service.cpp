@@ -5,12 +5,12 @@
 #include "emergency_service.hpp"
 
 bool EmergencyService::OnStart() {
-  robot_.SetEmergency(true, "Boot");
+  robot_.SetEmergency(true, EmergencyReason::LATCH);
   return true;
 }
 
 void EmergencyService::OnStop() {
-  robot_.SetEmergency(true, "Service Stopped");
+  robot_.SetEmergency(true, EmergencyReason::STOP);
 }
 
 void EmergencyService::tick() {
@@ -39,16 +39,12 @@ void EmergencyService::tick() {
   robot_.GetEmergencyState(emergency_active, emergency_latch, emergency_reason);
 
   StartTransaction();
-  SendEmergencyActive(emergency_active);
-
-  SendEmergencyLatch(emergency_latch);
-  SendEmergencyReason(emergency_reason.c_str(), emergency_reason.length());
+  SendEmergencyReason(emergency_reason);
   CommitTransaction();
 }
-
-void EmergencyService::OnSetEmergencyChanged(const uint8_t& new_value) {
-  if (new_value) {
-    robot_.SetEmergency(true, "High Level");
+void EmergencyService::OnHighLevelEmergencyChanged(const uint16_t* new_value, uint32_t length) {
+  if (length > 0 && new_value[0] > 0) {
+    robot_.SetEmergency(true, EmergencyReason::HIGH_LEVEL);
   } else {
     robot_.ResetEmergency();
   }

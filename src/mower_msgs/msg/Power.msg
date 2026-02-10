@@ -1,7 +1,17 @@
-
 time stamp
-float32 v_charge
-float32 v_battery
+float32 charge_voltage_adc
+float32 charge_voltage_chg
 float32 charge_current
-bool charger_enabled
+float32 battery_voltage_adc
+float32 battery_voltage_chg
+float32 battery_voltage_bms
+float32 battery_current
+float32 battery_pct
+float32 battery_soc
+float32 battery_temp
+float32 dcdc_input_current
+float32 charger_input_current
 string charger_status
+bool charger_enabled
+string bms_status
+string bms_extra_data

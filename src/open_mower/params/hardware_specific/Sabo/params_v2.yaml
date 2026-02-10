@@ -3,16 +3,25 @@ ll:
     diff_drive:
       wheel_distance_m: 0.45
       ticks_per_m: 1195.0
+    gps:
+      protocol: "NMEA"
+      baudrate: 921600
     imu:
       axis_config: "+Z+X+Y"
     power:
-      battery_empty_voltage: 21.0
-      battery_critical_voltage: 20.0
+      battery_empty_voltage: 23.5
+      battery_critical_voltage: 22.5
       battery_full_voltage: 28.5
-      battery_critical_high_voltage: 29.4
-      charge_critical_high_voltage: 29.4
+      battery_critical_high_voltage: 29.0
+      charge_critical_high_voltage: 38.0
       charge_critical_high_current: 3.9
+      charge_current: 2.5
+    input:
+      config_file: /opt/open_mower_ros/src/open_mower/params/hardware_specific/Sabo/inputs.yaml
 
 xbot_positioning:
   antenna_offset_x: 0.18
   antenna_offset_y: 0.0
+
+mower_logic:
+  tool_width: 0.28

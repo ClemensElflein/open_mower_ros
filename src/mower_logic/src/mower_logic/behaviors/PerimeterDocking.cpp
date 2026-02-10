@@ -228,7 +228,7 @@ Behavior* PerimeterDockingBehavior::arrived() {
     ROS_WARN("Travelled %.f meters before reaching the station", travelled);
     return &IdleBehavior::INSTANCE;
   }
-  if (getPower().v_charge > 5.0) {
+  if (getPower().charge_voltage_adc > 5.0 || getPower().charge_voltage_chg > 5.0) {
     chargeSeen++;
     if (chargeSeen >= 2) {
       chargeSeen = 0;
