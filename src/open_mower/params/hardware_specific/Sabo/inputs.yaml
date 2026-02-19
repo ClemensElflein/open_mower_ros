@@ -1,0 +1,93 @@
+sabo:
+  - name: Wheel lift sensor - front left
+    type: sensor
+    id: lift_fl
+    emergency:
+      reason: lift
+      delay: 2500
+
+  - name: Wheel lift sensor - front right
+    type: sensor
+    id: lift_fr
+    emergency:
+      reason: lift
+      delay: 2500
+
+  - name: Upper emergency stop button
+    type: sensor
+    id: stop_top
+    emergency:
+      reason: stop
+      delay: 50
+
+  - name: Rear handle stopper
+    type: sensor
+    id: stop_rear
+    emergency:
+      reason: stop
+      delay: 50
+
+  - name: Up button
+    type: button
+    id: up
+
+  - name: Down button
+    type: button
+    id: down
+
+  - name: Left button
+    type: button
+    id: left
+
+  - name: Right button
+    type: button
+    id: right
+
+  - name: Ok button
+    type: button
+    id: ok
+
+  - name: Play button
+    type: button
+    id: play
+    actions:
+      idle/short: "mower_logic:idle/start_mowing"
+      mowing/short: "mower_logic:mowing/pause"
+      paused/short: "mower_logic:mowing/continue"
+      mowing/long: "mower_logic/reset_emergency"
+      idle/long: "mower_logic/reset_emergency"
+      docking/long: "mower_logic/reset_emergency"
+      area_recording/long: "mower_logic/reset_emergency"
+
+  - name: Select button
+    type: button
+    id: select
+
+  - name: Menu button
+    type: button
+    id: menu
+
+  - name: Back button
+    type: button
+    id: back
+
+  - name: Auto button
+    type: button
+    id: auto
+
+  - name: Mow button
+    type: button
+    id: mow
+    actions:
+      idle/short: "mower_logic:idle/start_mowing"
+      mowing/short: "mower_logic:mowing/skip_path"
+      paused/short: "mower_logic:mowing/skip_path"
+      mowing/long: "mower_logic:mowing/skip_area"
+      paused/long: "mower_logic:mowing/skip_area"
+
+  - name: Home button
+    type: button
+    id: home
+    actions:
+      mowing/short: "mower_logic:mowing/abort_mowing"
+      paused/short: "mower_logic:mowing/abort_mowing"

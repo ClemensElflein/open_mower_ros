@@ -58,20 +58,24 @@ void SimRobot::ResetEmergency() {
   std::lock_guard<std::mutex> lk{state_mutex_};
   emergency_active_ = false;
   emergency_latch_ = false;
+  emergency_reason_ = 0;
 }
 
-void SimRobot::SetEmergency(bool active, const std::string& reason) {
+void SimRobot::SetEmergency(bool active, const uint16_t& reason) {
   std::lock_guard<std::mutex> lk{state_mutex_};
   emergency_active_ = active;
   emergency_latch_ |= active;
   emergency_reason_ = reason;
 }
 
-void SimRobot::GetEmergencyState(bool& active, bool& latch, std::string& reason) {
+void SimRobot::GetEmergencyState(bool& active, bool& latch, uint16_t& reason) {
   std::lock_guard<std::mutex> lk{state_mutex_};
   active = emergency_active_;
   latch = emergency_latch_;
   reason = emergency_reason_;
+  if (latch) {
+    reason |= EmergencyReason::LATCH;
+  }
 }
 
 void SimRobot::SetControlTwist(double linear, double angular) {

@@ -39,6 +39,7 @@
   <exec_depend>rosbridge_server</exec_depend>
   <depend>xbot_msgs</depend>
   <depend>xbot_positioning</depend>
+  <depend>xbot_framework</depend>
 
   <export>
   </export>

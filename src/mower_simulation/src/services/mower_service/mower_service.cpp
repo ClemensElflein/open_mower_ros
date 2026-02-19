@@ -13,7 +13,7 @@ void MowerService::tick() {
   StartTransaction();
   bool emergency;
   bool unused1;
-  std::string unused2;
+  uint16_t unused2;
   robot_.GetEmergencyState(unused1, emergency, unused2);
   bool running = !emergency && mower_running_;
   SendMowerRunning(running);

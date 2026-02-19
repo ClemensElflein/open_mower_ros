@@ -1,81 +1,71 @@
-//
-// Created by clemens on 25.07.24.
-//
-
 #include "EmergencyServiceInterface.h"
 
 #include <mower_msgs/Emergency.h>
 
-bool EmergencyServiceInterface::SetEmergency(bool new_value) {
-  std::unique_lock<std::recursive_mutex> lk{state_mutex_};
-  // Set the high level emergency
-  active_high_level_emergency_ = new_value;
-
-  if (new_value) {
-    latest_emergency_reason_ = "High Level Emergency";
-  }
+bool EmergencyServiceInterface::SetHighLevelEmergency(bool new_value) {
+  high_level_emergency_reason_ = new_value ? EmergencyReason::HIGH_LEVEL | EmergencyReason::LATCH : 0;
 
   // Send the new emergency state to the service.
-  // the LL emergency will be updated in the callback
-  SendSetEmergency(new_value);
+  if (new_value) {
+    SendHighLevelEmergencyHelper(high_level_emergency_reason_);
 
-  // Instantly send the new emergency
-  PublishEmergencyState();
+    // Update cached state for immediate feedback.
+    latest_emergency_reason_ |= high_level_emergency_reason_;
+    PublishEmergencyState();
+  } else {
+    // TODO: Add a separate service call to clear the latch.
+    SendHighLevelEmergencyHelper(0, EmergencyReason::HIGH_LEVEL | EmergencyReason::LATCH);
+  }
+
   return true;
 }
 
 void EmergencyServiceInterface::Heartbeat() {
-  SendSetEmergency(latched_emergency_);
+  SendHighLevelEmergencyHelper(high_level_emergency_reason_, EmergencyReason::HIGH_LEVEL);
 }
 
-void EmergencyServiceInterface::OnEmergencyActiveChanged(const uint8_t& new_value) {
-  std::unique_lock<std::recursive_mutex> lk{state_mutex_};
-  active_low_level_emergency_ = new_value;
+void EmergencyServiceInterface::SendHighLevelEmergencyHelper(uint16_t add, uint16_t clear) {
+  uint16_t payload[2] = {add, clear};
+  SendHighLevelEmergency(payload, 2);
 }
 
-void EmergencyServiceInterface::OnEmergencyLatchChanged(const uint8_t& new_value) {
-  std::unique_lock<std::recursive_mutex> lk{state_mutex_};
-  if (new_value) {
-    // If there is a new emergency, we set it also in the high level
-    latched_emergency_ = true;
-  } else if (!active_high_level_emergency_) {
-    // Only clear high level latch, if we don't have a high level emergency going on
-    latched_emergency_ = false;
-  }
-}
-
-void EmergencyServiceInterface::OnEmergencyReasonChanged(const char* new_value, uint32_t length) {
-  latest_emergency_reason_ = std::string{new_value, length};
-}
-
-void EmergencyServiceInterface::OnTransactionEnd() {
-  // Send the packet
-  PublishEmergencyState();
-}
-
-void EmergencyServiceInterface::OnServiceConnected(uint16_t service_id) {
-  std::unique_lock<std::recursive_mutex> lk{state_mutex_};
-  latched_emergency_ = active_high_level_emergency_ = active_low_level_emergency_ = true;
-  latest_emergency_reason_ = "Service Starting Up";
+void EmergencyServiceInterface::OnEmergencyReasonChanged(const uint16_t& new_value) {
+  latest_emergency_reason_ = new_value;
   PublishEmergencyState();
 }
 
 void EmergencyServiceInterface::OnServiceDisconnected(uint16_t service_id) {
-  std::unique_lock<std::recursive_mutex> lk{state_mutex_};
-  latched_emergency_ = active_high_level_emergency_ = active_low_level_emergency_ = true;
-  latest_emergency_reason_ = "Service Disconnected";
+  latest_emergency_reason_ = EmergencyReason::TIMEOUT_HIGH_LEVEL;
   PublishEmergencyState();
 }
 
-void EmergencyServiceInterface::PublishEmergencyState() {
-  mower_msgs::Emergency emergency_{};
-  std::unique_lock<std::recursive_mutex> lk{state_mutex_};
-  emergency_.stamp = ros::Time::now();
-  // Make sure the latch is set, if there's an active emergency
-  latched_emergency_ |= active_high_level_emergency_ | active_low_level_emergency_;
+static std::string ReasonToString(uint16_t reason) {
+#define CHECK_REASON(r)              \
+  if (reason & EmergencyReason::r) { \
+    if (!first) str << ", ";         \
+    str << #r;                       \
+    first = false;                   \
+  }
 
-  emergency_.latched_emergency = latched_emergency_;
-  emergency_.active_emergency = active_high_level_emergency_ | active_low_level_emergency_;
-  emergency_.reason = latest_emergency_reason_;
-  publisher.publish(emergency_);
+  std::ostringstream str;
+  bool first = true;
+  CHECK_REASON(LATCH)
+  CHECK_REASON(TIMEOUT_INPUTS)
+  CHECK_REASON(STOP)
+  CHECK_REASON(LIFT)
+  CHECK_REASON(LIFT_MULTIPLE)
+  CHECK_REASON(COLLISION)
+  CHECK_REASON(TIMEOUT_HIGH_LEVEL)
+  CHECK_REASON(HIGH_LEVEL)
+  return str.str();
+}
+
+void EmergencyServiceInterface::PublishEmergencyState() {
+  mower_msgs::Emergency emergency{};
+  const uint16_t reason = latest_emergency_reason_;
+  emergency.stamp = ros::Time::now();
+  emergency.latched_emergency = reason != 0;
+  emergency.active_emergency = reason != 0;
+  emergency.reason = ReasonToString(reason);
+  publisher_.publish(emergency);
 }

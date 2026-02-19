@@ -14,17 +14,20 @@
 #include <random>
 #include <thread>
 
+#include "EmergencyServiceBase.hpp"
+
 class SimRobot {
  public:
   explicit SimRobot(ros::NodeHandle& nh);
   void Start();
 
+  void GetPosition(double& x, double& y);
   void GetTwist(double& vx, double& vr);
 
   void ResetEmergency();
-  void SetEmergency(bool active, const std::string& reason);
+  void SetEmergency(bool active, const uint16_t& reason);
 
-  void GetEmergencyState(bool& active, bool& latch, std::string& reason);
+  void GetEmergencyState(bool& active, bool& latch, uint16_t& reason);
   void SetControlTwist(double linear, double angular);
   void GetPosition(double& x, double& y, double& heading);
   void SetPosition(const double x, const double y, const double heading);
@@ -66,7 +69,7 @@ class SimRobot {
   bool emergency_active_ = false;
   // Latched Emergency
   bool emergency_latch_ = false;
-  std::string emergency_reason_{"Boot"};
+  uint16_t emergency_reason_ = EmergencyReason::LATCH;
   ros::Time last_update_{0};
   ros::NodeHandle nh_;
 
