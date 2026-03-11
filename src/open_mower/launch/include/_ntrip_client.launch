@@ -4,7 +4,7 @@
 
     <!-- Declare arguments with default values -->
     <arg name="authenticate" default="true"/>
-    <arg name="ntrip_version" default=""/>
+    <arg name="ntrip_version" default="Ntrip/2.0"/>
     <arg name="ssl" default="false"/>
     <arg name="cert" default=""/>
     <arg name="key" default=""/>
