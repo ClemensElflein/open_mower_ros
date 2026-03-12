@@ -35,6 +35,7 @@ void publish_map();
 void publish_map_overlay();
 void publish_actions();
 void publish_version();
+void publish_params();
 void rpc_request_callback(const std::string &payload);
 
 // Stores registered actions (prefix to vector<action>)
@@ -81,6 +82,7 @@ class MqttCallback : public mqtt::callback {
         publish_map_overlay();
         publish_actions();
         publish_version();
+        publish_params();
 
         // BEGIN: Deprecated code (1/2)
         // Earlier implementations subscribed to "/action" and "prefix//action" topics, we do it to not break stuff as well.
@@ -272,6 +274,48 @@ void publish_version() {
 
 void publish_capabilities() {
   try_publish("capabilities/json", CAPABILITIES.dump(2), true);
+}
+
+json xmlrpc_to_json(XmlRpc::XmlRpcValue value) {
+    switch (value.getType()) {
+        case XmlRpc::XmlRpcValue::TypeBoolean:
+            return static_cast<bool>(value);
+        case XmlRpc::XmlRpcValue::TypeInt:
+            return static_cast<int>(value);
+        case XmlRpc::XmlRpcValue::TypeDouble:
+            return static_cast<double>(value);
+        case XmlRpc::XmlRpcValue::TypeString:
+            return static_cast<std::string>(value);
+        case XmlRpc::XmlRpcValue::TypeArray: {
+            json arr = json::array();
+            for (int i = 0; i < value.size(); ++i)
+                arr.push_back(xmlrpc_to_json(value[i]));
+            return arr;
+        }
+        case XmlRpc::XmlRpcValue::TypeStruct: {
+            json obj = json::object();
+            for (auto it = value.begin(); it != value.end(); ++it)
+                obj[it->first] = xmlrpc_to_json(it->second);
+            return obj;
+        }
+        default:
+            return nullptr;
+    }
+}
+
+void publish_params() {
+    std::vector<std::string> param_names;
+    ros::param::getParamNames(param_names);
+    std::sort(param_names.begin(), param_names.end());
+
+    json params = json::object();
+    for (const auto &name : param_names) {
+        XmlRpc::XmlRpcValue value;
+        if (ros::param::get(name, value)) {
+            params[name] = xmlrpc_to_json(value);
+        }
+    }
+    try_publish("params/json", params.dump(), true);
 }
 
 void publish_sensor_metadata() {
