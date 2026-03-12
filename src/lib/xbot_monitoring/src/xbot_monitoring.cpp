@@ -336,6 +336,10 @@ void publish_params() {
 
     json params = json::object();
     for (const auto &name : param_names) {
+        if (name.find("password") != std::string::npos) {
+            params[name] = nullptr;
+            continue;
+        }
         XmlRpc::XmlRpcValue value;
         if (ros::param::get(name, value)) {
             params[name] = xmlrpc_to_json(value);
