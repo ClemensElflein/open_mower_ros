@@ -276,6 +276,8 @@ void publish_capabilities() {
   try_publish("capabilities/json", CAPABILITIES.dump(2), true);
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic warning "-Wswitch-enum"
 json xmlrpc_to_json(XmlRpc::XmlRpcValue value) {
     switch (value.getType()) {
         case XmlRpc::XmlRpcValue::TypeBoolean:
@@ -298,10 +300,34 @@ json xmlrpc_to_json(XmlRpc::XmlRpcValue value) {
                 obj[it->first] = xmlrpc_to_json(it->second);
             return obj;
         }
-        default:
+        case XmlRpc::XmlRpcValue::TypeDateTime: {
+            const struct tm& t = static_cast<const struct tm&>(value);
+            char buf[32];
+            std::strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%S", &t);
+            return std::string(buf);
+        }
+        case XmlRpc::XmlRpcValue::TypeBase64: {
+            const XmlRpc::XmlRpcValue::BinaryData& data = static_cast<const XmlRpc::XmlRpcValue::BinaryData&>(value);
+            static const char* b64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+            std::string out;
+            out.reserve(((data.size() + 2) / 3) * 4);
+            for (size_t i = 0; i < data.size(); i += 3) {
+                unsigned int n = (static_cast<unsigned char>(data[i]) << 16)
+                    | (i + 1 < data.size() ? static_cast<unsigned char>(data[i + 1]) << 8 : 0)
+                    | (i + 2 < data.size() ? static_cast<unsigned char>(data[i + 2]) : 0);
+                out += b64[(n >> 18) & 0x3F];
+                out += b64[(n >> 12) & 0x3F];
+                out += (i + 1 < data.size()) ? b64[(n >> 6) & 0x3F] : '=';
+                out += (i + 2 < data.size()) ? b64[n & 0x3F] : '=';
+            }
+            return out;
+        }
+        case XmlRpc::XmlRpcValue::TypeInvalid:
             return nullptr;
     }
+    return nullptr;
 }
+#pragma GCC diagnostic pop
 
 void publish_params() {
     std::vector<std::string> param_names;
