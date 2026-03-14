@@ -60,6 +60,14 @@ Behavior* MowingBehavior::execute() {
       return &DockingBehavior::INSTANCE;
     }
 
+    // No plan will be created if the area is skipped
+    if (currentMowingPaths.empty()) {
+      currentMowingArea++;
+      currentMowingPath = 0;
+      currentMowingPathIndex = 0;
+      continue;
+    }
+
     // We have a plan, execute it
     ROS_INFO_STREAM("MowingBehavior: Executing mowing plan");
     bool finished = execute_mowing_plan();
@@ -145,6 +153,11 @@ bool MowingBehavior::create_mowing_plan(int area_index) {
   if (!mapClient.call(mapSrv)) {
     ROS_ERROR_STREAM("MowingBehavior: Error loading mowing area");
     return false;
+  }
+
+  if (mapSrv.response.area.area.points.empty()) {
+    ROS_INFO_STREAM("MowingBehavior: Skipping inactive mowing area");
+    return true;
   }
 
   // Area orientation is the same as the first point
