@@ -22,8 +22,16 @@ xbot_positioning:
   debug: false
 
 ntrip_client:
-  reconnect_attempt_max: 5
-  reconnect_attempt_wait_seconds: 99999
+  rtcm_timeout_sec: 4.0
+  adaptive_reconnect: true
+  adaptive_burst_max_attempts: 12
+  adaptive_burst_window_sec: 60.0
+  adaptive_slow_after_sec: 300.0
+  adaptive_slow_interval_sec: 300.0
+  reconnect_initial_delay_sec: 10.0
+  reconnect_max_delay_sec: 300.0
+  reconnect_backoff_multiplier: 2.0
+  max_attempts: 0
 
 mower_logic:
   automatic_mode: 0
