@@ -40,6 +40,8 @@ class MowingBehavior : public Behavior {
   int currentMowingPath;
   int currentMowingArea;
   int currentMowingPathIndex;
+  std::string currentMowingAreaId;
+  std::string currentMowingAreaName;
   std::string currentMowingPlanDigest;
   double currentMowingAngleIncrementSum;
 
@@ -76,7 +78,11 @@ class MowingBehavior : public Behavior {
 
   uint8_t get_state() override;
 
-  int16_t get_current_area();
+  int16_t get_current_area() const;
+
+  std::string get_current_area_id() const;
+
+  std::string get_current_area_name() const;
 
   int16_t get_current_path();
 
