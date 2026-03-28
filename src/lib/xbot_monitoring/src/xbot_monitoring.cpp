@@ -28,6 +28,7 @@
 #include "xbot_mqtt/publish.h"
 #include "xbot_mqtt/RegisterMethodsSrv.h"
 #include "capabilities.h"
+#include "EventHistory.h"
 
 using json = nlohmann::ordered_json;
 
@@ -145,6 +146,8 @@ std::mutex map_overlay_mutex;
 bool has_map = false;
 bool has_map_overlay = false;
 
+EventHistory event_history;
+
 xbot_mqtt::RpcProvider rpc_provider("xbot_monitoring", {{
     RPC_METHOD("rpc.ping", {
         return "pong";
@@ -159,6 +162,9 @@ xbot_mqtt::RpcProvider rpc_provider("xbot_monitoring", {{
         }
         std::sort(methods.begin(), methods.end());
         return methods;
+    }),
+    RPC_METHOD("events.history", {
+        return event_history.getAll();
     }),
 }});
 
@@ -519,6 +525,10 @@ void pose_callback(const xbot_msgs::AbsolutePose::ConstPtr& msg) {
 
 void mqtt_publish_callback(const xbot_mqtt::MqttPublish::ConstPtr& msg) {
     try_publish(msg->topic, msg->payload, msg->retain);
+
+    if (msg->topic == "events/json") {
+        event_history.add(msg->payload);
+    }
 }
 
 void publish_actions() {
@@ -730,6 +740,11 @@ int main(int argc, char **argv) {
     version_string = paramNh.param("software_version", std::string("UNKNOWN VERSION"));
     if(version_string.empty()) {
         version_string = "UNKNOWN VERSION";
+    }
+
+    {
+        int event_history_max_size = paramNh.param("event_history_max_size", 100);
+        event_history.init(static_cast<size_t>(event_history_max_size));
     }
 
     external_mqtt_enable = paramNh.param("external_mqtt_enable", false);
