@@ -11,6 +11,7 @@
 #include "xbot_msgs/SensorDataString.h"
 #include "xbot_msgs/SensorDataDouble.h"
 #include "xbot_msgs/RobotState.h"
+#include "xbot_msgs/AbsolutePose.h"
 #include <mqtt/async_client.h>
 #include <nlohmann/json.hpp>
 #include <vector>
@@ -505,6 +506,16 @@ void robot_state_callback(const xbot_msgs::RobotState::ConstPtr &msg) {
     try_publish_binary("robot_state/bson", bson.data(), bson.size());
 }
 
+void pose_callback(const xbot_msgs::AbsolutePose::ConstPtr& msg) {
+    // Publish current position frequently for smoother UI updates.
+    // [x, y, heading] — reuse static json to avoid per-call heap allocation.
+    static json j = json::array({0.0, 0.0, 0.0});
+    j[0] = msg->pose.pose.position.x;
+    j[1] = msg->pose.pose.position.y;
+    j[2] = msg->vehicle_heading;
+    static const std::string position_topic = "position/json";
+    try_publish(position_topic, j.dump());
+}
 
 void mqtt_publish_callback(const xbot_mqtt::MqttPublish::ConstPtr& msg) {
     try_publish(msg->topic, msg->payload, msg->retain);
@@ -745,6 +756,7 @@ int main(int argc, char **argv) {
     ros::Subscriber robotStateSubscriber = n->subscribe("xbot_monitoring/robot_state", 10, robot_state_callback);
     ros::Subscriber mapSubscriber = n->subscribe("mower_map_service/json_map", 10, map_callback);
     ros::Subscriber mapOverlaySubscriber = n->subscribe("xbot_monitoring/map_overlay", 10, map_overlay_callback);
+    ros::Subscriber poseSubscriber = n->subscribe("/xbot_positioning/xb_pose", 10, pose_callback);
     ros::Subscriber mqttPublishSubscriber = n->subscribe("/xbot_monitoring/mqtt_publish", 50, mqtt_publish_callback);
 
     cmd_vel_pub = n->advertise<geometry_msgs::Twist>("xbot_monitoring/remote_cmd_vel", 1);
