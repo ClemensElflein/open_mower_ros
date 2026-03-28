@@ -7,4 +7,5 @@ inline const nlohmann::ordered_json CAPABILITIES = {
     {"map:json", 1},
     {"mqtt:params", 1},
     {"events", 1},
+    {"position", 1},
 };
