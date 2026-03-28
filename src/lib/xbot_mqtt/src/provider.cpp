@@ -1,16 +1,16 @@
-#include "xbot_rpc/provider.h"
+#include "xbot_mqtt/provider.h"
 
-#include "xbot_rpc/RegisterMethodsSrv.h"
+#include "xbot_mqtt/RegisterMethodsSrv.h"
 
-namespace xbot_rpc {
+namespace xbot_mqtt {
 
 void RpcProvider::init() {
   ros::NodeHandle n;
   request_sub =
       n.subscribe(TOPIC_REQUEST, 100, &RpcProvider::handleRequest, this, ros::TransportHints().tcpNoDelay(true));
-  response_pub = n.advertise<xbot_rpc::RpcResponse>(TOPIC_RESPONSE, 100);
-  error_pub = n.advertise<xbot_rpc::RpcError>(TOPIC_ERROR, 100);
-  registration_client = n.serviceClient<xbot_rpc::RegisterMethodsSrv>(SERVICE_REGISTER_METHODS);
+  response_pub = n.advertise<xbot_mqtt::RpcResponse>(TOPIC_RESPONSE, 100);
+  error_pub = n.advertise<xbot_mqtt::RpcError>(TOPIC_ERROR, 100);
+  registration_client = n.serviceClient<xbot_mqtt::RegisterMethodsSrv>(SERVICE_REGISTER_METHODS);
   if (!registration_client.waitForExistence(ros::Duration(10.0))) {
     ROS_ERROR_STREAM("RPC method registration service not found");
     // Don't abort here - RPC isn't critical for the system to function.
@@ -20,7 +20,7 @@ void RpcProvider::init() {
 }
 
 void RpcProvider::publishMethods() {
-  xbot_rpc::RegisterMethodsSrv srv;
+  xbot_mqtt::RegisterMethodsSrv srv;
   srv.request.node_id = node_id;
   srv.request.methods.reserve(methods.size());
   for (const auto& [method_id, _] : methods) {
@@ -31,7 +31,7 @@ void RpcProvider::publishMethods() {
   }
 }
 
-void RpcProvider::handleRequest(const xbot_rpc::RpcRequest::ConstPtr& request) {
+void RpcProvider::handleRequest(const xbot_mqtt::RpcRequest::ConstPtr& request) {
   // Look up the method. Ignore if not found, as it might be handled by another node.
   auto it = methods.find(request->method);
   if (it == methods.end()) {
@@ -44,7 +44,7 @@ void RpcProvider::handleRequest(const xbot_rpc::RpcRequest::ConstPtr& request) {
     try {
       params = nlohmann::ordered_json::parse(request->params);
     } catch (const nlohmann::json::parse_error& e) {
-      publishError(request, RpcError::ERROR_INVALID_JSON, std::string("Invalid parameters JSON: ") + e.what());
+      publishError(request, xbot_mqtt::RpcError::ERROR_INVALID_JSON, std::string("Invalid parameters JSON: ") + e.what());
       return;
     }
   }
@@ -56,30 +56,30 @@ void RpcProvider::handleRequest(const xbot_rpc::RpcRequest::ConstPtr& request) {
   } catch (const RpcException& e) {
     publishError(request, e.code, e.message);
   } catch (const std::exception& e) {
-    publishError(request, RpcError::ERROR_INTERNAL, std::string("Internal error: ") + e.what());
+    publishError(request, xbot_mqtt::RpcError::ERROR_INTERNAL, std::string("Internal error: ") + e.what());
   }
 }
 
-void RpcProvider::publishResponse(const xbot_rpc::RpcRequest::ConstPtr& request,
+void RpcProvider::publishResponse(const xbot_mqtt::RpcRequest::ConstPtr& request,
                                   const nlohmann::basic_json<>& response) {
   if (request->id.empty()) {
     return;
   }
-  xbot_rpc::RpcResponse response_msg;
+  xbot_mqtt::RpcResponse response_msg;
   response_msg.result = response.dump();
   response_msg.id = request->id;
   response_pub.publish(response_msg);
 }
 
-void RpcProvider::publishError(const xbot_rpc::RpcRequest::ConstPtr& request, int16_t code, const std::string& message) {
+void RpcProvider::publishError(const xbot_mqtt::RpcRequest::ConstPtr& request, int16_t code, const std::string& message) {
   if (request->id.empty()) {
     return;
   }
-  xbot_rpc::RpcError err_msg;
+  xbot_mqtt::RpcError err_msg;
   err_msg.id = request->id;
   err_msg.code = code;
   err_msg.message = message;
   error_pub.publish(err_msg);
 }
 
-}  // namespace xbot_rpc
+}  // namespace xbot_mqtt
