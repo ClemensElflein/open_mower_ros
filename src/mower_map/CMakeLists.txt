@@ -21,7 +21,7 @@ find_package(catkin REQUIRED
         grid_map_cv
         rosbag
         xbot_msgs
-        xbot_rpc
+        xbot_mqtt
         )
 
 ## System dependencies are found with CMake's conventions
@@ -170,7 +170,7 @@ include_directories(
 
 add_executable(mower_map_service src/mower_map_service.cpp)
 add_dependencies(mower_map_service ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
-target_link_libraries(mower_map_service ${catkin_LIBRARIES} ${OpenCV_LIBS} nlohmann_json::nlohmann_json xbot_rpc)
+target_link_libraries(mower_map_service ${catkin_LIBRARIES} ${OpenCV_LIBS} nlohmann_json::nlohmann_json xbot_mqtt)
 
 #############
 ## Install ##

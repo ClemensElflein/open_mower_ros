@@ -52,7 +52,7 @@ using json = nlohmann::ordered_json;
 #include "xbot_msgs/MapSize.h"
 
 // RPC
-#include "xbot_rpc/provider.h"
+#include "xbot_mqtt/provider.h"
 
 const std::string MAP_FILE = "map.json";
 const std::string LEGACY_MAP_FILE = "map.bag";
@@ -184,15 +184,15 @@ geometry_msgs::Pose fake_obstacle_pose;
 grid_map::GridMap map;
 
 // clang-format off
-xbot_rpc::RpcProvider rpc_provider("mower_map_service", {{
+xbot_mqtt::RpcProvider rpc_provider("mower_map_service", {{
   RPC_METHOD("map.replace", {
     if (!params.is_array() || params.size() != 1) {
-      throw xbot_rpc::RpcException(xbot_rpc::RpcError::ERROR_INVALID_PARAMS, "Missing map parameter");
+      throw xbot_mqtt::RpcException(xbot_mqtt::RpcError::ERROR_INVALID_PARAMS, "Missing map parameter");
     }
     try {
       map_data = params[0];
     } catch (const std::exception& e) {
-      throw xbot_rpc::RpcException(xbot_rpc::RpcError::ERROR_INVALID_PARAMS, "Invalid map: " + std::string(e.what()));
+      throw xbot_mqtt::RpcException(xbot_mqtt::RpcError::ERROR_INVALID_PARAMS, "Invalid map: " + std::string(e.what()));
     }
     saveMapToFile();
     ROS_INFO_STREAM("Loaded " << map_data.areas.size() << " areas via RPC and saved to file");
