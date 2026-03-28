@@ -12,6 +12,7 @@ add_message_files(
         RpcRequest.msg
         RpcResponse.msg
         RpcError.msg
+        MqttPublish.msg
 )
 
 add_service_files(

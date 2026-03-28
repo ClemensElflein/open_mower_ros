@@ -24,6 +24,7 @@
 #include "xbot_mqtt/RpcResponse.h"
 #include "xbot_mqtt/constants.h"
 #include "xbot_mqtt/provider.h"
+#include "xbot_mqtt/publish.h"
 #include "xbot_mqtt/RegisterMethodsSrv.h"
 #include "capabilities.h"
 
@@ -224,7 +225,7 @@ void setupMqttClient() {
     }
 }
 
-void try_publish(std::string topic, std::string data, bool retain = false) {
+void try_publish(const std::string &topic, const std::string &data, bool retain = false) {
     try {
         if (retain) {
             // QOS 1 so that the data actually arrives at the client at least once.
@@ -250,7 +251,7 @@ void try_publish(std::string topic, std::string data, bool retain = false) {
     }
 }
 
-void try_publish_binary(std::string topic, const void *data, size_t size, bool retain = false) {
+void try_publish_binary(const std::string &topic, const void *data, size_t size, bool retain = false) {
     try {
         if (retain) {
             // QOS 1 so that the data actually arrives at the client at least once.
@@ -504,6 +505,11 @@ void robot_state_callback(const xbot_msgs::RobotState::ConstPtr &msg) {
     try_publish_binary("robot_state/bson", bson.data(), bson.size());
 }
 
+
+void mqtt_publish_callback(const xbot_mqtt::MqttPublish::ConstPtr& msg) {
+    try_publish(msg->topic, msg->payload, msg->retain);
+}
+
 void publish_actions() {
     json actions = json::array();
     {
@@ -739,6 +745,7 @@ int main(int argc, char **argv) {
     ros::Subscriber robotStateSubscriber = n->subscribe("xbot_monitoring/robot_state", 10, robot_state_callback);
     ros::Subscriber mapSubscriber = n->subscribe("mower_map_service/json_map", 10, map_callback);
     ros::Subscriber mapOverlaySubscriber = n->subscribe("xbot_monitoring/map_overlay", 10, map_overlay_callback);
+    ros::Subscriber mqttPublishSubscriber = n->subscribe("/xbot_monitoring/mqtt_publish", 50, mqtt_publish_callback);
 
     cmd_vel_pub = n->advertise<geometry_msgs::Twist>("xbot_monitoring/remote_cmd_vel", 1);
     action_pub = n->advertise<std_msgs::String>("xbot/action", 1);
