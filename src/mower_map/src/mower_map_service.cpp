@@ -554,6 +554,7 @@ bool getMowingArea(mower_map::GetMowingAreaSrvRequest& req, mower_map::GetMowing
     return false;
   }
 
+  res.area_id = mowing_areas[req.index].id;
   res.area = internalMapAreaToMower(mowing_areas[req.index]);
 
   for (const auto& area : map_data.areas) {
