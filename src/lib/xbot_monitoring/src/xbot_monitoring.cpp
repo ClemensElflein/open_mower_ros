@@ -29,6 +29,7 @@
 #include "xbot_mqtt/RegisterMethodsSrv.h"
 #include "capabilities.h"
 #include "EventHistory.h"
+#include "PositionHistory.h"
 
 using json = nlohmann::ordered_json;
 
@@ -147,6 +148,7 @@ bool has_map = false;
 bool has_map_overlay = false;
 
 EventHistory event_history;
+PositionHistory position_history;
 
 xbot_mqtt::RpcProvider rpc_provider("xbot_monitoring", {{
     RPC_METHOD("rpc.ping", {
@@ -165,6 +167,9 @@ xbot_mqtt::RpcProvider rpc_provider("xbot_monitoring", {{
     }),
     RPC_METHOD("events.history", {
         return event_history.getAll();
+    }),
+    RPC_METHOD("position.history", {
+        return position_history.getHistory();
     }),
 }});
 
@@ -513,6 +518,10 @@ void robot_state_callback(const xbot_msgs::RobotState::ConstPtr &msg) {
 }
 
 void pose_callback(const xbot_msgs::AbsolutePose::ConstPtr& msg) {
+    position_history.addPoint(msg->pose.pose.position.x,
+        msg->pose.pose.position.y,
+        msg->header.stamp);
+
     // Publish current position frequently for smoother UI updates.
     // [x, y, heading] — reuse static json to avoid per-call heap allocation.
     static json j = json::array({0.0, 0.0, 0.0});
@@ -528,6 +537,12 @@ void mqtt_publish_callback(const xbot_mqtt::MqttPublish::ConstPtr& msg) {
 
     if (msg->topic == "events/json") {
         event_history.add(msg->payload);
+try {
+            const std::string type = json::parse(msg->payload).at("type").get<std::string>();
+            position_history.onEvent(type);
+        } catch (const json::exception& e) {
+            ROS_WARN_STREAM("mqtt_publish_callback: failed to parse event JSON: " << e.what());
+        }
     }
 }
 
@@ -745,6 +760,7 @@ int main(int argc, char **argv) {
     {
         int event_history_max_size = paramNh.param("event_history_max_size", 100);
         event_history.init(static_cast<size_t>(event_history_max_size));
+        position_history.init(static_cast<size_t>(event_history_max_size));
     }
 
     external_mqtt_enable = paramNh.param("external_mqtt_enable", false);
@@ -836,5 +852,6 @@ int main(int argc, char **argv) {
         });
         sensor_check_rate.sleep();
     }
+    position_history.flush();
     return 0;
 }
