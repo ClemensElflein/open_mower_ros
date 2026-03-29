@@ -17,6 +17,8 @@
 
 namespace xbot_mqtt {
 
+static const std::string EVENTS_TOPIC = "events/json";
+
 // Same algorithm as mower_map_service generateNanoId()
 inline std::string generateNanoId(size_t length = 32) {
     static const char alphabet[] =
@@ -40,7 +42,7 @@ inline void publish(ros::Publisher& pub,
     pub.publish(msg);
 }
 
-// Convenience wrapper for events: hardcodes topic = "events/json".
+// Convenience wrapper to publish events.
 // Always injects "id" (NanoId), "t" (current ROS time, float seconds), and "type".
 // Optional details object is merged into the payload for event-specific fields.
 inline void publishEvent(ros::Publisher& pub,
@@ -55,7 +57,11 @@ inline void publishEvent(ros::Publisher& pub,
     if (details.is_object()) {
         payload.update(details);
     }
-    publish(pub, "events/json", payload, retain);
+    publish(pub, EVENTS_TOPIC, payload, retain);
+}
+
+inline bool isEvent(const std::string& topic) {
+    return topic == EVENTS_TOPIC;
 }
 
 }  // namespace xbot_mqtt

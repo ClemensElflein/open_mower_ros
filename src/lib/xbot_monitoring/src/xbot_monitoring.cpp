@@ -547,7 +547,7 @@ void pose_callback(const xbot_msgs::AbsolutePose::ConstPtr& msg) {
 void mqtt_publish_callback(const xbot_mqtt::MqttPublish::ConstPtr& msg) {
     try_publish(msg->topic, msg->payload, msg->retain);
 
-    if (msg->topic == "events/json") {
+    if (xbot_mqtt::isEvent(msg->topic)) {
         event_history.add(msg->payload);
         try {
             const std::string type = json::parse(msg->payload).at("type").get<std::string>();
