@@ -14,6 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
         grid_map_ros
         grid_map_msgs
         xbot_mqtt
+        mower_msgs
         )
 
 
@@ -31,6 +32,7 @@ catkin_package(
         #  LIBRARIES mower_comms
         #  CATKIN_DEPENDS mower_msgs roscpp serial
         #  DEPENDS system_lib
+        CATKIN_DEPENDS mower_msgs
         DEPENDS PahoMqttCpp
 
 )

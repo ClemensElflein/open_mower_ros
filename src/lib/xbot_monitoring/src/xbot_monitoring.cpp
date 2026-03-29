@@ -30,6 +30,7 @@
 #include "capabilities.h"
 #include "EventHistory.h"
 #include "PositionHistory.h"
+#include "mower_msgs/HighLevelStatus.h"
 
 using json = nlohmann::ordered_json;
 
@@ -149,6 +150,7 @@ bool has_map_overlay = false;
 
 EventHistory event_history;
 PositionHistory position_history;
+uint8_t current_high_level_state = mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_NULL;
 
 xbot_mqtt::RpcProvider rpc_provider("xbot_monitoring", {{
     RPC_METHOD("rpc.ping", {
@@ -488,6 +490,10 @@ void subscribe_to_sensor(std::string topic, std::vector<ros::Subscriber> &sensor
     }
 }
 
+void high_level_status_callback(const mower_msgs::HighLevelStatus::ConstPtr &msg) {
+    current_high_level_state = msg->state;
+}
+
 void robot_state_callback(const xbot_msgs::RobotState::ConstPtr &msg) {
     // Build a JSON and publish it
     json j;
@@ -518,9 +524,15 @@ void robot_state_callback(const xbot_msgs::RobotState::ConstPtr &msg) {
 }
 
 void pose_callback(const xbot_msgs::AbsolutePose::ConstPtr& msg) {
-    position_history.addPoint(msg->pose.pose.position.x,
-        msg->pose.pose.position.y,
-        msg->header.stamp);
+    const bool is_idle =
+        current_high_level_state == mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_NULL ||
+        current_high_level_state == mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_IDLE;
+
+    if (!is_idle) {
+        position_history.addPoint(msg->pose.pose.position.x,
+                                msg->pose.pose.position.y,
+                                msg->header.stamp);
+    }
 
     // Publish current position frequently for smoother UI updates.
     // [x, y, heading] — reuse static json to avoid per-call heap allocation.
@@ -537,7 +549,7 @@ void mqtt_publish_callback(const xbot_mqtt::MqttPublish::ConstPtr& msg) {
 
     if (msg->topic == "events/json") {
         event_history.add(msg->payload);
-try {
+        try {
             const std::string type = json::parse(msg->payload).at("type").get<std::string>();
             position_history.onEvent(type);
         } catch (const json::exception& e) {
@@ -785,6 +797,7 @@ int main(int argc, char **argv) {
     ros::ServiceServer register_action_service = n->advertiseService("xbot/register_actions", registerActions);
 
     ros::Subscriber robotStateSubscriber = n->subscribe("xbot_monitoring/robot_state", 10, robot_state_callback);
+    ros::Subscriber highLevelStatusSubscriber = n->subscribe("mower_logic/current_state", 10, high_level_status_callback);
     ros::Subscriber mapSubscriber = n->subscribe("mower_map_service/json_map", 10, map_callback);
     ros::Subscriber mapOverlaySubscriber = n->subscribe("xbot_monitoring/map_overlay", 10, map_overlay_callback);
     ros::Subscriber poseSubscriber = n->subscribe("/xbot_positioning/xb_pose", 10, pose_callback);
