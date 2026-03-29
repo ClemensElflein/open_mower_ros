@@ -24,6 +24,7 @@
 #include <tf2/LinearMath/Transform.h>
 
 #include <atomic>
+#include <csignal>
 #include <ios>
 #include <mutex>
 #include <sstream>
@@ -50,10 +51,13 @@
 #include "slic3r_coverage_planner/PlanPath.h"
 #include "std_msgs/String.h"
 #include "utils.h"
+#include "xbot_mqtt/publish.h"
 #include "xbot_msgs/AbsolutePose.h"
 #include "xbot_msgs/RegisterActionsSrv.h"
 #include "xbot_positioning/GPSControlSrv.h"
 #include "xbot_positioning/SetPoseSrv.h"
+
+using json = nlohmann::json;
 
 ros::ServiceClient pathClient, mapClient, dockingPointClient, gpsClient, mowClient, emergencyClient, pathProgressClient,
     setNavPointClient, clearNavPointClient, clearMapClient, positioningClient, actionRegistrationClient;
@@ -65,7 +69,7 @@ dynamic_reconfigure::Server<mower_logic::MowerLogicConfig>* reconfigServer;
 actionlib::SimpleActionClient<mbf_msgs::MoveBaseAction>* mbfClient;
 actionlib::SimpleActionClient<mbf_msgs::ExePathAction>* mbfClientExePath;
 
-ros::Publisher cmd_vel_pub, high_level_state_publisher;
+ros::Publisher cmd_vel_pub, high_level_state_publisher, mqtt_publish_pub;
 mower_logic::MowerLogicConfig last_config;
 ll::PowerConfig last_power_config;
 
@@ -213,6 +217,15 @@ bool setGPS(bool enabled) {
   return success;
 }
 
+// Publishes a mower event. x/y from current pose are always included.
+// "id", "t", and "type" are added by publishEvent().
+void publishMowerEvent(const std::string& type, json details = nullptr) {
+  const auto& pose = pose_state_subscriber.getMessage();
+  json payload = {{"x", pose.pose.pose.position.x}, {"y", pose.pose.pose.position.y}};
+  if (details.is_object()) payload.update(details);
+  xbot_mqtt::publishEvent(mqtt_publish_pub, type, payload);
+}
+
 /// @brief If the BLADE Motor is not in the requested status (enabled),we call the
 ///        the mower_service/mow_enabled service to enable/disable. TODO: get feedback about spinup and delay if needed
 /// @param enabled
@@ -229,6 +242,7 @@ bool setMowerEnabled(bool enabled) {
   // status change ?
   const auto last_status = status_state_subscriber.getMessage();
   if (last_status.mow_enabled != enabled) {
+    publishMowerEvent(enabled ? "MOWING_STARTED" : "MOWING_STOPPED");
     ros::Time started = ros::Time::now();
     mower_msgs::MowerControlSrv mow_srv;
     mow_srv.request.mow_enabled = enabled;
@@ -305,6 +319,7 @@ void stopBlade() {
 /// @brief Stop BLADE motor and any movement
 /// @param emergency
 void setEmergencyMode(bool emergency) {
+  publishMowerEvent(emergency ? "EMERGENCY_SET" : "EMERGENCY_CLEARED");
   stopBlade();
   stopMoving();
   mower_msgs::EmergencyStopSrv emergencyStop;
@@ -330,7 +345,13 @@ void setEmergencyMode(bool emergency) {
 void updateUI(const ros::TimerEvent& timer_event) {
   if (currentBehavior == &MowingBehavior::INSTANCE) {
     try {
-      high_level_status.current_area = MowingBehavior::INSTANCE.get_current_area();
+      const auto& mb = MowingBehavior::INSTANCE;
+      int new_area = mb.get_current_area();
+      if (new_area != high_level_status.current_area && new_area != -1) {
+        publishMowerEvent("AREA_CHANGED",
+                          json{{"area_id", mb.get_current_area_id()}, {"area_name", mb.get_current_area_name()}});
+      }
+      high_level_status.current_area = new_area;
     } catch (const std::runtime_error& re) {
       // specific handling for runtime_error
       ROS_ERROR_STREAM("Error getting current area: " << re.what());
@@ -469,6 +490,16 @@ void checkSafety(const ros::TimerEvent& timer_event) {
     ROS_WARN_STREAM_THROTTLE(1, "GPS timeout");
   }
 
+  {
+    static bool last_gps_timeout = false;
+    if (gpsTimeout && !last_gps_timeout) {
+      publishMowerEvent("GPS_LOST");
+    } else if (!gpsTimeout && last_gps_timeout) {
+      publishMowerEvent("GPS_RESUMED");
+    }
+    last_gps_timeout = gpsTimeout;
+  }
+
   if (currentBehavior != nullptr && currentBehavior->needs_gps()) {
     currentBehavior->setGoodGPS(!gpsTimeout);
     // Stop the mower
@@ -557,6 +588,7 @@ void checkSafety(const ros::TimerEvent& timer_event) {
       currentBehavior != &UndockingBehavior::RETRY_INSTANCE && currentBehavior != &IdleBehavior::INSTANCE &&
       currentBehavior != &IdleBehavior::DOCKED_INSTANCE) {
     ROS_INFO_STREAM(dockingReason.rdbuf());
+    publishMowerEvent("DOCKING", json{{"reason", dockingReason.str()}});
     abortExecution();
   }
 }
@@ -642,10 +674,17 @@ void buildRootActions() {
   rootActions.push_back(reset_emergency_action);
 }
 
+void shutdownHandler(int) {
+  publishMowerEvent("SHUTDOWN");
+  ros::shutdown();
+}
+
 int main(int argc, char** argv) {
   buildRootActions();
 
-  ros::init(argc, argv, "mower_logic");
+  ros::init(argc, argv, "mower_logic", ros::init_options::NoSigintHandler);
+  signal(SIGINT, shutdownHandler);
+  signal(SIGTERM, shutdownHandler);
 
   n = new ros::NodeHandle();
   paramNh = new ros::NodeHandle("~");
@@ -663,6 +702,7 @@ int main(int argc, char** argv) {
   cmd_vel_pub = n->advertise<geometry_msgs::Twist>("/logic_vel", 1);
 
   high_level_state_publisher = n->advertise<mower_msgs::HighLevelStatus>("mower_logic/current_state", 100, true);
+  mqtt_publish_pub = n->advertise<xbot_mqtt::MqttPublish>("/xbot_monitoring/mqtt_publish", 10);
 
   pathClient = n->serviceClient<slic3r_coverage_planner::PlanPath>("slic3r_coverage_planner/plan_path");
   mapClient = n->serviceClient<mower_map::GetMowingAreaSrv>("mower_map_service/get_mowing_area");
@@ -880,6 +920,7 @@ int main(int argc, char** argv) {
   registerActions("mower_logic", rootActions);
 
   ROS_INFO("om_mower_logic: Got all servers, we can mow");
+  publishMowerEvent("BOOTED");
 
   rain_resume = last_rain_check = last_v_battery_check = ros::Time::now();
   ros::Timer safety_timer = n->createTimer(ros::Duration(0.5), checkSafety);
@@ -898,6 +939,11 @@ int main(int argc, char** argv) {
       currentBehavior->start(last_config, shared_state);
       Behavior* newBehavior = currentBehavior->execute();
       currentBehavior->exit();
+
+      if (newBehavior != currentBehavior && newBehavior != nullptr) {
+        publishMowerEvent("STATE_CHANGED", json{{"state", newBehavior->state_name()}});
+      }
+
       currentBehavior = newBehavior;
     } else {
       high_level_status.state_name = "NULL";

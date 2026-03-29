@@ -24,10 +24,13 @@ find_package(catkin REQUIRED COMPONENTS
         robot_localization
         xbot_msgs
         xbot_positioning
+        xbot_mqtt
 )
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(CRYPTOPP REQUIRED libcrypto++)
+
+add_subdirectory(../lib/json json EXCLUDE_FROM_ALL)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -135,6 +138,7 @@ include_directories(
         # include
         ${catkin_INCLUDE_DIRS}
         ${CRYPTOPP_INCLUDE_DIRS}
+        ${xbot_mqtt_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library
@@ -184,7 +188,7 @@ add_executable(mower_logic
         src/mower_logic/behaviors/AreaRecordingBehavior.cpp
 )
 add_dependencies(mower_logic ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
-target_link_libraries(mower_logic ${catkin_LIBRARIES} ${CRYPTOPP_LIBRARIES})
+target_link_libraries(mower_logic ${catkin_LIBRARIES} ${CRYPTOPP_LIBRARIES} nlohmann_json::nlohmann_json)
 
 add_executable(monitoring src/monitoring/monitoring.cpp)
 add_dependencies(monitoring ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
