@@ -49,14 +49,10 @@ inline void publishEvent(ros::Publisher& pub,
                          const std::string& type,
                          nlohmann::json details = nullptr,
                          bool retain = false) {
-    nlohmann::json payload = {
-        {"id",   generateNanoId()},
-        {"t",    ros::Time::now().toSec()},
-        {"type", type},
-    };
-    if (details.is_object()) {
-        payload.update(details);
-    }
+    nlohmann::json payload = details.is_object() ? details : nlohmann::json::object();
+    payload["id"]   = generateNanoId();
+    payload["t"]    = ros::Time::now().toSec();
+    payload["type"] = type;
     publish(pub, EVENTS_TOPIC, payload, retain);
 }
 
