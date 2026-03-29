@@ -92,6 +92,7 @@ std::recursive_mutex mower_logic_mutex;
 mower_msgs::HighLevelStatus high_level_status;
 
 std::atomic<bool> mowerAllowed;
+std::atomic<bool> shutdown_requested{false};
 
 Behavior* currentBehavior = &IdleBehavior::INSTANCE;
 
@@ -690,8 +691,7 @@ void buildRootActions() {
 }
 
 void shutdownHandler(int) {
-  publishMowerEvent("SHUTDOWN");
-  ros::shutdown();
+  shutdown_requested.store(true, std::memory_order_relaxed);
 }
 
 int main(int argc, char** argv) {
@@ -969,6 +969,11 @@ int main(int argc, char** argv) {
 
   // Behavior execution loop
   while (ros::ok()) {
+    if (shutdown_requested.exchange(false, std::memory_order_relaxed)) {
+      publishMowerEvent("SHUTDOWN");
+      ros::shutdown();
+      break;
+    }
     if (currentBehavior != nullptr) {
       currentBehavior->start(last_config, shared_state);
       Behavior* newBehavior = currentBehavior->execute();
