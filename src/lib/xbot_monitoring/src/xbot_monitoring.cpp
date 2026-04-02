@@ -15,6 +15,7 @@
 #include <mqtt/async_client.h>
 #include <nlohmann/json.hpp>
 #include <vector>
+#include <algorithm>
 #include "geometry_msgs/Twist.h"
 #include "std_msgs/String.h"
 #include "xbot_msgs/RegisterActionsSrv.h"
@@ -31,6 +32,8 @@
 #include "EventHistory.h"
 #include "PositionHistory.h"
 #include "mower_msgs/HighLevelStatus.h"
+
+const double MQTT_POSITION_PUBLISH_INTERVAL = 0.150;
 
 using json = nlohmann::ordered_json;
 
@@ -523,6 +526,12 @@ void robot_state_callback(const xbot_msgs::RobotState::ConstPtr &msg) {
     try_publish_binary("robot_state/bson", bson.data(), bson.size());
 }
 
+struct PoseSample {
+    double x, y, heading;
+};
+std::vector<PoseSample> pose_buffer;
+std::mutex pose_buffer_mutex;
+
 void pose_callback(const xbot_msgs::AbsolutePose::ConstPtr& msg) {
     const bool is_idle =
         current_high_level_state == mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_NULL ||
@@ -534,12 +543,38 @@ void pose_callback(const xbot_msgs::AbsolutePose::ConstPtr& msg) {
                                 msg->header.stamp);
     }
 
-    // Publish current position frequently for smoother UI updates.
-    // [x, y, heading] — reuse static json to avoid per-call heap allocation.
+    std::lock_guard<std::mutex> lk(pose_buffer_mutex);
+    pose_buffer.push_back({msg->pose.pose.position.x,
+                           msg->pose.pose.position.y,
+                           msg->vehicle_heading});
+}
+
+void pose_publish_timer_callback(const ros::TimerEvent&) {
+    std::vector<PoseSample> buf;
+    {
+        std::lock_guard<std::mutex> lk(pose_buffer_mutex);
+        if (pose_buffer.empty()) return;
+        buf.swap(pose_buffer);
+    }
+
+    const size_t n = buf.size();
+    const size_t mid = n / 2;
+
+    std::vector<double> xs(n), ys(n), hs(n);
+    for (size_t i = 0; i < n; ++i) {
+        xs[i] = buf[i].x;
+        ys[i] = buf[i].y;
+        hs[i] = buf[i].heading;
+    }
+    std::nth_element(xs.begin(), xs.begin() + mid, xs.end());
+    std::nth_element(ys.begin(), ys.begin() + mid, ys.end());
+    std::nth_element(hs.begin(), hs.begin() + mid, hs.end());
+
+    // [x, y, heading], reuse the same json object to avoid allocation
     static json j = json::array({0.0, 0.0, 0.0});
-    j[0] = msg->pose.pose.position.x;
-    j[1] = msg->pose.pose.position.y;
-    j[2] = msg->vehicle_heading;
+    j[0] = xs[mid];
+    j[1] = ys[mid];
+    j[2] = hs[mid];
     static const std::string position_topic = "position/json";
     try_publish(position_topic, j.dump());
 }
@@ -801,6 +836,7 @@ int main(int argc, char **argv) {
     ros::Subscriber mapSubscriber = n->subscribe("mower_map_service/json_map", 10, map_callback);
     ros::Subscriber mapOverlaySubscriber = n->subscribe("xbot_monitoring/map_overlay", 10, map_overlay_callback);
     ros::Subscriber poseSubscriber = n->subscribe("/xbot_positioning/xb_pose", 10, pose_callback);
+    ros::Timer posePublishTimer = n->createTimer(ros::Duration(MQTT_POSITION_PUBLISH_INTERVAL), pose_publish_timer_callback);
     ros::Subscriber mqttPublishSubscriber = n->subscribe("/xbot_monitoring/mqtt_publish", 50, mqtt_publish_callback);
 
     cmd_vel_pub = n->advertise<geometry_msgs::Twist>("xbot_monitoring/remote_cmd_vel", 1);
