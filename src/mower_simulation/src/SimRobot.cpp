@@ -31,7 +31,8 @@ void SimRobot::Start() {
   pose_service_ = nh_.advertiseService("/xbot_positioning/set_robot_pose", &SimRobot::OnSetPose, this);
   odometry_pub_ = nh_.advertise<nav_msgs::Odometry>("odom_out", 50);
   xbot_absolute_pose_pub_ = nh_.advertise<xbot_msgs::AbsolutePose>("xb_pose_out", 50);
-  timer_ = nh_.createTimer(ros::Duration(0.1), &SimRobot::SimulationStep, this);
+  // Keep in sync with DiffDriveService::tick_schedule_
+  timer_ = nh_.createTimer(ros::Duration(0.02), &SimRobot::SimulationStep, this);
   timer_.start();
 }
 
@@ -48,10 +49,8 @@ bool SimRobot::OnSetPose(xbot_positioning::SetPoseSrvRequest& req, xbot_position
 
 void SimRobot::GetTwist(double& vx, double& vr) {
   std::lock_guard<std::mutex> lk{state_mutex_};
-  vx = vx_;
-  vr = vr_;
-  vx += linear_speed_noise(generator);
-  vr += angular_speed_noise(generator);
+  vx = last_noisy_vx_;
+  vr = last_noisy_vr_;
 }
 
 void SimRobot::ResetEmergency() {
@@ -131,12 +130,19 @@ void SimRobot::SimulationStep(const ros::TimerEvent& te) {
   // Update Position if not in emergency mode
   if (!emergency_latch_) {
     double time_diff_s = (now - last_update_).toSec();
-    double delta_x = (vx_ * cos(pos_heading_)) * time_diff_s;
-    double delta_y = (vx_ * sin(pos_heading_)) * time_diff_s;
-    double delta_th = vr_ * time_diff_s;
-    pos_x_ += delta_x;
-    pos_y_ += delta_y;
-    pos_heading_ += delta_th;
+    double noisy_vx = vx_ + linear_speed_noise(generator);
+    double noisy_vr = vr_ + angular_speed_noise(generator);
+    last_noisy_vx_ = noisy_vx;
+    last_noisy_vr_ = noisy_vr;
+    if (fabs(noisy_vr) > 1e-6) {
+      double r = noisy_vx / noisy_vr;
+      pos_x_ += r * (sin(pos_heading_ + noisy_vr * time_diff_s) - sin(pos_heading_));
+      pos_y_ -= r * (cos(pos_heading_ + noisy_vr * time_diff_s) - cos(pos_heading_));
+      pos_heading_ += noisy_vr * time_diff_s;
+    } else {
+      pos_x_ += noisy_vx * cos(pos_heading_) * time_diff_s;
+      pos_y_ += noisy_vx * sin(pos_heading_) * time_diff_s;
+    }
     pos_heading_ = fmod(pos_heading_, M_PI * 2.0);
     if (pos_heading_ < 0) {
       pos_heading_ += M_PI * 2.0;
