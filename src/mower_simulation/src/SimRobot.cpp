@@ -145,7 +145,7 @@ void SimRobot::SimulationStep(const ros::TimerEvent& te) {
 
   // Update Charger Status
   if (sqrt((docking_pos_x_ - pos_x_) * (docking_pos_x_ - pos_x_) +
-           (docking_pos_y_ - pos_y_) * (docking_pos_y_ - pos_y_)) < 0.5) {
+           (docking_pos_y_ - pos_y_) * (docking_pos_y_ - pos_y_)) < 0.025) {
     if (!is_charging_) {
       spdlog::info("Charging");
       is_charging_ = true;
