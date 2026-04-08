@@ -232,6 +232,13 @@ void publishMowerEvent(const std::string& type, json details = json::object()) {
 /// @param enabled
 /// @return
 bool setMowerEnabled(bool enabled) {
+  const auto last_status = status_state_subscriber.getMessage();
+
+  // For events, publish the intended state, ignoring the config.
+  if (last_status.mow_enabled != enabled) {
+    publishMowerEvent("BLADES", json{{"enabled", enabled}});
+  }
+
   const auto last_config = getConfig();
 
   if (!last_config.enable_mower && enabled) {
@@ -241,9 +248,7 @@ bool setMowerEnabled(bool enabled) {
   }
 
   // status change ?
-  const auto last_status = status_state_subscriber.getMessage();
   if (last_status.mow_enabled != enabled) {
-    publishMowerEvent(enabled ? "MOWING_STARTED" : "MOWING_STOPPED");
     ros::Time started = ros::Time::now();
     mower_msgs::MowerControlSrv mow_srv;
     mow_srv.request.mow_enabled = enabled;
@@ -320,7 +325,7 @@ void stopBlade() {
 /// @brief Stop BLADE motor and any movement
 /// @param emergency
 void setEmergencyMode(bool emergency) {
-  publishMowerEvent(emergency ? "EMERGENCY_SET" : "EMERGENCY_CLEARED");
+  publishMowerEvent("EMERGENCY", json{{"active", emergency}});
   stopBlade();
   stopMoving();
   mower_msgs::EmergencyStopSrv emergencyStop;
@@ -349,7 +354,7 @@ void updateUI(const ros::TimerEvent& timer_event) {
       const auto& mb = MowingBehavior::INSTANCE;
       int new_area = mb.get_current_area();
       if (new_area != high_level_status.current_area && new_area != -1) {
-        publishMowerEvent("AREA_CHANGED",
+        publishMowerEvent("AREA",
                           json{{"area_id", mb.get_current_area_id()}, {"area_name", mb.get_current_area_name()}});
       }
       high_level_status.current_area = new_area;
@@ -492,13 +497,11 @@ void checkSafety(const ros::TimerEvent& timer_event) {
   }
 
   {
-    static bool last_gps_timeout = false;
-    if (gpsTimeout && !last_gps_timeout) {
-      publishMowerEvent("GPS_LOST");
-    } else if (!gpsTimeout && last_gps_timeout) {
-      publishMowerEvent("GPS_RESUMED");
+    static bool last_gps_timeout = true;
+    if (gpsTimeout != last_gps_timeout) {
+      publishMowerEvent("GPS", json{{"available", !gpsTimeout}});
+      last_gps_timeout = gpsTimeout;
     }
-    last_gps_timeout = gpsTimeout;
   }
 
   if (currentBehavior != nullptr && currentBehavior->needs_gps()) {
@@ -946,7 +949,7 @@ int main(int argc, char** argv) {
       currentBehavior->exit();
 
       if (newBehavior != currentBehavior && newBehavior != nullptr) {
-        publishMowerEvent("STATE_CHANGED", json{{"state", newBehavior->state_name()}});
+        publishMowerEvent("STATE", json{{"state", newBehavior->state_name()}});
       }
 
       currentBehavior = newBehavior;
