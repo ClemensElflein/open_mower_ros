@@ -57,7 +57,7 @@
 #include "xbot_positioning/GPSControlSrv.h"
 #include "xbot_positioning/SetPoseSrv.h"
 
-using json = nlohmann::json;
+using json = nlohmann::ordered_json;
 
 ros::ServiceClient pathClient, mapClient, dockingPointClient, gpsClient, mowClient, emergencyClient, pathProgressClient,
     setNavPointClient, clearNavPointClient, clearMapClient, positioningClient, actionRegistrationClient;
@@ -220,11 +220,11 @@ bool setGPS(bool enabled) {
 
 // Publishes a mower event. x/y from current pose are always included.
 // "id", "t", and "type" are added by publishEvent().
-void publishMowerEvent(const std::string& type, json details = nullptr) {
+void publishMowerEvent(const std::string& type, json details = json::object()) {
   const auto& pose = pose_state_subscriber.getMessage();
-  json payload = {{"x", pose.pose.pose.position.x}, {"y", pose.pose.pose.position.y}};
-  if (details.is_object()) payload.update(details);
-  xbot_mqtt::publishEvent(mqtt_publish_pub, type, payload);
+  details["x"] = pose.pose.pose.position.x;
+  details["y"] = pose.pose.pose.position.y;
+  xbot_mqtt::publishEvent(mqtt_publish_pub, type, details);
 }
 
 /// @brief If the BLADE Motor is not in the requested status (enabled),we call the
