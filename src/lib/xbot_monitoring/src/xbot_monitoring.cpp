@@ -14,6 +14,7 @@
 #include "xbot_msgs/AbsolutePose.h"
 #include <mqtt/async_client.h>
 #include <nlohmann/json.hpp>
+#include <atomic>
 #include <vector>
 #include <algorithm>
 #include "geometry_msgs/Twist.h"
@@ -34,6 +35,7 @@
 #include "mower_msgs/HighLevelStatus.h"
 
 const double MQTT_POSITION_PUBLISH_INTERVAL = 0.150;
+const double POSITION_HISTORY_FLUSH_INTERVAL = 30.0;
 
 using json = nlohmann::ordered_json;
 
@@ -153,7 +155,7 @@ bool has_map_overlay = false;
 
 EventHistory event_history;
 PositionHistory position_history;
-uint8_t current_high_level_state = mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_NULL;
+std::atomic<bool> is_idle{true};
 
 xbot_mqtt::RpcProvider rpc_provider("xbot_monitoring", {{
     RPC_METHOD("rpc.ping", {
@@ -494,7 +496,10 @@ void subscribe_to_sensor(std::string topic, std::vector<ros::Subscriber> &sensor
 }
 
 void high_level_status_callback(const mower_msgs::HighLevelStatus::ConstPtr &msg) {
-    current_high_level_state = msg->state;
+    const uint8_t state = msg->state;
+    is_idle.store(state == mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_NULL ||
+                      state == mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_IDLE,
+                  std::memory_order_relaxed);
 }
 
 void robot_state_callback(const xbot_msgs::RobotState::ConstPtr &msg) {
@@ -533,20 +538,8 @@ std::vector<PoseSample> pose_buffer;
 std::mutex pose_buffer_mutex;
 
 void pose_callback(const xbot_msgs::AbsolutePose::ConstPtr& msg) {
-    const bool is_idle =
-        current_high_level_state == mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_NULL ||
-        current_high_level_state == mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_IDLE;
-
-    if (!is_idle) {
-        position_history.addPoint(msg->pose.pose.position.x,
-                                msg->pose.pose.position.y,
-                                msg->header.stamp);
-    }
-
-    std::lock_guard<std::mutex> lk(pose_buffer_mutex);
-    pose_buffer.push_back({msg->pose.pose.position.x,
-                           msg->pose.pose.position.y,
-                           msg->vehicle_heading});
+  std::lock_guard<std::mutex> lk(pose_buffer_mutex);
+  pose_buffer.push_back({msg->pose.pose.position.x, msg->pose.pose.position.y, msg->vehicle_heading});
 }
 
 void pose_publish_timer_callback(const ros::TimerEvent&) {
@@ -577,6 +570,14 @@ void pose_publish_timer_callback(const ros::TimerEvent&) {
     j[2] = hs[mid];
     static const std::string position_topic = "position/json";
     try_publish(position_topic, j.dump());
+
+    if (!is_idle) {
+      position_history.addPoint(xs[mid], ys[mid]);
+    }
+}
+
+void position_history_flush_timer_callback(const ros::TimerEvent&) {
+  position_history.flush();
 }
 
 void mqtt_publish_callback(const xbot_mqtt::MqttPublish::ConstPtr& msg) {
@@ -585,8 +586,8 @@ void mqtt_publish_callback(const xbot_mqtt::MqttPublish::ConstPtr& msg) {
     if (xbot_mqtt::isEvent(msg->topic)) {
         event_history.add(msg->payload);
         try {
-            const std::string type = json::parse(msg->payload).at("type").get<std::string>();
-            position_history.onEvent(type);
+          const json event = json::parse(msg->payload);
+          position_history.onEvent(event);
         } catch (const json::exception& e) {
             ROS_WARN_STREAM("mqtt_publish_callback: failed to parse event JSON: " << e.what());
         }
@@ -807,7 +808,7 @@ int main(int argc, char **argv) {
     {
         int event_history_max_size = paramNh.param("event_history_max_size", 100);
         event_history.init(static_cast<size_t>(event_history_max_size));
-        position_history.init(static_cast<size_t>(event_history_max_size));
+        position_history.init();
     }
 
     external_mqtt_enable = paramNh.param("external_mqtt_enable", false);
@@ -837,6 +838,8 @@ int main(int argc, char **argv) {
     ros::Subscriber mapOverlaySubscriber = n->subscribe("xbot_monitoring/map_overlay", 10, map_overlay_callback);
     ros::Subscriber poseSubscriber = n->subscribe("/xbot_positioning/xb_pose", 10, pose_callback);
     ros::Timer posePublishTimer = n->createTimer(ros::Duration(MQTT_POSITION_PUBLISH_INTERVAL), pose_publish_timer_callback);
+    ros::Timer positionHistoryFlushTimer =
+        n->createTimer(ros::Duration(POSITION_HISTORY_FLUSH_INTERVAL), position_history_flush_timer_callback);
     ros::Subscriber mqttPublishSubscriber = n->subscribe("/xbot_monitoring/mqtt_publish", 50, mqtt_publish_callback);
 
     cmd_vel_pub = n->advertise<geometry_msgs::Twist>("xbot_monitoring/remote_cmd_vel", 1);
