@@ -16,7 +16,8 @@ class PowerServiceInterface : public PowerServiceInterfaceBase {
   PowerServiceInterface(uint16_t service_id, const xbot::serviceif::Context& ctx,
                         const ros::Publisher& status_publisher, float battery_full_voltage, float battery_empty_voltage,
                         float battery_critical_voltage, float battery_critical_high_voltage,
-                        float battery_charge_current, float system_current)
+                        float battery_charge_current, float system_current, float charger_charge_voltage,
+                        float charger_termination_current, float charger_pre_charge_current)
       : PowerServiceInterfaceBase(service_id, ctx),
         status_publisher_(status_publisher),
         battery_full_voltage_(battery_full_voltage),
@@ -24,7 +25,10 @@ class PowerServiceInterface : public PowerServiceInterfaceBase {
         battery_critical_voltage_(battery_critical_voltage),
         battery_critical_high_voltage_(battery_critical_high_voltage),
         battery_charge_current_(battery_charge_current),
-        system_current_(system_current) {
+        system_current_(system_current),
+        charger_charge_voltage_(charger_charge_voltage),
+        charger_termination_current_(charger_termination_current),
+        charger_pre_charge_current_(charger_pre_charge_current) {
   }
 
  protected:
@@ -61,6 +65,9 @@ class PowerServiceInterface : public PowerServiceInterfaceBase {
   float battery_critical_high_voltage_;
   float battery_charge_current_;
   float system_current_;
+  float charger_charge_voltage_;
+  float charger_termination_current_;
+  float charger_pre_charge_current_;
 };
 
 struct BatteryStatusBitName {
