@@ -61,8 +61,13 @@ namespace ftc_local_planner
         }
         config = c;
 
-        // just to be sure
-        current_movement_speed = config.speed_slow;
+        // Clamp current speed to new limits so the acceleration ramp handles
+        // the transition naturally (no hard reset to speed_slow on every
+        // dynamic_reconfigure call — needed for blade-adaptive speed control).
+        if (current_movement_speed > config.speed_fast)
+            current_movement_speed = config.speed_fast;
+        if (current_movement_speed < config.speed_slow)
+            current_movement_speed = config.speed_slow;
 
         // set recovery behavior
         failure_detector_.setBufferLength(std::round(config.oscillation_recovery_min_duration * 10));
