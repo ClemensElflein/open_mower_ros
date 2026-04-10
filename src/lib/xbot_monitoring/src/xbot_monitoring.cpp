@@ -563,13 +563,13 @@ void pose_publish_timer_callback(const ros::TimerEvent&) {
     std::nth_element(ys.begin(), ys.begin() + mid, ys.end());
     std::nth_element(hs.begin(), hs.begin() + mid, hs.end());
 
-    // {x, y, heading}, reuse the same json object to avoid allocation
-    static json j = json::object();
-    j["x"] = xs[mid];
-    j["y"] = ys[mid];
-    j["heading"] = hs[mid];
-    static const std::string position_topic = "position/json";
-    try_publish(position_topic, j.dump());
+    const json j = {
+        {"x", xs[mid]},
+        {"y", ys[mid]},
+        {"heading", hs[mid]},
+        {"attributes", position_history.getAttributes()},
+    };
+    try_publish("position/json", j.dump());
 
     if (!is_idle) {
       position_history.addPoint(xs[mid], ys[mid]);
