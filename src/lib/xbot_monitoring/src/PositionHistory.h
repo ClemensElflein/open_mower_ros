@@ -39,6 +39,10 @@ using json = nlohmann::ordered_json;
 
 class PositionHistory {
  public:
+  struct TrackAttributes {
+    bool blades = false;
+  };
+
   PositionHistory() = default;
 
   void init() {
@@ -83,6 +87,11 @@ class PositionHistory {
     writePending();
   }
 
+  TrackAttributes getAttributes() const {
+    std::lock_guard<std::mutex> lk(mutex_);
+    return current_attributes_;
+  }
+
   // Returns all segments (including the open tail) as a JSON array for client seeding.
   // Format: [{"blades": bool, "points": [[x,y], ...]}, ...]
   json getHistory() const {
@@ -114,10 +123,6 @@ class PositionHistory {
   struct TaggedPoint {
     double x, y;
     bool committable;
-  };
-
-  struct TrackAttributes {
-    bool blades = false;
   };
 
   struct Segment {
@@ -411,3 +416,5 @@ class PositionHistory {
 
   mutable std::mutex mutex_;
 };
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(PositionHistory::TrackAttributes, blades)
