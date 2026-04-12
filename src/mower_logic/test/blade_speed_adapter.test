@@ -41,8 +41,10 @@
         <rosparam file="$(find open_mower)/params/twist_mux_topics.yaml" command="load"/>
     </node>
 
-    <!-- Mower logic (state machine) -->
+    <!-- Mower logic (state machine) — remap its current_state output so it
+         doesn't collide with the test's fake MOWING publishes on the same topic -->
     <node pkg="mower_logic" type="mower_logic" name="mower_logic" output="screen">
+        <remap from="mower_logic/current_state" to="mower_logic/current_state_real"/>
         <param name="ignore_gps_errors" value="true"/>
         <param name="gps_wait_time" value="0"/>
         <param name="automatic_mode" value="0"/>
