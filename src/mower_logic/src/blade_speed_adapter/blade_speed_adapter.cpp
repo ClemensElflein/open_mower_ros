@@ -8,12 +8,12 @@
 // In dry-run mode (default), only logs computed values without touching the planner.
 // In live mode (~dry_run:=false), pushes speed changes via dynamic_reconfigure.
 
-#include <ros/ros.h>
 #include <dynamic_reconfigure/client.h>
 #include <ftc_local_planner/FTCPlannerConfig.h>
 #include <mower_msgs/ESCStatus.h>
 #include <mower_msgs/HighLevelStatus.h>
 #include <mower_msgs/Status.h>
+#include <ros/ros.h>
 #include <std_msgs/String.h>
 
 #include <algorithm>
@@ -85,8 +85,8 @@ static void ftcConfigCallback(const ftc_local_planner::FTCPlannerConfig& config)
   if (g_original_speed_fast < 0.0) {
     g_original_speed_fast = config.speed_fast;
     g_original_speed_slow = config.speed_slow;
-    ROS_INFO("blade_speed_adapter: captured original speed_fast=%.3f speed_slow=%.3f",
-             g_original_speed_fast, g_original_speed_slow);
+    ROS_INFO("blade_speed_adapter: captured original speed_fast=%.3f speed_slow=%.3f", g_original_speed_fast,
+             g_original_speed_slow);
   }
 }
 
@@ -105,8 +105,8 @@ static void restoreOriginalSpeed() {
   cfg.speed_fast = g_original_speed_fast;
   cfg.speed_slow = g_original_speed_slow;
   g_ftc_client->setConfiguration(cfg);
-  ROS_INFO("blade_speed_adapter: restored speed_fast=%.3f speed_slow=%.3f",
-           g_original_speed_fast, g_original_speed_slow);
+  ROS_INFO("blade_speed_adapter: restored speed_fast=%.3f speed_slow=%.3f", g_original_speed_fast,
+           g_original_speed_slow);
 }
 
 // ---------------------------------------------------------------------------
@@ -126,8 +126,8 @@ static void controlLoop(const ros::TimerEvent&) {
   }
 
   if (!has_data) {
-    ROS_INFO_THROTTLE(10, "blade_speed_adapter: waiting for data (status=%d hl=%d ftc=%d)",
-                      g_has_status, g_has_high_level, g_has_ftc_config);
+    ROS_INFO_THROTTLE(10, "blade_speed_adapter: waiting for data (status=%d hl=%d ftc=%d)", g_has_status,
+                      g_has_high_level, g_has_ftc_config);
     return;
   }
 
@@ -176,30 +176,25 @@ static void controlLoop(const ros::TimerEvent&) {
   if (target_speed < g_actual_speed) {
     g_actual_speed = target_speed;
   } else {
-    g_actual_speed += std::min(p_recovery_rate * p_sample_interval,
-                               target_speed - g_actual_speed);
+    g_actual_speed += std::min(p_recovery_rate * p_sample_interval, target_speed - g_actual_speed);
   }
 
   // Publish diagnostic log (always, regardless of dry_run)
   {
     std_msgs::String log_msg;
     std::ostringstream ss;
-    ss << "current=" << blade_current
-       << ";current_avg=" << current_avg
-       << ";load_ratio=" << load_ratio
-       << ";target_speed=" << target_speed
-       << ";actual_speed=" << g_actual_speed
-       << ";mode=" << (p_dry_run ? "dry_run" : "live")
-       << ";state=" << high_level.state_name;
+    ss << "current=" << blade_current << ";current_avg=" << current_avg << ";load_ratio=" << load_ratio
+       << ";target_speed=" << target_speed << ";actual_speed=" << g_actual_speed
+       << ";mode=" << (p_dry_run ? "dry_run" : "live") << ";state=" << high_level.state_name;
     log_msg.data = ss.str();
     g_log_pub.publish(log_msg);
   }
 
-  ROS_INFO_THROTTLE(5, "blade_speed_adapter [%s]: current=%.2fA avg=%.2fA load=%.2f "
-                       "target=%.3f actual=%.3f m/s",
-                    p_dry_run ? "dry_run" : "live",
-                    blade_current, current_avg, load_ratio,
-                    target_speed, g_actual_speed);
+  ROS_INFO_THROTTLE(5,
+                    "blade_speed_adapter [%s]: current=%.2fA avg=%.2fA load=%.2f "
+                    "target=%.3f actual=%.3f m/s",
+                    p_dry_run ? "dry_run" : "live", blade_current, current_avg, load_ratio, target_speed,
+                    g_actual_speed);
 
   // Push speed to FTC planner in live mode
   if (!p_dry_run) {
@@ -225,8 +220,8 @@ int main(int argc, char** argv) {
 
   // Load parameters
   pn.param("dry_run", p_dry_run, true);
-  pn.param("current_nominal", p_current_nominal, 1.0);     // amps at no-load spinning
-  pn.param("current_max_load", p_current_max_load, 5.0);   // amps at heavy grass load
+  pn.param("current_nominal", p_current_nominal, 1.0);    // amps at no-load spinning
+  pn.param("current_max_load", p_current_max_load, 5.0);  // amps at heavy grass load
   pn.param("speed_max", p_speed_max, 0.4);
   pn.param("speed_min", p_speed_min, 0.05);
   pn.param("recovery_rate", p_recovery_rate, 0.02);
@@ -248,8 +243,8 @@ int main(int argc, char** argv) {
   g_log_pub = pn.advertise<std_msgs::String>("log", 50);
 
   // FTC planner dynamic_reconfigure client
-  g_ftc_client = new dynamic_reconfigure::Client<ftc_local_planner::FTCPlannerConfig>(
-      "/move_base_flex/FTCPlanner", ftcConfigCallback);
+  g_ftc_client = new dynamic_reconfigure::Client<ftc_local_planner::FTCPlannerConfig>("/move_base_flex/FTCPlanner",
+                                                                                      ftcConfigCallback);
 
   // Control loop timer
   ros::Timer timer = n.createTimer(ros::Duration(p_sample_interval), controlLoop);

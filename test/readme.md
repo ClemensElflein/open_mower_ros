@@ -304,7 +304,7 @@ Add `locks: []` to the twist_mux rosparam config.
 ### paho-mqtt-cpp "ALIAS target not globally visible"
 Apply the patch described in step 3.
 
-### mower_logic stuck at "Waiting for..." 
+### mower_logic stuck at "Waiting for..."
 mower_logic waits for 11 services at startup. Make sure all required nodes are launched:
 - `mower_simulation` provides: emergency, mow_enabled, set_gps_state, set_robot_pose
 - `mower_map` provides: map CRUD services, docking point, nav points
