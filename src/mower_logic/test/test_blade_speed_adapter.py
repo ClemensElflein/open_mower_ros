@@ -82,27 +82,16 @@ class TestBladeSpeedAdapter(unittest.TestCase):
             rospy.logwarn("Could not read FTC config: %s" % e)
             return None
 
-    def _make_esc_status(self, running, current=1.0):
-        """Create an ESCStatus message."""
-        esc = ESCStatus()
-        esc.status = ESCStatus.ESC_STATUS_RUNNING if running else ESCStatus.ESC_STATUS_OK
-        esc.current = current
-        esc.temperature_motor = 25.0
-        esc.temperature_pcb = 35.0
-        esc.tacho = 0
-        return esc
-
     def _publish_mowing_state(self, blade_current=1.0):
         """Publish fake status and high-level state as if mowing."""
         status = Status()
         status.stamp = rospy.Time.now()
         status.mower_status = 255  # MOWER_STATUS_OK
-        status.mow_esc_status = self._make_esc_status(True, blade_current)
-        status.left_esc_status = self._make_esc_status(True, 0.5)
-        status.right_esc_status = self._make_esc_status(True, 0.5)
-        status.v_battery = 26.0
-        status.v_charge = 0.0
-        status.charge_current = 0.0
+        status.mower_esc_status = ESCStatus.ESC_STATUS_RUNNING
+        status.mower_esc_current = blade_current
+        status.mower_esc_temperature = 35.0
+        status.mower_motor_temperature = 25.0
+        status.mower_motor_rpm = 3000.0
         self.status_pub.publish(status)
 
         hl = HighLevelStatus()
@@ -115,12 +104,11 @@ class TestBladeSpeedAdapter(unittest.TestCase):
         status = Status()
         status.stamp = rospy.Time.now()
         status.mower_status = 255
-        status.mow_esc_status = self._make_esc_status(False, 0.0)
-        status.left_esc_status = self._make_esc_status(False, 0.0)
-        status.right_esc_status = self._make_esc_status(False, 0.0)
-        status.v_battery = 26.0
-        status.v_charge = 0.0
-        status.charge_current = 0.0
+        status.mower_esc_status = ESCStatus.ESC_STATUS_OK
+        status.mower_esc_current = 0.0
+        status.mower_esc_temperature = 35.0
+        status.mower_motor_temperature = 25.0
+        status.mower_motor_rpm = 0.0
         self.status_pub.publish(status)
 
         hl = HighLevelStatus()
