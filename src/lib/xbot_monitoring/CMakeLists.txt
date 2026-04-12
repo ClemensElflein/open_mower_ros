@@ -65,3 +65,19 @@ add_executable(heatmap_generator
 
 add_dependencies(heatmap_generator ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
 target_link_libraries(heatmap_generator ${catkin_LIBRARIES})
+
+#############
+## Testing ##
+#############
+
+if(CATKIN_ENABLE_TESTING)
+    catkin_add_gtest(test_connected_no_publish
+            test/test_connected_no_publish.cpp
+            src/xbot_monitoring.cpp)
+    target_compile_definitions(test_connected_no_publish PRIVATE XBOT_MONITORING_NO_MAIN)
+    add_dependencies(test_connected_no_publish ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
+    target_link_libraries(test_connected_no_publish
+            ${catkin_LIBRARIES}
+            ${PahoMqttCpp_LIBRARIES}
+            nlohmann_json::nlohmann_json)
+endif()

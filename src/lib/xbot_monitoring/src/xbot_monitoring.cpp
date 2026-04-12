@@ -5,6 +5,8 @@
 #include <filesystem>
 
 #include "ros/ros.h"
+#include <atomic>
+#include <functional>
 #include <memory>
 #include <boost/regex.hpp>
 #include "xbot_msgs/SensorInfo.h"
@@ -40,10 +42,23 @@ void rpc_request_callback(const std::string &payload);
 
 // Stores registered actions (prefix to vector<action>)
 std::map<std::string, std::vector<xbot_msgs::ActionInfo>> registered_actions;
+std::mutex registered_actions_mutex;
 
 // Stores registered RPC methods
 std::map<std::string, std::vector<std::string>> registered_methods;
 std::mutex registered_methods_mutex;
+
+// Set from paho's connected() callback; drained by the main loop to perform
+// the initial publish burst outside paho's callback mutex. See task/race.md.
+std::atomic<bool> needs_initial_publish{false};
+
+// Test seam: try_publish / try_publish_binary go through these function
+// pointers so tests can intercept without booting paho. Defaulted to the real
+// implementations in main(); tests override in SetUp().
+using PublishFn = std::function<void(const std::string&, const std::string&, bool)>;
+using PublishBinaryFn = std::function<void(const std::string&, const void*, size_t, bool)>;
+PublishFn try_publish_fn;
+PublishBinaryFn try_publish_binary_fn;
 
 // Maps a topic to a subscriber.
 std::map<std::string, ros::Subscriber> active_subscribers;
@@ -73,17 +88,17 @@ std::string external_mqtt_port = "";
 std::string version_string = "";
 
 class MqttCallback : public mqtt::callback {
-
+public:
     void connected(const mqtt::string &string) override {
         ROS_INFO_STREAM("MQTT Connected");
-        publish_capabilities();
-        publish_sensor_metadata();
-        publish_map();
-        publish_map_overlay();
-        publish_actions();
-        publish_version();
-        publish_params();
+        // Defer publishes to the main loop: paho holds its callback mutex
+        // while invoking connected(), and client_->publish() re-locks it.
+        // See task/race.md §2 and §4.
+        needs_initial_publish.store(true, std::memory_order_release);
 
+        if (!client_) return;  // test harness may invoke connected() without a live client
+
+        // subscribe() is documented safe from inside paho callbacks.
         // BEGIN: Deprecated code (1/2)
         // Earlier implementations subscribed to "/action" and "prefix//action" topics, we do it to not break stuff as well.
         client_->subscribe(this->mqtt_topic_prefix + "/teleop", 0);
@@ -137,6 +152,10 @@ private:
 
 MqttCallback mqtt_callback;
 MqttCallback mqtt_callback_external;
+
+void invoke_connected_for_test() {
+    mqtt_callback.connected("");
+}
 
 json map;
 json map_overlay;
@@ -224,7 +243,7 @@ void setupMqttClient() {
     }
 }
 
-void try_publish(std::string topic, std::string data, bool retain = false) {
+static void try_publish_real(const std::string &topic, const std::string &data, bool retain) {
     try {
         if (retain) {
             // QOS 1 so that the data actually arrives at the client at least once.
@@ -250,7 +269,7 @@ void try_publish(std::string topic, std::string data, bool retain = false) {
     }
 }
 
-void try_publish_binary(std::string topic, const void *data, size_t size, bool retain = false) {
+static void try_publish_binary_real(const std::string &topic, const void *data, size_t size, bool retain) {
     try {
         if (retain) {
             // QOS 1 so that the data actually arrives at the client at least once.
@@ -262,6 +281,30 @@ void try_publish_binary(std::string topic, const void *data, size_t size, bool r
         // client disconnected or something, we drop it.
     }
 }
+
+void try_publish(std::string topic, std::string data, bool retain = false) {
+    try_publish_fn(topic, data, retain);
+}
+
+void try_publish_binary(std::string topic, const void *data, size_t size, bool retain = false) {
+    try_publish_binary_fn(topic, data, size, retain);
+}
+
+bool drain_initial_publish_if_needed() {
+    if (!needs_initial_publish.exchange(false, std::memory_order_acq_rel)) {
+        return false;
+    }
+    publish_capabilities();
+    publish_sensor_metadata();
+    publish_map();
+    publish_map_overlay();
+    publish_actions();
+    publish_version();
+    publish_params();
+    return true;
+}
+
+void invoke_connected_for_test();  // defined below, after MqttCallback
 
 void publish_version() {
     json version = {
@@ -331,7 +374,11 @@ json xmlrpc_to_json(XmlRpc::XmlRpcValue value) {
 
 void publish_params() {
     std::vector<std::string> param_names;
-    ros::param::getParamNames(param_names);
+    try {
+        ros::param::getParamNames(param_names);
+    } catch (...) {
+        // No master available (e.g., unit test without roscore). Publish an empty params blob.
+    }
     std::sort(param_names.begin(), param_names.end());
 
     json params = json::object();
@@ -500,13 +547,16 @@ void robot_state_callback(const xbot_msgs::RobotState::ConstPtr &msg) {
 
 void publish_actions() {
     json actions = json::array();
-    for(const auto &kv : registered_actions) {
-        for(const auto &action : kv.second) {
-            json action_info;
-            action_info["action_id"] = kv.first + "/" + action.action_id;
-            action_info["action_name"] = action.action_name;
-            action_info["enabled"] = action.enabled;
-            actions.push_back(action_info);
+    {
+        std::lock_guard<std::mutex> lk(registered_actions_mutex);
+        for(const auto &kv : registered_actions) {
+            for(const auto &action : kv.second) {
+                json action_info;
+                action_info["action_id"] = kv.first + "/" + action.action_id;
+                action_info["action_name"] = action.action_name;
+                action_info["enabled"] = action.enabled;
+                actions.push_back(action_info);
+            }
         }
     }
 
@@ -586,7 +636,10 @@ bool registerActions(xbot_msgs::RegisterActionsSrvRequest &req, xbot_msgs::Regis
 
     ROS_INFO_STREAM("new actions registered: " << req.node_prefix << " registered " << req.actions.size() << " actions.");
 
-    registered_actions[req.node_prefix] = req.actions;
+    {
+        std::lock_guard<std::mutex> lk(registered_actions_mutex);
+        registered_actions[req.node_prefix] = req.actions;
+    }
 
     publish_actions();
     return true;
@@ -672,7 +725,11 @@ bool register_methods(xbot_rpc::RegisterMethodsSrvRequest &req, xbot_rpc::Regist
     return true;
 }
 
+#ifndef XBOT_MONITORING_NO_MAIN
 int main(int argc, char **argv) {
+    try_publish_fn = try_publish_real;
+    try_publish_binary_fn = try_publish_binary_real;
+
     ros::init(argc, argv, "xbot_monitoring");
     has_map = false;
     has_map_overlay = false;
@@ -729,6 +786,8 @@ int main(int argc, char **argv) {
     boost::regex topic_regex("/xbot_monitoring/sensors/.*/info");
 
     while (ros::ok()) {
+        drain_initial_publish_if_needed();
+
         // Read the topics in /xbot_monitoring/sensors/.*/info and subscribe to them.
         ros::master::V_TopicInfo topics;
         ros::master::getTopics(topics);
@@ -771,3 +830,4 @@ int main(int argc, char **argv) {
     }
     return 0;
 }
+#endif  // XBOT_MONITORING_NO_MAIN
