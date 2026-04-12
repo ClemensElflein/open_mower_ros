@@ -3,6 +3,7 @@ build/
 devel/
 .catkin_workspace
 src/CMakeLists.txt
+/CMakeLists.txt
 
 .idea/
 
