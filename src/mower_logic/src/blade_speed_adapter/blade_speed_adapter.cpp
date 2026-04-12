@@ -131,7 +131,7 @@ static void controlLoop(const ros::TimerEvent&) {
     return;
   }
 
-  bool blade_running = (status.mow_esc_status.status == mower_msgs::ESCStatus::ESC_STATUS_RUNNING);
+  bool blade_running = (status.mower_esc_status == mower_msgs::ESCStatus::ESC_STATUS_RUNNING);
   bool is_mowing = (high_level.state_name == "MOWING") && blade_running;
 
   // Handle mowing -> not-mowing transition
@@ -149,7 +149,7 @@ static void controlLoop(const ros::TimerEvent&) {
   g_was_mowing = true;
 
   // Push blade current into moving average buffer
-  double blade_current = static_cast<double>(status.mow_esc_status.current);
+  double blade_current = static_cast<double>(status.mower_esc_current);
   g_current_buffer.push_back(blade_current);
   while (static_cast<int>(g_current_buffer.size()) > p_current_window) {
     g_current_buffer.pop_front();
