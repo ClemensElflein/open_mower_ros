@@ -92,6 +92,8 @@ Behavior* MowingBehavior::execute() {
 void MowingBehavior::enter() {
   skip_area = false;
   skip_path = false;
+  skip_points_requested = false;
+  skip_points_count = 0;
   paused = aborted = false;
 
   for (auto& a : actions) {
@@ -271,6 +273,26 @@ bool MowingBehavior::execute_mowing_plan() {
 
   // loop through all mowingPaths to execute the plan fully.
   while (currentMowingPath < currentMowingPaths.size() && ros::ok() && !aborted) {
+    // skip_points may have been requested while paused / between segments — consume it here
+    // so the adjusted index is used by FIRST POINT and MOW below.
+    if (skip_points_requested) {
+      skip_points_requested = false;
+      auto& p = currentMowingPaths[currentMowingPath];
+      int new_index = currentMowingPathIndex + skip_points_count;
+      if (new_index >= (int)p.path.poses.size()) {
+        ROS_INFO_STREAM("MowingBehavior: skip_points overshoots ("
+                        << new_index << " >= " << p.path.poses.size()
+                        << "), skipping to next path");
+        currentMowingPath++;
+        currentMowingPathIndex = 0;
+        continue;
+      } else {
+        ROS_INFO_STREAM("MowingBehavior: skip_points: "
+                        << currentMowingPathIndex << " -> " << new_index);
+        currentMowingPathIndex = new_index;
+      }
+    }
+
     ////////////////////////////////////////////////
     // PAUSE HANDLING
     ////////////////////////////////////////////////
@@ -403,7 +425,11 @@ bool MowingBehavior::execute_mowing_plan() {
           ROS_WARN_STREAM("MowingBehavior: (FIRST POINT) - Attempt " << first_point_attempt_counter << " / "
                                                                      << config.max_first_point_attempts
                                                                      << " Making a little pause ...");
-          paused = true;
+          if (config.wait_for_user_on_mbf_error) {
+            this->requestPause();
+          } else {
+            paused = true;
+          }
           update_actions();
         } else {
           // We failed to reach the first point in the mow path by simply repeating the drive to process
@@ -417,7 +443,11 @@ bool MowingBehavior::execute_mowing_plan() {
             currentMowingPathIndex++;
             first_point_trim_counter++;
             first_point_attempt_counter = 0;  // give it another <config.max_first_point_attempts> attempts
-            paused = true;
+            if (config.wait_for_user_on_mbf_error) {
+              this->requestPause();
+            } else {
+              paused = true;
+            }
             update_actions();
           } else {
             // Unable to reach the start of the mow path (we tried multiple attempts for the same point, and we skipped
@@ -487,6 +517,25 @@ bool MowingBehavior::execute_mowing_plan() {
             currentMowingPathIndex = 0;
             return false;
           }
+          if (skip_points_requested) {
+            skip_points_requested = false;
+            int new_index = currentMowingPathIndex + skip_points_count;
+            auto& p = currentMowingPaths[currentMowingPath];
+            mbfClientExePath->cancelAllGoals();
+            mowerEnabled = false;
+            if (new_index >= (int)p.path.poses.size()) {
+              ROS_INFO_STREAM("MowingBehavior: (MOW) skip_points overshoots ("
+                              << new_index << " >= " << p.path.poses.size()
+                              << "), skipping to next path");
+              currentMowingPath++;
+              currentMowingPathIndex = 0;
+            } else {
+              ROS_INFO_STREAM("MowingBehavior: (MOW) skip_points: "
+                              << currentMowingPathIndex << " -> " << new_index);
+              currentMowingPathIndex = new_index;
+            }
+            return false;
+          }
           if (aborted) {
             ROS_INFO_STREAM("MowingBehavior: (MOW) ABORT was requested - stopping path execution.");
             mbfClientExePath->cancelAllGoals();
@@ -545,7 +594,11 @@ bool MowingBehavior::execute_mowing_plan() {
           if (currentMowingPathIndex == 0) currentMowingPathIndex++;
           if (!requested_pause_flag) {
             ROS_INFO_STREAM("MowingBehavior: (MOW) PAUSED due to MBF Error at " << currentMowingPathIndex);
-            paused = true;
+            if (config.wait_for_user_on_mbf_error) {
+              this->requestPause();
+            } else {
+              paused = true;
+            }
             update_actions();
           }
         }
@@ -648,12 +701,18 @@ MowingBehavior::MowingBehavior() {
   skip_path_action.enabled = false;
   skip_path_action.action_name = "Skip Path";
 
+  xbot_msgs::ActionInfo skip_points_action;
+  skip_points_action.action_id = "skip_points";
+  skip_points_action.enabled = false;
+  skip_points_action.action_name = "Skip Points";
+
   actions.clear();
   actions.push_back(pause_action);
   actions.push_back(continue_action);
   actions.push_back(abort_mowing_action);
   actions.push_back(skip_area_action);
   actions.push_back(skip_path_action);
+  actions.push_back(skip_points_action);
   restore_checkpoint();
 }
 
@@ -673,6 +732,20 @@ void MowingBehavior::handle_action(std::string action) {
   } else if (action == "mower_logic:mowing/skip_path") {
     ROS_INFO_STREAM("got skip_path command");
     skip_path = true;
+  } else if (action.rfind("mower_logic:mowing/skip_points/", 0) == 0) {
+    const std::string prefix = "mower_logic:mowing/skip_points/";
+    try {
+      int n = std::stoi(action.substr(prefix.size()));
+      if (n > 0) {
+        ROS_INFO_STREAM("got skip_points command, n=" << n);
+        skip_points_count = n;
+        skip_points_requested = true;
+      } else {
+        ROS_WARN_STREAM("skip_points: non-positive N ignored: " << action);
+      }
+    } catch (const std::exception& e) {
+      ROS_WARN_STREAM("skip_points: bad N in action '" << action << "': " << e.what());
+    }
   }
   update_actions();
 }
