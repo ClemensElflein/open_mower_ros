@@ -280,15 +280,13 @@ bool MowingBehavior::execute_mowing_plan() {
       auto& p = currentMowingPaths[currentMowingPath];
       int new_index = currentMowingPathIndex + skip_points_count;
       if (new_index >= (int)p.path.poses.size()) {
-        ROS_INFO_STREAM("MowingBehavior: skip_points overshoots ("
-                        << new_index << " >= " << p.path.poses.size()
-                        << "), skipping to next path");
+        ROS_INFO_STREAM("MowingBehavior: skip_points overshoots (" << new_index << " >= " << p.path.poses.size()
+                                                                   << "), skipping to next path");
         currentMowingPath++;
         currentMowingPathIndex = 0;
         continue;
       } else {
-        ROS_INFO_STREAM("MowingBehavior: skip_points: "
-                        << currentMowingPathIndex << " -> " << new_index);
+        ROS_INFO_STREAM("MowingBehavior: skip_points: " << currentMowingPathIndex << " -> " << new_index);
         currentMowingPathIndex = new_index;
       }
     }
@@ -525,13 +523,11 @@ bool MowingBehavior::execute_mowing_plan() {
             mowerEnabled = false;
             if (new_index >= (int)p.path.poses.size()) {
               ROS_INFO_STREAM("MowingBehavior: (MOW) skip_points overshoots ("
-                              << new_index << " >= " << p.path.poses.size()
-                              << "), skipping to next path");
+                              << new_index << " >= " << p.path.poses.size() << "), skipping to next path");
               currentMowingPath++;
               currentMowingPathIndex = 0;
             } else {
-              ROS_INFO_STREAM("MowingBehavior: (MOW) skip_points: "
-                              << currentMowingPathIndex << " -> " << new_index);
+              ROS_INFO_STREAM("MowingBehavior: (MOW) skip_points: " << currentMowingPathIndex << " -> " << new_index);
               currentMowingPathIndex = new_index;
             }
             return false;
