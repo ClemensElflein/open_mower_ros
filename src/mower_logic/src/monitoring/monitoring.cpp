@@ -18,6 +18,10 @@
 #include <mower_msgs/Power.h>
 #include <xbot_msgs/SensorDataString.h>
 
+#include <algorithm>
+#include <fstream>
+#include <sstream>
+
 #include "mower_logic/MowerLogicConfig.h"
 #include "mower_logic/PowerConfig.h"
 #include "mower_msgs/HighLevelStatus.h"
@@ -86,6 +90,9 @@ std::map<std::string, SensorConfig> sensor_configs{
   {"om_mow_motor_current", {"Mow Motor Current", "A", xbot_msgs::SensorInfo::VALUE_DESCRIPTION_CURRENT, xbot_msgs::SensorInfo::TYPE_DOUBLE, [](StatusPtr msg) { return msg->mower_esc_current; }, &set_limits_mow_motor_current, "mower_xesc"}},
   {"om_mow_motor_rpm", {"Mow Motor Revolutions", "rpm", xbot_msgs::SensorInfo::VALUE_DESCRIPTION_RPM, xbot_msgs::SensorInfo::TYPE_DOUBLE, [](StatusPtr msg) { return msg->mower_motor_rpm; }, &set_limits_mow_motor_rpm, "mower_xesc"}},
   {"om_gps_accuracy", {"GPS Accuracy", "m", xbot_msgs::SensorInfo::VALUE_DESCRIPTION_DISTANCE, xbot_msgs::SensorInfo::TYPE_DOUBLE}},
+  {"om_wifi_signal_percent", {"WiFi Signal", "%", xbot_msgs::SensorInfo::VALUE_DESCRIPTION_PERCENT, xbot_msgs::SensorInfo::TYPE_DOUBLE, nullptr}},
+  {"om_wifi_signal_dbm", {"WiFi Signal dBm", "dBm", xbot_msgs::SensorInfo::VALUE_DESCRIPTION_UNKNOWN, xbot_msgs::SensorInfo::TYPE_DOUBLE, nullptr}},
+  {"om_wifi_iface", {"WiFi Interface", "", xbot_msgs::SensorInfo::VALUE_DESCRIPTION_UNKNOWN, xbot_msgs::SensorInfo::TYPE_STRING, nullptr}},
 };
 // clang-format on
 
@@ -223,6 +230,81 @@ void right_esc_status_received(const mower_msgs::ESCStatus::ConstPtr& msg) {
   }
 }
 
+void publish_wifi_status(const ros::TimerEvent&) {
+  std::ifstream file("/proc/net/wireless");
+  if (!file.is_open()) {
+    ROS_WARN_THROTTLE(60.0, "Could not open /proc/net/wireless; WiFi sensors won't be updated");
+    return;
+  }
+
+  std::string best_iface;
+  double best_quality = 0.0;
+  double best_level_dbm = 0.0;
+
+  std::string line;
+  std::getline(file, line);
+  std::getline(file, line);
+
+  while (std::getline(file, line)) {
+    const auto colon = line.find(':');
+    if (colon == std::string::npos) continue;
+    std::string iface = line.substr(0, colon);
+    const auto first = iface.find_first_not_of(" \t");
+    if (first == std::string::npos) continue;
+    iface = iface.substr(first);
+
+    std::istringstream iss(line.substr(colon + 1));
+    std::string status_tok, q_tok, l_tok;
+    if (!(iss >> status_tok >> q_tok >> l_tok)) continue;
+
+    // Strip trailing '.' that the kernel appends when stats were updated since last read.
+    const auto strip_dot = [](std::string& s) {
+      if (!s.empty() && s.back() == '.') s.pop_back();
+    };
+    strip_dot(q_tok);
+    strip_dot(l_tok);
+
+    double quality = 0.0, level = 0.0;
+    try {
+      quality = std::stod(q_tok);
+      level = std::stod(l_tok);
+    } catch (const std::exception&) {
+      continue;
+    }
+
+    if (quality > best_quality) {
+      best_quality = quality;
+      best_level_dbm = level;
+      best_iface = iface;
+    }
+  }
+
+  const ros::Time now = ros::Time::now();
+  const bool connected = !best_iface.empty();
+
+  {
+    xbot_msgs::SensorDataDouble sensor_data;
+    sensor_data.stamp = now;
+    sensor_data.data = connected ? std::min(100.0, std::max(0.0, best_quality * 100.0 / 70.0)) : 0.0;
+    auto it = sensor_configs.find("om_wifi_signal_percent");
+    if (it != std::end(sensor_configs)) it->second.data_pub.publish(sensor_data);
+  }
+  {
+    xbot_msgs::SensorDataDouble sensor_data;
+    sensor_data.stamp = now;
+    sensor_data.data = connected ? best_level_dbm : 0.0;
+    auto it = sensor_configs.find("om_wifi_signal_dbm");
+    if (it != std::end(sensor_configs)) it->second.data_pub.publish(sensor_data);
+  }
+  {
+    xbot_msgs::SensorDataString sensor_data;
+    sensor_data.stamp = now;
+    sensor_data.data = connected ? best_iface : "none";
+    auto it = sensor_configs.find("om_wifi_iface");
+    if (it != std::end(sensor_configs)) it->second.data_pub.publish(sensor_data);
+  }
+}
+
 void set_limits_battery_v(SensorConfig& sensor_config) {
   sensor_config.si.lower_critical_value = power_config.battery_critical_voltage;
   sensor_config.si.min_value = power_config.battery_empty_voltage;
@@ -345,6 +427,8 @@ int main(int argc, char** argv) {
   ros::Subscriber right_esc_status_state_subscriber =
       n->subscribe("/ll/diff_drive/right_esc_status", 10, right_esc_status_received);
   ros::Subscriber pose_state_subscriber = n->subscribe("/xbot_positioning/xb_pose", 10, pose_received);
+
+  ros::Timer wifi_timer = n->createTimer(ros::Duration(1.0), publish_wifi_status);
 
   state_pub = n->advertise<xbot_msgs::RobotState>("xbot_monitoring/robot_state", 10);
 
