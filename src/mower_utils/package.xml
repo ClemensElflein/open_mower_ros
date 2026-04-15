@@ -57,6 +57,19 @@
   <exec_depend>roscpp</exec_depend>
     <depend>xbot_msgs</depend>
     <depend>geometry_msgs</depend>
+    <depend>mower_map</depend>
+    <depend>slic3r_coverage_planner</depend>
+    <depend>mower_msgs</depend>
+    <depend>xbot_rpc</depend>
+    <depend>actionlib</depend>
+    <depend>mbf_msgs</depend>
+    <depend>nav_msgs</depend>
+    <depend>ftc_local_planner</depend>
+    <depend>xbot_positioning</depend>
+    <test_depend>rostest</test_depend>
+    <test_depend>mower_logic</test_depend>
+    <test_depend>mower_simulation</test_depend>
+    <test_depend>mobile_robot_simulator</test_depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->

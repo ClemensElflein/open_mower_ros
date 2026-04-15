@@ -14,6 +14,13 @@ find_package(catkin REQUIRED COMPONENTS
         geometry_msgs
         mower_map
         slic3r_coverage_planner
+        mower_msgs
+        xbot_rpc
+        actionlib
+        mbf_msgs
+        nav_msgs
+        ftc_local_planner
+        xbot_positioning
 )
 
 ## System dependencies are found with CMake's conventions
@@ -216,3 +223,14 @@ target_link_libraries(xbot_pose_converter ${catkin_LIBRARIES})
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
+
+if(CATKIN_ENABLE_TESTING)
+  find_package(rostest REQUIRED)
+  add_rostest_gtest(test_coverage_paths
+                    test/coverage_paths.test
+                    test/test_coverage_paths.cpp)
+  target_link_libraries(test_coverage_paths ${catkin_LIBRARIES})
+  add_dependencies(test_coverage_paths
+                   ${catkin_EXPORTED_TARGETS}
+                   ${${PROJECT_NAME}_EXPORTED_TARGETS})
+endif()
