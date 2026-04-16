@@ -93,8 +93,7 @@ class CoveragePathsTest : public ::testing::Test {
   // Stubs that mimic mower_comms_v2 + xbot_positioning + FTCPlanner so that
   // mower_logic's startup waits all unblock without a real controller stack.
   ros::Publisher emergencyPub_, statusPub_, powerPub_, leftEscPub_, rightEscPub_;
-  ros::ServiceServer emergencySrv_, mowEnabledSrv_, gpsCtrlSrv_, setPoseSrv_,
-      ftcProgressSrv_;
+  ros::ServiceServer emergencySrv_, mowEnabledSrv_, gpsCtrlSrv_, setPoseSrv_, ftcProgressSrv_;
   ros::Timer stubPubTimer_;
 
   std::mutex m_;
@@ -115,9 +114,8 @@ class CoveragePathsTest : public ::testing::Test {
     {
       std::lock_guard<std::mutex> lk(m_);
       capturedByArea_[currentArea_].push_back(goal->path);
-      ROS_INFO("[fake-exe] area=%d captured path with %zu poses (total in area: %zu)",
-               currentArea_, goal->path.poses.size(),
-               capturedByArea_[currentArea_].size());
+      ROS_INFO("[fake-exe] area=%d captured path with %zu poses (total in area: %zu)", currentArea_,
+               goal->path.poses.size(), capturedByArea_[currentArea_].size());
     }
     // Keep the goal ACTIVE for one MowingBehavior poll cycle (~100ms +
     // initial 1s sleep before the first poll). MowingBehavior treats
@@ -142,10 +140,9 @@ class CoveragePathsTest : public ::testing::Test {
     std::lock_guard<std::mutex> lk(m_);
     uint8_t state5 = msg->state & 0x1F;
     if (msg->current_area != currentArea_ || state5 != lastStatusState_) {
-      ROS_INFO("[status] state=%u sub=%u area=%d path=%d idx=%d (was area=%d state=%u)",
-               state5, msg->state >> mower_msgs::HighLevelStatus::SUBSTATE_SHIFT,
-               msg->current_area, msg->current_path, msg->current_path_index,
-               currentArea_, lastStatusState_);
+      ROS_INFO("[status] state=%u sub=%u area=%d path=%d idx=%d (was area=%d state=%u)", state5,
+               msg->state >> mower_msgs::HighLevelStatus::SUBSTATE_SHIFT, msg->current_area, msg->current_path,
+               msg->current_path_index, currentArea_, lastStatusState_);
       currentArea_ = msg->current_area;
       lastStatusState_ = state5;
     }
@@ -154,9 +151,8 @@ class CoveragePathsTest : public ::testing::Test {
   void onMap(const nav_msgs::OccupancyGrid::ConstPtr& msg) {
     std::lock_guard<std::mutex> lk(m_);
     grid_ = msg;
-    ROS_INFO("[map] occupancy grid: %ux%u @ %.3f m/cell, origin=(%.2f,%.2f)",
-             msg->info.width, msg->info.height, msg->info.resolution,
-             msg->info.origin.position.x, msg->info.origin.position.y);
+    ROS_INFO("[map] occupancy grid: %ux%u @ %.3f m/cell, origin=(%.2f,%.2f)", msg->info.width, msg->info.height,
+             msg->info.resolution, msg->info.origin.position.x, msg->info.origin.position.y);
   }
 
   void onRpcResponse(const xbot_rpc::RpcResponse::ConstPtr& msg) {
@@ -194,36 +190,30 @@ class CoveragePathsTest : public ::testing::Test {
 
     // Advertise fake action servers BEFORE we expect mower_logic's clients to
     // connect. mower_logic blocks up to 60s for these in main().
-    exePathServer_ = std::make_unique<ExePathServer>(
-        nh_, "move_base_flex/exe_path",
-        boost::bind(&CoveragePathsTest::onExePath, this, _1), false);
+    exePathServer_ = std::make_unique<ExePathServer>(nh_, "move_base_flex/exe_path",
+                                                     boost::bind(&CoveragePathsTest::onExePath, this, _1), false);
     exePathServer_->start();
-    moveBaseServer_ = std::make_unique<MoveBaseServer>(
-        nh_, "move_base_flex/move_base",
-        boost::bind(&CoveragePathsTest::onMoveBase, this, _1), false);
+    moveBaseServer_ = std::make_unique<MoveBaseServer>(nh_, "move_base_flex/move_base",
+                                                       boost::bind(&CoveragePathsTest::onMoveBase, this, _1), false);
     moveBaseServer_->start();
     ROS_INFO("Fake mbf action servers advertised");
 
     // Stub services normally provided by xbot_positioning, mower_comms,
     // and FTCPlanner. mower_logic blocks on all of these at startup.
-    boost::function<bool(mower_msgs::EmergencyStopSrv::Request&,
-                         mower_msgs::EmergencyStopSrv::Response&)>
-        emergencyCb = [](auto&, auto&) { return true; };
+    boost::function<bool(mower_msgs::EmergencyStopSrv::Request&, mower_msgs::EmergencyStopSrv::Response&)> emergencyCb =
+        [](auto&, auto&) { return true; };
     emergencySrv_ = nh_.advertiseService("ll/_service/emergency", emergencyCb);
 
-    boost::function<bool(mower_msgs::MowerControlSrv::Request&,
-                         mower_msgs::MowerControlSrv::Response&)>
-        mowCb = [](auto&, auto&) { return true; };
+    boost::function<bool(mower_msgs::MowerControlSrv::Request&, mower_msgs::MowerControlSrv::Response&)> mowCb =
+        [](auto&, auto&) { return true; };
     mowEnabledSrv_ = nh_.advertiseService("ll/_service/mow_enabled", mowCb);
 
-    boost::function<bool(xbot_positioning::GPSControlSrv::Request&,
-                         xbot_positioning::GPSControlSrv::Response&)>
-        gpsCb = [](auto&, auto&) { return true; };
+    boost::function<bool(xbot_positioning::GPSControlSrv::Request&, xbot_positioning::GPSControlSrv::Response&)> gpsCb =
+        [](auto&, auto&) { return true; };
     gpsCtrlSrv_ = nh_.advertiseService("xbot_positioning/set_gps_state", gpsCb);
 
-    boost::function<bool(xbot_positioning::SetPoseSrv::Request&,
-                         xbot_positioning::SetPoseSrv::Response&)>
-        poseCb = [](auto&, auto&) { return true; };
+    boost::function<bool(xbot_positioning::SetPoseSrv::Request&, xbot_positioning::SetPoseSrv::Response&)> poseCb =
+        [](auto&, auto&) { return true; };
     setPoseSrv_ = nh_.advertiseService("xbot_positioning/set_robot_pose", poseCb);
 
     boost::function<bool(ftc_local_planner::PlannerGetProgress::Request&,
@@ -236,8 +226,7 @@ class CoveragePathsTest : public ::testing::Test {
           res.index = 1000000;
           return true;
         };
-    ftcProgressSrv_ = nh_.advertiseService(
-        "/move_base_flex/FTCPlanner/planner_get_progress", ftcCb);
+    ftcProgressSrv_ = nh_.advertiseService("/move_base_flex/FTCPlanner/planner_get_progress", ftcCb);
 
     // Stub publishers + 5 Hz heartbeat timer so mower_logic's StateSubscribers
     // see fresh messages on /ll/emergency, /ll/mower_status, /ll/power, and
@@ -283,20 +272,16 @@ class CoveragePathsTest : public ::testing::Test {
     ROS_INFO("Stub services + heartbeat publishers up");
 
     // Topics
-    statusSub_ = nh_.subscribe("/mower_logic/current_state", 10,
-                               &CoveragePathsTest::onStatus, this);
-    mapSub_ = nh_.subscribe("/mower_map_service/map", 1,
-                            &CoveragePathsTest::onMap, this);
-    rpcRespSub_ = nh_.subscribe("/xbot/rpc/response", 10,
-                                &CoveragePathsTest::onRpcResponse, this);
-    rpcErrSub_ = nh_.subscribe("/xbot/rpc/error", 10,
-                               &CoveragePathsTest::onRpcError, this);
+    statusSub_ = nh_.subscribe("/mower_logic/current_state", 10, &CoveragePathsTest::onStatus, this);
+    mapSub_ = nh_.subscribe("/mower_map_service/map", 1, &CoveragePathsTest::onMap, this);
+    rpcRespSub_ = nh_.subscribe("/xbot/rpc/response", 10, &CoveragePathsTest::onRpcResponse, this);
+    rpcErrSub_ = nh_.subscribe("/xbot/rpc/error", 10, &CoveragePathsTest::onRpcError, this);
     rpcReqPub_ = nh_.advertise<xbot_rpc::RpcRequest>("/xbot/rpc/request", 1, true);
     actionPub_ = nh_.advertise<std_msgs::String>("/xbot/action", 5, false);
 
     // Wait for map service RPC to be subscribed to /xbot/rpc/request, then
     // inject the fixture map via map.replace.
-    ASSERT_TRUE(waitFor([&]{ return rpcReqPub_.getNumSubscribers() > 0; }, rpcWaitS_))
+    ASSERT_TRUE(waitFor([&] { return rpcReqPub_.getNumSubscribers() > 0; }, rpcWaitS_))
         << "no subscriber on /xbot/rpc/request (mower_map_service not up?)";
     ros::Duration(0.3).sleep();  // settle
 
@@ -309,10 +294,13 @@ class CoveragePathsTest : public ::testing::Test {
     rpcReqPub_.publish(req);
     ROS_INFO("Published map.replace (id=%s, %zu bytes params)", req.id.c_str(), params.size());
 
-    ASSERT_TRUE(waitFor([&]{
-      std::lock_guard<std::mutex> lk(m_);
-      return rpcAcked_.count(req.id) > 0;
-    }, rpcWaitS_)) << "no rpc response/error for map.replace within " << rpcWaitS_ << "s";
+    ASSERT_TRUE(waitFor(
+        [&] {
+          std::lock_guard<std::mutex> lk(m_);
+          return rpcAcked_.count(req.id) > 0;
+        },
+        rpcWaitS_))
+        << "no rpc response/error for map.replace within " << rpcWaitS_ << "s";
 
     // After RPC succeeds, mower_map_service has already called buildMap() and
     // republished the latched grid. Wait for our subscriber to hold the
@@ -320,17 +308,17 @@ class CoveragePathsTest : public ::testing::Test {
     // size). buildMap inflates the bbox by 1m on each side; the user fixture
     // spans roughly 13m x 14m, so the post-replace grid is much larger than
     // the 200x200 default.
-    ASSERT_TRUE(waitFor([&]{
-      std::lock_guard<std::mutex> lk(m_);
-      return grid_ != nullptr &&
-             (grid_->info.width > 220 || grid_->info.height > 220);
-    }, 30.0)) << "post-replace occupancy grid not received within 30s";
+    ASSERT_TRUE(waitFor(
+        [&] {
+          std::lock_guard<std::mutex> lk(m_);
+          return grid_ != nullptr && (grid_->info.width > 220 || grid_->info.height > 220);
+        },
+        30.0))
+        << "post-replace occupancy grid not received within 30s";
 
     // Wait for high-level control service.
-    highLevelCtrl_ = nh_.serviceClient<mower_msgs::HighLevelControlSrv>(
-        "/mower_service/high_level_control");
-    ASSERT_TRUE(highLevelCtrl_.waitForExistence(ros::Duration(60.0)))
-        << "high_level_control service never appeared";
+    highLevelCtrl_ = nh_.serviceClient<mower_msgs::HighLevelControlSrv>("/mower_service/high_level_control");
+    ASSERT_TRUE(highLevelCtrl_.waitForExistence(ros::Duration(60.0))) << "high_level_control service never appeared";
   }
 
   // Returns the cell value at world (x,y), or -1 if outside the grid.
@@ -341,9 +329,7 @@ class CoveragePathsTest : public ::testing::Test {
     double dy = y - info.origin.position.y;
     int cx = static_cast<int>(std::floor(dx / info.resolution));
     int cy = static_cast<int>(std::floor(dy / info.resolution));
-    if (cx < 0 || cy < 0 ||
-        cx >= static_cast<int>(info.width) ||
-        cy >= static_cast<int>(info.height)) {
+    if (cx < 0 || cy < 0 || cx >= static_cast<int>(info.width) || cy >= static_cast<int>(info.height)) {
       return -1;
     }
     return static_cast<int>(grid_->data[cy * info.width + cx]);
@@ -354,10 +340,13 @@ TEST_F(CoveragePathsTest, AllMowingAreasAreWellCovered) {
   // Wait until mower_logic has actually entered IDLE — until then the
   // high_level_control callback would drop COMMAND_START because
   // currentBehavior is still null.
-  ASSERT_TRUE(waitFor([&]{
-    std::lock_guard<std::mutex> lk(m_);
-    return lastStatusState_ == mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_IDLE;
-  }, 90.0)) << "mower_logic never reported HIGH_LEVEL_STATE_IDLE";
+  ASSERT_TRUE(waitFor(
+      [&] {
+        std::lock_guard<std::mutex> lk(m_);
+        return lastStatusState_ == mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_IDLE;
+      },
+      90.0))
+      << "mower_logic never reported HIGH_LEVEL_STATE_IDLE";
 
   mower_msgs::HighLevelControlSrv srv;
   srv.request.command = mower_msgs::HighLevelControlSrvRequest::COMMAND_START;
@@ -390,8 +379,7 @@ TEST_F(CoveragePathsTest, AllMowingAreasAreWellCovered) {
       break;
     }
     if ((ros::Time::now() - lastChange).toSec() > perAreaTimeoutS_) {
-      ROS_WARN("No area progress for %.0fs (current=%d). Publishing skip_area.",
-               perAreaTimeoutS_, area);
+      ROS_WARN("No area progress for %.0fs (current=%d). Publishing skip_area.", perAreaTimeoutS_, area);
       std_msgs::String s;
       s.data = "mower_logic:mowing/skip_area";
       actionPub_.publish(s);
@@ -415,8 +403,8 @@ TEST_F(CoveragePathsTest, AllMowingAreasAreWellCovered) {
           dump << "    [";
           for (size_t qi = 0; qi < kv.second[pi].poses.size(); ++qi) {
             if (qi > 0) dump << ",";
-            dump << "[" << kv.second[pi].poses[qi].pose.position.x
-                 << "," << kv.second[pi].poses[qi].pose.position.y << "]";
+            dump << "[" << kv.second[pi].poses[qi].pose.position.x << "," << kv.second[pi].poses[qi].pose.position.y
+                 << "]";
           }
           dump << "]" << (pi + 1 < kv.second.size() ? "," : "") << "\n";
         }
@@ -467,15 +455,12 @@ TEST_F(CoveragePathsTest, AllMowingAreasAreWellCovered) {
 
     if (badPoses > 0) {
       std::ostringstream os;
-      os << "area[" << a << "]: " << badPoses << "/" << totalPoses
-         << " poses in obstacle (first at path[" << firstBadPathIdx
-         << "] pose[" << firstBadPoseIdx << "] = (" << firstBadX << ", "
-         << firstBadY << "), worst cell=" << worstCell
-         << ", paths_in_area=" << paths.size() << ")";
+      os << "area[" << a << "]: " << badPoses << "/" << totalPoses << " poses in obstacle (first at path["
+         << firstBadPathIdx << "] pose[" << firstBadPoseIdx << "] = (" << firstBadX << ", " << firstBadY
+         << "), worst cell=" << worstCell << ", paths_in_area=" << paths.size() << ")";
       failures.push_back(os.str());
     } else {
-      ROS_INFO("area[%d]: OK (%zu paths, %d poses, all in free space)", a,
-               paths.size(), totalPoses);
+      ROS_INFO("area[%d]: OK (%zu paths, %d poses, all in free space)", a, paths.size(), totalPoses);
     }
   }
 
@@ -491,8 +476,7 @@ TEST_F(CoveragePathsTest, AllMowingAreasAreWellCovered) {
   for (const auto& f : failures) {
     ADD_FAILURE() << f;
   }
-  ASSERT_TRUE(failures.empty())
-      << failures.size() << " area(s) failed coverage validation";
+  ASSERT_TRUE(failures.empty()) << failures.size() << " area(s) failed coverage validation";
 }
 
 }  // namespace
