@@ -385,7 +385,7 @@ TEST_F(CoveragePathsTest, AllMowingAreasAreWellCovered) {
       lastChange = ros::Time::now();
     }
     if (totalAreasCaptured >= static_cast<size_t>(expectedAreas_) &&
-        (ros::Time::now() - lastChange).toSec() > 5.0) {
+        (ros::Time::now() - lastChange).toSec() > perAreaTimeoutS_) {
       ROS_INFO("All %d areas captured at least once; stopping.", expectedAreas_);
       break;
     }
@@ -398,6 +398,34 @@ TEST_F(CoveragePathsTest, AllMowingAreasAreWellCovered) {
       lastChange = ros::Time::now();
     }
     ros::Duration(0.5).sleep();
+  }
+
+  // Dump captured paths to JSON for visualization.
+  {
+    std::lock_guard<std::mutex> lk(m_);
+    std::ofstream dump("/tmp/captured_paths.json");
+    if (dump.is_open()) {
+      dump << "{\n";
+      bool firstArea = true;
+      for (const auto& kv : capturedByArea_) {
+        if (!firstArea) dump << ",\n";
+        firstArea = false;
+        dump << "  \"" << kv.first << "\": [\n";
+        for (size_t pi = 0; pi < kv.second.size(); ++pi) {
+          dump << "    [";
+          for (size_t qi = 0; qi < kv.second[pi].poses.size(); ++qi) {
+            if (qi > 0) dump << ",";
+            dump << "[" << kv.second[pi].poses[qi].pose.position.x
+                 << "," << kv.second[pi].poses[qi].pose.position.y << "]";
+          }
+          dump << "]" << (pi + 1 < kv.second.size() ? "," : "") << "\n";
+        }
+        dump << "  ]";
+      }
+      dump << "\n}\n";
+      dump.close();
+      ROS_INFO("Dumped captured paths to /tmp/captured_paths.json");
+    }
   }
 
   // Validate: every captured path must lie in free cells.

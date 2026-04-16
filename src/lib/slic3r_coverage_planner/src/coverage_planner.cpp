@@ -337,8 +337,17 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
         }
         hole_poly.make_clockwise();
 
-        if (intersection(outline_poly, hole_poly).empty()) continue;
-        expoly.holes.push_back(hole_poly);
+        // Clip hole to outline so only the portion inside the contour is used.
+        // Prevents ExPolygon invariant violations when obstacles protrude
+        // outside the mow area boundary.
+        Slic3r::Polygons clipped = intersection(
+            Slic3r::Polygons{outline_poly},
+            Slic3r::Polygons{hole_poly}
+        );
+        for (auto &cpoly : clipped) {
+            cpoly.make_clockwise();
+            expoly.holes.push_back(cpoly);
+        }
     }
 
 

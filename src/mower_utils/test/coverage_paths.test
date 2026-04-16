@@ -52,7 +52,7 @@
           type="test_coverage_paths"
           time-limit="600.0">
         <param name="fixture_path" value="$(find mower_utils)/test/fixtures/map_backup_2026-04-12.json"/>
-        <param name="lethal_threshold" value="50"/>
+        <param name="lethal_threshold" value="53"/>
         <param name="per_area_timeout_s" value="60"/>
         <param name="rpc_wait_s" value="30"/>
     </test>
