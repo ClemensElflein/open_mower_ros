@@ -5,11 +5,14 @@
 // planner: slows down instantly when the blade bogs (current rises), recovers
 // gradually when current drops.
 //
-// In dry-run mode (default), only logs computed values without touching the planner.
-// In live mode (~dry_run:=false), pushes speed changes via dynamic_reconfigure.
+// All tunables (including live enable/disable) are exposed via dynamic_reconfigure
+// (BladeSpeedAdapterConfig). Flip ~enable false -> true to take over the planner
+// at any time; flip true -> false to restore the planner's original speeds.
 
 #include <dynamic_reconfigure/client.h>
+#include <dynamic_reconfigure/server.h>
 #include <ftc_local_planner/FTCPlannerConfig.h>
+#include <mower_logic/BladeSpeedAdapterConfig.h>
 #include <mower_msgs/ESCStatus.h>
 #include <mower_msgs/HighLevelStatus.h>
 #include <mower_msgs/Status.h>
@@ -35,27 +38,24 @@ static bool g_has_status = false;
 static mower_msgs::HighLevelStatus g_high_level;
 static bool g_has_high_level = false;
 
-// FTC planner config
+// FTC planner dynamic_reconfigure client (downstream — we drive its speed_fast)
 static dynamic_reconfigure::Client<ftc_local_planner::FTCPlannerConfig>* g_ftc_client = nullptr;
 static ftc_local_planner::FTCPlannerConfig g_ftc_config;
 static bool g_has_ftc_config = false;
 static double g_original_speed_fast = -1.0;
 static double g_original_speed_slow = -1.0;
 
+// Our own dynamic_reconfigure config (upstream — operator drives us)
+static mower_logic::BladeSpeedAdapterConfig g_cfg;
+static bool g_has_cfg = false;
+
 // Algorithm state
 static std::deque<double> g_current_buffer;
 static double g_actual_speed = 0.0;
 static bool g_was_mowing = false;
 
-// ROS parameters
-static bool p_dry_run;
-static double p_current_nominal;   // idle blade current (no load)
-static double p_current_max_load;  // current at which blade is heavily loaded
-static double p_speed_max;
-static double p_speed_min;
-static double p_recovery_rate;
+// Startup-only param (timer rate cannot be reconfigured without recreating the timer)
 static double p_sample_interval;
-static int p_current_window;
 
 // Publisher
 static ros::Publisher g_log_pub;
@@ -95,7 +95,8 @@ static void ftcConfigCallback(const ftc_local_planner::FTCPlannerConfig& config)
 // ---------------------------------------------------------------------------
 
 static void restoreOriginalSpeed() {
-  if (p_dry_run || g_original_speed_fast < 0.0) return;
+  // No-op if we never observed planner config (so never overrode anything).
+  if (g_original_speed_fast < 0.0) return;
 
   ftc_local_planner::FTCPlannerConfig cfg;
   {
@@ -109,6 +110,33 @@ static void restoreOriginalSpeed() {
            g_original_speed_slow);
 }
 
+// Our dynamic_reconfigure server callback. Fires synchronously on setCallback
+// with the initial params loaded from the parameter server.
+static void reconfigureCB(mower_logic::BladeSpeedAdapterConfig& c, uint32_t /*level*/) {
+  bool was_enabled;
+  bool was_mowing;
+  {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    was_enabled = g_has_cfg && g_cfg.enable;
+    was_mowing = g_was_mowing;
+    g_cfg = c;
+    g_has_cfg = true;
+  }
+
+  ROS_INFO(
+      "blade_speed_adapter: config  enable=%s  current=[%.2f..%.2f]A  speed=[%.3f..%.3f]m/s  "
+      "recovery_rate=%.3f  window=%d",
+      c.enable ? "TRUE" : "FALSE", c.current_nominal, c.current_max_load, c.speed_min, c.speed_max, c.recovery_rate,
+      c.current_window);
+
+  // enable true -> false while actively controlling: restore planner immediately
+  // so operators don't have to wait for the next "mowing stopped" event.
+  if (was_enabled && !c.enable && was_mowing) {
+    ROS_INFO("blade_speed_adapter: disabled while mowing — restoring original planner speeds");
+    restoreOriginalSpeed();
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Control loop
 // ---------------------------------------------------------------------------
@@ -117,17 +145,19 @@ static void controlLoop(const ros::TimerEvent&) {
   // Snapshot current state under lock
   mower_msgs::Status status;
   mower_msgs::HighLevelStatus high_level;
+  mower_logic::BladeSpeedAdapterConfig cfg;
   bool has_data;
   {
     std::lock_guard<std::mutex> lock(g_mutex);
     status = g_status;
     high_level = g_high_level;
-    has_data = g_has_status && g_has_high_level && g_has_ftc_config;
+    cfg = g_cfg;
+    has_data = g_has_status && g_has_high_level && g_has_ftc_config && g_has_cfg;
   }
 
   if (!has_data) {
-    ROS_INFO_THROTTLE(10, "blade_speed_adapter: waiting for data (status=%d hl=%d ftc=%d)", g_has_status,
-                      g_has_high_level, g_has_ftc_config);
+    ROS_INFO_THROTTLE(10, "blade_speed_adapter: waiting for data (status=%d hl=%d ftc=%d cfg=%d)", g_has_status,
+                      g_has_high_level, g_has_ftc_config, g_has_cfg);
     return;
   }
 
@@ -138,9 +168,11 @@ static void controlLoop(const ros::TimerEvent&) {
   if (!is_mowing) {
     if (g_was_mowing) {
       ROS_INFO("blade_speed_adapter: mowing stopped, restoring original speeds");
-      restoreOriginalSpeed();
+      if (cfg.enable) {
+        restoreOriginalSpeed();
+      }
       g_current_buffer.clear();
-      g_actual_speed = p_speed_max;
+      g_actual_speed = cfg.speed_max;
       g_was_mowing = false;
     }
     return;
@@ -151,7 +183,7 @@ static void controlLoop(const ros::TimerEvent&) {
   // Push blade current into moving average buffer
   double blade_current = static_cast<double>(status.mower_esc_current);
   g_current_buffer.push_back(blade_current);
-  while (static_cast<int>(g_current_buffer.size()) > p_current_window) {
+  while (static_cast<int>(g_current_buffer.size()) > cfg.current_window) {
     g_current_buffer.pop_front();
   }
 
@@ -162,30 +194,29 @@ static void controlLoop(const ros::TimerEvent&) {
   }
   double current_avg = current_sum / static_cast<double>(g_current_buffer.size());
 
-  // Compute load ratio: 0.0 = no load (nominal current), 1.0 = max load
-  // Higher current = more load = lower speed
+  // Load ratio: 0.0 = no load (nominal current), 1.0 = max load.
   double load_ratio = 0.0;
-  if (current_avg > p_current_nominal) {
-    load_ratio = (current_avg - p_current_nominal) / (p_current_max_load - p_current_nominal);
+  if (current_avg > cfg.current_nominal && cfg.current_max_load > cfg.current_nominal) {
+    load_ratio = (current_avg - cfg.current_nominal) / (cfg.current_max_load - cfg.current_nominal);
     load_ratio = std::max(0.0, std::min(1.0, load_ratio));
   }
   // Invert: high load = low speed
-  double target_speed = p_speed_max - load_ratio * (p_speed_max - p_speed_min);
+  double target_speed = cfg.speed_max - load_ratio * (cfg.speed_max - cfg.speed_min);
 
   // Asymmetric ramp: instant slowdown, gradual recovery
   if (target_speed < g_actual_speed) {
     g_actual_speed = target_speed;
   } else {
-    g_actual_speed += std::min(p_recovery_rate * p_sample_interval, target_speed - g_actual_speed);
+    g_actual_speed += std::min(cfg.recovery_rate * p_sample_interval, target_speed - g_actual_speed);
   }
 
-  // Publish diagnostic log (always, regardless of dry_run)
+  // Publish diagnostic log (always, regardless of enable)
   {
     std_msgs::String log_msg;
     std::ostringstream ss;
     ss << "current=" << blade_current << ";current_avg=" << current_avg << ";load_ratio=" << load_ratio
        << ";target_speed=" << target_speed << ";actual_speed=" << g_actual_speed
-       << ";mode=" << (p_dry_run ? "dry_run" : "live") << ";state=" << high_level.state_name;
+       << ";mode=" << (cfg.enable ? "live" : "monitor") << ";state=" << high_level.state_name;
     log_msg.data = ss.str();
     g_log_pub.publish(log_msg);
   }
@@ -193,19 +224,19 @@ static void controlLoop(const ros::TimerEvent&) {
   ROS_INFO_THROTTLE(5,
                     "blade_speed_adapter [%s]: current=%.2fA avg=%.2fA load=%.2f "
                     "target=%.3f actual=%.3f m/s",
-                    p_dry_run ? "dry_run" : "live", blade_current, current_avg, load_ratio, target_speed,
+                    cfg.enable ? "live" : "monitor", blade_current, current_avg, load_ratio, target_speed,
                     g_actual_speed);
 
   // Push speed to FTC planner in live mode
-  if (!p_dry_run) {
-    ftc_local_planner::FTCPlannerConfig cfg;
+  if (cfg.enable) {
+    ftc_local_planner::FTCPlannerConfig ftc;
     {
       std::lock_guard<std::mutex> lock(g_mutex);
-      cfg = g_ftc_config;
+      ftc = g_ftc_config;
     }
-    cfg.speed_fast = g_actual_speed;
-    cfg.speed_slow = std::min(g_actual_speed, g_original_speed_slow);
-    g_ftc_client->setConfiguration(cfg);
+    ftc.speed_fast = g_actual_speed;
+    ftc.speed_slow = std::min(g_actual_speed, g_original_speed_slow);
+    g_ftc_client->setConfiguration(ftc);
   }
 }
 
@@ -218,22 +249,9 @@ int main(int argc, char** argv) {
   ros::NodeHandle n;
   ros::NodeHandle pn("~");
 
-  // Load parameters
-  pn.param("dry_run", p_dry_run, true);
-  pn.param("current_nominal", p_current_nominal, 1.0);    // amps at no-load spinning
-  pn.param("current_max_load", p_current_max_load, 5.0);  // amps at heavy grass load
-  pn.param("speed_max", p_speed_max, 0.4);
-  pn.param("speed_min", p_speed_min, 0.05);
-  pn.param("recovery_rate", p_recovery_rate, 0.02);
+  // Startup-only (controls the ros::Timer rate; cannot be reconfigured live)
   pn.param("sample_interval", p_sample_interval, 0.5);
-  pn.param("current_window", p_current_window, 5);
-
-  g_actual_speed = p_speed_max;
-
-  ROS_INFO("blade_speed_adapter: starting in %s mode", p_dry_run ? "DRY-RUN" : "LIVE");
-  ROS_INFO("  current_nominal=%.1fA  current_max_load=%.1fA", p_current_nominal, p_current_max_load);
-  ROS_INFO("  speed=[%.3f, %.3f] m/s  recovery_rate=%.3f m/s/s", p_speed_min, p_speed_max, p_recovery_rate);
-  ROS_INFO("  sample_interval=%.2fs  current_window=%d", p_sample_interval, p_current_window);
+  ROS_INFO("blade_speed_adapter: starting  sample_interval=%.2fs", p_sample_interval);
 
   // Subscribers
   ros::Subscriber status_sub = n.subscribe("/ll/mower_status", 10, statusCallback);
@@ -242,9 +260,20 @@ int main(int argc, char** argv) {
   // Diagnostic publisher
   g_log_pub = pn.advertise<std_msgs::String>("log", 50);
 
-  // FTC planner dynamic_reconfigure client
+  // FTC planner dynamic_reconfigure client (we drive its speed_fast)
   g_ftc_client = new dynamic_reconfigure::Client<ftc_local_planner::FTCPlannerConfig>("/move_base_flex/FTCPlanner",
                                                                                       ftcConfigCallback);
+
+  // Our own dynamic_reconfigure server (operator controls enable + tuning).
+  // setCallback() fires synchronously with the initial loaded config.
+  dynamic_reconfigure::Server<mower_logic::BladeSpeedAdapterConfig> reconfig_server(pn);
+  reconfig_server.setCallback(reconfigureCB);
+
+  // Seed g_actual_speed now that we have the initial config
+  {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    g_actual_speed = g_has_cfg ? g_cfg.speed_max : 0.4;
+  }
 
   // Control loop timer
   ros::Timer timer = n.createTimer(ros::Duration(p_sample_interval), controlLoop);
@@ -252,7 +281,12 @@ int main(int argc, char** argv) {
   ros::spin();
 
   // Cleanup: restore original speed if we were actively controlling
-  if (g_was_mowing) {
+  bool should_restore;
+  {
+    std::lock_guard<std::mutex> lock(g_mutex);
+    should_restore = g_was_mowing && g_has_cfg && g_cfg.enable;
+  }
+  if (should_restore) {
     restoreOriginalSpeed();
   }
   delete g_ftc_client;

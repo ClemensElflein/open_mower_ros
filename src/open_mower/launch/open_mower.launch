@@ -35,5 +35,7 @@
 
     <node pkg="mower_logic" type="monitoring" name="monitoring" output="screen" respawn="true" respawn_delay="10"/>
 
-    <node pkg="mower_logic" type="blade_speed_adapter" name="blade_speed_adapter" output="screen" respawn="true" respawn_delay="10"/>
+    <node pkg="mower_logic" type="blade_speed_adapter" name="blade_speed_adapter" output="screen" respawn="true" respawn_delay="10">
+        <param name="enable" value="true"/>
+    </node>
 </launch>

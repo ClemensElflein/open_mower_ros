@@ -64,9 +64,11 @@
         <param name="motor_cold_temperature" value="40.0"/>
     </node>
 
-    <!-- Blade speed adapter under test — live mode with fast loop for testing -->
+    <!-- Blade speed adapter under test — live mode with fast loop for testing.
+         enable / thresholds / speeds / window are dynamic_reconfigure params; setting
+         them here via <param> seeds the initial config on node startup. -->
     <node pkg="mower_logic" type="blade_speed_adapter" name="blade_speed_adapter" output="screen">
-        <param name="dry_run"           value="false"/>
+        <param name="enable"            value="true"/>
         <param name="current_nominal"   value="1.0"/>
         <param name="current_max_load"  value="5.0"/>
         <param name="speed_max"         value="0.4"/>
