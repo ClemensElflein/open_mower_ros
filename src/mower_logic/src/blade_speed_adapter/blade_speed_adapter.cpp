@@ -20,6 +20,7 @@
 #include <std_msgs/String.h>
 
 #include <algorithm>
+#include <cmath>
 #include <deque>
 #include <mutex>
 #include <sstream>
@@ -161,7 +162,10 @@ static void controlLoop(const ros::TimerEvent&) {
     return;
   }
 
-  bool blade_running = (status.mower_esc_status == mower_msgs::ESCStatus::ESC_STATUS_RUNNING);
+  // mower_comms_v1 never sets ESC_STATUS_RUNNING on the mow ESC (it dumps raw xesc
+  // connection_state into mower_esc_status), so gate on RPM instead. |rpm| because
+  // the motor can report negative values depending on direction.
+  bool blade_running = std::abs(status.mower_motor_rpm) > 100.0f;
   bool is_mowing = (high_level.state_name == "MOWING") && blade_running;
 
   // Handle mowing -> not-mowing transition
