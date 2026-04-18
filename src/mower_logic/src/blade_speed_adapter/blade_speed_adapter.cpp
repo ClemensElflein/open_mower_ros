@@ -17,6 +17,7 @@
 #include <mower_msgs/HighLevelStatus.h>
 #include <mower_msgs/Status.h>
 #include <ros/ros.h>
+#include <std_msgs/Float32.h>
 #include <std_msgs/String.h>
 
 #include <algorithm>
@@ -58,8 +59,9 @@ static bool g_was_mowing = false;
 // Startup-only param (timer rate cannot be reconfigured without recreating the timer)
 static double p_sample_interval;
 
-// Publisher
+// Publishers
 static ros::Publisher g_log_pub;
+static ros::Publisher g_load_ratio_pub;
 
 // ---------------------------------------------------------------------------
 // Callbacks
@@ -225,6 +227,10 @@ static void controlLoop(const ros::TimerEvent&) {
     g_log_pub.publish(log_msg);
   }
 
+  std_msgs::Float32 lr_msg;
+  lr_msg.data = static_cast<float>(load_ratio);
+  g_load_ratio_pub.publish(lr_msg);
+
   ROS_INFO_THROTTLE(5,
                     "blade_speed_adapter [%s]: current=%.2fA avg=%.2fA load=%.2f "
                     "target=%.3f actual=%.3f m/s",
@@ -261,8 +267,9 @@ int main(int argc, char** argv) {
   ros::Subscriber status_sub = n.subscribe("/ll/mower_status", 10, statusCallback);
   ros::Subscriber hl_sub = n.subscribe("mower_logic/current_state", 10, highLevelCallback);
 
-  // Diagnostic publisher
+  // Diagnostic publishers
   g_log_pub = pn.advertise<std_msgs::String>("log", 50);
+  g_load_ratio_pub = pn.advertise<std_msgs::Float32>("load_ratio", 50);
 
   // FTC planner dynamic_reconfigure client (we drive its speed_fast)
   g_ftc_client = new dynamic_reconfigure::Client<ftc_local_planner::FTCPlannerConfig>("/move_base_flex/FTCPlanner",
