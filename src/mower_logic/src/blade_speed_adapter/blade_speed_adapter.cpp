@@ -62,6 +62,8 @@ static double p_sample_interval;
 // Publishers
 static ros::Publisher g_log_pub;
 static ros::Publisher g_load_ratio_pub;
+static ros::Publisher g_rpm_sag_ratio_pub;
+static ros::Publisher g_effective_load_ratio_pub;
 
 // ---------------------------------------------------------------------------
 // Callbacks
@@ -127,10 +129,10 @@ static void reconfigureCB(mower_logic::BladeSpeedAdapterConfig& c, uint32_t /*le
   }
 
   ROS_INFO(
-      "blade_speed_adapter: config  enable=%s  current=[%.2f..%.2f]A  speed=[%.3f..%.3f]m/s  "
-      "recovery_rate=%.3f  window=%d",
-      c.enable ? "TRUE" : "FALSE", c.current_nominal, c.current_max_load, c.speed_min, c.speed_max, c.recovery_rate,
-      c.current_window);
+      "blade_speed_adapter: config  enable=%s  current=[%.2f..%.2f]A  rpm=[%.0f..%.0f]  "
+      "speed=[%.3f..%.3f]m/s  recovery_rate=%.3f  window=%d",
+      c.enable ? "TRUE" : "FALSE", c.current_nominal, c.current_max_load, c.rpm_max_load, c.rpm_nominal, c.speed_min,
+      c.speed_max, c.recovery_rate, c.current_window);
 
   // enable true -> false while actively controlling: restore planner immediately
   // so operators don't have to wait for the next "mowing stopped" event.
@@ -206,8 +208,22 @@ static void controlLoop(const ros::TimerEvent&) {
     load_ratio = (current_avg - cfg.current_nominal) / (cfg.current_max_load - cfg.current_nominal);
     load_ratio = std::max(0.0, std::min(1.0, load_ratio));
   }
+
+  // RPM sag ratio: 0.0 = spinning at nominal, 1.0 = fully bogged.
+  // Covers the stall regime where current collapses (back-EMF drop, duty
+  // backoff) and the current-based load_ratio would fall back toward zero.
+  double rpm = std::fabs(static_cast<double>(status.mower_motor_rpm));
+  double rpm_sag_ratio = 0.0;
+  if (cfg.rpm_nominal > cfg.rpm_max_load && rpm < cfg.rpm_nominal) {
+    rpm_sag_ratio = (cfg.rpm_nominal - rpm) / (cfg.rpm_nominal - cfg.rpm_max_load);
+    rpm_sag_ratio = std::max(0.0, std::min(1.0, rpm_sag_ratio));
+  }
+
+  // Combined load drives speed: current leads on load onset, RPM catches full stalls.
+  double effective_load_ratio = std::max(load_ratio, rpm_sag_ratio);
+
   // Invert: high load = low speed
-  double target_speed = cfg.speed_max - load_ratio * (cfg.speed_max - cfg.speed_min);
+  double target_speed = cfg.speed_max - effective_load_ratio * (cfg.speed_max - cfg.speed_min);
 
   // Asymmetric ramp: instant slowdown, gradual recovery
   if (target_speed < g_actual_speed) {
@@ -221,8 +237,10 @@ static void controlLoop(const ros::TimerEvent&) {
     std_msgs::String log_msg;
     std::ostringstream ss;
     ss << "current=" << blade_current << ";current_avg=" << current_avg << ";load_ratio=" << load_ratio
-       << ";target_speed=" << target_speed << ";actual_speed=" << g_actual_speed
-       << ";mode=" << (cfg.enable ? "live" : "monitor") << ";state=" << high_level.state_name;
+       << ";rpm=" << rpm << ";rpm_sag_ratio=" << rpm_sag_ratio
+       << ";effective_load_ratio=" << effective_load_ratio << ";target_speed=" << target_speed
+       << ";actual_speed=" << g_actual_speed << ";mode=" << (cfg.enable ? "live" : "monitor")
+       << ";state=" << high_level.state_name;
     log_msg.data = ss.str();
     g_log_pub.publish(log_msg);
   }
@@ -231,11 +249,19 @@ static void controlLoop(const ros::TimerEvent&) {
   lr_msg.data = static_cast<float>(load_ratio);
   g_load_ratio_pub.publish(lr_msg);
 
+  std_msgs::Float32 rsr_msg;
+  rsr_msg.data = static_cast<float>(rpm_sag_ratio);
+  g_rpm_sag_ratio_pub.publish(rsr_msg);
+
+  std_msgs::Float32 elr_msg;
+  elr_msg.data = static_cast<float>(effective_load_ratio);
+  g_effective_load_ratio_pub.publish(elr_msg);
+
   ROS_INFO_THROTTLE(5,
                     "blade_speed_adapter [%s]: current=%.2fA avg=%.2fA load=%.2f "
-                    "target=%.3f actual=%.3f m/s",
-                    cfg.enable ? "live" : "monitor", blade_current, current_avg, load_ratio, target_speed,
-                    g_actual_speed);
+                    "rpm=%.0f sag=%.2f eff=%.2f target=%.3f actual=%.3f m/s",
+                    cfg.enable ? "live" : "monitor", blade_current, current_avg, load_ratio, rpm, rpm_sag_ratio,
+                    effective_load_ratio, target_speed, g_actual_speed);
 
   // Push speed to FTC planner in live mode
   if (cfg.enable) {
@@ -270,6 +296,8 @@ int main(int argc, char** argv) {
   // Diagnostic publishers
   g_log_pub = pn.advertise<std_msgs::String>("log", 50);
   g_load_ratio_pub = pn.advertise<std_msgs::Float32>("load_ratio", 50);
+  g_rpm_sag_ratio_pub = pn.advertise<std_msgs::Float32>("rpm_sag_ratio", 50);
+  g_effective_load_ratio_pub = pn.advertise<std_msgs::Float32>("effective_load_ratio", 50);
 
   // FTC planner dynamic_reconfigure client (we drive its speed_fast)
   g_ftc_client = new dynamic_reconfigure::Client<ftc_local_planner::FTCPlannerConfig>("/move_base_flex/FTCPlanner",

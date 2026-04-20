@@ -82,7 +82,7 @@ class TestBladeSpeedAdapter(unittest.TestCase):
             rospy.logwarn("Could not read FTC config: %s" % e)
             return None
 
-    def _publish_mowing_state(self, blade_current=1.0):
+    def _publish_mowing_state(self, blade_current=1.0, blade_rpm=4400.0):
         """Publish fake status and high-level state as if mowing."""
         status = Status()
         status.stamp = rospy.Time.now()
@@ -91,7 +91,7 @@ class TestBladeSpeedAdapter(unittest.TestCase):
         status.mower_esc_current = blade_current
         status.mower_esc_temperature = 35.0
         status.mower_motor_temperature = 25.0
-        status.mower_motor_rpm = 3000.0
+        status.mower_motor_rpm = blade_rpm
         self.status_pub.publish(status)
 
         hl = HighLevelStatus()
@@ -280,6 +280,7 @@ class TestBladeSpeedAdapter(unittest.TestCase):
 
         log = parse_log(self.log_messages[-1])
         expected_fields = ["current", "current_avg", "load_ratio",
+                           "rpm", "rpm_sag_ratio", "effective_load_ratio",
                            "target_speed", "actual_speed", "mode", "state"]
         for field in expected_fields:
             self.assertIn(field, log,
@@ -287,6 +288,32 @@ class TestBladeSpeedAdapter(unittest.TestCase):
 
         self.assertEqual(log["mode"], "live",
                          "Mode should be 'live' in test configuration")
+
+    # ------------------------------------------------------------------
+    # Test 9: RPM sag alone (current nominal) should reduce speed
+    # ------------------------------------------------------------------
+
+    def test_9_rpm_sag_reduces_speed(self):
+        """Nominal current but sagging RPM should still slow the robot."""
+        # Recover first: nominal current and full RPM
+        for _ in range(20):
+            self._publish_mowing_state(blade_current=1.0, blade_rpm=4400.0)
+            rospy.sleep(0.1)
+        baseline_speed = self._get_ftc_speed_fast()
+        self.assertIsNotNone(baseline_speed)
+        self.assertAlmostEqual(baseline_speed, 0.4, places=2,
+                               msg="Baseline should be speed_max with nominal current + RPM")
+
+        # Now drop RPM halfway (current still nominal). With rpm_nominal=4400,
+        # rpm_max_load=2000, rpm=3200 gives rpm_sag_ratio ~= 0.5 -> target ~= 0.225.
+        for _ in range(20):
+            self._publish_mowing_state(blade_current=1.0, blade_rpm=3200.0)
+            rospy.sleep(0.1)
+        sag_speed = self._get_ftc_speed_fast()
+        self.assertIsNotNone(sag_speed)
+        self.assertLess(sag_speed, baseline_speed - 0.1,
+                        "RPM sag should drop speed_fast well below baseline "
+                        "(got %.3f vs baseline %.3f)" % (sag_speed, baseline_speed))
 
 
 if __name__ == "__main__":
