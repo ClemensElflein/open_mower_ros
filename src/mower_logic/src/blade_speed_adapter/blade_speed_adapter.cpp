@@ -237,10 +237,9 @@ static void controlLoop(const ros::TimerEvent&) {
     std_msgs::String log_msg;
     std::ostringstream ss;
     ss << "current=" << blade_current << ";current_avg=" << current_avg << ";load_ratio=" << load_ratio
-       << ";rpm=" << rpm << ";rpm_sag_ratio=" << rpm_sag_ratio
-       << ";effective_load_ratio=" << effective_load_ratio << ";target_speed=" << target_speed
-       << ";actual_speed=" << g_actual_speed << ";mode=" << (cfg.enable ? "live" : "monitor")
-       << ";state=" << high_level.state_name;
+       << ";rpm=" << rpm << ";rpm_sag_ratio=" << rpm_sag_ratio << ";effective_load_ratio=" << effective_load_ratio
+       << ";target_speed=" << target_speed << ";actual_speed=" << g_actual_speed
+       << ";mode=" << (cfg.enable ? "live" : "monitor") << ";state=" << high_level.state_name;
     log_msg.data = ss.str();
     g_log_pub.publish(log_msg);
   }
