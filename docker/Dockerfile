@@ -80,9 +80,11 @@ RUN chmod +x /openmower_entrypoint.sh
 ARG USERNAME=openmower
 ARG USER_UID=1000
 ARG USER_GID=1000
-RUN groupadd --gid ${USER_GID} ${USERNAME} \
+RUN groupadd --gid ${USER_GID} ${USERNAME} && \
+    groupadd -g 996 input \
     && useradd --uid ${USER_UID} --gid ${USER_GID} --create-home --shell /bin/bash ${USERNAME} \
     && adduser ${USERNAME} dialout \
+    && adduser ${USERNAME} input \
     && chown -R ${USER_UID}:${USER_GID} /config /home/${USERNAME}
 
 # Append our bashrc extension to user's .bashrc
