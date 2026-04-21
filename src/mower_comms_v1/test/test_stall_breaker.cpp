@@ -1,8 +1,8 @@
 // Unit tests for StallBreaker helper.
 
-#include "../src/stall_breaker.h"
-
 #include <gtest/gtest.h>
+
+#include "../src/stall_breaker.h"
 
 namespace {
 

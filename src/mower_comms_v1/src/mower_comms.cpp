@@ -15,9 +15,9 @@
 //
 #include <dynamic_reconfigure/client.h>
 #include <dynamic_reconfigure/server.h>
-#include <mower_comms_v1/StallBreakerConfig.h>
 #include <geometry_msgs/Twist.h>
 #include <geometry_msgs/TwistStamped.h>
+#include <mower_comms_v1/StallBreakerConfig.h>
 #include <mower_logic/PowerConfig.h>
 #include <mower_msgs/ESCStatus.h>
 #include <mower_msgs/Emergency.h>
@@ -155,24 +155,21 @@ void publishActuators() {
   const StallBreaker::State right_prev = right_sb.state();
   speed_l = static_cast<float>(left_sb.update(speed_l, left_rpm_cached, now));
   speed_r = static_cast<float>(right_sb.update(speed_r, right_rpm_cached, now));
-  auto log_state = [](const char* side, StallBreaker::State prev, const StallBreaker& sb, int rpm,
-                      double applied) {
+  auto log_state = [](const char* side, StallBreaker::State prev, const StallBreaker& sb, int rpm, double applied) {
     if (prev == sb.state()) return;
     switch (sb.state()) {
       case StallBreaker::State::DETECTING:
         ROS_INFO_STREAM_THROTTLE(1.0, "stall_breaker[" << side << "]: DETECTING rpm=" << rpm);
         break;
       case StallBreaker::State::PULSING:
-        ROS_INFO_STREAM("stall_breaker[" << side << "]: PULSE #" << sb.consecutive_pulses()
-                                         << " duty=" << applied << " rpm=" << rpm);
+        ROS_INFO_STREAM("stall_breaker[" << side << "]: PULSE #" << sb.consecutive_pulses() << " duty=" << applied
+                                         << " rpm=" << rpm);
         break;
       case StallBreaker::State::UNRECOVERABLE:
-        ROS_WARN_STREAM_THROTTLE(5.0, "stall_breaker[" << side << "]: UNRECOVERABLE after "
-                                                      << sb.consecutive_pulses() << " pulses, rpm="
-                                                      << rpm);
+        ROS_WARN_STREAM_THROTTLE(5.0, "stall_breaker[" << side << "]: UNRECOVERABLE after " << sb.consecutive_pulses()
+                                                       << " pulses, rpm=" << rpm);
         break;
-      default:
-        break;
+      default: break;
     }
   };
   log_state("left", left_prev, left_sb, left_rpm_cached, speed_l);
@@ -799,10 +796,9 @@ int main(int argc, char** argv) {
     cfg.motion_reset_ms = c.motion_reset_ms;
     left_sb.setConfig(cfg);
     right_sb.setConfig(cfg);
-    ROS_INFO_STREAM("Stall-breaker " << (cfg.enabled ? "ENABLED" : "disabled")
-                                     << " (pulse_duty=" << cfg.pulse_duty
-                                     << " pulse_time_ms=" << cfg.pulse_time_ms
-                                     << " rpm_threshold=" << cfg.rpm_threshold << ")");
+    ROS_INFO_STREAM("Stall-breaker " << (cfg.enabled ? "ENABLED" : "disabled") << " (pulse_duty=" << cfg.pulse_duty
+                                     << " pulse_time_ms=" << cfg.pulse_time_ms << " rpm_threshold=" << cfg.rpm_threshold
+                                     << ")");
   });
 
   speed_l = speed_r = speed_mow = target_speed_mow = 0;

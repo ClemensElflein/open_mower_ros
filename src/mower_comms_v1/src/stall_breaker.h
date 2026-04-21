@@ -32,7 +32,8 @@ class StallBreaker {
   enum class State { IDLE, DETECTING, PULSING, COOLDOWN, UNRECOVERABLE };
 
   StallBreaker() = default;
-  explicit StallBreaker(std::string name) : name_(std::move(name)) {}
+  explicit StallBreaker(std::string name) : name_(std::move(name)) {
+  }
 
   void setConfig(const StallBreakerConfig& cfg) {
     cfg_ = cfg;
