@@ -193,24 +193,8 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      # Default (MAIN ONLY): `latest` on commits to main
-      - name: Docker meta (Default - main)
-        if: >
-          (matrix.variant == 'default') &&
-          (github.event_name == 'push') &&
-          (github.ref == 'refs/heads/main')
-        id: meta_default_main
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ env.REPOSITORY_LC }}
-          tags: |
-            type=edge,branch=main          # e.g. main
-            type=sha                       # sha-<short>
-          flavor: |
-            latest=true                    # <-- only here
-      # Default, carries semver (v1.2.3) and PR/branch tags without suffix
       - name: Docker meta (Default)
-        if: (matrix.variant == 'default') && (github.event_name != 'workflow_dispatch' || inputs.variant == 'all' || inputs.variant == matrix.variant) && !((github.event_name == 'push') && (github.ref == 'refs/heads/main'))
+        if: (matrix.variant == 'default') && (github.event_name != 'workflow_dispatch' || inputs.variant == 'all' || inputs.variant == matrix.variant)
         id: meta_default
         uses: docker/metadata-action@v5
         with:
@@ -225,7 +209,7 @@ jobs:
             type=sha
           images: ghcr.io/${{ env.REPOSITORY_LC }}
           flavor: |
-            latest=false
+            latest=auto
 
       # Legacy — all tags suffixed with -legacy, no `latest`
       - name: Docker meta (Legacy)

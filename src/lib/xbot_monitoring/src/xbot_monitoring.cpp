@@ -35,6 +35,7 @@ void publish_map();
 void publish_map_overlay();
 void publish_actions();
 void publish_version();
+void publish_params();
 void rpc_request_callback(const std::string &payload);
 
 // Stores registered actions (prefix to vector<action>)
@@ -81,6 +82,7 @@ class MqttCallback : public mqtt::callback {
         publish_map_overlay();
         publish_actions();
         publish_version();
+        publish_params();
 
         // BEGIN: Deprecated code (1/2)
         // Earlier implementations subscribed to "/action" and "prefix//action" topics, we do it to not break stuff as well.
@@ -272,6 +274,78 @@ void publish_version() {
 
 void publish_capabilities() {
   try_publish("capabilities/json", CAPABILITIES.dump(2), true);
+}
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic warning "-Wswitch-enum"
+json xmlrpc_to_json(XmlRpc::XmlRpcValue value) {
+    switch (value.getType()) {
+        case XmlRpc::XmlRpcValue::TypeBoolean:
+            return static_cast<bool>(value);
+        case XmlRpc::XmlRpcValue::TypeInt:
+            return static_cast<int>(value);
+        case XmlRpc::XmlRpcValue::TypeDouble:
+            return static_cast<double>(value);
+        case XmlRpc::XmlRpcValue::TypeString:
+            return static_cast<std::string>(value);
+        case XmlRpc::XmlRpcValue::TypeArray: {
+            json arr = json::array();
+            for (int i = 0; i < value.size(); ++i)
+                arr.push_back(xmlrpc_to_json(value[i]));
+            return arr;
+        }
+        case XmlRpc::XmlRpcValue::TypeStruct: {
+            json obj = json::object();
+            for (auto it = value.begin(); it != value.end(); ++it)
+                obj[it->first] = xmlrpc_to_json(it->second);
+            return obj;
+        }
+        case XmlRpc::XmlRpcValue::TypeDateTime: {
+            const struct tm& t = static_cast<const struct tm&>(value);
+            char buf[32];
+            std::strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%S", &t);
+            return std::string(buf);
+        }
+        case XmlRpc::XmlRpcValue::TypeBase64: {
+            const XmlRpc::XmlRpcValue::BinaryData& data = static_cast<const XmlRpc::XmlRpcValue::BinaryData&>(value);
+            static const char* b64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+            std::string out;
+            out.reserve(((data.size() + 2) / 3) * 4);
+            for (size_t i = 0; i < data.size(); i += 3) {
+                unsigned int n = (static_cast<unsigned char>(data[i]) << 16)
+                    | (i + 1 < data.size() ? static_cast<unsigned char>(data[i + 1]) << 8 : 0)
+                    | (i + 2 < data.size() ? static_cast<unsigned char>(data[i + 2]) : 0);
+                out += b64[(n >> 18) & 0x3F];
+                out += b64[(n >> 12) & 0x3F];
+                out += (i + 1 < data.size()) ? b64[(n >> 6) & 0x3F] : '=';
+                out += (i + 2 < data.size()) ? b64[n & 0x3F] : '=';
+            }
+            return out;
+        }
+        case XmlRpc::XmlRpcValue::TypeInvalid:
+            return nullptr;
+    }
+    return nullptr;
+}
+#pragma GCC diagnostic pop
+
+void publish_params() {
+    std::vector<std::string> param_names;
+    ros::param::getParamNames(param_names);
+    std::sort(param_names.begin(), param_names.end());
+
+    json params = json::object();
+    for (const auto &name : param_names) {
+        if (name.find("password") != std::string::npos) {
+            params[name] = nullptr;
+            continue;
+        }
+        XmlRpc::XmlRpcValue value;
+        if (ros::param::get(name, value)) {
+            params[name] = xmlrpc_to_json(value);
+        }
+    }
+    try_publish("params/json", params.dump(), true);
 }
 
 void publish_sensor_metadata() {
@@ -549,6 +623,10 @@ void rpc_request_callback(const std::string &payload) {
 
     // Check if the method is registered
     const std::string method = req["method"];
+    if (method.compare(0, 5, "meta.") == 0) {
+      // Silently ignore methods that are handled by the meta service.
+      return;
+    }
     bool is_registered = false;
     {
         std::lock_guard<std::mutex> lk(registered_methods_mutex);
