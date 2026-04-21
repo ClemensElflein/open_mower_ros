@@ -1,0 +1,98 @@
+<launch>
+    <!-- Closed-loop CSV-replay test for blade_speed_adapter.
+
+         This test runs with simulated time (/use_sim_time) so that
+         ros::Time-based filters in the adapter behave correctly at
+         accelerated wall rates. sim_clock.py publishes /clock at
+         `speedup` x wall rate, so a ~9-minute recorded trajectory
+         completes in ~30s of wall time at 20x. -->
+
+    <param name="/use_sim_time" value="true"/>
+
+    <!-- Accelerated /clock publisher (must start first). -->
+    <node pkg="mower_logic" type="sim_clock.py" name="sim_clock" output="log">
+        <param name="speedup" value="5.0"/>
+        <param name="wall_hz" value="200.0"/>
+    </node>
+
+    <!-- Environment for the simulation stack (mirrors blade_speed_adapter.test) -->
+    <env name="OM_DOCKING_DISTANCE" value="1.0"/>
+    <env name="OM_UNDOCK_DISTANCE" value="1.0"/>
+    <env name="OM_TOOL_WIDTH" value="0.14"/>
+    <env name="OM_ENABLE_MOWER" value="false"/>
+    <env name="OM_BATTERY_EMPTY_VOLTAGE" value="20.0"/>
+    <env name="OM_OUTLINE_COUNT" value="4"/>
+    <env name="OM_OUTLINE_OFFSET" value="0.05"/>
+    <env name="OM_BATTERY_FULL_VOLTAGE" value="28.0"/>
+    <env name="OM_MOWING_MOTOR_TEMP_HIGH" value="80.0"/>
+    <env name="OM_MOWING_MOTOR_TEMP_LOW" value="40.0"/>
+    <env name="OM_MQTT_ENABLE" value="False"/>
+    <env name="OM_MOWER_GAMEPAD" value=""/>
+
+    <node pkg="mobile_robot_simulator" type="mobile_robot_simulator_node"
+          name="mobile_robot_simulator" output="log">
+        <param name="publish_map_transform" value="true"/>
+        <param name="publish_rate" value="10.0"/>
+        <param name="velocity_topic" value="/cmd_vel"/>
+        <param name="odometry_topic" value="/mower/odom"/>
+    </node>
+
+    <node pkg="mower_simulation" type="mower_simulation" name="mower_simulation" output="log"/>
+    <node pkg="mower_map" type="mower_map_service" name="mower_map" output="log"/>
+    <node pkg="slic3r_coverage_planner" type="slic3r_coverage_planner"
+          name="slic3r_coverage_planner" output="log"/>
+
+    <!-- Navigation stack — provides the FTC planner dynamic_reconfigure server -->
+    <include file="$(find open_mower)/launch/include/_move_base.launch"/>
+
+    <node pkg="twist_mux" type="twist_mux" name="twist_mux" output="log">
+        <remap from="cmd_vel_out" to="/cmd_vel"/>
+        <rosparam file="$(find open_mower)/params/twist_mux_topics.yaml" command="load"/>
+    </node>
+
+    <!-- Mower logic state machine (current_state remapped so test drives MOWING) -->
+    <node pkg="mower_logic" type="mower_logic" name="mower_logic" output="log">
+        <remap from="mower_logic/current_state" to="mower_logic/current_state_real"/>
+        <param name="ignore_gps_errors" value="true"/>
+        <param name="gps_wait_time" value="0"/>
+        <param name="automatic_mode" value="0"/>
+        <param name="docking_distance" value="1.0"/>
+        <param name="undock_distance" value="1.0"/>
+        <param name="tool_width" value="0.14"/>
+        <param name="enable_mower" value="false"/>
+        <param name="battery_empty_voltage" value="20.0"/>
+        <param name="outline_count" value="4"/>
+        <param name="outline_overlap_count" value="0"/>
+        <param name="outline_offset" value="0.05"/>
+        <param name="mow_angle_offset" value="0"/>
+        <param name="mow_angle_offset_is_absolute" value="false"/>
+        <param name="mow_angle_increment" value="0"/>
+        <param name="battery_full_voltage" value="28.0"/>
+        <param name="motor_hot_temperature" value="80.0"/>
+        <param name="motor_cold_temperature" value="40.0"/>
+    </node>
+
+    <!-- Adapter under test. Same defaults as blade_speed_adapter.test so both
+         tests stay apples-to-apples on tuning. -->
+    <node pkg="mower_logic" type="blade_speed_adapter" name="blade_speed_adapter" output="screen">
+        <param name="enable"            value="true"/>
+        <param name="current_nominal"   value="0.4"/>
+        <param name="current_max_load"  value="1.6"/>
+        <param name="rpm_nominal"       value="4400"/>
+        <param name="rpm_max_load"      value="2000"/>
+        <param name="speed_max"         value="0.4"/>
+        <param name="speed_min"         value="0.05"/>
+        <param name="recovery_rate"     value="0.02"/>
+        <param name="sample_interval"   value="0.1"/>
+        <param name="current_window"    value="2"/>
+    </node>
+
+    <!-- The test node. -->
+    <test test-name="test_csv_replay" pkg="mower_logic"
+          type="test_csv_replay.py" time-limit="300.0">
+        <param name="csv_path"
+               value="$(find mower_logic)/../../data/sensorlog_20260420-1106_20260420-1115.csv"/>
+        <param name="publish_hz"       value="10.0"/>
+        <param name="max_sim_duration" value="900.0"/>
+    </test>
+</launch>
