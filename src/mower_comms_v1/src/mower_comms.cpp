@@ -14,6 +14,8 @@
 // <https://www.gnu.org/licenses/>.
 //
 #include <dynamic_reconfigure/client.h>
+#include <dynamic_reconfigure/server.h>
+#include <mower_comms_v1/StallBreakerConfig.h>
 #include <geometry_msgs/Twist.h>
 #include <geometry_msgs/TwistStamped.h>
 #include <mower_logic/PowerConfig.h>
@@ -42,6 +44,7 @@
 #include "ros/ros.h"
 #include "sensor_msgs/Imu.h"
 #include "sensor_msgs/MagneticField.h"
+#include "stall_breaker.h"
 #include "std_msgs/Bool.h"
 #include "std_msgs/Empty.h"
 
@@ -103,6 +106,13 @@ uint32_t last_ticks_r = 0;
 ros::Time last_ticks_stamp{};
 geometry_msgs::TwistStamped measured_twist_msg{};
 
+// Stall-breaker (per wheel). Cached RPMs are populated by publishStatus() and
+// read by publishActuators() to decide whether to override the duty cycle.
+StallBreaker left_sb{"left"};
+StallBreaker right_sb{"right"};
+int left_rpm_cached = 0;
+int right_rpm_cached = 0;
+
 std::mutex ll_status_mutex;
 struct ll_status last_ll_status = {0};
 
@@ -136,6 +146,38 @@ void publishActuators() {
   if (mow_xesc_interface) {
     mow_xesc_interface->setDutyCycle(speed_mow);
   }
+
+  // Stall-breaker: if a wheel is commanded to move but isn't turning, briefly
+  // override the duty cycle to kick the motor past the sensorless eRPM
+  // threshold. No-op when disabled or commanded speed is zero.
+  const ros::Time now = ros::Time::now();
+  const StallBreaker::State left_prev = left_sb.state();
+  const StallBreaker::State right_prev = right_sb.state();
+  speed_l = static_cast<float>(left_sb.update(speed_l, left_rpm_cached, now));
+  speed_r = static_cast<float>(right_sb.update(speed_r, right_rpm_cached, now));
+  auto log_state = [](const char* side, StallBreaker::State prev, const StallBreaker& sb, int rpm,
+                      double applied) {
+    if (prev == sb.state()) return;
+    switch (sb.state()) {
+      case StallBreaker::State::DETECTING:
+        ROS_INFO_STREAM_THROTTLE(1.0, "stall_breaker[" << side << "]: DETECTING rpm=" << rpm);
+        break;
+      case StallBreaker::State::PULSING:
+        ROS_INFO_STREAM("stall_breaker[" << side << "]: PULSE #" << sb.consecutive_pulses()
+                                         << " duty=" << applied << " rpm=" << rpm);
+        break;
+      case StallBreaker::State::UNRECOVERABLE:
+        ROS_WARN_STREAM_THROTTLE(5.0, "stall_breaker[" << side << "]: UNRECOVERABLE after "
+                                                      << sb.consecutive_pulses() << " pulses, rpm="
+                                                      << rpm);
+        break;
+      default:
+        break;
+    }
+  };
+  log_state("left", left_prev, left_sb, left_rpm_cached, speed_l);
+  log_state("right", right_prev, right_sb, right_rpm_cached, speed_r);
+
   // We need to invert the speed, because the ESC has the same config as the left one, so the motor is running in the
   // "wrong" direction
   left_xesc_interface->setDutyCycle(speed_l);
@@ -259,6 +301,10 @@ void publishStatus() {
   }
   left_xesc_interface->getStatus(left_status);
   right_xesc_interface->getStatus(right_status);
+
+  // Cache RPM for the stall-breaker (read next tick by publishActuators).
+  left_rpm_cached = left_status.state.rpm;
+  right_rpm_cached = right_status.state.rpm;
 
   mower_msgs::ESCStatus left_esc_status{};
   mower_msgs::ESCStatus right_esc_status{};
@@ -418,8 +464,9 @@ struct {
 } configTracker;
 
 void publishActuatorsTimerTask(const ros::TimerEvent& timer_event) {
-  publishActuators();
+  // publishStatus first so stall-breaker in publishActuators sees fresh RPMs.
   publishStatus();
+  publishActuators();
   configTracker.check();
 }
 
@@ -733,6 +780,30 @@ int main(int argc, char** argv) {
 
   ROS_INFO_STREAM("Wheel ticks [1/m]: " << wheel_ticks_per_m);
   ROS_INFO_STREAM("Wheel distance [m]: " << wheel_distance_m);
+
+  // Stall-breaker: dynamic_reconfigure server under ~stall_breaker.
+  // Server reads initial values from the param server (under the same namespace)
+  // and calls our callback synchronously with them, plus on any live change.
+  ros::NodeHandle sbNh("~stall_breaker");
+  dynamic_reconfigure::Server<mower_comms_v1::StallBreakerConfig> sb_server(sbNh);
+  sb_server.setCallback([](const mower_comms_v1::StallBreakerConfig& c, uint32_t /*level*/) {
+    StallBreakerConfig cfg;
+    cfg.enabled = c.enabled;
+    cfg.min_cmd_duty = c.min_cmd_duty;
+    cfg.rpm_threshold = c.rpm_threshold;
+    cfg.detect_time_ms = c.detect_time_ms;
+    cfg.pulse_duty = c.pulse_duty;
+    cfg.pulse_time_ms = c.pulse_time_ms;
+    cfg.cooldown_time_ms = c.cooldown_time_ms;
+    cfg.max_consecutive_pulses = c.max_consecutive_pulses;
+    cfg.motion_reset_ms = c.motion_reset_ms;
+    left_sb.setConfig(cfg);
+    right_sb.setConfig(cfg);
+    ROS_INFO_STREAM("Stall-breaker " << (cfg.enabled ? "ENABLED" : "disabled")
+                                     << " (pulse_duty=" << cfg.pulse_duty
+                                     << " pulse_time_ms=" << cfg.pulse_time_ms
+                                     << " rpm_threshold=" << cfg.rpm_threshold << ")");
+  });
 
   speed_l = speed_r = speed_mow = target_speed_mow = 0;
 

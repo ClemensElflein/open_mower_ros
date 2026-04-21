@@ -98,10 +98,9 @@ find_package(
 ##     and list every .cfg file to be processed
 
 ## Generate dynamic reconfigure parameters in the 'cfg' folder
-# generate_dynamic_reconfigure_options(
-#   cfg/DynReconf1.cfg
-#   cfg/DynReconf2.cfg
-# )
+generate_dynamic_reconfigure_options(
+  cfg/StallBreaker.cfg
+)
 
 ###################################
 ## catkin specific configuration ##
@@ -164,6 +163,7 @@ add_executable(mower_comms_v1
         src/mower_comms.cpp
         src/COBS.h
         src/ll_datatypes.h
+        src/stall_breaker.h
 )
 
 add_dependencies(mower_comms_v1 ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
@@ -216,11 +216,12 @@ target_link_libraries(mower_comms_v1 ${catkin_LIBRARIES}
 ## Testing ##
 #############
 
-## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_mower_comms.cpp)
-# if(TARGET ${PROJECT_NAME}-test)
-#   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
-# endif()
+if(CATKIN_ENABLE_TESTING)
+  catkin_add_gtest(test_stall_breaker test/test_stall_breaker.cpp)
+  if(TARGET test_stall_breaker)
+    target_link_libraries(test_stall_breaker ${catkin_LIBRARIES})
+  endif()
+endif()
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
