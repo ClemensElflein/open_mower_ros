@@ -55,24 +55,34 @@ int main(int argc, char** argv) {
 
   docking_point_client = n.serviceClient<mower_map::GetDockingPointSrv>("mower_map_service/get_docking_point");
 
+  ros::NodeHandle llParamNh("/ll");
+  std::string bind_ip = "0.0.0.0";
+  llParamNh.getParam("bind_ip", bind_ip);
+  ROS_INFO_STREAM("Bind IP (Mower Simulation): " << bind_ip);
+
   xbot::service::system::initSystem();
-  xbot::service::Io::start();
+  xbot::service::Io::start(bind_ip.c_str());
 
   SimRobot robot{paramNh};
 
   // Move the robot to the docking station.
   // TODO: Use a better way to make sure that the docking position is loaded.
-  sleep(3);
   mower_map::GetDockingPointSrv get_docking_point_srv;
-  if (docking_point_client.call(get_docking_point_srv)) {
-    const auto& docking_pose = get_docking_point_srv.response.docking_pose;
-    tf2::Quaternion quat;
-    tf2::fromMsg(docking_pose.orientation, quat);
-    tf2::Matrix3x3 m(quat);
-    double roll, pitch, yaw;
-    m.getRPY(roll, pitch, yaw);
-    robot.SetDockingPose(docking_pose.position.x, docking_pose.position.y, yaw);
-    robot.SetPosition(docking_pose.position.x, docking_pose.position.y, yaw);
+  for (int i = 0; i < 20; ++i) {
+    if (docking_point_client.call(get_docking_point_srv)) {
+      const auto& docking_pose = get_docking_point_srv.response.docking_pose;
+      if (docking_pose.position.x != 0 || docking_pose.position.y != 0) {
+        tf2::Quaternion quat;
+        tf2::fromMsg(docking_pose.orientation, quat);
+        tf2::Matrix3x3 m(quat);
+        double roll, pitch, yaw;
+        m.getRPY(roll, pitch, yaw);
+        robot.SetDockingPose(docking_pose.position.x, docking_pose.position.y, yaw);
+        robot.SetPosition(docking_pose.position.x, docking_pose.position.y, yaw);
+        break;
+      }
+    }
+    sleep(1);
   }
 
   EmergencyService emergency_service{xbot::service_ids::EMERGENCY, robot};
