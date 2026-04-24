@@ -127,6 +127,11 @@ void SimRobot::GetIsCharging(bool& charging, double& seconds_since_start, std::s
 void SimRobot::SimulationStep(const ros::TimerEvent& te) {
   std::lock_guard<std::mutex> lk{state_mutex_};
   const auto now = ros::Time::now();
+  if (last_update_.isZero()) {
+    last_update_ = now;
+    PublishPosition();
+    return;
+  }
   // Update Position if not in emergency mode
   if (!emergency_latch_) {
     double time_diff_s = (now - last_update_).toSec();
