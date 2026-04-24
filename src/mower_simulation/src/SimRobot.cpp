@@ -150,18 +150,17 @@ void SimRobot::SimulationStep(const ros::TimerEvent& te) {
   }
 
   // Update Charger Status
-  if (sqrt((docking_pos_x_ - pos_x_) * (docking_pos_x_ - pos_x_) +
-           (docking_pos_y_ - pos_y_) * (docking_pos_y_ - pos_y_)) < 0.025) {
-    if (!is_charging_) {
-      spdlog::info("Charging");
-      is_charging_ = true;
-      charging_started_time = ros::Time::now();
-    }
-  } else {
-    if (is_charging_) {
-      spdlog::info("Stopped Charging");
-      is_charging_ = false;
-    }
+  // Hysteresis: engage when closer than 0.02 m, disengage only when farther than 0.03 m,
+  // preventing oscillation caused by noise in the integrated position.
+  const double dock_dist = sqrt((docking_pos_x_ - pos_x_) * (docking_pos_x_ - pos_x_) +
+                                (docking_pos_y_ - pos_y_) * (docking_pos_y_ - pos_y_));
+  if (!is_charging_ && dock_dist < 0.02) {
+    spdlog::info("Charging");
+    is_charging_ = true;
+    charging_started_time = ros::Time::now();
+  } else if (is_charging_ && dock_dist > 0.03) {
+    spdlog::info("Stopped Charging");
+    is_charging_ = false;
   }
 
   if (is_charging_) {
