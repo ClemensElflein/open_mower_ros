@@ -31,7 +31,8 @@ void SimRobot::Start() {
   pose_service_ = nh_.advertiseService("/xbot_positioning/set_robot_pose", &SimRobot::OnSetPose, this);
   odometry_pub_ = nh_.advertise<nav_msgs::Odometry>("odom_out", 50);
   xbot_absolute_pose_pub_ = nh_.advertise<xbot_msgs::AbsolutePose>("xb_pose_out", 50);
-  timer_ = nh_.createTimer(ros::Duration(0.1), &SimRobot::SimulationStep, this);
+  // Keep in sync with DiffDriveService::tick_schedule_
+  timer_ = nh_.createTimer(ros::Duration(0.02), &SimRobot::SimulationStep, this);
   timer_.start();
 }
 
@@ -48,10 +49,8 @@ bool SimRobot::OnSetPose(xbot_positioning::SetPoseSrvRequest& req, xbot_position
 
 void SimRobot::GetTwist(double& vx, double& vr) {
   std::lock_guard<std::mutex> lk{state_mutex_};
-  vx = vx_;
-  vr = vr_;
-  vx += linear_speed_noise(generator);
-  vr += angular_speed_noise(generator);
+  vx = last_noisy_vx_;
+  vr = last_noisy_vr_;
 }
 
 void SimRobot::ResetEmergency() {
@@ -128,15 +127,34 @@ void SimRobot::GetIsCharging(bool& charging, double& seconds_since_start, std::s
 void SimRobot::SimulationStep(const ros::TimerEvent& te) {
   std::lock_guard<std::mutex> lk{state_mutex_};
   const auto now = ros::Time::now();
+  if (last_update_.isZero()) {
+    last_update_ = now;
+    PublishPosition();
+    return;
+  }
   // Update Position if not in emergency mode
-  if (!emergency_latch_) {
+  if (emergency_latch_) {
+    last_noisy_vx_ = 0.0;
+    last_noisy_vr_ = 0.0;
+  } else {
     double time_diff_s = (now - last_update_).toSec();
-    double delta_x = (vx_ * cos(pos_heading_)) * time_diff_s;
-    double delta_y = (vx_ * sin(pos_heading_)) * time_diff_s;
-    double delta_th = vr_ * time_diff_s;
-    pos_x_ += delta_x;
-    pos_y_ += delta_y;
-    pos_heading_ += delta_th;
+    // Skip noise when the robot is commanded to rest; a stationary mower does
+    // not random-walk its odometry, and unconditional noise integration would
+    // cause the simulated position to drift past the charging hysteresis window.
+    const bool at_rest = (vx_ == 0.0 && vr_ == 0.0);
+    double noisy_vx = at_rest ? 0.0 : vx_ + linear_speed_noise(generator);
+    double noisy_vr = at_rest ? 0.0 : vr_ + angular_speed_noise(generator);
+    last_noisy_vx_ = noisy_vx;
+    last_noisy_vr_ = noisy_vr;
+    if (fabs(noisy_vr) > 1e-6) {
+      double r = noisy_vx / noisy_vr;
+      pos_x_ += r * (sin(pos_heading_ + noisy_vr * time_diff_s) - sin(pos_heading_));
+      pos_y_ -= r * (cos(pos_heading_ + noisy_vr * time_diff_s) - cos(pos_heading_));
+      pos_heading_ += noisy_vr * time_diff_s;
+    } else {
+      pos_x_ += noisy_vx * cos(pos_heading_) * time_diff_s;
+      pos_y_ += noisy_vx * sin(pos_heading_) * time_diff_s;
+    }
     pos_heading_ = fmod(pos_heading_, M_PI * 2.0);
     if (pos_heading_ < 0) {
       pos_heading_ += M_PI * 2.0;
@@ -144,18 +162,21 @@ void SimRobot::SimulationStep(const ros::TimerEvent& te) {
   }
 
   // Update Charger Status
-  if (sqrt((docking_pos_x_ - pos_x_) * (docking_pos_x_ - pos_x_) +
-           (docking_pos_y_ - pos_y_) * (docking_pos_y_ - pos_y_)) < 0.5) {
-    if (!is_charging_) {
-      spdlog::info("Charging");
-      is_charging_ = true;
-      charging_started_time = ros::Time::now();
-    }
-  } else {
-    if (is_charging_) {
-      spdlog::info("Stopped Charging");
-      is_charging_ = false;
-    }
+  // Hysteresis: engage when closer than 0.02 m, disengage only when farther than 0.03 m,
+  // preventing oscillation caused by noise in the integrated position.
+  const double dock_dist = sqrt((docking_pos_x_ - pos_x_) * (docking_pos_x_ - pos_x_) +
+                                (docking_pos_y_ - pos_y_) * (docking_pos_y_ - pos_y_));
+  if (!is_charging_ && dock_dist < 0.02) {
+    spdlog::info("Charging");
+    is_charging_ = true;
+    charging_started_time = ros::Time::now();
+    // Snap to the exact docking pose to eliminate any pre-latch drift so the
+    // disengage threshold cannot be tripped while the robot sits on the dock.
+    pos_x_ = docking_pos_x_;
+    pos_y_ = docking_pos_y_;
+  } else if (is_charging_ && dock_dist > 0.03) {
+    spdlog::info("Stopped Charging");
+    is_charging_ = false;
   }
 
   if (is_charging_) {

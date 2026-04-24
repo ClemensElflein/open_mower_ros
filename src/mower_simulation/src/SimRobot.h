@@ -65,6 +65,10 @@ class SimRobot {
   double pos_y_ = 0;
   double pos_heading_ = 0;
 
+  // Last noisy twist values (for encoder/IMU readback)
+  double last_noisy_vx_ = 0;
+  double last_noisy_vr_ = 0;
+
   // Current Emergency State
   bool emergency_active_ = false;
   // Latched Emergency
