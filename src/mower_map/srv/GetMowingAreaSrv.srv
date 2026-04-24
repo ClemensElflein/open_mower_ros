@@ -1,3 +1,4 @@
 uint32 index
 ---
+string area_id
 MapArea area

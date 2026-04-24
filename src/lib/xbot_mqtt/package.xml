@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>xbot_rpc</name>
+  <name>xbot_mqtt</name>
   <version>0.0.0</version>
-  <description>The xbot_rpc package</description>
+  <description>The xbot_mqtt package</description>
 
 
   <maintainer email="clemens.elflein@gmail.com">Clemens Elflein</maintainer>

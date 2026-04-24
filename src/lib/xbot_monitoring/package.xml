@@ -22,7 +22,8 @@
   <depend>grid_map_core</depend>
   <depend>grid_map_ros</depend>
   <depend>grid_map_msgs</depend>
-  <depend>xbot_rpc</depend>
+  <depend>xbot_mqtt</depend>
+  <depend>mower_msgs</depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>

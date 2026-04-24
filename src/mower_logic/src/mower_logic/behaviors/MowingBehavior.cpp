@@ -155,6 +155,9 @@ bool MowingBehavior::create_mowing_plan(int area_index) {
     return false;
   }
 
+  currentMowingAreaId = mapSrv.response.area_id;
+  currentMowingAreaName = mapSrv.response.area.name;
+
   if (mapSrv.response.area.area.points.empty()) {
     ROS_INFO_STREAM("MowingBehavior: Skipping inactive mowing area");
     return true;
@@ -609,8 +612,16 @@ uint8_t MowingBehavior::get_state() {
   return mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_AUTONOMOUS;
 }
 
-int16_t MowingBehavior::get_current_area() {
+int16_t MowingBehavior::get_current_area() const {
   return currentMowingArea;
+}
+
+std::string MowingBehavior::get_current_area_id() const {
+  return currentMowingAreaId;
+}
+
+std::string MowingBehavior::get_current_area_name() const {
+  return currentMowingAreaName;
 }
 
 int16_t MowingBehavior::get_current_path() {

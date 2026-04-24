@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(xbot_rpc)
+project(xbot_mqtt)
 
 add_compile_options(-std=c++17)
 
@@ -12,6 +12,7 @@ add_message_files(
         RpcRequest.msg
         RpcResponse.msg
         RpcError.msg
+        MqttPublish.msg
 )
 
 add_service_files(
@@ -25,7 +26,7 @@ generate_messages(
 
 catkin_package(
   INCLUDE_DIRS include
-  LIBRARIES xbot_rpc
+  LIBRARIES xbot_mqtt
   CATKIN_DEPENDS std_msgs message_runtime
 )
 
@@ -36,18 +37,18 @@ include_directories(
   include
 )
 
-add_library(xbot_rpc
+add_library(xbot_mqtt
   src/provider.cpp
 )
 
-target_link_libraries(xbot_rpc nlohmann_json::nlohmann_json)
+target_link_libraries(xbot_mqtt nlohmann_json::nlohmann_json)
 
-add_dependencies(xbot_rpc
+add_dependencies(xbot_mqtt
   ${PROJECT_NAME}_gencpp   # <-- depends on generated C++ message headers
   ${catkin_EXPORTED_TARGETS}
 )
 
-install(TARGETS xbot_rpc
+install(TARGETS xbot_mqtt
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 )
 
