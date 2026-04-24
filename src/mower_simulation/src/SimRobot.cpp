@@ -133,7 +133,10 @@ void SimRobot::SimulationStep(const ros::TimerEvent& te) {
     return;
   }
   // Update Position if not in emergency mode
-  if (!emergency_latch_) {
+  if (emergency_latch_) {
+    last_noisy_vx_ = 0.0;
+    last_noisy_vr_ = 0.0;
+  } else {
     double time_diff_s = (now - last_update_).toSec();
     double noisy_vx = vx_ + linear_speed_noise(generator);
     double noisy_vr = vr_ + angular_speed_noise(generator);
