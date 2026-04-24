@@ -1,9 +1,8 @@
 # This get extend user's ~/.bashrc
 
-# Interactive shells PS1 prefix opt-in via STACK_SHELL=1 to avoid non-interactive side effects.
-if [ -n "${PS1:-}" ] && [ "${STACK_SHELL:-}" = "1" ]; then
-    stack="${STACK_NAME:-openmower}"
-    export PS1="\[\e[1;34m\][${stack}]\[\e[0m\] $PS1"
+# Container shell PS1 prefix
+if command -v systemd-detect-virt >/dev/null 2>&1 && systemd-detect-virt -cq; then
+    PS1="🚜 $PS1"
 fi
 
 # Source ROS and the workspace overlay (if present)

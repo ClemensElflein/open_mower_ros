@@ -12,8 +12,8 @@ void PowerService::tick() {
 
   // Send the sensor values
   StartTransaction();
-  SendBatteryVoltage(battery_volts);
-  SendChargeVoltage(charge_volts);
+  SendBatteryVoltageCHG(battery_volts);
+  SendChargeVoltageCHG(charge_volts);
   SendChargeCurrent(charge_current);
   SendChargerEnabled(true);
   SendChargingStatus(charge_state.c_str(), charge_state.length());

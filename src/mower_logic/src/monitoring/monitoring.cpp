@@ -157,7 +157,7 @@ void power_received(const mower_msgs::Power::ConstPtr& msg) {
   {
     xbot_msgs::SensorDataDouble sensor_data;
     sensor_data.stamp = msg->stamp;
-    sensor_data.data = msg->v_charge;
+    sensor_data.data = msg->charge_voltage_chg > 0.0 ? msg->charge_voltage_chg : msg->charge_voltage_adc;
 
     auto sc_it = sensor_configs.find("om_v_charge");
     if (sc_it != std::end(sensor_configs)) {
@@ -167,7 +167,7 @@ void power_received(const mower_msgs::Power::ConstPtr& msg) {
   {
     xbot_msgs::SensorDataDouble sensor_data;
     sensor_data.stamp = msg->stamp;
-    sensor_data.data = msg->v_battery;
+    sensor_data.data = msg->battery_voltage_chg > 0.0 ? msg->battery_voltage_chg : msg->battery_voltage_adc;
 
     auto sc_it = sensor_configs.find("om_v_battery");
     if (sc_it != std::end(sensor_configs)) {
