@@ -11,7 +11,11 @@ void RpcProvider::init() {
   response_pub = n.advertise<xbot_rpc::RpcResponse>(TOPIC_RESPONSE, 100);
   error_pub = n.advertise<xbot_rpc::RpcError>(TOPIC_ERROR, 100);
   registration_client = n.serviceClient<xbot_rpc::RegisterMethodsSrv>(SERVICE_REGISTER_METHODS);
-  registration_client.waitForExistence(ros::Duration(10.0));
+  if (!registration_client.waitForExistence(ros::Duration(10.0))) {
+    ROS_ERROR_STREAM("RPC method registration service not found");
+    // Don't abort here - RPC isn't critical for the system to function.
+    return;
+  }
   publishMethods();
 }
 
