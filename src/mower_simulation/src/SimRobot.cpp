@@ -138,8 +138,12 @@ void SimRobot::SimulationStep(const ros::TimerEvent& te) {
     last_noisy_vr_ = 0.0;
   } else {
     double time_diff_s = (now - last_update_).toSec();
-    double noisy_vx = vx_ + linear_speed_noise(generator);
-    double noisy_vr = vr_ + angular_speed_noise(generator);
+    // Skip noise when the robot is commanded to rest; a stationary mower does
+    // not random-walk its odometry, and unconditional noise integration would
+    // cause the simulated position to drift past the charging hysteresis window.
+    const bool at_rest = (vx_ == 0.0 && vr_ == 0.0);
+    double noisy_vx = at_rest ? 0.0 : vx_ + linear_speed_noise(generator);
+    double noisy_vr = at_rest ? 0.0 : vr_ + angular_speed_noise(generator);
     last_noisy_vx_ = noisy_vx;
     last_noisy_vr_ = noisy_vr;
     if (fabs(noisy_vr) > 1e-6) {
@@ -166,6 +170,10 @@ void SimRobot::SimulationStep(const ros::TimerEvent& te) {
     spdlog::info("Charging");
     is_charging_ = true;
     charging_started_time = ros::Time::now();
+    // Snap to the exact docking pose to eliminate any pre-latch drift so the
+    // disengage threshold cannot be tripped while the robot sits on the dock.
+    pos_x_ = docking_pos_x_;
+    pos_y_ = docking_pos_y_;
   } else if (is_charging_ && dock_dist > 0.03) {
     spdlog::info("Stopped Charging");
     is_charging_ = false;
