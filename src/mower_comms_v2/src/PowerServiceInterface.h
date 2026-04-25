@@ -24,7 +24,10 @@ class PowerServiceInterface : public PowerServiceInterfaceBase {
         battery_critical_voltage_(battery_critical_voltage),
         battery_critical_high_voltage_(battery_critical_high_voltage),
         battery_charge_current_(battery_charge_current),
-        system_current_(system_current) {
+        system_current_(system_current),
+        charger_charge_voltage_(0.0f),
+        charger_termination_current_(0.0f),
+        charger_pre_charge_current_(0.0f) {
   }
 
  protected:
@@ -61,6 +64,9 @@ class PowerServiceInterface : public PowerServiceInterfaceBase {
   float battery_critical_high_voltage_;
   float battery_charge_current_;
   float system_current_;
+  float charger_charge_voltage_;
+  float charger_termination_current_;
+  float charger_pre_charge_current_;
 };
 
 struct BatteryStatusBitName {
