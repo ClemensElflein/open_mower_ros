@@ -176,6 +176,8 @@ add_executable(mower_comms_v2
         src/InputServiceInterface.h
         src/PowerServiceInterface.cpp
         src/PowerServiceInterface.h
+        src/BmsServiceInterface.cpp
+        src/BmsServiceInterface.h
         src/GpsServiceInterface.cpp
         src/GpsServiceInterface.h
         src/HighLevelServiceInterface.cpp
@@ -187,6 +189,7 @@ target_add_service_interface(mower_comms_v2 EmergencyServiceInterface ${CMAKE_CU
 target_add_service_interface(mower_comms_v2 DiffDriveServiceInterface ${CMAKE_CURRENT_SOURCE_DIR}/../../services/diff_drive_service.json)
 target_add_service_interface(mower_comms_v2 MowerServiceInterface ${CMAKE_CURRENT_SOURCE_DIR}/../../services/mower_service.json)
 target_add_service_interface(mower_comms_v2 PowerServiceInterface ${CMAKE_CURRENT_SOURCE_DIR}/../../services/power_service.json)
+target_add_service_interface(mower_comms_v2 BmsServiceInterface ${CMAKE_CURRENT_SOURCE_DIR}/../../services/bms_service.json)
 target_add_service_interface(mower_comms_v2 GpsServiceInterface ${CMAKE_CURRENT_SOURCE_DIR}/../../services/gps_service.json)
 target_add_service_interface(mower_comms_v2 InputServiceInterface ${CMAKE_CURRENT_SOURCE_DIR}/../../services/input_service.json)
 target_add_service_interface(mower_comms_v2 HighLevelServiceInterface ${CMAKE_CURRENT_SOURCE_DIR}/../../services/high_level_service.json)

@@ -15,6 +15,7 @@
 #include "IdleBehavior.h"
 
 #include <mower_logic/PowerConfig.h>
+#include <mower_msgs/Bms.h>
 #include <mower_msgs/Power.h>
 
 #include "../utils.h"
@@ -31,6 +32,7 @@ extern ros::Time rain_resume;
 extern ros::ServiceClient dockingPointClient;
 extern mower_msgs::Status getStatus();
 extern mower_msgs::Power getPower();
+extern mower_msgs::Bms getBms();
 extern mower_logic::MowerLogicConfig getConfig();
 extern void setConfig(mower_logic::MowerLogicConfig);
 extern ll::PowerConfig getPowerConfig();
@@ -86,9 +88,10 @@ Behavior* IdleBehavior::execute() {
     }
 
     // Use first valid sensor
-    const float last_battery_v = utils::GetFirstValid(
-        {last_power.battery_voltage_adc, last_power.battery_voltage_bms, last_power.battery_voltage_chg});
-    const float last_charge_v = utils::GetFirstValid({last_power.charge_voltage_adc, last_power.charge_voltage_chg});
+    const auto last_bms = getBms();
+    const float last_battery_v =
+        utils::GetFirstValid({last_power.battery_voltage_adc, last_bms.voltage, last_power.battery_voltage});
+    const float last_charge_v = utils::GetFirstValid({last_power.charge_voltage_adc, last_power.charge_voltage});
 
     const bool mower_ready = last_battery_v > last_power_config.battery_full_voltage &&
                              last_status.mower_motor_temperature < last_config.motor_cold_temperature &&

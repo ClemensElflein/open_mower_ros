@@ -1,6 +1,12 @@
-//
-// Created by clemens on 09.09.24.
-//
+/*
+ * OpenMower
+ * Part of open_mower_ros (https://github.com/ClemensElflein/open_mower_ros)
+ *
+ * Created by clemens on 09.09.24.
+ * Copyright (C) 2024, 2026 The OpenMower Contributors
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
 
 #ifndef POWERSERVICEINTERFACE_H
 #define POWERSERVICEINTERFACE_H
@@ -10,41 +16,36 @@
 
 #include <PowerServiceInterfaceBase.hpp>
 #include <array>
+#include <limits>
 
 class PowerServiceInterface : public PowerServiceInterfaceBase {
  public:
   PowerServiceInterface(uint16_t service_id, const xbot::serviceif::Context& ctx,
                         const ros::Publisher& status_publisher, float battery_full_voltage, float battery_empty_voltage,
-                        float battery_critical_voltage, float battery_critical_high_voltage,
-                        float battery_charge_current, float system_current)
+                        float battery_critical_voltage, float battery_critical_high_voltage, float charge_voltage,
+                        float charge_current, float charge_termination_current, float charge_precharge_current,
+                        int charge_recharge_voltage, float system_current)
       : PowerServiceInterfaceBase(service_id, ctx),
         status_publisher_(status_publisher),
         battery_full_voltage_(battery_full_voltage),
         battery_empty_voltage_(battery_empty_voltage),
         battery_critical_voltage_(battery_critical_voltage),
         battery_critical_high_voltage_(battery_critical_high_voltage),
-        battery_charge_current_(battery_charge_current),
-        system_current_(system_current),
-        charger_charge_voltage_(0.0f),
-        charger_termination_current_(0.0f),
-        charger_pre_charge_current_(0.0f) {
+        charge_voltage_(charge_voltage),
+        charge_current_(charge_current),
+        charge_termination_current_(charge_termination_current),
+        charge_precharge_current_(charge_precharge_current),
+        charge_recharge_voltage_(charge_recharge_voltage),
+        system_current_(system_current) {
   }
 
  protected:
-  void OnChargeVoltageCHGChanged(const float& new_value) override;
+  void OnChargeVoltageChanged(const float& new_value) override;
   void OnChargeCurrentChanged(const float& new_value) override;
-  void OnBatteryVoltageCHGChanged(const float& new_value) override;
+  void OnBatteryVoltageChanged(const float& new_value) override;
   void OnChargingStatusChanged(const char* new_value, uint32_t length) override;
   void OnChargerEnabledChanged(const uint8_t& new_value) override;
   void OnBatteryPercentageChanged(const float& new_value) override;
-  void OnBatteryCurrentChanged(const float& new_value) override;
-
-  void OnBatteryVoltageBMSChanged(const float& new_value) override;
-  void OnBatterySoCChanged(const float& new_value) override;
-  void OnBatteryTemperatureChanged(const float& new_value) override;
-  void OnBatteryStatusChanged(const uint16_t& new_value) override;
-  void OnBMSExtraDataChanged(const char* new_value, uint32_t length) override;
-
   void OnChargeVoltageADCChanged(const float& new_value) override;
   void OnBatteryVoltageADCChanged(const float& new_value) override;
   void OnDCDCInputCurrentChanged(const float& new_value) override;
@@ -62,31 +63,12 @@ class PowerServiceInterface : public PowerServiceInterfaceBase {
   float battery_empty_voltage_;
   float battery_critical_voltage_;
   float battery_critical_high_voltage_;
-  float battery_charge_current_;
+  float charge_voltage_;
+  float charge_current_;
+  float charge_termination_current_;
+  float charge_precharge_current_;
+  int charge_recharge_voltage_;
   float system_current_;
-  float charger_charge_voltage_;
-  float charger_termination_current_;
-  float charger_pre_charge_current_;
 };
-
-struct BatteryStatusBitName {
-  uint16_t bit;
-  const char* name;
-};
-
-inline constexpr std::array<BatteryStatusBitName, 12> kBatteryStatusBits{{
-    {BatteryStatusBit::STATUS_FULLY_DISCHARGED, "Fully discharged"},
-    {BatteryStatusBit::STATUS_FULLY_CHARGED, "Fully charged"},
-    {BatteryStatusBit::STATUS_DISCHARGING, "Discharging"},
-    {BatteryStatusBit::STATUS_INITIALIZED, "Initialized"},
-    {BatteryStatusBit::ALARM_REMAINING_TIME, "ALARM: Remaining time"},
-    {BatteryStatusBit::ALARM_REMAINING_CAPACITY, "ALARM: Remaining capacity"},
-    {BatteryStatusBit::ALARM_RESERVED1, "ALARM: Reserved 1"},
-    {BatteryStatusBit::ALARM_TERMINATE_DISCHARGE, "ALARM: Terminate discharge"},
-    {BatteryStatusBit::ALARM_OVER_TEMPERATURE, "ALARM: Over temperature"},
-    {BatteryStatusBit::ALARM_RESERVED2, "ALARM: Reserved 2"},
-    {BatteryStatusBit::ALARM_TERMINATE_CHARGE, "ALARM: Terminate charge"},
-    {BatteryStatusBit::ALARM_OVER_CHARGED, "ALARM: Over charged"},
-}};
 
 #endif  // POWERSERVICEINTERFACE_H

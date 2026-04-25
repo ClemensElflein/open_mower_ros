@@ -15,6 +15,7 @@ add_message_files(
         Perimeter.msg
         Emergency.msg
         Power.msg
+        Bms.msg
         DockingSensor.msg
 )
 

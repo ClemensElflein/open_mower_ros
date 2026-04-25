@@ -151,7 +151,7 @@ bool DockingBehavior::dock_straight() {
     }
 
     // Use first valid sensor
-    const float last_charge_v = utils::GetFirstValid({last_power.charge_voltage_adc, last_power.charge_voltage_chg});
+    const float last_charge_v = utils::GetFirstValid({last_power.charge_voltage_adc, last_power.charge_voltage});
 
     switch (mbfState.state_) {
       case actionlib::SimpleClientGoalState::ACTIVE:
@@ -196,7 +196,7 @@ std::string DockingBehavior::state_name() {
 
 Behavior* DockingBehavior::execute() {
   // Check if already docked (e.g. carried to base during emergency) and skip
-  if (getPower().charge_voltage_chg > 5.0 || getPower().charge_voltage_adc > 5.0) {
+  if (getPower().charge_voltage > 5.0 || getPower().charge_voltage_adc > 5.0) {
     ROS_INFO_STREAM("Already inside docking station, going directly to idle.");
     stopMoving();
     return &IdleBehavior::DOCKED_INSTANCE;
