@@ -246,7 +246,10 @@ MapArea mowerMapAreaToInternal(const geometry_msgs::Polygon& area, const std::st
 mower_map::MapArea internalMapAreaToMower(const MapArea& area) {
   mower_map::MapArea result;
   result.name = area.name;
-  result.area = internalPolygonToGeometry(area.outline);
+  // Leave area empty if it is not active
+  if (area.active) {
+    result.area = internalPolygonToGeometry(area.outline);
+  }
   return result;
 }
 

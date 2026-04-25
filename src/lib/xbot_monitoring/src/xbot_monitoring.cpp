@@ -35,19 +35,19 @@ void publish_map();
 void publish_map_overlay();
 void publish_actions();
 void publish_version();
+void publish_params();
 void rpc_request_callback(const std::string &payload);
 
 // Stores registered actions (prefix to vector<action>)
 std::map<std::string, std::vector<xbot_msgs::ActionInfo>> registered_actions;
+std::mutex registered_actions_mutex;
 
 // Stores registered RPC methods
 std::map<std::string, std::vector<std::string>> registered_methods;
 std::mutex registered_methods_mutex;
 
-// Maps a topic to a subscriber.
-std::map<std::string, ros::Subscriber> active_subscribers;
 std::map<std::string, xbot_msgs::SensorInfo> found_sensors;
-std::vector<ros::Subscriber> sensor_data_subscribers;
+std::mutex found_sensors_mutex;
 
 ros::NodeHandle *n;
 
@@ -55,7 +55,6 @@ ros::NodeHandle *n;
 std::shared_ptr<mqtt::async_client> client_;
 std::shared_ptr<mqtt::async_client> client_external_;
 
-std::mutex mqtt_callback_mutex;
 
 // Publisher for cmd_vel and commands
 ros::Publisher cmd_vel_pub;
@@ -81,6 +80,7 @@ class MqttCallback : public mqtt::callback {
         publish_map_overlay();
         publish_actions();
         publish_version();
+        publish_params();
 
         // BEGIN: Deprecated code (1/2)
         // Earlier implementations subscribed to "/action" and "prefix//action" topics, we do it to not break stuff as well.
@@ -137,7 +137,9 @@ MqttCallback mqtt_callback;
 MqttCallback mqtt_callback_external;
 
 json map;
+std::mutex map_mutex;
 json map_overlay;
+std::mutex map_overlay_mutex;
 bool has_map = false;
 bool has_map_overlay = false;
 
@@ -274,79 +276,153 @@ void publish_capabilities() {
   try_publish("capabilities/json", CAPABILITIES.dump(2), true);
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic warning "-Wswitch-enum"
+json xmlrpc_to_json(XmlRpc::XmlRpcValue value) {
+    switch (value.getType()) {
+        case XmlRpc::XmlRpcValue::TypeBoolean:
+            return static_cast<bool>(value);
+        case XmlRpc::XmlRpcValue::TypeInt:
+            return static_cast<int>(value);
+        case XmlRpc::XmlRpcValue::TypeDouble:
+            return static_cast<double>(value);
+        case XmlRpc::XmlRpcValue::TypeString:
+            return static_cast<std::string>(value);
+        case XmlRpc::XmlRpcValue::TypeArray: {
+            json arr = json::array();
+            for (int i = 0; i < value.size(); ++i)
+                arr.push_back(xmlrpc_to_json(value[i]));
+            return arr;
+        }
+        case XmlRpc::XmlRpcValue::TypeStruct: {
+            json obj = json::object();
+            for (auto it = value.begin(); it != value.end(); ++it)
+                obj[it->first] = xmlrpc_to_json(it->second);
+            return obj;
+        }
+        case XmlRpc::XmlRpcValue::TypeDateTime: {
+            const struct tm& t = static_cast<const struct tm&>(value);
+            char buf[32];
+            std::strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%S", &t);
+            return std::string(buf);
+        }
+        case XmlRpc::XmlRpcValue::TypeBase64: {
+            const XmlRpc::XmlRpcValue::BinaryData& data = static_cast<const XmlRpc::XmlRpcValue::BinaryData&>(value);
+            static const char* b64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+            std::string out;
+            out.reserve(((data.size() + 2) / 3) * 4);
+            for (size_t i = 0; i < data.size(); i += 3) {
+                unsigned int n = (static_cast<unsigned char>(data[i]) << 16)
+                    | (i + 1 < data.size() ? static_cast<unsigned char>(data[i + 1]) << 8 : 0)
+                    | (i + 2 < data.size() ? static_cast<unsigned char>(data[i + 2]) : 0);
+                out += b64[(n >> 18) & 0x3F];
+                out += b64[(n >> 12) & 0x3F];
+                out += (i + 1 < data.size()) ? b64[(n >> 6) & 0x3F] : '=';
+                out += (i + 2 < data.size()) ? b64[n & 0x3F] : '=';
+            }
+            return out;
+        }
+        case XmlRpc::XmlRpcValue::TypeInvalid:
+            return nullptr;
+    }
+    return nullptr;
+}
+#pragma GCC diagnostic pop
+
+void publish_params() {
+    std::vector<std::string> param_names;
+    ros::param::getParamNames(param_names);
+    std::sort(param_names.begin(), param_names.end());
+
+    json params = json::object();
+    for (const auto &name : param_names) {
+        if (name.find("password") != std::string::npos) {
+            params[name] = nullptr;
+            continue;
+        }
+        XmlRpc::XmlRpcValue value;
+        if (ros::param::get(name, value)) {
+            params[name] = xmlrpc_to_json(value);
+        }
+    }
+    try_publish("params/json", params.dump(), true);
+}
+
 void publish_sensor_metadata() {
-    std::unique_lock<std::mutex> lk(mqtt_callback_mutex);
-
-    if(found_sensors.empty())
-        return;
-
     json sensor_info;
-    for (const auto &kv: found_sensors) {
-        json info;
-        info["sensor_id"] = kv.second.sensor_id;
-        info["sensor_name"] = kv.second.sensor_name;
+    {
+        std::unique_lock<std::mutex> lk(found_sensors_mutex);
 
-        switch (kv.second.value_type) {
-            case xbot_msgs::SensorInfo::TYPE_STRING: {
-                info["value_type"] = "STRING";
-                break;
-            }
-            case xbot_msgs::SensorInfo::TYPE_DOUBLE: {
-                info["value_type"] = "DOUBLE";
-                break;
-            }
-            default: {
-                info["value_type"] = "UNKNOWN";
-                break;
-            }
+        if(found_sensors.empty())
+            return;
+
+        for (const auto &kv: found_sensors) {
+            json info;
+            info["sensor_id"] = kv.second.sensor_id;
+            info["sensor_name"] = kv.second.sensor_name;
+
+            switch (kv.second.value_type) {
+                case xbot_msgs::SensorInfo::TYPE_STRING: {
+                    info["value_type"] = "STRING";
+                    break;
+                }
+                case xbot_msgs::SensorInfo::TYPE_DOUBLE: {
+                    info["value_type"] = "DOUBLE";
+                    break;
+                }
+                default: {
+                    info["value_type"] = "UNKNOWN";
+                    break;
+                }
 
 
+            }
+
+            switch (kv.second.value_description) {
+                case xbot_msgs::SensorInfo::VALUE_DESCRIPTION_TEMPERATURE: {
+                    info["value_description"] = "TEMPERATURE";
+                    break;
+                }
+                case xbot_msgs::SensorInfo::VALUE_DESCRIPTION_VELOCITY: {
+                    info["value_description"] = "VELOCITY";
+                    break;
+                }
+                case xbot_msgs::SensorInfo::VALUE_DESCRIPTION_ACCELERATION: {
+                    info["value_description"] = "ACCELERATION";
+                    break;
+                }
+                case xbot_msgs::SensorInfo::VALUE_DESCRIPTION_VOLTAGE: {
+                    info["value_description"] = "VOLTAGE";
+                    break;
+                }
+                case xbot_msgs::SensorInfo::VALUE_DESCRIPTION_CURRENT: {
+                    info["value_description"] = "CURRENT";
+                    break;
+                }
+                case xbot_msgs::SensorInfo::VALUE_DESCRIPTION_PERCENT: {
+                    info["value_description"] = "PERCENT";
+                    break;
+                }
+                case xbot_msgs::SensorInfo::VALUE_DESCRIPTION_RPM: {
+                    info["value_description"] = "REVOLUTIONS";
+                    break;
+                }
+                default: {
+                    info["value_description"] = "UNKNOWN";
+                    break;
+                }
+            }
+
+            info["unit"] = kv.second.unit;
+            info["has_min_max"] = kv.second.has_min_max;
+            info["min_value"] = kv.second.min_value;
+            info["max_value"] = kv.second.max_value;
+            info["has_critical_low"] = kv.second.has_critical_low;
+            info["lower_critical_value"] = kv.second.lower_critical_value;
+            info["has_critical_high"] = kv.second.has_critical_high;
+            info["upper_critical_value"] = kv.second.upper_critical_value;
+            sensor_info.push_back(info);
         }
-
-        switch (kv.second.value_description) {
-            case xbot_msgs::SensorInfo::VALUE_DESCRIPTION_TEMPERATURE: {
-                info["value_description"] = "TEMPERATURE";
-                break;
-            }
-            case xbot_msgs::SensorInfo::VALUE_DESCRIPTION_VELOCITY: {
-                info["value_description"] = "VELOCITY";
-                break;
-            }
-            case xbot_msgs::SensorInfo::VALUE_DESCRIPTION_ACCELERATION: {
-                info["value_description"] = "ACCELERATION";
-                break;
-            }
-            case xbot_msgs::SensorInfo::VALUE_DESCRIPTION_VOLTAGE: {
-                info["value_description"] = "VOLTAGE";
-                break;
-            }
-            case xbot_msgs::SensorInfo::VALUE_DESCRIPTION_CURRENT: {
-                info["value_description"] = "CURRENT";
-                break;
-            }
-            case xbot_msgs::SensorInfo::VALUE_DESCRIPTION_PERCENT: {
-                info["value_description"] = "PERCENT";
-                break;
-            }
-            case xbot_msgs::SensorInfo::VALUE_DESCRIPTION_RPM: {
-                info["value_description"] = "REVOLUTIONS";
-                break;
-            }
-            default: {
-                info["value_description"] = "UNKNOWN";
-                break;
-            }
-        }
-
-        info["unit"] = kv.second.unit;
-        info["has_min_max"] = kv.second.has_min_max;
-        info["min_value"] = kv.second.min_value;
-        info["max_value"] = kv.second.max_value;
-        info["has_critical_low"] = kv.second.has_critical_low;
-        info["lower_critical_value"] = kv.second.lower_critical_value;
-        info["has_critical_high"] = kv.second.has_critical_high;
-        info["upper_critical_value"] = kv.second.upper_critical_value;
-        sensor_info.push_back(info);
     }
     try_publish("sensor_infos/json", sensor_info.dump(), true);
     json data;
@@ -355,8 +431,12 @@ void publish_sensor_metadata() {
     try_publish_binary("sensor_infos/bson", bson.data(), bson.size(), true);
 }
 
-void subscribe_to_sensor(std::string topic) {
-    auto &sensor = found_sensors[topic];
+void subscribe_to_sensor(std::string topic, std::vector<ros::Subscriber> &sensor_data_subscribers) {
+    xbot_msgs::SensorInfo sensor;
+    {
+        std::unique_lock<std::mutex> lk(found_sensors_mutex);
+        sensor = found_sensors[topic];
+    }
 
     ROS_INFO_STREAM("Subscribing to sensor data for sensor with name: " << sensor.sensor_name);
 
@@ -364,7 +444,7 @@ void subscribe_to_sensor(std::string topic) {
 
     switch (sensor.value_type) {
         case xbot_msgs::SensorInfo::TYPE_DOUBLE: {
-            ros::Subscriber s = n->subscribe<xbot_msgs::SensorDataDouble>(data_topic, 10, [&info = sensor](
+            ros::Subscriber s = n->subscribe<xbot_msgs::SensorDataDouble>(data_topic, 10, [info = sensor](
                     const xbot_msgs::SensorDataDouble::ConstPtr &msg) {
                 try_publish("sensors/" + info.sensor_id + "/data", std::to_string(msg->data));
 
@@ -377,7 +457,7 @@ void subscribe_to_sensor(std::string topic) {
             break;
         }
         case xbot_msgs::SensorInfo::TYPE_STRING: {
-            ros::Subscriber s = n->subscribe<xbot_msgs::SensorDataString>(data_topic, 10, [&info = sensor](
+            ros::Subscriber s = n->subscribe<xbot_msgs::SensorDataString>(data_topic, 10, [info = sensor](
                     const xbot_msgs::SensorDataString::ConstPtr &msg) {
                 try_publish("sensors/" + info.sensor_id + "/data", msg->data);
 
@@ -426,13 +506,16 @@ void robot_state_callback(const xbot_msgs::RobotState::ConstPtr &msg) {
 
 void publish_actions() {
     json actions = json::array();
-    for(const auto &kv : registered_actions) {
-        for(const auto &action : kv.second) {
-            json action_info;
-            action_info["action_id"] = kv.first + "/" + action.action_id;
-            action_info["action_name"] = action.action_name;
-            action_info["enabled"] = action.enabled;
-            actions.push_back(action_info);
+    {
+        std::lock_guard<std::mutex> lk(registered_actions_mutex);
+        for(const auto &kv : registered_actions) {
+            for(const auto &action : kv.second) {
+                json action_info;
+                action_info["action_id"] = kv.first + "/" + action.action_id;
+                action_info["action_name"] = action.action_name;
+                action_info["enabled"] = action.enabled;
+                actions.push_back(action_info);
+            }
         }
     }
 
@@ -445,29 +528,43 @@ void publish_actions() {
 }
 
 void publish_map() {
-    if(!has_map)
-        return;
-    try_publish("map/json", map.dump(2), true);
+    json m;
+    {
+        std::lock_guard<std::mutex> lk(map_mutex);
+        if(!has_map)
+            return;
+        m = map;
+    }
+    try_publish("map/json", m.dump(2), true);
     json data;
-    data["d"] = map;
+    data["d"] = m;
     auto bson = json::to_bson(data);
     try_publish_binary("map/bson", bson.data(), bson.size(), true);
 }
 
 void publish_map_overlay() {
-    if(!has_map_overlay)
-        return;
-    try_publish("map_overlay/json", map_overlay.dump(), true);
+    json m;
+    {
+        std::lock_guard<std::mutex> lk(map_overlay_mutex);
+        if(!has_map_overlay)
+            return;
+        m = map_overlay;
+    }
+    try_publish("map_overlay/json", m.dump(), true);
     json data;
-    data["d"] = map_overlay;
+    data["d"] = m;
     auto bson = json::to_bson(data);
     try_publish_binary("map_overlay/bson", bson.data(), bson.size(), true);
 }
 
 void map_callback(const std_msgs::String::ConstPtr &msg) {
     try {
-        map = json::parse(msg->data);
-        has_map = true;
+        json m = json::parse(msg->data);
+        {
+            std::lock_guard<std::mutex> lk(map_mutex);
+            map = m;
+            has_map = true;
+        }
         publish_map();
     } catch (const json::exception &e) {
         ROS_ERROR_STREAM("Error processing map JSON: " << e.what());
@@ -501,8 +598,11 @@ void map_overlay_callback(const xbot_msgs::MapOverlay::ConstPtr &msg) {
 
     json j;
     j["polygons"] = polys;
-    map_overlay = j;
-    has_map_overlay = true;
+    {
+        std::lock_guard<std::mutex> lk(map_overlay_mutex);
+        map_overlay = j;
+        has_map_overlay = true;
+    }
 
     publish_map_overlay();
 }
@@ -512,7 +612,10 @@ bool registerActions(xbot_msgs::RegisterActionsSrvRequest &req, xbot_msgs::Regis
 
     ROS_INFO_STREAM("new actions registered: " << req.node_prefix << " registered " << req.actions.size() << " actions.");
 
-    registered_actions[req.node_prefix] = req.actions;
+    {
+        std::lock_guard<std::mutex> lk(registered_actions_mutex);
+        registered_actions[req.node_prefix] = req.actions;
+    }
 
     publish_actions();
     return true;
@@ -549,6 +652,10 @@ void rpc_request_callback(const std::string &payload) {
 
     // Check if the method is registered
     const std::string method = req["method"];
+    if (method.compare(0, 5, "meta.") == 0) {
+      // Silently ignore methods that are handled by the meta service.
+      return;
+    }
     bool is_registered = false;
     {
         std::lock_guard<std::mutex> lk(registered_methods_mutex);
@@ -650,6 +757,10 @@ int main(int argc, char **argv) {
 
     boost::regex topic_regex("/xbot_monitoring/sensors/.*/info");
 
+    // Maps a sensor info topic to its subscriber. Only touched by this thread.
+    std::map<std::string, ros::Subscriber> active_subscribers;
+    std::vector<ros::Subscriber> sensor_data_subscribers;
+
     while (ros::ok()) {
         // Read the topics in /xbot_monitoring/sensors/.*/info and subscribe to them.
         ros::master::V_TopicInfo topics;
@@ -661,25 +772,25 @@ int main(int argc, char **argv) {
 
             ROS_INFO_STREAM("Found new sensor topic " << item.name);
             active_subscribers[item.name] = n->subscribe<xbot_msgs::SensorInfo>(
-                item.name, 1, [topic = item.name](const xbot_msgs::SensorInfo::ConstPtr &msg) {
+                item.name, 1, [topic = item.name, &sensor_data_subscribers](const xbot_msgs::SensorInfo::ConstPtr &msg) {
                     ROS_INFO_STREAM("Got sensor info for sensor on topic " << msg->sensor_name << " on topic " << topic);
-                    auto exist = found_sensors.count(topic);
 
-                    // Sensor already known and sensor-info equals?
-                    if(exist != 0 && found_sensors[topic] == *msg)
-                        return;
-
+                    bool is_new = false;
                     {
-                        // Sensor is new or sensor-info differ from the buffered one
-                        std::unique_lock<std::mutex> lk(mqtt_callback_mutex);
+                        std::unique_lock<std::mutex> lk(found_sensors_mutex);
+                        is_new = found_sensors.count(topic) == 0;
+
+                        // Sensor already known and sensor-info equals?
+                        if (!is_new && found_sensors[topic] == *msg) return;
+
                         found_sensors[topic] = *msg;  // Save the (new|changed) sensor info
                     }
 
                     // Let the info subscription alive for dynamic threshold changes
                     //active_subscribers.erase(topic);  // Stop subscribing to infos
 
-                    if (exist == 0) {
-                        subscribe_to_sensor(topic);  // Subscribe for data
+                    if (is_new) {
+                        subscribe_to_sensor(topic, sensor_data_subscribers);  // Subscribe for data
                     }
 
                     // Republish (new|changed) sensor info
