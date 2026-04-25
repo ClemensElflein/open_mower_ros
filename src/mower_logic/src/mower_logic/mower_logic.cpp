@@ -18,6 +18,7 @@
 #include <actionlib/client/simple_action_client.h>
 #include <dynamic_reconfigure/server.h>
 #include <mower_logic/PowerConfig.h>
+#include <mower_msgs/Bms.h>
 #include <mower_msgs/ESCStatus.h>
 #include <mower_msgs/Emergency.h>
 #include <mower_msgs/Power.h>
@@ -72,6 +73,7 @@ ll::PowerConfig last_power_config;
 StateSubscriber<mower_msgs::Emergency> emergency_state_subscriber{"/ll/emergency"};
 StateSubscriber<mower_msgs::Status> status_state_subscriber{"/ll/mower_status"};
 StateSubscriber<mower_msgs::Power> power_state_subscriber{"/ll/power"};
+StateSubscriber<mower_msgs::Bms> bms_state_subscriber{"/ll/bms"};
 StateSubscriber<mower_msgs::ESCStatus> left_esc_status_state_subscriber{"/ll/diff_drive/left_esc_status"};
 StateSubscriber<mower_msgs::ESCStatus> right_esc_status_state_subscriber{"/ll/diff_drive/right_esc_status"};
 StateSubscriber<xbot_msgs::AbsolutePose> pose_state_subscriber{"/xbot_positioning/xb_pose"};
@@ -130,6 +132,10 @@ mower_msgs::Status getStatus() {
 
 mower_msgs::Power getPower() {
   return power_state_subscriber.getMessage();
+}
+
+mower_msgs::Bms getBms() {
+  return bms_state_subscriber.getMessage();
 }
 
 xbot_msgs::AbsolutePose getPose() {
@@ -393,7 +399,7 @@ void checkSafety(const ros::TimerEvent& timer_event) {
   const auto last_good_gps = getLastGoodGPS();
 
   high_level_status.emergency = last_emergency.latched_emergency;
-  high_level_status.is_charging = last_power.charge_voltage_chg > 10.0 || last_power.charge_voltage_adc > 10.0;
+  high_level_status.is_charging = last_power.charge_voltage > 10.0 || last_power.charge_voltage_adc > 10.0;
 
   // Initialize to true, if after all checks it is still true then mower should be enabled.
   mowerAllowed = true;
@@ -488,9 +494,10 @@ void checkSafety(const ros::TimerEvent& timer_event) {
   // enable the mower (if not aleady) if mowerAllowed is still true after checks and bahavior agrees
   setMowerEnabled(currentBehavior != nullptr && mowerAllowed && currentBehavior->mower_enabled());
 
-  // Get the best available battery voltage using fallback chain: ADC -> BMS -> CHG
-  const float last_battery_v = utils::GetFirstValid(
-      {last_power.battery_voltage_adc, last_power.battery_voltage_bms, last_power.battery_voltage_chg});
+  // Get BMS voltage if available, otherwise use ADC or charger voltage
+  const auto last_bms = bms_state_subscriber.getMessage();
+  const float last_battery_v =
+      utils::GetFirstValid({last_power.battery_voltage_adc, last_bms.voltage, last_power.battery_voltage});
 
   double battery_percent = (last_battery_v - last_power_config.battery_empty_voltage) /
                            (last_power_config.battery_full_voltage - last_power_config.battery_empty_voltage);
@@ -689,6 +696,7 @@ int main(int argc, char** argv) {
   emergency_state_subscriber.Start(n);
   status_state_subscriber.Start(n);
   power_state_subscriber.Start(n);
+  bms_state_subscriber.Start(n);
   left_esc_status_state_subscriber.Start(n);
   right_esc_status_state_subscriber.Start(n);
   pose_state_subscriber.Start(n);
