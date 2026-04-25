@@ -16,8 +16,8 @@
 
 #include <mower_msgs/Power.h>
 
-#include "../utils.h"
 #include "PerimeterDocking.h"
+#include "mower_logic/utils.h"
 
 extern ros::ServiceClient dockingPointClient;
 extern actionlib::SimpleActionClient<mbf_msgs::MoveBaseAction>* mbfClient;
