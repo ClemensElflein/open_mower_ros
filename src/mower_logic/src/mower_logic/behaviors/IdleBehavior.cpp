@@ -18,8 +18,8 @@
 #include <mower_msgs/Bms.h>
 #include <mower_msgs/Power.h>
 
-#include "../utils.h"
 #include "PerimeterDocking.h"
+#include "mower_logic/utils.h"
 
 extern void stopMoving();
 extern void stopBlade();
