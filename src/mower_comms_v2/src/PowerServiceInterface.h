@@ -69,9 +69,6 @@ class PowerServiceInterface : public PowerServiceInterfaceBase {
   float charge_precharge_current_;
   int charge_recharge_voltage_;
   float system_current_;
-  float charger_charge_voltage_;
-  float charger_termination_current_;
-  float charger_pre_charge_current_;
 };
 
 #endif  // POWERSERVICEINTERFACE_H
