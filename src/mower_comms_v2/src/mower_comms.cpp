@@ -40,7 +40,6 @@
 ros::Publisher status_pub;
 ros::Publisher nmea_pub;
 // Add two NMEA publishers (not that we need it for our experiment, but the service interface requires them)
-ros::Publisher nmea_pub_recording_1;
 ros::Publisher nmea_pub_recording_2;
 ros::Publisher nmea_pub_recording_3;
 ros::Publisher power_pub;
@@ -269,7 +268,6 @@ int main(int argc, char** argv) {
   gps_position_pub_recording_2 = n.advertise<xbot_msgs::AbsolutePose>("ll/position/gps2", 1);
   gps_position_pub_recording_3 = n.advertise<xbot_msgs::AbsolutePose>("ll/position/gps3", 1);
   nmea_pub = n.advertise<nmea_msgs::Sentence>("ll/position/gps/nmea", 1);
-  nmea_pub_recording_1 = n.advertise<nmea_msgs::Sentence>("ll/position/gps1/nmea", 1);
   nmea_pub_recording_2 = n.advertise<nmea_msgs::Sentence>("ll/position/gps2/nmea", 1);
   nmea_pub_recording_3 = n.advertise<nmea_msgs::Sentence>("ll/position/gps3/nmea", 1);
   bool absolute_coords = true;
@@ -279,16 +277,17 @@ int main(int argc, char** argv) {
   paramNh.getParam("services/imu/selected_gps", selected_gps);
   ROS_INFO_STREAM("Selected GPS: " << selected_gps);
 
-  gps_service = std::make_unique<GpsServiceInterface>(
-      xbot::service_ids::GPS, ctx, nmea_pub_recording_1, nmea_pub, selected_gps == 1 ? &gps_position_pub : nullptr,
-      datum_lat, datum_long, datum_height, baud_rate, protocol, gps_port_index, absolute_coords);
+  gps_service =
+      std::make_unique<GpsServiceInterface>(xbot::service_ids::GPS, ctx, gps_position_pub_recording_1, nmea_pub,
+                                            selected_gps == 1 ? &gps_position_pub : nullptr, datum_lat, datum_long,
+                                            datum_height, baud_rate, protocol, gps_port_index, absolute_coords);
   // Actually need to hard-code the same settings as on the firmware side, otherwise the firmware will refuse to star up
   // because it detects that settings mismatch.
   gps_service_recording_1 = std::make_unique<GpsServiceInterface>(
-      1001, ctx, gps_position_pub_recording_1, nmea_pub_recording_2, selected_gps == 2 ? &gps_position_pub : nullptr,
+      1001, ctx, gps_position_pub_recording_2, nmea_pub_recording_2, selected_gps == 2 ? &gps_position_pub : nullptr,
       datum_lat, datum_long, datum_height, 460800, "NMEA", 7, absolute_coords);
   gps_service_recording_2 = std::make_unique<GpsServiceInterface>(
-      1002, ctx, gps_position_pub_recording_2, nmea_pub_recording_3, selected_gps == 3 ? &gps_position_pub : nullptr,
+      1002, ctx, gps_position_pub_recording_3, nmea_pub_recording_3, selected_gps == 3 ? &gps_position_pub : nullptr,
       datum_lat, datum_long, datum_height, 460800, "NMEA", 8, absolute_coords);
 
   gps_service->Start();
