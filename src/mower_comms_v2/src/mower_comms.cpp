@@ -274,7 +274,7 @@ int main(int argc, char** argv) {
   paramNh.getParam("services/gps/absolute_coords", absolute_coords);
 
   int selected_gps = -1;
-  paramNh.getParam("services/imu/selected_gps", selected_gps);
+  paramNh.getParam("services/gps/selected_gps", selected_gps);
   ROS_INFO_STREAM("Selected GPS: " << selected_gps);
 
   gps_service =
