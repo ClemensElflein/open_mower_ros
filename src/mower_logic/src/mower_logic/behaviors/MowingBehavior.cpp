@@ -200,6 +200,7 @@ bool MowingBehavior::create_mowing_plan(int area_index) {
   pathSrv.request.fill_type = slic3r_coverage_planner::PlanPathRequest::FILL_LINEAR;
   pathSrv.request.outer_offset = config.outline_offset;
   pathSrv.request.distance = config.tool_width;
+  pathSrv.request.skip_fill = true;
   if (!pathClient.call(pathSrv)) {
     ROS_ERROR_STREAM("MowingBehavior: Error during coverage planning");
     return false;
