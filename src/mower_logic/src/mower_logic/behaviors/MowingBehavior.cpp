@@ -201,6 +201,7 @@ bool MowingBehavior::create_mowing_plan(int area_index) {
   pathSrv.request.outer_offset = config.outline_offset;
   pathSrv.request.distance = config.tool_width;
   pathSrv.request.skip_fill = true;
+  pathSrv.request.repeat_count = config.repeat_count;
   if (!pathClient.call(pathSrv)) {
     ROS_ERROR_STREAM("MowingBehavior: Error during coverage planning");
     return false;
@@ -695,6 +696,7 @@ void MowingBehavior::checkpoint() {
 bool MowingBehavior::restore_checkpoint() {
   rosbag::Bag bag;
   bool found = false;
+  return false;
   try {
     bag.open("checkpoint.bag");
   } catch (rosbag::BagIOException& e) {

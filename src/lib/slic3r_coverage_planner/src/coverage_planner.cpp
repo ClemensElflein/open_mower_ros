@@ -530,7 +530,14 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
     for (auto &group: area_outlines) {
         auto path = determinePathForOutline(header, outline_poly, group, false, &areaLastPoint);
         if (!path.path.poses.empty()) {
-            res.paths.push_back(path);
+          slic3r_coverage_planner::Path repeated_path{};
+          for (int i = 0; i < req.repeat_count; i++) {
+            for (auto &pose : path.path.poses) {
+              repeated_path.path.poses.push_back(pose);
+            }
+          }
+
+            res.paths.push_back(repeated_path);
         }
     }
 

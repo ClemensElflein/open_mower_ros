@@ -11,5 +11,6 @@ bool skip_obstacle_outlines
 bool skip_fill
 geometry_msgs/Polygon outline
 geometry_msgs/Polygon[] holes
+int8 repeat_count
 ---
 Path[] paths
