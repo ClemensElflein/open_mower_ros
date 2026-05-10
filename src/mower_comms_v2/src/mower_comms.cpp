@@ -66,21 +66,15 @@ std::unique_ptr<HighLevelServiceInterface> high_level_service = nullptr;
 xbot::serviceif::Context ctx{};
 
 bool setEmergencyStop(mower_msgs::EmergencyStopSrvRequest& req, mower_msgs::EmergencyStopSrvResponse& res) {
-  // This should never be the case, also this is no race condition, because callback will only be called
-  // after initialization whereas the service is created during intialization
-  if (!emergency_service) return false;
-
   emergency_service->SetHighLevelEmergency(req.emergency);
   return true;
 }
 
 void velReceived(const geometry_msgs::Twist::ConstPtr& msg) {
-  if (!diff_drive_service) return;
   diff_drive_service->SendTwist(msg);
 }
 
 void rtcmReceived(const rtcm_msgs::Message& msg) {
-  if (!gps_service) return;
   static std::vector<uint8_t> rtcm_buffer{};
   static ros::Time last_time_sent{0};
   ros::Time now = ros::Time::now();
@@ -137,16 +131,6 @@ int main(int argc, char** argv) {
   ros::NodeHandle paramNh("/ll");
 
   highLevelClient = n.serviceClient<mower_msgs::HighLevelControlSrv>("mower_service/high_level_control");
-
-  ros::ServiceServer mow_service = n.advertiseService("ll/_service/mow_enabled", setMowEnabled);
-  ros::ServiceServer ros_emergency_service = n.advertiseService("ll/_service/emergency", setEmergencyStop);
-  ros::Subscriber cmd_vel_sub = n.subscribe("ll/cmd_vel", 0, velReceived, ros::TransportHints().tcpNoDelay(true));
-  ros::Subscriber rtcm_sub = n.subscribe("ll/position/gps/rtcm", 0, rtcmReceived);
-  // ros::Subscriber high_level_status_sub = n.subscribe("/mower_logic/current_state", 0, highLevelStatusReceived);
-  ros::Timer publish_timer = n.createTimer(ros::Duration(0.5), sendEmergencyHeartbeatTimerTask);
-  ros::Timer publish_timer_2 = n.createTimer(ros::Duration(5.0), sendMowerEnabledTimerTask);
-  action_pub = n.advertise<std_msgs::String>("xbot/action", 1);
-  ros::Subscriber action_sub = n.subscribe("xbot/action", 0, actionReceived, ros::TransportHints().tcpNoDelay(true));
 
   std::string bind_ip = "0.0.0.0";
   paramNh.getParam("bind_ip", bind_ip);
@@ -295,6 +279,20 @@ int main(int argc, char** argv) {
   // HighLevel service
   high_level_service = std::make_unique<HighLevelServiceInterface>(xbot::service_ids::HIGH_LEVEL, ctx);
   high_level_service->Start();
+
+  // All subscriptions, timers and service servers are registered after all service interfaces are
+  // fully constructed, so callbacks can never fire on null pointers.
+  ros::ServiceServer mow_service = n.advertiseService("ll/_service/mow_enabled", setMowEnabled);
+  ros::ServiceServer ros_emergency_service = n.advertiseService("ll/_service/emergency", setEmergencyStop);
+  ros::Subscriber cmd_vel_sub = n.subscribe("ll/cmd_vel", 0, velReceived, ros::TransportHints().tcpNoDelay(true));
+  ros::Subscriber rtcm_sub = n.subscribe("ll/position/gps/rtcm", 0, rtcmReceived);
+  // ros::Subscriber high_level_status_sub = n.subscribe("/mower_logic/current_state", 0, highLevelStatusReceived);
+  ros::Timer publish_timer = n.createTimer(ros::Duration(0.5), sendEmergencyHeartbeatTimerTask);
+  ros::Timer publish_timer_2 = n.createTimer(ros::Duration(5.0), sendMowerEnabledTimerTask);
+  action_pub = n.advertise<std_msgs::String>("xbot/action", 1);
+  ros::Subscriber action_sub = n.subscribe("xbot/action", 0, actionReceived, ros::TransportHints().tcpNoDelay(true));
+
+  ROS_INFO("All mower_comms_v2 services started");
 
   ros::spin();
   xbot::serviceif::Stop();
