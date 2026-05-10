@@ -75,6 +75,7 @@ struct MapArea {
   std::string type;
   bool active;
   Polygon outline;
+  int outline_count = -1;
 };
 
 struct DockingStation {
@@ -114,6 +115,7 @@ void to_json(json& j, const MapArea& data) {
   if (!data.name.empty()) properties["name"] = data.name;
   properties["type"] = data.type;
   if (!data.active) properties["active"] = data.active;
+  if (data.outline_count >= 0) properties["outline_count"] = data.outline_count;
   j["properties"] = properties;
   j["outline"] = data.outline;
 }
@@ -124,6 +126,7 @@ void from_json(const json& j, MapArea& data) {
   data.name = properties.value("name", "");
   data.type = properties.value("type", "draft");
   data.active = properties.value("active", true);
+  data.outline_count = properties.value("outline_count", -1);
   j.at("outline").get_to(data.outline);
 }
 
@@ -246,6 +249,7 @@ MapArea mowerMapAreaToInternal(const geometry_msgs::Polygon& area, const std::st
 mower_map::MapArea internalMapAreaToMower(const MapArea& area) {
   mower_map::MapArea result;
   result.name = area.name;
+  result.outline_count = area.outline_count;
   // Leave area empty if it is not active
   if (area.active) {
     result.area = internalPolygonToGeometry(area.outline);
