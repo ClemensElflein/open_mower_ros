@@ -193,7 +193,8 @@ bool MowingBehavior::create_mowing_plan(int area_index) {
   // calculate coverage
   slic3r_coverage_planner::PlanPath pathSrv;
   pathSrv.request.angle = angle;
-  pathSrv.request.outline_count = config.outline_count;
+  pathSrv.request.outline_count =
+      (mapSrv.response.area.outline_count >= 0) ? mapSrv.response.area.outline_count : config.outline_count;
   pathSrv.request.outline_overlap_count = config.outline_overlap_count;
   pathSrv.request.outline = mapSrv.response.area.area;
   pathSrv.request.holes = mapSrv.response.area.obstacles;
