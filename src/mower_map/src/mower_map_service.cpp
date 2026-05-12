@@ -244,15 +244,31 @@ geometry_msgs::Polygon internalPolygonToGeometry(const Polygon& poly) {
 }
 
 /**
+ * Convert a geometry_msgs::Polygon obstacle to our internal MapArea struct
+ */
+MapArea obstacleToInternal(const geometry_msgs::Polygon& obstacle) {
+  MapArea result;
+  result.id = generateNanoId();
+  result.type = "obstacle";
+  result.active = true;
+  result.outline = geometryPolygonToInternal(obstacle);
+  return result;
+}
+
+/**
  * Convert a mower_map::MapArea to our internal MapArea struct
  */
-MapArea mowerMapAreaToInternal(const geometry_msgs::Polygon& area, const std::string& type, const std::string& name) {
+MapArea mowerMapAreaToInternal(const mower_map::MapArea& area, const std::string& type) {
   MapArea result;
   result.id = generateNanoId();
   result.type = type;
-  result.name = name;
-  result.active = true;
-  result.outline = geometryPolygonToInternal(area);
+  result.name = area.name;
+  result.active = area.active;
+  result.angle = area.angle;
+  result.outline_count = area.outline_count;
+  result.outline_overlap_count = area.outline_overlap_count;
+  result.outline_offset = area.outline_offset;
+  result.outline = geometryPolygonToInternal(area.area);
   return result;
 }
 
@@ -558,9 +574,9 @@ void readMapFromFile() {
 bool addMowingArea(mower_map::AddMowingAreaSrvRequest& req, mower_map::AddMowingAreaSrvResponse& res) {
   ROS_INFO_STREAM("Got addMowingArea call");
 
-  map_data.areas.push_back(mowerMapAreaToInternal(req.area.area, req.isNavigationArea ? "nav" : "mow", req.area.name));
+  map_data.areas.push_back(mowerMapAreaToInternal(req.area, req.isNavigationArea ? "nav" : "mow"));
   for (const auto& obstacle : req.area.obstacles) {
-    map_data.areas.push_back(mowerMapAreaToInternal(obstacle, "obstacle", ""));
+    map_data.areas.push_back(obstacleToInternal(obstacle));
   }
 
   saveMapToFile();
