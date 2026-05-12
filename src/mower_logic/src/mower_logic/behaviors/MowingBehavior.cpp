@@ -21,6 +21,8 @@
 #include <rosbag/bag.h>
 #include <rosbag/view.h>
 
+#include <cmath>
+
 #include "mower_logic/CheckPoint.h"
 #include "mower_map/ClearNavPointSrv.h"
 #include "mower_map/GetMowingAreaSrv.h"
@@ -162,7 +164,7 @@ bool MowingBehavior::create_mowing_plan(int area_index) {
 
   // Area orientation is the same as the first point, unless explicitly specified in the area attributes
   double angle = 0;
-  if (mapSrv.response.area.angle >= 0.0) {
+  if (!std::isnan(mapSrv.response.area.angle)) {
     angle = mapSrv.response.area.angle;
     ROS_INFO_STREAM("MowingBehavior: Using explicitly specified mow angle: " << angle);
   } else {
