@@ -76,6 +76,8 @@ struct MapArea {
   bool active;
   Polygon outline;
   int outline_count = -1;
+  int outline_overlap_count = -1;
+  double outline_offset = -1.0;
 };
 
 struct DockingStation {
@@ -116,6 +118,8 @@ void to_json(json& j, const MapArea& data) {
   properties["type"] = data.type;
   if (!data.active) properties["active"] = data.active;
   if (data.outline_count >= 0) properties["outline_count"] = data.outline_count;
+  if (data.outline_overlap_count >= 0) properties["outline_overlap_count"] = data.outline_overlap_count;
+  if (data.outline_offset >= 0.0) properties["outline_offset"] = data.outline_offset;
   j["properties"] = properties;
   j["outline"] = data.outline;
 }
@@ -127,6 +131,8 @@ void from_json(const json& j, MapArea& data) {
   data.type = properties.value("type", "draft");
   data.active = properties.value("active", true);
   data.outline_count = properties.value("outline_count", -1);
+  data.outline_overlap_count = properties.value("outline_overlap_count", -1);
+  data.outline_offset = properties.value("outline_offset", -1.0);
   j.at("outline").get_to(data.outline);
 }
 
@@ -250,6 +256,8 @@ mower_map::MapArea internalMapAreaToMower(const MapArea& area) {
   mower_map::MapArea result;
   result.name = area.name;
   result.outline_count = area.outline_count;
+  result.outline_overlap_count = area.outline_overlap_count;
+  result.outline_offset = area.outline_offset;
   // Leave area empty if it is not active
   if (area.active) {
     result.area = internalPolygonToGeometry(area.outline);

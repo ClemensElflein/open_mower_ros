@@ -191,15 +191,20 @@ bool MowingBehavior::create_mowing_plan(int area_index) {
   }
 
   // calculate coverage
+  const auto& area = mapSrv.response.area;
+  auto overrideOrGlobal = [](auto override, auto global, auto sentinel) {
+    return (override != sentinel) ? override : global;
+  };
+
   slic3r_coverage_planner::PlanPath pathSrv;
   pathSrv.request.angle = angle;
-  pathSrv.request.outline_count =
-      (mapSrv.response.area.outline_count >= 0) ? mapSrv.response.area.outline_count : config.outline_count;
-  pathSrv.request.outline_overlap_count = config.outline_overlap_count;
-  pathSrv.request.outline = mapSrv.response.area.area;
-  pathSrv.request.holes = mapSrv.response.area.obstacles;
+  pathSrv.request.outline_count = overrideOrGlobal(area.outline_count, config.outline_count, -1);
+  pathSrv.request.outline_overlap_count =
+      overrideOrGlobal(area.outline_overlap_count, config.outline_overlap_count, -1);
+  pathSrv.request.outline = area.area;
+  pathSrv.request.holes = area.obstacles;
   pathSrv.request.fill_type = slic3r_coverage_planner::PlanPathRequest::FILL_LINEAR;
-  pathSrv.request.outer_offset = config.outline_offset;
+  pathSrv.request.outer_offset = overrideOrGlobal(area.outline_offset, config.outline_offset, -1.0);
   pathSrv.request.distance = config.tool_width;
   if (!pathClient.call(pathSrv)) {
     ROS_ERROR_STREAM("MowingBehavior: Error during coverage planning");
