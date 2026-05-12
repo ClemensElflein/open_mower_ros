@@ -27,6 +27,7 @@
 #include "geometry_msgs/Point32.h"
 #include "geometry_msgs/Polygon.h"
 #include "mower_map/MapArea.h"
+#include "mower_map/MapAreaLegacy.h"
 
 // Include Service Messages
 #include "mower_map/AddMowingAreaSrv.h"
@@ -670,7 +671,7 @@ bool clearMap(mower_map::ClearMapSrvRequest& req, mower_map::ClearMapSrvResponse
 bool convertLegacyAreas(rosbag::Bag& bag, const std::string& topic_name, const std::string& area_type) {
   rosbag::View view(bag, rosbag::TopicQuery(topic_name));
   for (rosbag::MessageInstance const m : view) {
-    auto area = m.instantiate<mower_map::MapArea>();
+    auto area = m.instantiate<mower_map::MapAreaLegacy>();
     if (!area) {
       ROS_ERROR_STREAM("Type mismatch on topic '" << topic_name << "' (got " << m.getDataType()
                                                   << " / md5=" << m.getMD5Sum() << "), aborting conversion");
