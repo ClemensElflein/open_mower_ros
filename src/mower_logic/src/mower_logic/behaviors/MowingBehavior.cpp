@@ -173,7 +173,7 @@ bool MowingBehavior::create_mowing_plan(int area_index) {
         tf2::Vector3 second(point.x, point.y, 0);
         auto diff = second - first;
         if (diff.length() > 2.0) {
-          // we have found a point that has a distance of > 1 m, calculate the angle
+          // we have found a point that has a distance of > 2 m, calculate the angle
           angle = atan2(diff.y(), diff.x());
           ROS_INFO_STREAM("MowingBehavior: Detected mow angle: " << angle);
           break;
