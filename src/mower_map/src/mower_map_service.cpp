@@ -259,14 +259,12 @@ MapArea mowerMapAreaToInternal(const geometry_msgs::Polygon& area, const std::st
 mower_map::MapArea internalMapAreaToMower(const MapArea& area) {
   mower_map::MapArea result;
   result.name = area.name;
+  result.active = area.active;
   result.angle = area.angle;
   result.outline_count = area.outline_count;
   result.outline_overlap_count = area.outline_overlap_count;
   result.outline_offset = area.outline_offset;
-  // Leave area empty if it is not active
-  if (area.active) {
-    result.area = internalPolygonToGeometry(area.outline);
-  }
+  result.area = internalPolygonToGeometry(area.outline);
   return result;
 }
 

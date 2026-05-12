@@ -1,4 +1,5 @@
 string name
+bool active
 geometry_msgs/Polygon area
 geometry_msgs/Polygon[] obstacles
 float64 angle                # per-area override (radians); -1.0 means use the auto-detected polygon angle

@@ -155,7 +155,7 @@ bool MowingBehavior::create_mowing_plan(int area_index) {
     return false;
   }
 
-  if (mapSrv.response.area.area.points.empty()) {
+  if (!mapSrv.response.area.active) {
     ROS_INFO_STREAM("MowingBehavior: Skipping inactive mowing area");
     return true;
   }
