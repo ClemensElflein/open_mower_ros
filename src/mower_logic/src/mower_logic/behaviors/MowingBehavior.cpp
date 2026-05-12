@@ -160,19 +160,24 @@ bool MowingBehavior::create_mowing_plan(int area_index) {
     return true;
   }
 
-  // Area orientation is the same as the first point
+  // Area orientation is the same as the first point, unless explicitly specified in the area attributes
   double angle = 0;
-  auto points = mapSrv.response.area.area.points;
-  if (points.size() >= 2) {
-    tf2::Vector3 first(points[0].x, points[0].y, 0);
-    for (auto point : points) {
-      tf2::Vector3 second(point.x, point.y, 0);
-      auto diff = second - first;
-      if (diff.length() > 2.0) {
-        // we have found a point that has a distance of > 1 m, calculate the angle
-        angle = atan2(diff.y(), diff.x());
-        ROS_INFO_STREAM("MowingBehavior: Detected mow angle: " << angle);
-        break;
+  if (mapSrv.response.area.angle >= 0.0) {
+    angle = mapSrv.response.area.angle;
+    ROS_INFO_STREAM("MowingBehavior: Using explicitly specified mow angle: " << angle);
+  } else {
+    auto points = mapSrv.response.area.area.points;
+    if (points.size() >= 2) {
+      tf2::Vector3 first(points[0].x, points[0].y, 0);
+      for (auto point : points) {
+        tf2::Vector3 second(point.x, point.y, 0);
+        auto diff = second - first;
+        if (diff.length() > 2.0) {
+          // we have found a point that has a distance of > 1 m, calculate the angle
+          angle = atan2(diff.y(), diff.x());
+          ROS_INFO_STREAM("MowingBehavior: Detected mow angle: " << angle);
+          break;
+        }
       }
     }
   }
