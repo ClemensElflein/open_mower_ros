@@ -82,7 +82,7 @@ struct MapArea {
   double angle = std::numeric_limits<double>::quiet_NaN();
   int outline_count = -1;
   int outline_overlap_count = -1;
-  double outline_offset = -1.0;
+  double outline_offset = std::numeric_limits<double>::quiet_NaN();
 };
 
 struct DockingStation {
@@ -125,7 +125,7 @@ void to_json(json& j, const MapArea& data) {
   if (!std::isnan(data.angle)) properties["angle"] = data.angle;
   if (data.outline_count >= 0) properties["outline_count"] = data.outline_count;
   if (data.outline_overlap_count >= 0) properties["outline_overlap_count"] = data.outline_overlap_count;
-  if (data.outline_offset >= 0.0) properties["outline_offset"] = data.outline_offset;
+  if (!std::isnan(data.outline_offset)) properties["outline_offset"] = data.outline_offset;
   j["properties"] = properties;
   j["outline"] = data.outline;
 }
@@ -139,7 +139,7 @@ void from_json(const json& j, MapArea& data) {
   data.angle = properties.value("angle", std::numeric_limits<double>::quiet_NaN());
   data.outline_count = properties.value("outline_count", -1);
   data.outline_overlap_count = properties.value("outline_overlap_count", -1);
-  data.outline_offset = properties.value("outline_offset", -1.0);
+  data.outline_offset = properties.value("outline_offset", std::numeric_limits<double>::quiet_NaN());
   j.at("outline").get_to(data.outline);
 }
 
