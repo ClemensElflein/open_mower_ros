@@ -17,6 +17,7 @@
 
 #include <actionlib/client/simple_action_client.h>
 #include <dynamic_reconfigure/server.h>
+#include <mower_analytics/sentry_guard.h>
 #include <mower_logic/PowerConfig.h>
 #include <mower_msgs/Bms.h>
 #include <mower_msgs/ESCStatus.h>
@@ -351,6 +352,9 @@ void setEmergencyMode(bool emergency) {
   stopMoving();
   mower_msgs::EmergencyStopSrv emergencyStop;
   emergencyStop.request.emergency = emergency;
+  if (emergency) {
+    mower_analytics::SentryGuard::captureEvent(mower_analytics::Level::Error, "emergency.triggered");
+  }
 
   static bool last_emergency = false;
   if (emergency != last_emergency) {
@@ -718,6 +722,7 @@ int main(int argc, char** argv) {
   buildRootActions();
 
   ros::init(argc, argv, "mower_logic");
+  mower_analytics::SentryGuard sentry_guard("mower_logic");
 
   n = new ros::NodeHandle();
   paramNh = new ros::NodeHandle("~");
@@ -987,11 +992,27 @@ int main(int argc, char** argv) {
   // Behavior execution loop
   while (ros::ok()) {
     if (currentBehavior != nullptr) {
+      const std::string prev_state = currentBehavior->state_name();
       currentBehavior->start(last_config, shared_state);
       Behavior* newBehavior = currentBehavior->execute();
       currentBehavior->exit();
 
       if (newBehavior != nullptr) {
+        const std::string next_state = newBehavior->state_name();
+        mower_analytics::SentryGuard::addBreadcrumb("State: " + prev_state + " -> " + next_state);
+        if (next_state != prev_state) {
+          if (next_state == "Mowing") {
+            mower_analytics::SentryGuard::captureEvent(mower_analytics::Level::Info, "mowing.started");
+          } else if (prev_state == "Mowing") {
+            mower_analytics::SentryGuard::captureEvent(mower_analytics::Level::Info, "mowing.completed");
+          }
+          if (next_state == "Docking") {
+            mower_analytics::SentryGuard::captureEvent(mower_analytics::Level::Info, "docking.started");
+          } else if (prev_state == "Docking" && next_state == "Idle") {
+            mower_analytics::SentryGuard::captureEvent(mower_analytics::Level::Info, "docking.completed");
+          }
+        }
+
         // Session START: undocking begins a new session; mowing is the fallback for idle-start (not on charger)
         if (newBehavior == &UndockingBehavior::INSTANCE || newBehavior == &PerimeterUndockingBehavior::INSTANCE ||
             (newBehavior == &MowingBehavior::INSTANCE && current_session_id.empty())) {
@@ -1012,7 +1033,6 @@ int main(int argc, char** argv) {
       if (newBehavior != currentBehavior && newBehavior != nullptr) {
         publishMowerEvent("STATE", json{{"state", newBehavior->state_name()}});
       }
-
       currentBehavior = newBehavior;
     } else {
       high_level_status.state_name = "NULL";

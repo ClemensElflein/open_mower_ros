@@ -14,6 +14,7 @@
 // <https://www.gnu.org/licenses/>.
 //
 #include <geometry_msgs/TwistStamped.h>
+#include <mower_analytics/sentry_guard.h>
 #include <mower_msgs/ESCStatus.h>
 #include <mower_msgs/Emergency.h>
 #include <mower_msgs/EmergencyStopSrv.h>
@@ -120,6 +121,7 @@ static void spdlog_cb(const spdlog::details::log_msg& msg) {
 
 int main(int argc, char** argv) {
   ros::init(argc, argv, "mower_comms_v2");
+  mower_analytics::SentryGuard sentry_guard("mower_comms_v2");
 
   {
     auto sink = std::make_shared<spdlog::sinks::callback_sink_mt>(spdlog_cb);

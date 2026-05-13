@@ -16,6 +16,7 @@
 #include <dynamic_reconfigure/client.h>
 #include <geometry_msgs/Twist.h>
 #include <geometry_msgs/TwistStamped.h>
+#include <mower_analytics/sentry_guard.h>
 #include <mower_logic/PowerConfig.h>
 #include <mower_msgs/ESCStatus.h>
 #include <mower_msgs/Emergency.h>
@@ -701,6 +702,7 @@ void powerReconfigCB(const ll::PowerConfig& config) {
 
 int main(int argc, char** argv) {
   ros::init(argc, argv, "mower_comms_v1");
+  mower_analytics::SentryGuard sentry_guard("mower_comms_v1");
 
   sensor_imu_msg.header.seq = 0;
 

@@ -57,6 +57,9 @@ using json = nlohmann::ordered_json;
 
 // RPC
 #include "xbot_mqtt/provider.h"
+#include <mower_analytics/sentry_guard.h>
+
+#include "xbot_rpc/provider.h"
 
 const std::string MAP_FILE = "map.json";
 const std::string LEGACY_MAP_FILE = "map.bag";
@@ -779,6 +782,7 @@ void convertLegacyMapToJson() {
 
 int main(int argc, char** argv) {
   ros::init(argc, argv, "mower_map_service");
+  mower_analytics::SentryGuard sentry_guard("mower_map_service");
   ros::NodeHandle n;
   json_map_pub = n.advertise<std_msgs::String>("mower_map_service/json_map", 1, true);
   map_pub = n.advertise<nav_msgs::OccupancyGrid>("mower_map_service/map", 10, true);
