@@ -52,6 +52,7 @@
   <exec_depend>tf2_ros</exec_depend>
   <exec_depend>imu_tools</exec_depend>
   <exec_depend>xbot_msgs</exec_depend>
+  <depend>mower_analytics</depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->

@@ -11,6 +11,7 @@ find_package(catkin REQUIRED COMPONENTS
         dynamic_reconfigure
         ftc_local_planner
         mbf_msgs
+        mower_analytics
         mower_map
         mower_msgs
         nav_msgs

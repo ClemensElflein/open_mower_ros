@@ -333,6 +333,29 @@ export OM_RAIN_DELAY_MINUTES=30
 # export OM_SNAPSHOT_DURATION=1200
 
 
+################################
+##    Telemetry / Analytics   ##
+################################
+
+# Anonymous telemetry — helps the OpenMower project ship stable releases faster.
+#
+# Enabling this sends crash reports and anonymous usage events (mow start/stop,
+# docking, emergencies, software version, hardware platform) to the OpenMower
+# developers. NO GPS or location data is ever collected.
+#
+# Crash and exception reports help fix bugs quickly. Version stability data lets
+# us see which releases are running reliably in the field and cut stable releases
+# more often.
+#
+# Without a setting the software prints a reminder on every start until you decide.
+#
+# To opt in:
+# export OM_TELEMETRY_ENABLE=true
+#
+# To opt out silently:
+# export OM_TELEMETRY_ENABLE=false
+#
+
 # source the default values for the hardware platform.
 # you only need this line on non-docker installs. in the docker, it will be done automatically.
 # source $(rospack find open_mower)/params/hardware_specific/$OM_MOWER/default_environment.sh
