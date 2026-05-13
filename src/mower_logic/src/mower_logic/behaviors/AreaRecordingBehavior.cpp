@@ -14,6 +14,8 @@
 //
 #include "AreaRecordingBehavior.h"
 
+#include <limits>
+
 extern ros::ServiceClient dockingPointClient;
 extern ros::ServiceClient emergencyClient;
 extern actionlib::SimpleActionClient<mbf_msgs::MoveBaseAction>* mbfClient;
@@ -126,6 +128,11 @@ Behavior* AreaRecordingBehavior::execute() {
       mower_map::AddMowingAreaSrv srv;
       srv.request.isNavigationArea = !is_mowing_area;
       srv.request.area = result;
+      srv.request.area.active = true;
+      srv.request.area.angle = std::numeric_limits<double>::quiet_NaN();
+      srv.request.area.outline_count = -1;
+      srv.request.area.outline_overlap_count = -1;
+      srv.request.area.outline_offset = std::numeric_limits<double>::quiet_NaN();
       if (add_mowing_area_client.call(srv)) {
         ROS_INFO_STREAM("Area added successfully");
       } else {

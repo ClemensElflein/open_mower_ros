@@ -12,6 +12,9 @@
 // You should have received a copy of the GNU General Public License along with OpenMower. If not, see
 // <https://www.gnu.org/licenses/>.
 //
+#include <cmath>
+#include <limits>
+
 #include "grid_map_cv/GridMapCvConverter.hpp"
 #include "grid_map_ros/GridMapRosConverter.hpp"
 #include "grid_map_ros/PolygonRosConverter.hpp"
@@ -27,6 +30,7 @@
 #include "geometry_msgs/Point32.h"
 #include "geometry_msgs/Polygon.h"
 #include "mower_map/MapArea.h"
+#include "mower_map/MapAreaLegacy.h"
 
 // Include Service Messages
 #include "mower_map/AddMowingAreaSrv.h"
@@ -75,7 +79,10 @@ struct MapArea {
   std::string type;
   bool active;
   Polygon outline;
+  double angle = std::numeric_limits<double>::quiet_NaN();
   int outline_count = -1;
+  int outline_overlap_count = -1;
+  double outline_offset = std::numeric_limits<double>::quiet_NaN();
 };
 
 struct DockingStation {
@@ -115,7 +122,10 @@ void to_json(json& j, const MapArea& data) {
   if (!data.name.empty()) properties["name"] = data.name;
   properties["type"] = data.type;
   if (!data.active) properties["active"] = data.active;
+  if (!std::isnan(data.angle)) properties["angle"] = data.angle;
   if (data.outline_count >= 0) properties["outline_count"] = data.outline_count;
+  if (data.outline_overlap_count >= 0) properties["outline_overlap_count"] = data.outline_overlap_count;
+  if (!std::isnan(data.outline_offset)) properties["outline_offset"] = data.outline_offset;
   j["properties"] = properties;
   j["outline"] = data.outline;
 }
@@ -126,7 +136,10 @@ void from_json(const json& j, MapArea& data) {
   data.name = properties.value("name", "");
   data.type = properties.value("type", "draft");
   data.active = properties.value("active", true);
+  data.angle = properties.value("angle", std::numeric_limits<double>::quiet_NaN());
   data.outline_count = properties.value("outline_count", -1);
+  data.outline_overlap_count = properties.value("outline_overlap_count", -1);
+  data.outline_offset = properties.value("outline_offset", std::numeric_limits<double>::quiet_NaN());
   j.at("outline").get_to(data.outline);
 }
 
@@ -231,15 +244,31 @@ geometry_msgs::Polygon internalPolygonToGeometry(const Polygon& poly) {
 }
 
 /**
+ * Convert a geometry_msgs::Polygon obstacle to our internal MapArea struct
+ */
+MapArea obstacleToInternal(const geometry_msgs::Polygon& obstacle, bool active) {
+  MapArea result;
+  result.id = generateNanoId();
+  result.type = "obstacle";
+  result.active = active;
+  result.outline = geometryPolygonToInternal(obstacle);
+  return result;
+}
+
+/**
  * Convert a mower_map::MapArea to our internal MapArea struct
  */
-MapArea mowerMapAreaToInternal(const geometry_msgs::Polygon& area, const std::string& type, const std::string& name) {
+MapArea mowerMapAreaToInternal(const mower_map::MapArea& area, const std::string& type) {
   MapArea result;
   result.id = generateNanoId();
   result.type = type;
-  result.name = name;
-  result.active = true;
-  result.outline = geometryPolygonToInternal(area);
+  result.name = area.name;
+  result.active = area.active;
+  result.angle = area.angle;
+  result.outline_count = area.outline_count;
+  result.outline_overlap_count = area.outline_overlap_count;
+  result.outline_offset = area.outline_offset;
+  result.outline = geometryPolygonToInternal(area.area);
   return result;
 }
 
@@ -249,11 +278,12 @@ MapArea mowerMapAreaToInternal(const geometry_msgs::Polygon& area, const std::st
 mower_map::MapArea internalMapAreaToMower(const MapArea& area) {
   mower_map::MapArea result;
   result.name = area.name;
+  result.active = area.active;
+  result.angle = area.angle;
   result.outline_count = area.outline_count;
-  // Leave area empty if it is not active
-  if (area.active) {
-    result.area = internalPolygonToGeometry(area.outline);
-  }
+  result.outline_overlap_count = area.outline_overlap_count;
+  result.outline_offset = area.outline_offset;
+  result.area = internalPolygonToGeometry(area.outline);
   return result;
 }
 
@@ -544,9 +574,9 @@ void readMapFromFile() {
 bool addMowingArea(mower_map::AddMowingAreaSrvRequest& req, mower_map::AddMowingAreaSrvResponse& res) {
   ROS_INFO_STREAM("Got addMowingArea call");
 
-  map_data.areas.push_back(mowerMapAreaToInternal(req.area.area, req.isNavigationArea ? "nav" : "mow", req.area.name));
+  map_data.areas.push_back(mowerMapAreaToInternal(req.area, req.isNavigationArea ? "nav" : "mow"));
   for (const auto& obstacle : req.area.obstacles) {
-    map_data.areas.push_back(mowerMapAreaToInternal(obstacle, "obstacle", ""));
+    map_data.areas.push_back(obstacleToInternal(obstacle, req.area.active));
   }
 
   saveMapToFile();
@@ -655,32 +685,36 @@ bool clearMap(mower_map::ClearMapSrvRequest& req, mower_map::ClearMapSrvResponse
  * @param topic_name The topic name to query (e.g. "mowing_areas" or "navigation_areas")
  * @param area_type The type to assign to the converted areas (e.g. "mow" or "nav")
  */
-void convertLegacyAreas(rosbag::Bag& bag, const std::string& topic_name, const std::string& area_type) {
+bool convertLegacyAreas(rosbag::Bag& bag, const std::string& topic_name, const std::string& area_type) {
   rosbag::View view(bag, rosbag::TopicQuery(topic_name));
   for (rosbag::MessageInstance const m : view) {
-    auto area = m.instantiate<mower_map::MapArea>();
-    if (area) {
-      // Convert main area
-      MapArea main_area;
-      main_area.id = generateNanoId();
-      main_area.name = area->name;
-      main_area.type = area_type;
-      main_area.active = true;
-      main_area.outline = geometryPolygonToInternal(area->area);
-      map_data.areas.push_back(main_area);
+    auto area = m.instantiate<mower_map::MapAreaLegacy>();
+    if (!area) {
+      ROS_ERROR_STREAM("Type mismatch on topic '" << topic_name << "' (got " << m.getDataType()
+                                                  << " / md5=" << m.getMD5Sum() << "), aborting conversion");
+      return false;
+    }
+    // Convert main area
+    MapArea main_area;
+    main_area.id = generateNanoId();
+    main_area.name = area->name;
+    main_area.type = area_type;
+    main_area.active = true;
+    main_area.outline = geometryPolygonToInternal(area->area);
+    map_data.areas.push_back(main_area);
 
-      // Convert obstacles as separate areas
-      for (const auto& obstacle : area->obstacles) {
-        MapArea obs_area;
-        obs_area.id = generateNanoId();
-        obs_area.name = "";
-        obs_area.type = "obstacle";
-        obs_area.active = true;
-        obs_area.outline = geometryPolygonToInternal(obstacle);
-        map_data.areas.push_back(obs_area);
-      }
+    // Convert obstacles as separate areas
+    for (const auto& obstacle : area->obstacles) {
+      MapArea obs_area;
+      obs_area.id = generateNanoId();
+      obs_area.name = "";
+      obs_area.type = "obstacle";
+      obs_area.active = true;
+      obs_area.outline = geometryPolygonToInternal(obstacle);
+      map_data.areas.push_back(obs_area);
     }
   }
+  return true;
 }
 
 void convertLegacyMapToJson() {
@@ -697,31 +731,39 @@ void convertLegacyMapToJson() {
   map_data.clear();
 
   // Read mowing and navigation areas
-  convertLegacyAreas(bag, "mowing_areas", "mow");
-  convertLegacyAreas(bag, "navigation_areas", "nav");
+  if (!convertLegacyAreas(bag, "mowing_areas", "mow") || !convertLegacyAreas(bag, "navigation_areas", "nav")) {
+    bag.close();
+    map_data.clear();
+    return;
+  }
 
   // Read docking point
   {
     rosbag::View view(bag, rosbag::TopicQuery("docking_point"));
     for (rosbag::MessageInstance const m : view) {
       auto pt = m.instantiate<geometry_msgs::Pose>();
-      if (pt) {
-        // Convert quaternion to yaw
-        tf2::Quaternion q;
-        tf2::fromMsg(pt->orientation, q);
-        tf2::Matrix3x3 m(q);
-        double unused1, unused2, yaw;
-        m.getRPY(unused1, unused2, yaw);
-
-        // Create docking station
-        DockingStation ds;
-        ds.id = generateNanoId();
-        ds.name = "Docking Station";
-        ds.active = true;
-        ds.position = {pt->position.x, pt->position.y};
-        ds.heading = yaw;
-        map_data.docking_stations.push_back(ds);
+      if (!pt) {
+        ROS_ERROR_STREAM("Type mismatch on topic 'docking_point' (got " << m.getDataType() << " / md5=" << m.getMD5Sum()
+                                                                        << "), aborting conversion");
+        bag.close();
+        map_data.clear();
+        return;
       }
+      // Convert quaternion to yaw
+      tf2::Quaternion q;
+      tf2::fromMsg(pt->orientation, q);
+      tf2::Matrix3x3 rot(q);
+      double unused1, unused2, yaw;
+      rot.getRPY(unused1, unused2, yaw);
+
+      // Create docking station
+      DockingStation ds;
+      ds.id = generateNanoId();
+      ds.name = "Docking Station";
+      ds.active = true;
+      ds.position = {pt->position.x, pt->position.y};
+      ds.heading = yaw;
+      map_data.docking_stations.push_back(ds);
     }
   }
 
