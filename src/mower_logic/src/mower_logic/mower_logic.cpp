@@ -450,7 +450,9 @@ void checkSafety(const ros::TimerEvent& timer_event) {
     setLastGoodGPS(ros::Time::now());
     high_level_status.gps_quality_percent =
         1.0 - fmin(1.0, last_pose.position_accuracy / last_config.max_position_accuracy);
-    ROS_INFO_STREAM_THROTTLE(10, "GPS quality: " << high_level_status.gps_quality_percent);
+    if (currentBehavior->needs_gps()) {
+      ROS_INFO_STREAM_THROTTLE(10, "GPS quality: " << high_level_status.gps_quality_percent);
+    }
   } else {
     // GPS = bad, set quality to 0
     high_level_status.gps_quality_percent = 0;
@@ -458,7 +460,9 @@ void checkSafety(const ros::TimerEvent& timer_event) {
       // set this if we don't even have an orientation
       high_level_status.gps_quality_percent = -1;
     }
-    ROS_WARN_STREAM_THROTTLE(1, "Low quality GPS");
+    if (currentBehavior->needs_gps()) {
+      ROS_WARN_STREAM_THROTTLE(1, "Low quality GPS");
+    }
   }
 
   bool gpsTimeout = ros::Time::now() - last_good_gps > ros::Duration(last_config.gps_timeout);
@@ -466,7 +470,9 @@ void checkSafety(const ros::TimerEvent& timer_event) {
   if (gpsTimeout) {
     // GPS = bad, set quality to 0
     high_level_status.gps_quality_percent = 0;
-    ROS_WARN_STREAM_THROTTLE(1, "GPS timeout");
+    if (currentBehavior->needs_gps()) {
+      ROS_WARN_STREAM_THROTTLE(1, "GPS timeout");
+    }
   }
 
   if (currentBehavior != nullptr && currentBehavior->needs_gps()) {
