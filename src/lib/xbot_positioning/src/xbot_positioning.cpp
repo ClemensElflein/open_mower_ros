@@ -70,7 +70,6 @@ xbot_msgs::AbsolutePose xb_absolute_pose_msg;
 bool gps_enabled = true;
 int gps_outlier_count = 0;
 int valid_gps_samples = 0;
-int gps_message_throttle = 1;
 
 ros::Time last_gps_time(0.0);
 
@@ -224,10 +223,9 @@ bool setPose(xbot_positioning::SetPoseSrvRequest &req, xbot_positioning::SetPose
 }
 
 void onPose(const xbot_msgs::AbsolutePose::ConstPtr &msg) {
-    if (!gps_enabled) {
-        ROS_INFO_STREAM_THROTTLE(gps_message_throttle, "dropping GPS update, since gps_enabled = false.");
-        return;
-    }
+  if (!gps_enabled) {
+    return;
+  }
     // TODO fuse with high covariance?
     if ((msg->flags & (xbot_msgs::AbsolutePose::FLAG_GPS_RTK_FIXED)) == 0) {
         ROS_INFO_STREAM_THROTTLE(1, "Dropped GPS update, since it's not RTK Fixed");
@@ -337,7 +335,6 @@ int main(int argc, char **argv) {
     paramNh.param("debug", publish_debug, false);
     paramNh.param("antenna_offset_x", antenna_offset_x, 0.0);
     paramNh.param("antenna_offset_y", antenna_offset_y, 0.0);
-    paramNh.param("gps_message_throttle", gps_message_throttle, 1);
 
     core.setAntennaOffset(antenna_offset_x, antenna_offset_y);
 
