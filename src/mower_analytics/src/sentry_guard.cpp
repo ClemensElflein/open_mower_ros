@@ -30,9 +30,12 @@ static bool isTelemetryDisabled(const std::string& val) {
 }
 
 static std::string findHandlerPath() {
-  std::filesystem::path exe_dir = std::filesystem::read_symlink("/proc/self/exe").parent_path();
+  std::error_code ec;
+  std::filesystem::path exe = std::filesystem::read_symlink("/proc/self/exe", ec);
+  if (ec) return "";
+  std::filesystem::path exe_dir = exe.parent_path();
   auto candidate = exe_dir / "crashpad_handler";
-  if (std::filesystem::exists(candidate)) return candidate.string();
+  if (std::filesystem::exists(candidate, ec) && !ec) return candidate.string();
   return (exe_dir.parent_path() / "mower_analytics" / "crashpad_handler").string();
 }
 
@@ -80,8 +83,13 @@ SentryGuard::SentryGuard(const std::string& node_name) {
   sentry_options_set_dsn(options, dsn.c_str());
   sentry_options_set_release(options, release.c_str());
   const std::string handler = findHandlerPath();
-  ROS_INFO_STREAM("[analytics] crashpad_handler: "
-                  << handler << (std::filesystem::exists(handler) ? "" : " (NOT FOUND — crash reports disabled)"));
+  if (handler.empty()) {
+    ROS_WARN_STREAM("[analytics] crashpad_handler: could not resolve exe path — crash reports disabled");
+  } else {
+    std::error_code ec;
+    bool found = std::filesystem::exists(handler, ec) && !ec;
+    ROS_INFO_STREAM("[analytics] crashpad_handler: " << handler << (found ? "" : " (NOT FOUND — crash reports disabled)"));
+  }
   sentry_options_set_handler_path(options, handler.c_str());
   const std::string ros_home = getenv_or("ROS_HOME", getenv_or("HOME", "/root") + "/.ros");
   sentry_options_set_database_path(options, (ros_home + "/sentry").c_str());
