@@ -246,11 +246,11 @@ geometry_msgs::Polygon internalPolygonToGeometry(const Polygon& poly) {
 /**
  * Convert a geometry_msgs::Polygon obstacle to our internal MapArea struct
  */
-MapArea obstacleToInternal(const geometry_msgs::Polygon& obstacle) {
+MapArea obstacleToInternal(const geometry_msgs::Polygon& obstacle, bool active) {
   MapArea result;
   result.id = generateNanoId();
   result.type = "obstacle";
-  result.active = true;
+  result.active = active;
   result.outline = geometryPolygonToInternal(obstacle);
   return result;
 }
@@ -576,7 +576,7 @@ bool addMowingArea(mower_map::AddMowingAreaSrvRequest& req, mower_map::AddMowing
 
   map_data.areas.push_back(mowerMapAreaToInternal(req.area, req.isNavigationArea ? "nav" : "mow"));
   for (const auto& obstacle : req.area.obstacles) {
-    map_data.areas.push_back(obstacleToInternal(obstacle));
+    map_data.areas.push_back(obstacleToInternal(obstacle, req.area.active));
   }
 
   saveMapToFile();
