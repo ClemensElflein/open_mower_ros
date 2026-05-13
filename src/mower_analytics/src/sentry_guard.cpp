@@ -3,11 +3,14 @@
 #include <sentry.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cstdlib>
 #include <filesystem>
 #include <string>
 
 namespace mower_analytics {
+
+static std::atomic<bool> s_initialized{false};
 
 static std::string getenv_or(const char* name, const std::string& fallback = "") {
   const char* v = std::getenv(name);
@@ -104,16 +107,21 @@ SentryGuard::SentryGuard(const std::string& node_name) {
   sentry_set_tag("node", node_name.c_str());
 
   enabled_ = true;
+  s_initialized = true;
   ROS_INFO_STREAM("[analytics] Sentry active for " << node_name << " (release=" << release << ")");
   captureEvent(Level::Info, "node.started", {{"node", node_name}, {"release", release}});
 }
 
 SentryGuard::~SentryGuard() {
-  if (enabled_) sentry_close();
+  if (enabled_) {
+    s_initialized = false;
+    sentry_close();
+  }
 }
 
 void SentryGuard::captureEvent(Level level, const std::string& message,
                                const std::map<std::string, std::string>& extra) {
+  if (!s_initialized) return;
   sentry_value_t event = sentry_value_new_message_event(toSentryLevel(level), "openmower", message.c_str());
 
   if (!extra.empty()) {
@@ -128,6 +136,7 @@ void SentryGuard::captureEvent(Level level, const std::string& message,
 }
 
 void SentryGuard::addBreadcrumb(const std::string& message, const std::string& category) {
+  if (!s_initialized) return;
   sentry_value_t crumb = sentry_value_new_breadcrumb("default", message.c_str());
   sentry_value_set_by_key(crumb, "category", sentry_value_new_string(category.c_str()));
   sentry_add_breadcrumb(crumb);
