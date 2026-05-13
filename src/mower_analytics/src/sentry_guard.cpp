@@ -88,13 +88,17 @@ SentryGuard::SentryGuard(const std::string& node_name) {
   } else {
     std::error_code ec;
     bool found = std::filesystem::exists(handler, ec) && !ec;
-    ROS_INFO_STREAM("[analytics] crashpad_handler: " << handler << (found ? "" : " (NOT FOUND — crash reports disabled)"));
+    ROS_INFO_STREAM("[analytics] crashpad_handler: " << handler
+                                                     << (found ? "" : " (NOT FOUND — crash reports disabled)"));
   }
   sentry_options_set_handler_path(options, handler.c_str());
   const std::string ros_home = getenv_or("ROS_HOME", getenv_or("HOME", "/root") + "/.ros");
   sentry_options_set_database_path(options, (ros_home + "/sentry").c_str());
   sentry_options_set_auto_session_tracking(options, 1);
-  sentry_init(options);
+  if (sentry_init(options) != 0) {
+    ROS_ERROR_STREAM("[analytics] sentry_init failed — telemetry disabled for " << node_name);
+    return;
+  }
 
   sentry_set_tag("hardware_platform", hw_platform.c_str());
   sentry_set_tag("node", node_name.c_str());
