@@ -18,6 +18,7 @@
 #include <cryptopp/hex.h>
 #include <cryptopp/sha.h>
 #include <nav_msgs/Path.h>
+#include <mbf_msgs/RecoveryAction.h>
 #include <rosbag/bag.h>
 #include <rosbag/view.h>
 
@@ -36,6 +37,7 @@ extern ros::ServiceClient clearNavPointClient;
 
 extern actionlib::SimpleActionClient<mbf_msgs::MoveBaseAction>* mbfClient;
 extern actionlib::SimpleActionClient<mbf_msgs::ExePathAction>* mbfClientExePath;
+extern actionlib::SimpleActionClient<mbf_msgs::RecoveryAction>* mbfClientRecovery;
 extern mower_logic::MowerLogicConfig getConfig();
 extern void setConfig(mower_logic::MowerLogicConfig);
 
@@ -276,6 +278,30 @@ void printNavState(int state) {
     default: ROS_INFO(">>> State: Unknown Hu ? <<<"); break;
   }
 }
+
+namespace {
+// Returns the names of the recovery behaviors configured on move_base_flex
+// (its "recovery_behaviors" param), in order, or an empty list if none are
+// configured. This avoids hardcoding behavior names and makes recovery a no-op
+// when MBF has no recovery configured.
+std::vector<std::string> getConfiguredRecoveryBehaviors() {
+  std::vector<std::string> names;
+  XmlRpc::XmlRpcValue behaviors;
+  if (!ros::param::get("/move_base_flex/recovery_behaviors", behaviors)) {
+    return names;
+  }
+  if (behaviors.getType() != XmlRpc::XmlRpcValue::TypeArray) {
+    return names;
+  }
+  for (int i = 0; i < behaviors.size(); i++) {
+    XmlRpc::XmlRpcValue &b = behaviors[i];
+    if (b.getType() == XmlRpc::XmlRpcValue::TypeStruct && b.hasMember("name")) {
+      names.push_back(static_cast<std::string>(b["name"]));
+    }
+  }
+  return names;
+}
+}  // namespace
 
 bool MowingBehavior::execute_mowing_plan() {
   int first_point_attempt_counter = 0;
@@ -557,6 +583,37 @@ bool MowingBehavior::execute_mowing_plan() {
           // currentMowingPathIndex might be 0 if we never consumed one of the points, we advance at least 1 point
           if (currentMowingPathIndex == 0) currentMowingPathIndex++;
           if (!requested_pause_flag) {
+            // Path following failed (not a user-requested pause/abort). ExePath, unlike the
+            // MoveBase action, never invokes MBF recovery on its own, so trigger it explicitly
+            // here. Mirror MBF's move_base behavior: run each configured recovery behavior in
+            // order until one succeeds (or we are aborted / they all fail). No-op if MBF has
+            // no recovery configured.
+            if (!aborted) {
+              mowerEnabled = false;
+              std::vector<std::string> recoveryBehaviors = getConfiguredRecoveryBehaviors();
+              if (recoveryBehaviors.empty()) {
+                ROS_INFO_STREAM("MowingBehavior: (MOW) No recovery behavior configured - "
+                                "skipping recovery.");
+              } else if (!mbfClientRecovery->waitForServer(ros::Duration(1.0))) {
+                ROS_WARN_STREAM("MowingBehavior: (MOW) Recovery action server unavailable - "
+                                "skipping recovery.");
+              } else {
+                for (const auto &behavior : recoveryBehaviors) {
+                  if (aborted) break;
+                  mbf_msgs::RecoveryGoal recoveryGoal;
+                  recoveryGoal.behavior = behavior;
+                  ROS_INFO_STREAM("MowingBehavior: (MOW) Path following failed - running recovery "
+                                  "behavior '"
+                                  << behavior << "'.");
+                  auto recoveryState = sendGoalAndWaitUnlessAborted(mbfClientRecovery, recoveryGoal);
+                  ROS_INFO_STREAM("MowingBehavior: (MOW) Recovery behavior '"
+                                  << behavior << "' finished with state " << recoveryState.toString());
+                  if (recoveryState == actionlib::SimpleClientGoalState::SUCCEEDED) {
+                    break;
+                  }
+                }
+              }
+            }
             ROS_INFO_STREAM("MowingBehavior: (MOW) PAUSED due to MBF Error at " << currentMowingPathIndex);
             paused = true;
             update_actions();
