@@ -575,10 +575,7 @@ bool MowingBehavior::execute_mowing_plan() {
           currentMowingPathIndex = 0;
           // continue with next segment
         } else {
-          // we didnt drive all points in the mow path, so we go into pause mode
-          // TODO: we should figure out the likely reason for our failure to complete the path
-          // if GPS -> PAUSE
-          // if something else -> Recovery Behaviour ?
+          // we didnt drive all points in the mow path, so we wait for GPS or execute the recovery behaviors.
 
           // currentMowingPathIndex might be 0 if we never consumed one of the points, we advance at least 1 point
           if (currentMowingPathIndex == 0) currentMowingPathIndex++;
@@ -588,7 +585,7 @@ bool MowingBehavior::execute_mowing_plan() {
             // here. Mirror MBF's move_base behavior: run each configured recovery behavior in
             // order until one succeeds (or we are aborted / they all fail). No-op if MBF has
             // no recovery configured.
-            if (!aborted) {
+            if (hasGoodGPS() && !aborted) {
               mowerEnabled = false;
               std::vector<std::string> recoveryBehaviors = getConfiguredRecoveryBehaviors();
               if (recoveryBehaviors.empty()) {
