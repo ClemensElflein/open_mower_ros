@@ -43,6 +43,10 @@ jobs:
           PR_NUMBER=$(gh api "repos/${{ github.repository }}/pulls" \
             --jq ".[] | select(.head.sha == \"${{ github.event.workflow_run.head_sha }}\") | .number" \
             | head -1)
+          if [[ ! "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
+            echo "::error::Could not resolve PR number for SHA ${{ github.event.workflow_run.head_sha }} (got: '${PR_NUMBER}')" >&2
+            exit 1
+          fi
           echo "number=${PR_NUMBER}" >> $GITHUB_OUTPUT
 
       - name: Download image tar
@@ -90,6 +94,10 @@ jobs:
           PR_NUMBER=$(gh api "repos/${{ github.repository }}/pulls" \
             --jq ".[] | select(.head.sha == \"${{ github.event.workflow_run.head_sha }}\") | .number" \
             | head -1)
+          if [[ ! "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
+            echo "::error::Could not resolve PR number for SHA ${{ github.event.workflow_run.head_sha }} (got: '${PR_NUMBER}')" >&2
+            exit 1
+          fi
           echo "number=${PR_NUMBER}" >> $GITHUB_OUTPUT
 
       - name: Set up Docker Buildx
