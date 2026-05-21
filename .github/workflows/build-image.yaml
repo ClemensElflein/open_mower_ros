@@ -137,7 +137,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push
-        if: github.event_name != 'workflow_dispatch' || ((inputs.variant == 'all' || inputs.variant == matrix.variant) && (inputs.arch == 'all' || inputs.arch == matrix.docker_build_arch))
+        if: (github.event_name != 'pull_request') && (github.event_name != 'workflow_dispatch' || ((inputs.variant == 'all' || inputs.variant == matrix.variant) && (inputs.arch == 'all' || inputs.arch == matrix.docker_build_arch)))
         id: build-and-push
         uses: docker/build-push-action@v6
         with:
@@ -146,19 +146,40 @@ jobs:
           platforms: ${{ matrix.docker_build_arch }}
           no-cache: ${{ inputs.clean_build == true || false }}
           labels: ${{ env.META_LABELS }}
-          outputs: type=image,name=ghcr.io/${{ env.REPOSITORY_LC }},push-by-digest=true,name-canonical=true,push=${{ github.event_name != 'pull_request' }}
+          outputs: type=image,name=ghcr.io/${{ env.REPOSITORY_LC }},push-by-digest=true,name-canonical=true,push=true
           cache-from: type=gha,scope=${{ matrix.os }}-${{ matrix.variant }}
           cache-to: type=gha,scope=${{ matrix.os }}-${{ matrix.variant }},mode=max
 
+      - name: Build and export (PR)
+        if: github.event_name == 'pull_request'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          platforms: ${{ matrix.docker_build_arch }}
+          tags: open_mower-pr:${{ matrix.variant }}
+          outputs: type=docker,dest=/tmp/image.tar
+          cache-from: type=gha,scope=${{ matrix.os }}-${{ matrix.variant }}
+          cache-to: type=gha,scope=${{ matrix.os }}-${{ matrix.variant }},mode=max
+
+      - name: Upload image tar (PR)
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-${{ env.BUILD_ARCH }}-${{ matrix.variant }}
+          path: /tmp/image.tar
+          if-no-files-found: error
+          retention-days: 1
+
       - name: Export digest
-        if: github.event_name != 'workflow_dispatch' || ((inputs.variant == 'all' || inputs.variant == matrix.variant) && (inputs.arch == 'all' || inputs.arch == matrix.docker_build_arch))
+        if: (github.event_name != 'pull_request') && (github.event_name != 'workflow_dispatch' || ((inputs.variant == 'all' || inputs.variant == matrix.variant) && (inputs.arch == 'all' || inputs.arch == matrix.docker_build_arch)))
         run: |
           mkdir -p /tmp/digests
           digest="${{ steps.build-and-push.outputs.digest }}"
           touch "/tmp/digests/${digest#sha256:}"
 
       - name: Upload digest
-        if: github.event_name != 'workflow_dispatch' || ((inputs.variant == 'all' || inputs.variant == matrix.variant) && (inputs.arch == 'all' || inputs.arch == matrix.docker_build_arch))
+        if: (github.event_name != 'pull_request') && (github.event_name != 'workflow_dispatch' || ((inputs.variant == 'all' || inputs.variant == matrix.variant) && (inputs.arch == 'all' || inputs.arch == matrix.docker_build_arch)))
         uses: actions/upload-artifact@v4
         with:
           name: digests-${{ env.BUILD_ARCH }}-${{ matrix.variant }}
