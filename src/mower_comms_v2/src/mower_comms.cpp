@@ -233,9 +233,12 @@ int main(int argc, char** argv) {
   }
   paramNh.getParam("services/power/charge_current", charge_current);
   paramNh.getParam("services/power/system_current", system_current);
+  bool dangerously_override_hardware_current_limit = false;
+  paramNh.getParam("services/power/dangerously_override_hardware_current_limit",
+                   dangerously_override_hardware_current_limit);
   power_service = std::make_unique<PowerServiceInterface>(
       xbot::service_ids::POWER, ctx, power_pub, battery_full_voltage, battery_empty_voltage, battery_critical_voltage,
-      battery_critical_high_voltage, charge_current, system_current);
+      battery_critical_high_voltage, charge_current, system_current, dangerously_override_hardware_current_limit);
   power_service->Start();
 
   // GPS service

@@ -81,6 +81,7 @@ bool PowerServiceInterface::OnConfigurationRequested(uint16_t service_id) {
   SetRegisterCriticalBatteryHighVoltage(battery_critical_high_voltage_);
   SetRegisterChargeCurrent(battery_charge_current_);
   SetRegisterSystemCurrent(system_current_);
+  SetRegisterDangerouslyOverrideHardwareCurrentLimit(dangerously_override_hardware_current_limit_ ? 1 : 0);
   CommitTransaction();
   return true;
 }
