@@ -1,0 +1,10 @@
+time stamp
+float32 voltage
+float32 current
+float32 relative_state_of_charge
+float32 remaining_capacity
+float32 full_charge_capacity
+uint16 cycle_count
+float32 temperature
+string battery_status
+string extra_data

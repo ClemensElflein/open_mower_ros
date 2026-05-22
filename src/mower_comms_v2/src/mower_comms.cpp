@@ -28,6 +28,7 @@
 #include <std_msgs/String.h>
 
 #include "../../../services/service_ids.h"
+#include "BmsServiceInterface.h"
 #include "DiffDriveServiceInterface.h"
 #include "EmergencyServiceInterface.h"
 #include "GpsServiceInterface.h"
@@ -40,6 +41,7 @@
 ros::Publisher status_pub;
 ros::Publisher nmea_pub;
 ros::Publisher power_pub;
+ros::Publisher bms_pub;
 ros::Publisher gps_position_pub;
 ros::Publisher status_left_esc_pub;
 ros::Publisher status_right_esc_pub;
@@ -56,6 +58,7 @@ std::unique_ptr<DiffDriveServiceInterface> diff_drive_service = nullptr;
 std::unique_ptr<MowerServiceInterface> mower_service = nullptr;
 std::unique_ptr<ImuServiceInterface> imu_service = nullptr;
 std::unique_ptr<PowerServiceInterface> power_service = nullptr;
+std::unique_ptr<BmsServiceInterface> bms_service = nullptr;
 std::unique_ptr<GpsServiceInterface> gps_service = nullptr;
 std::unique_ptr<InputServiceInterface> input_service = nullptr;
 std::unique_ptr<HighLevelServiceInterface> high_level_service = nullptr;
@@ -209,12 +212,12 @@ int main(int argc, char** argv) {
 
   // Power service
   power_pub = n.advertise<mower_msgs::Power>("ll/power", 1);
+
+  // Mainly for monitoring and informational purposes
   float battery_full_voltage;
   float battery_empty_voltage;
   float battery_critical_voltage;
   float battery_critical_high_voltage;
-  float charge_current = -1;
-  float system_current = -1;
   if (!paramNh.getParam("services/power/battery_full_voltage", battery_full_voltage)) {
     ROS_ERROR("Need to set param: services/power/battery_full_voltage");
     return 1;
@@ -231,12 +234,33 @@ int main(int argc, char** argv) {
     ROS_ERROR("Need to set param: services/power/battery_critical_high_voltage");
     return 1;
   }
+
+  // Optional charger configuration
+  float charge_voltage = -1.0f;
+  float charge_current = -1.0f;
+  float charge_termination_current = -1.0f;
+  float charge_precharge_current = -1.0f;
+  int charge_recharge_voltage = -1;
+  paramNh.getParam("services/power/charge_voltage", charge_voltage);
   paramNh.getParam("services/power/charge_current", charge_current);
+  paramNh.getParam("services/power/charge_termination_current", charge_termination_current);
+  paramNh.getParam("services/power/charge_pre_charge_current", charge_precharge_current);
+  paramNh.getParam("services/power/charge_re_charge_voltage", charge_recharge_voltage);
+
+  // Optional settings also required for charger DPM (dynamic power management)
+  float system_current = -1.0f;  // Max. current allowed to be drawn from wall AC/DC
   paramNh.getParam("services/power/system_current", system_current);
+
   power_service = std::make_unique<PowerServiceInterface>(
       xbot::service_ids::POWER, ctx, power_pub, battery_full_voltage, battery_empty_voltage, battery_critical_voltage,
-      battery_critical_high_voltage, charge_current, system_current);
+      battery_critical_high_voltage, charge_voltage, charge_current, charge_termination_current,
+      charge_precharge_current, charge_recharge_voltage, system_current);
   power_service->Start();
+
+  // BMS service
+  bms_pub = n.advertise<mower_msgs::Bms>("ll/bms", 1);
+  bms_service = std::make_unique<BmsServiceInterface>(xbot::service_ids::BMS, ctx, bms_pub);
+  bms_service->Start();
 
   // GPS service
   double datum_lat, datum_long, datum_height;
