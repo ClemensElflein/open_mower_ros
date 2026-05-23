@@ -567,11 +567,13 @@ void pose_publish_timer_callback(const ros::TimerEvent&) {
       position_history.addPoint(xs[mid], ys[mid]);
     }
 
+auto attrs = position_history.getAttributes();
+    attrs.idle = is_idle;
     const json j = {
         {"x", xs[mid]},
         {"y", ys[mid]},
         {"heading", hs[mid]},
-        {"attributes", position_history.getAttributes()},
+        {"attributes", attrs},
     };
     try_publish("position/json", j.dump());
 }
