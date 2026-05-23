@@ -93,15 +93,23 @@ class PositionHistory {
     return current_attributes_;
   }
 
-  // Returns all segments (including the open tail) as a JSON array for client seeding.
-  // Format: [{"blades": bool, "points": [[x,y], ...]}, ...]
+  // Returns compacted segments and the raw pending buffer for client seeding.
+  // Format: {"segments": [{"blades": bool, "points": [[x,y], ...]}, ...],
+  //          "buffer":   [[x,y], ...]}
+  // The client should seed its own pipeline with both: segments replace history,
+  // buffer replaces the local raw buffer. Points arriving on position/json after
+  // this snapshot was taken are fed into the pipeline as usual.
   json getHistory() const {
     std::lock_guard<std::mutex> lk(mutex_);
-    json arr = json::array();
+    json segs = json::array();
     for (const auto& seg : history_segments_) {
-      arr.push_back(segmentToJson(seg));
+      segs.push_back(segmentToJson(seg));
     }
-    return arr;
+    json buf = json::array();
+    for (const auto& p : rel_buffer_) {
+      buf.push_back({p.x, p.y});
+    }
+    return {{"segments", segs}, {"buffer", buf}};
   }
 
  private:
