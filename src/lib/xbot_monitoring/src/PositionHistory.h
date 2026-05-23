@@ -26,7 +26,7 @@ using json = nlohmann::ordered_json;
  * and a bridge vertex (last point of previous segment) is prepended so segments connect.
  *
  * Persistence (append-only JSONL, two record types):
- *   {"type":"new_segment","blades":true,"points":[[x,y],...]}
+ *   {"type":"new_segment","attributes":{"blades":true},"points":[[x,y],...]}
  *   {"type":"append_points","points":[[x,y],...]}
  *
  * writePending() is called ONLY from periodicFlush() (timer) and flush() (shutdown).
@@ -94,8 +94,8 @@ class PositionHistory {
   }
 
   // Returns compacted segments and the raw pending buffer for client seeding.
-  // Format: {"segments": [{"blades": bool, "points": [[x,y], ...]}, ...],
-  //          "buffer":   [[x,y], ...]}
+  // Format: {"segments": [{"attributes": {"blades": bool}, "points": [[x, y], ...]}, ...],
+  //          "buffer":   [[x, y], ...]}
   // The client should seed its own pipeline with both: segments replace history,
   // buffer replaces the local raw buffer. Points arriving on position/json after
   // this snapshot was taken are fed into the pipeline as usual.
@@ -373,7 +373,7 @@ class PositionHistory {
 
         if (type == "new_segment") {
           Segment seg;
-          seg.attributes.blades = j.at("blades").get<bool>();
+          seg.attributes.blades = j.at("attributes").at("blades").get<bool>();
           for (const auto& pt : j.at("points")) {
             seg.points.push_back({pt[0].get<double>(), pt[1].get<double>()});
           }
@@ -406,7 +406,7 @@ class PositionHistory {
     for (const auto& p : seg.points) {
       pts.push_back({p.x, p.y});
     }
-    return {{"blades", seg.attributes.blades}, {"points", pts}};
+    return {{"attributes", {{"blades", seg.attributes.blades}}}, {"points", pts}};
   }
 
   std::string file_path_;
