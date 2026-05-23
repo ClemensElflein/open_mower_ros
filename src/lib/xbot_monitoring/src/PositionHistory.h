@@ -137,6 +137,7 @@ class PositionHistory {
   struct Segment {
     std::vector<Point> points;
     TrackAttributes attributes;
+    double started_at = 0.0;  // Unix time (seconds) of the first real compacted point
   };
 
   // -------------------------------------------------------------------------
@@ -277,6 +278,9 @@ class PositionHistory {
       history_segments_.push_back(std::move(seg));
     }
     Segment& tail = history_segments_.back();
+    if (tail.started_at == 0.0 && !pts.empty()) {
+      tail.started_at = ros::Time::now().toSec();
+    }
     tail.points.reserve(tail.points.size() + pts.size());
     tail.points.insert(tail.points.end(), pts.begin(), pts.end());
   }
@@ -374,6 +378,7 @@ class PositionHistory {
         if (type == "new_segment") {
           Segment seg;
           seg.attributes.blades = j.at("attributes").at("blades").get<bool>();
+          seg.started_at = j.value("started_at", 0.0);
           for (const auto& pt : j.at("points")) {
             seg.points.push_back({pt[0].get<double>(), pt[1].get<double>()});
           }
@@ -406,7 +411,7 @@ class PositionHistory {
     for (const auto& p : seg.points) {
       pts.push_back({p.x, p.y});
     }
-    return {{"attributes", {{"blades", seg.attributes.blades}}}, {"points", pts}};
+    return {{"attributes", {{"blades", seg.attributes.blades}}}, {"started_at", seg.started_at}, {"points", pts}};
   }
 
   std::string file_path_;
