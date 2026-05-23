@@ -571,6 +571,10 @@ void pose_publish_timer_callback(const ros::TimerEvent&) {
     std::nth_element(ys.begin(), ys.begin() + mid, ys.end());
     std::nth_element(hs.begin(), hs.begin() + mid, hs.end());
 
+    if (!is_idle) {
+      position_history.addPoint(xs[mid], ys[mid]);
+    }
+
     const json j = {
         {"x", xs[mid]},
         {"y", ys[mid]},
@@ -578,10 +582,6 @@ void pose_publish_timer_callback(const ros::TimerEvent&) {
         {"attributes", position_history.getAttributes()},
     };
     try_publish("position/json", j.dump());
-
-    if (!is_idle) {
-      position_history.addPoint(xs[mid], ys[mid]);
-    }
 }
 
 void position_history_flush_timer_callback(const ros::TimerEvent&) {
