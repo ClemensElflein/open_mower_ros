@@ -41,6 +41,7 @@ class PositionHistory {
  public:
   struct TrackAttributes {
     bool blades = false;
+    bool idle = false;  // live-only; not persisted, not loaded
   };
 
   PositionHistory() = default;
@@ -417,4 +418,4 @@ class PositionHistory {
   mutable std::mutex mutex_;
 };
 
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(PositionHistory::TrackAttributes, blades)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(PositionHistory::TrackAttributes, blades, idle)
