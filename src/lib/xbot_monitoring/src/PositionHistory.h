@@ -17,16 +17,18 @@ using json = nlohmann::ordered_json;
  * Two-pass position history pipeline, mirroring the OpenMower App.
  *
  * Input: median-filtered positions arriving every ~150 ms from pose_publish_timer_callback.
+ * Points are only recorded while a mowing session is active.
  *
  * The raw buffer is compacted into history segments when it exceeds COMPACTION_THRESHOLD:
  *   1. Decimation  — drops close/same-heading points, keeping a heartbeat.
  *   2. RDP         — further simplifies the decimated result.
  *
- * Segments carry a `blades` attribute. When it changes, a new segment is opened
- * and a bridge vertex (last point of previous segment) is prepended so segments connect.
+ * Segments carry attributes (job_id, session_id, blades). When any attribute changes,
+ * a new segment is opened and a bridge vertex (last point of previous segment) is
+ * prepended so segments connect.
  *
  * Persistence (append-only JSONL, two record types):
- *   {"type":"new_segment","attributes":{"blades":true},"points":[[x,y],...]}
+ *   {"type":"new_segment","attributes":{"job_id":"...","session_id":"...","blades":true},"points":[[x,y],...]}
  *   {"type":"append_points","points":[[x,y],...]}
  *
  * writePending() is called ONLY from periodicFlush() (timer) and flush() (shutdown).
@@ -40,8 +42,9 @@ using json = nlohmann::ordered_json;
 class PositionHistory {
  public:
   struct TrackAttributes {
+    std::string job_id;
+    std::string session_id;
     bool blades = false;
-    bool idle = false;  // live-only; not persisted, not loaded
   };
 
   PositionHistory() = default;
@@ -52,8 +55,10 @@ class PositionHistory {
   }
 
   // Feed a median-filtered position. Called from the pose publish timer.
+  // Points are only recorded when a session_id is present.
   void addPoint(double x, double y) {
     std::lock_guard<std::mutex> lk(mutex_);
+    if (current_attributes_.session_id.empty()) return;
     rel_buffer_.push_back({x, y});
 
     if (rel_buffer_.size() > COMPACTION_THRESHOLD) {
@@ -62,13 +67,22 @@ class PositionHistory {
   }
 
   // Interpret a parsed event JSON and update segment attributes accordingly.
-  // Currently handles only the BLADES event.
+  // Handles STATE (string job_id, string session_id) and BLADES (bool enabled).
+  // Any attribute change closes the current segment and opens a new one.
   void onEvent(const json& event) {
     std::lock_guard<std::mutex> lk(mutex_);
     try {
       const std::string type = event.at("type").get<std::string>();
-      if (type == "BLADES") {
-        attributesChanged(current_attributes_.blades, event.at("enabled").get<bool>());
+      bool changed = false;
+      if (type == "STATE") {
+        changed = updateAttribute(current_attributes_.job_id, event.value("job_id", std::string{})) |
+                  updateAttribute(current_attributes_.session_id, event.value("session_id", std::string{}));
+      } else if (type == "BLADES") {
+        changed = updateAttribute(current_attributes_.blades, event.at("enabled").get<bool>());
+      }
+      if (changed) {
+        compact(/*flush_all=*/true);
+        startNewSegment();
       }
     } catch (const json::exception&) {
       // malformed event — ignore
@@ -94,7 +108,8 @@ class PositionHistory {
   }
 
   // Returns compacted segments and the raw pending buffer for client seeding.
-  // Format: {"segments": [{"attributes": {"blades": bool}, "points": [[x, y], ...]}, ...],
+  // Format: {"segments": [{"attributes": {"job_id": str, "session_id": str, "blades": bool},
+  //                        "points": [[x, y], ...]}, ...],
   //          "buffer":   [[x, y], ...]}
   // The client should seed its own pipeline with both: segments replace history,
   // buffer replaces the local raw buffer. Points arriving on position/json after
@@ -289,11 +304,11 @@ class PositionHistory {
   // Attribute changes
   // -------------------------------------------------------------------------
 
-  void attributesChanged(bool& current, bool new_value) {
-    if (current == new_value) return;
-    compact(/*flush_all=*/true);
-    current = new_value;
-    startNewSegment();
+  template <typename T>
+  bool updateAttribute(T& current, T new_value) {
+    if (current == new_value) return false;
+    current = std::move(new_value);
+    return true;
   }
 
   // Close current open segment, bridge to the new one. Called when attributes change.
@@ -377,7 +392,10 @@ class PositionHistory {
 
         if (type == "new_segment") {
           Segment seg;
-          seg.attributes.blades = j.at("attributes").at("blades").get<bool>();
+          const auto& attrs = j.at("attributes");
+          seg.attributes.job_id = attrs.value("job_id", std::string{});
+          seg.attributes.session_id = attrs.value("session_id", std::string{});
+          seg.attributes.blades = attrs.at("blades").get<bool>();
           seg.started_at = j.value("started_at", 0.0);
           for (const auto& pt : j.at("points")) {
             seg.points.push_back({pt[0].get<double>(), pt[1].get<double>()});
@@ -411,7 +429,12 @@ class PositionHistory {
     for (const auto& p : seg.points) {
       pts.push_back({p.x, p.y});
     }
-    return {{"attributes", {{"blades", seg.attributes.blades}}}, {"started_at", seg.started_at}, {"points", pts}};
+    return {{"attributes",
+             {{"job_id", seg.attributes.job_id},
+              {"session_id", seg.attributes.session_id},
+              {"blades", seg.attributes.blades}}},
+            {"started_at", seg.started_at},
+            {"points", pts}};
   }
 
   std::string file_path_;
@@ -420,7 +443,7 @@ class PositionHistory {
   std::vector<Segment> history_segments_;
 
   // Current track attributes.
-  TrackAttributes current_attributes_{.blades = false};
+  TrackAttributes current_attributes_{};
 
   // Persistence watermarks — monotonically advance, never go backward.
   // written_seg_count_:   segments [0, written_seg_count_) have their new_segment record on disk.
@@ -431,4 +454,4 @@ class PositionHistory {
   mutable std::mutex mutex_;
 };
 
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(PositionHistory::TrackAttributes, blades, idle)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(PositionHistory::TrackAttributes, job_id, session_id, blades)
