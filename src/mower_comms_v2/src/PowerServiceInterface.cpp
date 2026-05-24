@@ -65,6 +65,7 @@ bool PowerServiceInterface::OnConfigurationRequested(uint16_t service_id) {
     SetRegisterReChargeVoltage(static_cast<ReChargeVoltages>(charge_recharge_voltage_));
   }
   if (system_current_ > 0.0f) SetRegisterSystemCurrent(system_current_);
+  SetRegisterDangerouslyOverrideHardwareChargeCurrentLimit(override_hardware_charge_current_limit_ ? 1 : 0);
   CommitTransaction();
   return true;
 }
