@@ -41,6 +41,9 @@ extern void setConfig(mower_logic::MowerLogicConfig);
 
 extern void registerActions(std::string prefix, const std::vector<xbot_msgs::ActionInfo>& actions);
 
+extern std::string current_job_id;
+extern bool current_job_finished;
+
 MowingBehavior MowingBehavior::INSTANCE;
 
 std::string MowingBehavior::state_name() {
@@ -110,6 +113,7 @@ void MowingBehavior::exit() {
 }
 
 void MowingBehavior::reset() {
+  current_job_finished = true;
   currentMowingPaths.clear();
   currentMowingArea = 0;
   currentMowingPath = 0;
@@ -704,6 +708,7 @@ void MowingBehavior::handle_action(std::string action) {
 void MowingBehavior::checkpoint() {
   rosbag::Bag bag;
   mower_logic::CheckPoint cp;
+  cp.job_id = current_job_id;
   cp.currentMowingPath = currentMowingPath;
   cp.currentMowingArea = currentMowingArea;
   cp.currentMowingPathIndex = currentMowingPathIndex;
@@ -735,9 +740,10 @@ bool MowingBehavior::restore_checkpoint() {
       if (cp) {
         ROS_INFO_STREAM("Restoring checkpoint for plan ("
                         << cp->currentMowingPlanDigest << ")"
-                        << " area: " << cp->currentMowingArea << " path: " << cp->currentMowingPath
-                        << " index: " << cp->currentMowingPathIndex
+                        << " job: " << cp->job_id << " area: " << cp->currentMowingArea
+                        << " path: " << cp->currentMowingPath << " index: " << cp->currentMowingPathIndex
                         << " angle increment sum: " << cp->currentMowingAngleIncrementSum);
+        current_job_id = cp->job_id;
         currentMowingPath = cp->currentMowingPath;
         currentMowingArea = cp->currentMowingArea;
         currentMowingPathIndex = cp->currentMowingPathIndex;

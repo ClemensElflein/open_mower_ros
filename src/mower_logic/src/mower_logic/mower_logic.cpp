@@ -24,16 +24,19 @@
 #include <mower_msgs/Power.h>
 #include <tf2/LinearMath/Transform.h>
 
+#include <algorithm>
 #include <atomic>
 #include <csignal>
 #include <ios>
 #include <mutex>
+#include <random>
 #include <sstream>
 
 #include "StateSubscriber.h"
 #include "behaviors/AreaRecordingBehavior.h"
 #include "behaviors/Behavior.h"
 #include "behaviors/IdleBehavior.h"
+#include "behaviors/PerimeterDocking.h"
 #include "ftc_local_planner/PlannerGetProgress.h"
 #include "mbf_msgs/ExePathAction.h"
 #include "mbf_msgs/MoveBaseAction.h"
@@ -59,6 +62,19 @@
 #include "xbot_positioning/SetPoseSrv.h"
 
 using json = nlohmann::ordered_json;
+
+std::string generateNanoId(size_t length = 32) {
+  static const char alphabet[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+  thread_local std::mt19937 rng{std::random_device{}()};
+  thread_local std::uniform_int_distribution<> dist(0, sizeof(alphabet) - 2);
+  std::string id(length, '\0');
+  std::generate_n(id.begin(), length, [&]() { return alphabet[dist(rng)]; });
+  return id;
+}
+
+std::string current_job_id;
+std::string current_session_id;
+bool current_job_finished = false;
 
 ros::ServiceClient pathClient, mapClient, dockingPointClient, gpsClient, mowClient, emergencyClient, pathProgressClient,
     setNavPointClient, clearNavPointClient, clearMapClient, positioningClient, actionRegistrationClient;
@@ -230,6 +246,8 @@ void publishMowerEvent(const std::string& type, json details = json::object()) {
   const auto& pose = pose_state_subscriber.getMessage();
   details["x"] = pose.pose.pose.position.x;
   details["y"] = pose.pose.pose.position.y;
+  if (!current_job_id.empty()) details["job_id"] = current_job_id;
+  if (!current_session_id.empty()) details["session_id"] = current_session_id;
   xbot_mqtt::publishEvent(mqtt_publish_pub, type, details);
 }
 
@@ -394,6 +412,8 @@ void updateUI(const ros::TimerEvent& timer_event) {
     high_level_status.sub_state_name = "";
     high_level_status.state = mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_NULL;
   }
+  high_level_status.job_id = current_job_id;
+  high_level_status.session_id = current_session_id;
   high_level_state_publisher.publish(high_level_status);
 }
 
@@ -961,6 +981,24 @@ int main(int argc, char** argv) {
       currentBehavior->start(last_config, shared_state);
       Behavior* newBehavior = currentBehavior->execute();
       currentBehavior->exit();
+
+      if (newBehavior != nullptr) {
+        // Session START: undocking begins a new session; mowing is the fallback for idle-start (not on charger)
+        if (newBehavior == &UndockingBehavior::INSTANCE || newBehavior == &PerimeterUndockingBehavior::INSTANCE ||
+            (newBehavior == &MowingBehavior::INSTANCE && current_session_id.empty())) {
+          if (current_job_id.empty()) current_job_id = generateNanoId();
+          current_session_id = generateNanoId();
+        }
+
+        // Session END: entering either idle variant (docked or not)
+        if (newBehavior == &IdleBehavior::INSTANCE || newBehavior == &IdleBehavior::DOCKED_INSTANCE) {
+          current_session_id = "";
+          if (current_job_finished) {
+            current_job_id = "";
+            current_job_finished = false;
+          }
+        }
+      }
 
       if (newBehavior != currentBehavior && newBehavior != nullptr) {
         publishMowerEvent("STATE", json{{"state", newBehavior->state_name()}});
