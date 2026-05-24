@@ -2,38 +2,36 @@
 // Created by Clemens Elflein on 22.11.22.
 // Copyright (c) 2022 Clemens Elflein. All rights reserved.
 //
-#include <filesystem>
-
-#include "ros/ros.h"
-#include <memory>
-#include <boost/regex.hpp>
-#include "xbot_msgs/SensorInfo.h"
-#include "xbot_msgs/SensorDataString.h"
-#include "xbot_msgs/SensorDataDouble.h"
-#include "xbot_msgs/RobotState.h"
-#include "xbot_msgs/AbsolutePose.h"
 #include <mqtt/async_client.h>
-#include <nlohmann/json.hpp>
-#include <atomic>
-#include <vector>
+
 #include <algorithm>
+#include <boost/regex.hpp>
+#include <filesystem>
+#include <memory>
+#include <nlohmann/json.hpp>
+#include <vector>
+
+#include "EventHistory.h"
+#include "PositionHistory.h"
+#include "capabilities.h"
 #include "geometry_msgs/Twist.h"
+#include "ros/ros.h"
 #include "std_msgs/String.h"
-#include "xbot_msgs/RegisterActionsSrv.h"
-#include "xbot_msgs/ActionInfo.h"
-#include "xbot_msgs/MapOverlay.h"
+#include "xbot_mqtt/RegisterMethodsSrv.h"
 #include "xbot_mqtt/RpcError.h"
 #include "xbot_mqtt/RpcRequest.h"
 #include "xbot_mqtt/RpcResponse.h"
 #include "xbot_mqtt/constants.h"
 #include "xbot_mqtt/provider.h"
 #include "xbot_mqtt/publish.h"
-#include "xbot_mqtt/RegisterMethodsSrv.h"
-#include "capabilities.h"
-#include "EventHistory.h"
-#include "PositionHistory.h"
-#include "mower_msgs/HighLevelStatus.h"
-
+#include "xbot_msgs/AbsolutePose.h"
+#include "xbot_msgs/ActionInfo.h"
+#include "xbot_msgs/MapOverlay.h"
+#include "xbot_msgs/RegisterActionsSrv.h"
+#include "xbot_msgs/RobotState.h"
+#include "xbot_msgs/SensorDataDouble.h"
+#include "xbot_msgs/SensorDataString.h"
+#include "xbot_msgs/SensorInfo.h"
 const double MQTT_POSITION_PUBLISH_INTERVAL = 0.150;
 const double POSITION_HISTORY_FLUSH_INTERVAL = 30.0;
 
@@ -155,7 +153,6 @@ bool has_map_overlay = false;
 
 EventHistory event_history;
 PositionHistory position_history;
-std::atomic<bool> is_idle{true};
 
 xbot_mqtt::RpcProvider rpc_provider("xbot_monitoring", {{
     RPC_METHOD("rpc.ping", {
@@ -503,13 +500,6 @@ void subscribe_to_sensor(std::string topic, std::vector<ros::Subscriber> &sensor
     }
 }
 
-void high_level_status_callback(const mower_msgs::HighLevelStatus::ConstPtr &msg) {
-    const uint8_t state = msg->state;
-    is_idle.store(state == mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_NULL ||
-                      state == mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_IDLE,
-                  std::memory_order_relaxed);
-}
-
 void robot_state_callback(const xbot_msgs::RobotState::ConstPtr &msg) {
     // Build a JSON and publish it
     json j;
@@ -571,12 +561,9 @@ void pose_publish_timer_callback(const ros::TimerEvent&) {
     std::nth_element(ys.begin(), ys.begin() + mid, ys.end());
     std::nth_element(hs.begin(), hs.begin() + mid, hs.end());
 
-    if (!is_idle) {
-      position_history.addPoint(xs[mid], ys[mid]);
-    }
+    position_history.addPoint(xs[mid], ys[mid]);
 
-auto attrs = position_history.getAttributes();
-    attrs.idle = is_idle;
+    const auto attrs = position_history.getAttributes();
     const json j = {
         {"x", xs[mid]},
         {"y", ys[mid]},
@@ -843,7 +830,6 @@ int main(int argc, char **argv) {
     ros::ServiceServer register_action_service = n->advertiseService("xbot/register_actions", registerActions);
 
     ros::Subscriber robotStateSubscriber = n->subscribe("xbot_monitoring/robot_state", 10, robot_state_callback);
-    ros::Subscriber highLevelStatusSubscriber = n->subscribe("mower_logic/current_state", 10, high_level_status_callback);
     ros::Subscriber mapSubscriber = n->subscribe("mower_map_service/json_map", 10, map_callback);
     ros::Subscriber mapOverlaySubscriber = n->subscribe("xbot_monitoring/map_overlay", 10, map_overlay_callback);
     ros::Subscriber poseSubscriber = n->subscribe("/xbot_positioning/xb_pose", 10, pose_callback);
