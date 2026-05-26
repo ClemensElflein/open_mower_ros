@@ -726,6 +726,7 @@ int main(int argc, char** argv) {
       delete (reconfigServer);
       delete (mbfClient);
       delete (mbfClientExePath);
+      delete (mbfClientRecovery);
       return 1;
     }
     r.sleep();
@@ -736,6 +737,7 @@ int main(int argc, char** argv) {
       delete (reconfigServer);
       delete (mbfClient);
       delete (mbfClientExePath);
+      delete (mbfClientRecovery);
       return 1;
     }
     r.sleep();
@@ -747,6 +749,7 @@ int main(int argc, char** argv) {
       delete (reconfigServer);
       delete (mbfClient);
       delete (mbfClientExePath);
+      delete (mbfClientRecovery);
       return 1;
     }
     r.sleep();
@@ -758,6 +761,7 @@ int main(int argc, char** argv) {
       delete (reconfigServer);
       delete (mbfClient);
       delete (mbfClientExePath);
+      delete (mbfClientRecovery);
       return 1;
     }
     r.sleep();
@@ -768,6 +772,7 @@ int main(int argc, char** argv) {
       delete (reconfigServer);
       delete (mbfClient);
       delete (mbfClientExePath);
+      delete (mbfClientRecovery);
       return 1;
     }
     r.sleep();
@@ -778,6 +783,7 @@ int main(int argc, char** argv) {
       delete (reconfigServer);
       delete (mbfClient);
       delete (mbfClientExePath);
+      delete (mbfClientRecovery);
       return 1;
     }
     r.sleep();
@@ -789,6 +795,7 @@ int main(int argc, char** argv) {
     delete (reconfigServer);
     delete (mbfClient);
     delete (mbfClientExePath);
+    delete (mbfClientRecovery);
 
     return 1;
   }
@@ -799,6 +806,7 @@ int main(int argc, char** argv) {
     delete (reconfigServer);
     delete (mbfClient);
     delete (mbfClientExePath);
+    delete (mbfClientRecovery);
 
     return 1;
   }
@@ -808,6 +816,7 @@ int main(int argc, char** argv) {
     delete (reconfigServer);
     delete (mbfClient);
     delete (mbfClientExePath);
+    delete (mbfClientRecovery);
 
     return 1;
   }
@@ -818,6 +827,7 @@ int main(int argc, char** argv) {
     delete (reconfigServer);
     delete (mbfClient);
     delete (mbfClientExePath);
+    delete (mbfClientRecovery);
 
     return 1;
   }
@@ -827,6 +837,7 @@ int main(int argc, char** argv) {
     delete (reconfigServer);
     delete (mbfClient);
     delete (mbfClientExePath);
+    delete (mbfClientRecovery);
 
     return 1;
   }
@@ -837,6 +848,7 @@ int main(int argc, char** argv) {
     delete (reconfigServer);
     delete (mbfClient);
     delete (mbfClientExePath);
+    delete (mbfClientRecovery);
     return 2;
   }
   ROS_INFO("Waiting for docking point server");
@@ -845,6 +857,7 @@ int main(int argc, char** argv) {
     delete (reconfigServer);
     delete (mbfClient);
     delete (mbfClientExePath);
+    delete (mbfClientRecovery);
     return 2;
   }
   ROS_INFO("Waiting for nav point server");
@@ -853,6 +866,7 @@ int main(int argc, char** argv) {
     delete (reconfigServer);
     delete (mbfClient);
     delete (mbfClientExePath);
+    delete (mbfClientRecovery);
     return 2;
   }
   ROS_INFO("Waiting for clear nav point server");
@@ -861,6 +875,7 @@ int main(int argc, char** argv) {
     delete (reconfigServer);
     delete (mbfClient);
     delete (mbfClientExePath);
+    delete (mbfClientRecovery);
     return 2;
   }
 
@@ -870,6 +885,7 @@ int main(int argc, char** argv) {
     delete (reconfigServer);
     delete (mbfClient);
     delete (mbfClientExePath);
+    delete (mbfClientRecovery);
     return 3;
   }
 
@@ -879,6 +895,7 @@ int main(int argc, char** argv) {
     delete (reconfigServer);
     delete (mbfClient);
     delete (mbfClientExePath);
+    delete (mbfClientRecovery);
     return 3;
   }
 
@@ -933,5 +950,6 @@ int main(int argc, char** argv) {
   delete (reconfigServer);
   delete (mbfClient);
   delete (mbfClientExePath);
+  delete (mbfClientRecovery);
   return 0;
 }

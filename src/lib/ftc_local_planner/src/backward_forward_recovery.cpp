@@ -119,28 +119,31 @@ bool BackwardForwardRecovery::attemptMove(double distance, bool forward)
 
 bool BackwardForwardRecovery::isPathClear(const geometry_msgs::Pose& pose, bool forward)
 {
+  costmap_2d::Costmap2D* costmap = local_costmap_->getCostmap();
+  boost::unique_lock<costmap_2d::Costmap2D::mutex_t> lock(*(costmap->getMutex()));
+  
   double yaw = tf2::getYaw(pose.orientation);
   if (!forward)
   {
     yaw += M_PI;
   }
 
-  double resolution = local_costmap_->getCostmap()->getResolution();
+  double resolution = costmap->getResolution();
   unsigned int steps = std::ceil(obstacle_check_distance_ / resolution);
 
-  for (unsigned int i = 1; i <= steps; ++i)
+  for (unsigned int i = 0; i <= steps; ++i)
   {
     double dist = i * resolution;
     double x = pose.position.x + dist * std::cos(yaw);
     double y = pose.position.y + dist * std::sin(yaw);
 
     unsigned int mx, my;
-    if (!local_costmap_->getCostmap()->worldToMap(x, y, mx, my))
+    if (!costmap->worldToMap(x, y, mx, my))
     {
       return false;
     }
 
-    unsigned char cost = local_costmap_->getCostmap()->getCost(mx, my);
+    unsigned char cost = costmap->getCost(mx, my);
     if (cost > max_cost_threshold_)
     {
       return false;
