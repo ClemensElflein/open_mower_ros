@@ -546,10 +546,16 @@ class PositionHistory {
       // session_id and blades must come from fresh STATE/BLADES events after boot;
       // restoring them would cause addPoint() to record while the mower is docked.
       current_attributes_.job_id = history_segments_.back().attributes.job_id;
-      written_seg_count_ = history_segments_.size();
-      written_point_count_ = history_segments_.back().points.size();
       file_path_ = latest.path.string();
       ROS_INFO_STREAM("PositionHistory: loaded existing file " << file_path_);
+
+      // Open a fresh segment (no bridge point) so post-boot points start a clean track.
+      Segment seg;
+      seg.attributes = current_attributes_;
+      history_segments_.push_back(std::move(seg));
+
+      written_seg_count_ = history_segments_.size() - 1;
+      written_point_count_ = 0;
     }
   }
 
