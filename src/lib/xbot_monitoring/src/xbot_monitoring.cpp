@@ -173,7 +173,21 @@ xbot_mqtt::RpcProvider rpc_provider("xbot_monitoring", {{
         return event_history.getAll();
     }),
     RPC_METHOD("position.history", {
-        return position_history.getHistory();
+        if (params.is_object() && params.contains("job_id")) {
+            return position_history.getHistory(params["job_id"].get<std::string>());
+        } else {
+            return position_history.getHistory();
+        }
+    }),
+    RPC_METHOD("position.history.list", {
+        return position_history.listHistories();
+    }),
+    RPC_METHOD("position.history.delete", {
+        if (params.is_object() && params.contains("job_id")) {
+            return position_history.deleteHistory(params["job_id"].get<std::string>());
+        } else {
+            return position_history.deleteHistory(std::nullopt);
+        }
     }),
 }});
 

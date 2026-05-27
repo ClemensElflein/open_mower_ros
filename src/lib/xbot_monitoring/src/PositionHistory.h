@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <filesystem>
 #include <fstream>
 #include <limits>
 #include <mutex>
@@ -27,12 +28,14 @@ using json = nlohmann::ordered_json;
  * a new segment is opened and a bridge vertex (last point of previous segment) is
  * prepended so segments connect.
  *
- * Persistence (append-only JSONL, two record types):
- *   {"type":"new_segment","attributes":{"job_id":"...","session_id":"...","blades":true},"points":[[x,y],...]}
- *   {"type":"append_points","points":[[x,y],...]}
+ * Persistence (one append-only JSONL per job_id, stored in position_history/):
+ *   Filename: <unix_epoch_seconds>_<job_id>.jsonl
+ *   Two record types:
+ *     {"type":"new_segment","attributes":{"job_id":"...","session_id":"...","blades":true},"points":[[x,y],...]}
+ *     {"type":"append_points","points":[[x,y],...]}
  *
- * writePending() is called ONLY from periodicFlush() (timer) and flush() (shutdown).
- * No I/O happens on addPoint(), onEvent(), or any internal state change.
+ * When job_id changes, the active file is closed (flushed) and a new one is opened.
+ * session_id / blades changes only open a new segment inside the same file.
  *
  * Pending state: written_seg_count_ tracks how many segments have had their
  * new_segment record written; written_point_count_ tracks how many points of the
@@ -50,8 +53,9 @@ class PositionHistory {
   PositionHistory() = default;
 
   void init() {
-    file_path_ = "positions.jsonl";
-    loadFromDisk();
+    base_dir_ = "position_history";
+    std::filesystem::create_directories(base_dir_);
+    initializeFromDisk();
   }
 
   // Feed a median-filtered position. Called from the pose publish timer.
@@ -68,19 +72,30 @@ class PositionHistory {
 
   // Interpret a parsed event JSON and update segment attributes accordingly.
   // Handles STATE (string job_id, string session_id) and BLADES (bool enabled).
-  // Any attribute change closes the current segment and opens a new one.
+  // A job_id change closes the current file and opens a new one.
+  // Any other attribute change closes the current segment and opens a new one.
   void onEvent(const json& event) {
     std::lock_guard<std::mutex> lk(mutex_);
     try {
       const std::string type = event.at("type").get<std::string>();
       bool changed = false;
+      bool job_changed = false;
       if (type == "STATE") {
-        changed = updateAttribute(current_attributes_.job_id, event.value("job_id", std::string{})) |
-                  updateAttribute(current_attributes_.session_id, event.value("session_id", std::string{}));
+        job_changed = updateAttribute(current_attributes_.job_id, event.value("job_id", std::string{}));
+        changed =
+            job_changed | updateAttribute(current_attributes_.session_id, event.value("session_id", std::string{}));
       } else if (type == "BLADES") {
         changed = updateAttribute(current_attributes_.blades, event.at("enabled").get<bool>());
       }
-      if (changed) {
+      if (job_changed) {
+        compact(/*flush_all=*/true);
+        writePending();
+        resetState();
+        if (!current_attributes_.job_id.empty()) {
+          startNewSegment();
+          writePending();
+        }
+      } else if (changed) {
         compact(/*flush_all=*/true);
         startNewSegment();
       }
@@ -108,23 +123,66 @@ class PositionHistory {
   }
 
   // Returns compacted segments and the raw pending buffer for client seeding.
-  // Format: {"segments": [{"attributes": {"job_id": str, "session_id": str, "blades": bool},
-  //                        "points": [[x, y], ...]}, ...],
-  //          "buffer":   [[x, y], ...]}
-  // The client should seed its own pipeline with both: segments replace history,
-  // buffer replaces the local raw buffer. Points arriving on position/json after
-  // this snapshot was taken are fed into the pipeline as usual.
+  // Always served from in-memory state (the active / latest job).
+  // Format: {"segments": [...], "buffer": [[x,y],...]}
   json getHistory() const {
     std::lock_guard<std::mutex> lk(mutex_);
-    json segs = json::array();
-    for (const auto& seg : history_segments_) {
-      segs.push_back(segmentToJson(seg));
+    return buildHistoryJson(history_segments_, rel_buffer_);
+  }
+
+  // Returns the history for a specific job_id by loading its file from disk.
+  // The active in-memory job is served from memory (no re-read).
+  // Returns {"error": "not found"} if no file for that job_id exists.
+  json getHistory(const std::string& job_id) const {
+    std::lock_guard<std::mutex> lk(mutex_);
+    if (job_id == current_attributes_.job_id) {
+      return buildHistoryJson(history_segments_, rel_buffer_);
     }
-    json buf = json::array();
-    for (const auto& p : rel_buffer_) {
-      buf.push_back({p.x, p.y});
+    for (const auto& e : dir_index_) {
+      if (e.job_id == job_id) {
+        auto segs = loadFile(e.path);
+        std::vector<Point> empty_buf;
+        return buildHistoryJson(segs, empty_buf);
+      }
     }
-    return {{"segments", segs}, {"buffer", buf}};
+    return {{"error", "not found"}};
+  }
+
+  // Returns array of {job_id, timestamp} sorted newest-first (derived from filenames).
+  json listHistories() const {
+    std::lock_guard<std::mutex> lk(mutex_);
+    json arr = json::array();
+    for (const auto& e : dir_index_) {
+      arr.push_back({{"job_id", e.job_id}, {"timestamp", e.epoch}});
+    }
+    return arr;
+  }
+
+  // Deletes the file for job_id. If job_id is empty, deletes ALL files.
+  // Cannot delete the currently active job's file.
+  // Returns {"deleted": N}.
+  json deleteHistory(const std::optional<std::string>& job_id) {
+    std::lock_guard<std::mutex> lk(mutex_);
+    int deleted = 0;
+    for (auto it = dir_index_.begin(); it != dir_index_.end();) {
+      if (job_id.has_value() && it->job_id != *job_id) {
+        ++it;
+        continue;
+      }
+      if (it->job_id == current_attributes_.job_id) {
+        // Cannot delete the current file
+        ++it;
+        continue;
+      }
+      std::error_code ec;
+      if (std::filesystem::remove(it->path, ec)) {
+        ++deleted;
+        it = dir_index_.erase(it);
+      } else {
+        ++it;
+      }
+    }
+    return {{"deleted", deleted}};
   }
 
  private:
@@ -153,6 +211,12 @@ class PositionHistory {
     std::vector<Point> points;
     TrackAttributes attributes;
     double started_at = 0.0;  // Unix time (seconds) of the first real compacted point
+  };
+
+  struct FileEntry {
+    int64_t epoch;
+    std::string job_id;
+    std::filesystem::path path;
   };
 
   // -------------------------------------------------------------------------
@@ -313,6 +377,7 @@ class PositionHistory {
 
   // Close current open segment, bridge to the new one. Called when attributes change.
   void startNewSegment() {
+    if (current_attributes_.job_id.empty()) return;
     Segment seg;
     seg.attributes = current_attributes_;
     if (!history_segments_.empty() && !history_segments_.back().points.empty()) {
@@ -335,7 +400,16 @@ class PositionHistory {
   //                          that have already been written (inside the new_segment record
   //                          or subsequent append_points records).
   //
-  // Called ONLY from periodicFlush() and flush() — never mid-operation.
+
+  // Reset in-memory state (called when job_id changes).
+  void resetState() {
+    history_segments_.clear();
+    rel_buffer_.clear();
+    written_seg_count_ = 0;
+    written_point_count_ = 0;
+    file_path_.clear();
+  }
+
   void writePending() {
     if (history_segments_.empty()) return;
 
@@ -347,6 +421,8 @@ class PositionHistory {
         written_seg_count_ > 0 && history_segments_[written_seg_count_ - 1].points.size() > written_point_count_;
     const bool new_segments = written_seg_count_ < history_segments_.size();
     if (!new_points && !new_segments) return;
+
+    if (!ensureFilePathSet()) return;
 
     std::ofstream f(file_path_, std::ios::app);
     if (!f.is_open()) {
@@ -379,9 +455,50 @@ class PositionHistory {
     }
   }
 
-  void loadFromDisk() {
-    std::ifstream f(file_path_);
-    if (!f.is_open()) return;
+  // Ensure file_path_ is set for the current job.
+  bool ensureFilePathSet() {
+    if (!file_path_.empty()) return true;
+    if (current_attributes_.job_id.empty()) return false;
+    const int64_t epoch = static_cast<int64_t>(ros::Time::now().toSec());
+    file_path_ = base_dir_ + "/" + std::to_string(epoch) + "_" + current_attributes_.job_id + ".jsonl";
+    dir_index_.insert(dir_index_.begin(), {epoch, current_attributes_.job_id, file_path_});
+    ROS_INFO_STREAM("PositionHistory: creating new file " << file_path_);
+    return true;
+  }
+
+  // -------------------------------------------------------------------------
+  // Directory scanning and file loading
+  // -------------------------------------------------------------------------
+
+  // Parse filenames of the form "<epoch>_<job_id>.jsonl".
+  // Returns entries sorted newest-first (descending epoch).
+  std::vector<FileEntry> scanDir() const {
+    std::vector<FileEntry> entries;
+    std::error_code ec;
+    for (const auto& entry : std::filesystem::directory_iterator(base_dir_, ec)) {
+      if (!entry.is_regular_file()) continue;
+      const std::string name = entry.path().filename().string();
+      if (name.size() < 7 || name.substr(name.size() - 6) != ".jsonl") continue;
+      const std::string stem = name.substr(0, name.size() - 6);
+      const auto sep = stem.find('_');
+      if (sep == std::string::npos || sep == 0) continue;
+      try {
+        int64_t epoch = std::stoll(stem.substr(0, sep));
+        std::string job_id = stem.substr(sep + 1);
+        if (job_id.empty()) continue;
+        entries.push_back({epoch, job_id, entry.path()});
+      } catch (...) {
+        continue;
+      }
+    }
+    std::sort(entries.begin(), entries.end(), [](const FileEntry& a, const FileEntry& b) { return a.epoch > b.epoch; });
+    return entries;
+  }
+
+  static std::vector<Segment> loadFile(const std::filesystem::path& path) {
+    std::vector<Segment> segs;
+    std::ifstream f(path);
+    if (!f.is_open()) return segs;
 
     std::string line;
     while (std::getline(f, line)) {
@@ -400,28 +517,52 @@ class PositionHistory {
           for (const auto& pt : j.at("points")) {
             seg.points.push_back({pt[0].get<double>(), pt[1].get<double>()});
           }
-          history_segments_.push_back(std::move(seg));
+          segs.push_back(std::move(seg));
         } else if (type == "append_points") {
-          if (history_segments_.empty()) continue;
-          Segment& tail = history_segments_.back();
+          if (segs.empty()) continue;
+          Segment& tail = segs.back();
           for (const auto& pt : j.at("points")) {
             tail.points.push_back({pt[0].get<double>(), pt[1].get<double>()});
           }
         }
       } catch (const std::exception& e) {
-        ROS_WARN_STREAM("PositionHistory: skipping malformed line: " << e.what());
+        ROS_WARN_STREAM("PositionHistory: skipping malformed line in " << path << ": " << e.what());
       }
     }
+    return segs;
+  }
 
-    // All loaded segments are already on disk; set watermarks accordingly.
-    // The last segment is "open" — we resume appending into it.
-    // Restore current_attributes_ from the last segment so attribute-change
-    // detection in onEvent() has the correct baseline.
+  // Load the latest file (by epoch) into in-memory state on startup.
+  // Also populates dir_index_.
+  void initializeFromDisk() {
+    dir_index_ = scanDir();
+    if (dir_index_.empty()) return;
+
+    const FileEntry& latest = dir_index_.front();
+    history_segments_ = loadFile(latest.path);
+
     if (!history_segments_.empty()) {
-      current_attributes_ = history_segments_.back().attributes;
+      // Restore only job_id so file rotation detects changes correctly.
+      // session_id and blades must come from fresh STATE/BLADES events after boot;
+      // restoring them would cause addPoint() to record while the mower is docked.
+      current_attributes_.job_id = history_segments_.back().attributes.job_id;
       written_seg_count_ = history_segments_.size();
       written_point_count_ = history_segments_.back().points.size();
+      file_path_ = latest.path.string();
+      ROS_INFO_STREAM("PositionHistory: loaded existing file " << file_path_);
     }
+  }
+
+  static json buildHistoryJson(const std::vector<Segment>& segs, const std::vector<Point>& buf) {
+    json j_segs = json::array();
+    for (const auto& seg : segs) {
+      j_segs.push_back(segmentToJson(seg));
+    }
+    json j_buf = json::array();
+    for (const auto& p : buf) {
+      j_buf.push_back({p.x, p.y});
+    }
+    return {{"segments", j_segs}, {"buffer", j_buf}};
   }
 
   static json segmentToJson(const Segment& seg) {
@@ -437,7 +578,9 @@ class PositionHistory {
             {"points", pts}};
   }
 
+  std::string base_dir_;
   std::string file_path_;
+  std::vector<FileEntry> dir_index_;  // populated once at startup, kept in sync
 
   std::vector<Point> rel_buffer_;
   std::vector<Segment> history_segments_;
