@@ -17,8 +17,8 @@
 #include <cryptopp/cryptlib.h>
 #include <cryptopp/hex.h>
 #include <cryptopp/sha.h>
-#include <nav_msgs/Path.h>
 #include <mbf_msgs/RecoveryAction.h>
+#include <nav_msgs/Path.h>
 #include <rosbag/bag.h>
 #include <rosbag/view.h>
 
@@ -294,7 +294,7 @@ std::vector<std::string> getConfiguredRecoveryBehaviors() {
     return names;
   }
   for (int i = 0; i < behaviors.size(); i++) {
-    XmlRpc::XmlRpcValue &b = behaviors[i];
+    XmlRpc::XmlRpcValue& b = behaviors[i];
     if (b.getType() == XmlRpc::XmlRpcValue::TypeStruct && b.hasMember("name")) {
       names.push_back(static_cast<std::string>(b["name"]));
     }
@@ -589,22 +589,25 @@ bool MowingBehavior::execute_mowing_plan() {
               mowerEnabled = false;
               std::vector<std::string> recoveryBehaviors = getConfiguredRecoveryBehaviors();
               if (recoveryBehaviors.empty()) {
-                ROS_INFO_STREAM("MowingBehavior: (MOW) No recovery behavior configured - "
-                                "skipping recovery.");
+                ROS_INFO_STREAM(
+                    "MowingBehavior: (MOW) No recovery behavior configured - "
+                    "skipping recovery.");
               } else if (!mbfClientRecovery->waitForServer(ros::Duration(1.0))) {
-                ROS_WARN_STREAM("MowingBehavior: (MOW) Recovery action server unavailable - "
-                                "skipping recovery.");
+                ROS_WARN_STREAM(
+                    "MowingBehavior: (MOW) Recovery action server unavailable - "
+                    "skipping recovery.");
               } else {
-                for (const auto &behavior : recoveryBehaviors) {
+                for (const auto& behavior : recoveryBehaviors) {
                   if (aborted) break;
                   mbf_msgs::RecoveryGoal recoveryGoal;
                   recoveryGoal.behavior = behavior;
-                  ROS_INFO_STREAM("MowingBehavior: (MOW) Path following failed - running recovery "
-                                  "behavior '"
-                                  << behavior << "'.");
+                  ROS_INFO_STREAM(
+                      "MowingBehavior: (MOW) Path following failed - running recovery "
+                      "behavior '"
+                      << behavior << "'.");
                   auto recoveryState = sendGoalAndWaitUnlessAborted(mbfClientRecovery, recoveryGoal);
-                  ROS_INFO_STREAM("MowingBehavior: (MOW) Recovery behavior '"
-                                  << behavior << "' finished with state " << recoveryState.toString());
+                  ROS_INFO_STREAM("MowingBehavior: (MOW) Recovery behavior '" << behavior << "' finished with state "
+                                                                              << recoveryState.toString());
                   if (recoveryState == actionlib::SimpleClientGoalState::SUCCEEDED) {
                     break;
                   }
