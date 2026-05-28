@@ -90,8 +90,8 @@ class PositionHistory {
       if (job_changed) {
         compact(/*flush_all=*/true);
         writePending();
-        resetState();
         if (!current_attributes_.job_id.empty()) {
+          resetState();
           startNewSegment();
           writePending();
         }
