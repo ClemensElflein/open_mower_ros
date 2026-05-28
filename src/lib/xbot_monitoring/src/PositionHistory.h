@@ -354,12 +354,10 @@ class PositionHistory {
     if (history_segments_.empty()) {
       Segment seg;
       seg.attributes = current_attributes_;
+      seg.started_at = ros::Time::now().toSec();
       history_segments_.push_back(std::move(seg));
     }
     Segment& tail = history_segments_.back();
-    if (tail.started_at == 0.0 && !pts.empty()) {
-      tail.started_at = ros::Time::now().toSec();
-    }
     tail.points.reserve(tail.points.size() + pts.size());
     tail.points.insert(tail.points.end(), pts.begin(), pts.end());
   }
@@ -380,6 +378,7 @@ class PositionHistory {
     if (current_attributes_.job_id.empty()) return;
     Segment seg;
     seg.attributes = current_attributes_;
+    seg.started_at = ros::Time::now().toSec();
     if (!history_segments_.empty() && !history_segments_.back().points.empty()) {
       // Prepend the last point of the previous segment as a bridge point.
       seg.points.push_back(history_segments_.back().points.back());
