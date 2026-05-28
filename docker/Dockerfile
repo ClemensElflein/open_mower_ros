@@ -14,6 +14,19 @@ RUN rosdep update --rosdistro $ROS_DISTRO
 
 ####################################################################################################
 
+# Build rosserial once and re-use the prebuilt install
+FROM base AS rosserial
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Clone from a fixed commit hash
+RUN mkdir -p /opt/rosserial/src && cd /opt/rosserial/src && git clone --no-checkout https://github.com/tongtybj/rosserial && cd rosserial && git fetch --depth=1 origin 47a73176d281eb7cc582e6dc1eb83ada40cb5f8d && git checkout FETCH_HEAD
+
+WORKDIR /opt/rosserial/
+RUN bash -c "source /opt/ros/$ROS_DISTRO/setup.bash && catkin_make_isolated --install --install-space /opt/prebuilt/rosserial --only-pkg-with-deps rosserial_server"
+
+####################################################################################################
+
 # Build slic3r_coverage_planner once and re-use the prebuilt install
 FROM base AS slic3r
 
@@ -52,7 +65,8 @@ FROM base AS assemble
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Fetch the slic3r built earlier
+# Fetch the rosserial and slic3r built earlier
+COPY --link --from=rosserial /opt/prebuilt/rosserial /opt/prebuilt/rosserial
 COPY --link --from=slic3r /opt/prebuilt/slic3r_coverage_planner /opt/prebuilt/slic3r_coverage_planner
 
 # Fetch the list of packages
@@ -68,7 +82,7 @@ RUN rm -rf /opt/open_mower_ros/src/lib/slic3r_coverage_planner /apt-install_list
 
 WORKDIR /opt/open_mower_ros
 
-RUN bash -c "source /opt/ros/$ROS_DISTRO/setup.bash && cd /opt/open_mower_ros/src && catkin_init_workspace && cd .. && source /opt/prebuilt/slic3r_coverage_planner/setup.bash && catkin_make -DCATKIN_BLACKLIST_PACKAGES=slic3r_coverage_planner"
+RUN bash -c "source /opt/ros/$ROS_DISTRO/setup.bash && cd /opt/open_mower_ros/src && catkin_init_workspace && cd .. && source /opt/prebuilt/slic3r_coverage_planner/setup.bash && source /opt/prebuilt/rosserial/setup.bash --extend && catkin_make -DCATKIN_BLACKLIST_PACKAGES=slic3r_coverage_planner"
 
 RUN echo "export OM_SOFTWARE_VERSION=$(git describe --tags || git describe --always || echo \"v0.0.0\")" > version_info.env
 
