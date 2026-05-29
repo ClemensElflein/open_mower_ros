@@ -14,6 +14,7 @@
 //
 
 #include <dynamic_reconfigure/client.h>
+#include <mower_analytics/sentry_guard.h>
 #include <mower_msgs/ESCStatus.h>
 #include <mower_msgs/Power.h>
 #include <xbot_msgs/SensorDataString.h>
@@ -323,6 +324,7 @@ void powerReconfigCB(const ll::PowerConfig& config) {
 
 int main(int argc, char** argv) {
   ros::init(argc, argv, "monitoring");
+  mower_analytics::SentryGuard sentry_guard("monitoring");
 
   n = new ros::NodeHandle();
   paramNh = new ros::NodeHandle("/mower_comms");

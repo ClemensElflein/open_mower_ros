@@ -8,6 +8,9 @@ source /opt/open_mower_ros/devel/setup.bash
 # setup om environment
 source /opt/open_mower_ros/version_info.env
 
+# Default Sentry DSN — override via OM_SENTRY_DSN in mower_config.sh if needed
+export OM_SENTRY_DSN="${OM_SENTRY_DSN:-https://f7f63872866cd6820e54cb019a620033@o4511382750887936.ingest.de.sentry.io/4511382758228048}"
+
 # OSv2 debugging get controlled via env var DEBUG and has the ROSCONSOLE_CONFIG_FILE embedded
 shopt -s nocasematch
 case "${DEBUG:-0}" in

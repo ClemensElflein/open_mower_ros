@@ -21,6 +21,7 @@ find_package(catkin REQUIRED
         grid_map_cv
         rosbag
         xbot_msgs
+        mower_analytics
         xbot_rpc
         )
 
