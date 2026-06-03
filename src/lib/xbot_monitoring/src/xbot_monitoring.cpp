@@ -26,6 +26,7 @@
 #include "xbot_rpc/provider.h"
 #include "xbot_rpc/RegisterMethodsSrv.h"
 #include "capabilities.h"
+#include <functional>
 
 using json = nlohmann::ordered_json;
 
@@ -206,12 +207,27 @@ void setupMqttClient() {
         }
 
         // create MQTT client
-        std::string uri = "tcp" + std::string("://") + external_mqtt_hostname +
-                          std::string(":") + external_mqtt_port;
+        
+        std::string external_client_id =
+                "ext_xm_" + std::to_string(std::hash<std::string>{}(external_mqtt_topic_prefix));
+        
+        if (external_client_id.length() > 23) {
+            external_client_id = external_client_id.substr(0, 23);
+        }
+        
+        client_external_ = std::make_shared<mqtt::async_client>(
+                uri, external_client_id);
 
         try {
+            std::string external_client_id =
+                    "ext_xm_" + std::to_string(std::hash<std::string>{}(external_mqtt_topic_prefix));
+            
+            if (external_client_id.length() > 23) {
+                external_client_id = external_client_id.substr(0, 23);
+            }
+            
             client_external_ = std::make_shared<mqtt::async_client>(
-                    uri, "ext_xbot_monitoring");
+                    uri, external_client_id);
             mqtt_callback_external.setMqttClient(client_external_, external_mqtt_topic_prefix);
             client_external_->set_callback(mqtt_callback_external);
 
