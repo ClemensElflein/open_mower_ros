@@ -22,8 +22,8 @@ xbot_positioning:
   debug: false
 
 ntrip_client:
-  reconnect_attempt_max: 5
-  reconnect_attempt_wait_seconds: 99999
+  reconnect_attempt_max: 99999
+  reconnect_attempt_wait_seconds: 5
 
 mower_logic:
   automatic_mode: 0
