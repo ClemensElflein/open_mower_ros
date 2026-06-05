@@ -4,6 +4,7 @@
 
 #include "SimRobot.h"
 
+#include <cstring>
 #include <nav_msgs/Odometry.h>
 #include <spdlog/spdlog.h>
 #include <tf2/LinearMath/Quaternion.h>
@@ -58,24 +59,23 @@ void SimRobot::ResetEmergency() {
   std::lock_guard<std::mutex> lk{state_mutex_};
   emergency_active_ = false;
   emergency_latch_ = false;
-  emergency_reason_ = 0;
+  emergency_reason_[0] = '\0';
 }
 
-void SimRobot::SetEmergency(bool active, const uint16_t& reason) {
+void SimRobot::SetEmergency(bool active, const char* reason) {
   std::lock_guard<std::mutex> lk{state_mutex_};
   emergency_active_ = active;
   emergency_latch_ |= active;
-  emergency_reason_ = reason;
+  strncpy(emergency_reason_, reason, sizeof(emergency_reason_) - 1);
+  emergency_reason_[sizeof(emergency_reason_) - 1] = '\0';
 }
 
-void SimRobot::GetEmergencyState(bool& active, bool& latch, uint16_t& reason) {
+void SimRobot::GetEmergencyState(bool& active, bool& latch, char* reason, size_t reason_len) {
   std::lock_guard<std::mutex> lk{state_mutex_};
   active = emergency_active_;
   latch = emergency_latch_;
-  reason = emergency_reason_;
-  if (latch) {
-    reason |= EmergencyReason::LATCH;
-  }
+  strncpy(reason, emergency_reason_, reason_len - 1);
+  reason[reason_len - 1] = '\0';
 }
 
 void SimRobot::SetControlTwist(double linear, double angular) {

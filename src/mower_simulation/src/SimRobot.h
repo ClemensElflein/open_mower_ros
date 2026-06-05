@@ -25,9 +25,9 @@ class SimRobot {
   void GetTwist(double& vx, double& vr);
 
   void ResetEmergency();
-  void SetEmergency(bool active, const uint16_t& reason);
+  void SetEmergency(bool active, const char* reason);
 
-  void GetEmergencyState(bool& active, bool& latch, uint16_t& reason);
+  void GetEmergencyState(bool& active, bool& latch, char* reason, size_t reason_len);
   void SetControlTwist(double linear, double angular);
   void GetPosition(double& x, double& y, double& heading);
   void SetPosition(const double x, const double y, const double heading);
@@ -69,7 +69,7 @@ class SimRobot {
   bool emergency_active_ = false;
   // Latched Emergency
   bool emergency_latch_ = false;
-  uint16_t emergency_reason_ = EmergencyReason::LATCH;
+  char emergency_reason_[256] = "latch";
   ros::Time last_update_{0};
   ros::NodeHandle nh_;
 
