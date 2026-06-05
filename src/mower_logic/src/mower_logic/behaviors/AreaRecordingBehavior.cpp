@@ -23,6 +23,8 @@ extern actionlib::SimpleActionClient<mbf_msgs::ExePathAction>* mbfClientExePath;
 extern ros::NodeHandle* n;
 extern void registerActions(std::string prefix, const std::vector<xbot_msgs::ActionInfo>& actions);
 
+extern mower_logic::MowerLogicConfig getConfig();
+extern void setConfig(mower_logic::MowerLogicConfig);
 extern void stop();
 
 extern bool setGPS(bool enabled);
@@ -176,6 +178,13 @@ void AreaRecordingBehavior::enter() {
   marker_array_pub = n->advertise<visualization_msgs::MarkerArray>("area_recorder/progress_visualization_array", 10);
 
   ROS_INFO_STREAM("Starting recording area");
+
+  auto last_config = getConfig();
+  if (last_config.manual_pause_mowing) {
+    ROS_INFO_STREAM("There was a manual pause, but we don't care");
+    last_config.manual_pause_mowing = false;
+    setConfig(last_config);
+  }
 
   ROS_INFO_STREAM("Subscribing to /joy for user input");
 
