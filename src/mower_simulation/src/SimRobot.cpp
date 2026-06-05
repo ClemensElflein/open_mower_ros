@@ -4,7 +4,6 @@
 
 #include "SimRobot.h"
 
-#include <cstring>
 #include <nav_msgs/Odometry.h>
 #include <spdlog/spdlog.h>
 #include <tf2/LinearMath/Quaternion.h>
@@ -13,6 +12,7 @@
 #include <xbot_msgs/AbsolutePose.h>
 
 #include <boost/thread/pthread/thread_data.hpp>
+#include <cstring>
 
 constexpr double SimRobot::BATTERY_VOLTS_MIN;
 constexpr double SimRobot::BATTERY_VOLTS_MAX;
