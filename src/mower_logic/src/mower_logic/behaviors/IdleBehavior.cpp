@@ -71,10 +71,10 @@ Behavior* IdleBehavior::execute() {
   ros::Rate r(25);
   while (ros::ok()) {
     stopMoving();
+    const auto last_config = getConfig();
     if (!last_config.manual_mow_enabled) {
       stopBlade();
     }
-    const auto last_config = getConfig();
     const auto last_power_config = getPowerConfig();
     const auto last_status = getStatus();
     const auto last_power = getPower();
