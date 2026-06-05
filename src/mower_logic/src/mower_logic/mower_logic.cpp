@@ -485,8 +485,11 @@ void checkSafety(const ros::TimerEvent& timer_event) {
     }
   }
 
-  // enable the mower (if not aleady) if mowerAllowed is still true after checks and bahavior agrees
-  setMowerEnabled(currentBehavior != nullptr && mowerAllowed && currentBehavior->mower_enabled());
+  // enable the mower (if not aleady) if mowerAllowed is still true after checks and bahavior agrees.
+  // In manual_mow_enabled mode, skip this entirely — external commands control the motor directly.
+  if (!last_config.manual_mow_enabled) {
+    setMowerEnabled(currentBehavior != nullptr && mowerAllowed && currentBehavior->mower_enabled());
+  }
 
   // Get the best available battery voltage using fallback chain: ADC -> BMS -> CHG
   const float last_battery_v = utils::GetFirstValid(
