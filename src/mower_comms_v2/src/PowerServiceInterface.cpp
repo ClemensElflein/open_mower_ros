@@ -4,7 +4,7 @@
 
 #include "PowerServiceInterface.h"
 
-void PowerServiceInterface::OnChargeVoltageCHGChanged(const float& new_value) {
+void PowerServiceInterface::OnChargeVoltageChanged(const float& new_value) {
   power_msg_.charge_voltage_chg = new_value;
 }
 
@@ -12,7 +12,7 @@ void PowerServiceInterface::OnChargeCurrentChanged(const float& new_value) {
   power_msg_.charge_current = new_value;
 }
 
-void PowerServiceInterface::OnBatteryVoltageCHGChanged(const float& new_value) {
+void PowerServiceInterface::OnBatteryVoltageChanged(const float& new_value) {
   power_msg_.battery_voltage_chg = new_value;
 }
 

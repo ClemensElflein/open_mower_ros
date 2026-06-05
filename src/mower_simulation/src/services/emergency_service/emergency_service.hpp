@@ -31,10 +31,10 @@ class EmergencyService : public EmergencyServiceBase {
   SimRobot& robot_;
 
   ros::Time last_clear_emergency_message_{0};
-  char emergency_reason[256] = "latch";
+  uint16_t emergency_reason = EmergencyReason::LATCH;
 
  protected:
-  void OnSetEmergencyChanged(const uint8_t& new_value) override;
+  void OnHighLevelEmergencyChanged(const uint16_t* new_value, uint32_t length) override;
 };
 
 #endif  // EMERGENCY_SERVICE_HPP

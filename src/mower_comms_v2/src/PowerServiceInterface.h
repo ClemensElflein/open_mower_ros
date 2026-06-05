@@ -28,9 +28,9 @@ class PowerServiceInterface : public PowerServiceInterfaceBase {
   }
 
  protected:
-  void OnChargeVoltageCHGChanged(const float& new_value) override;
+  void OnChargeVoltageChanged(const float& new_value) override;
   void OnChargeCurrentChanged(const float& new_value) override;
-  void OnBatteryVoltageCHGChanged(const float& new_value) override;
+  void OnBatteryVoltageChanged(const float& new_value) override;
   void OnChargingStatusChanged(const char* new_value, uint32_t length) override;
   void OnChargerEnabledChanged(const uint8_t& new_value) override;
   void OnBatteryPercentageChanged(const float& new_value) override;

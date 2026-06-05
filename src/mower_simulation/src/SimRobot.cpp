@@ -12,7 +12,6 @@
 #include <xbot_msgs/AbsolutePose.h>
 
 #include <boost/thread/pthread/thread_data.hpp>
-#include <cstring>
 
 constexpr double SimRobot::BATTERY_VOLTS_MIN;
 constexpr double SimRobot::BATTERY_VOLTS_MAX;
@@ -59,23 +58,24 @@ void SimRobot::ResetEmergency() {
   std::lock_guard<std::mutex> lk{state_mutex_};
   emergency_active_ = false;
   emergency_latch_ = false;
-  emergency_reason_[0] = '\0';
+  emergency_reason_ = 0;
 }
 
-void SimRobot::SetEmergency(bool active, const char* reason) {
+void SimRobot::SetEmergency(bool active, const uint16_t& reason) {
   std::lock_guard<std::mutex> lk{state_mutex_};
   emergency_active_ = active;
   emergency_latch_ |= active;
-  strncpy(emergency_reason_, reason, sizeof(emergency_reason_) - 1);
-  emergency_reason_[sizeof(emergency_reason_) - 1] = '\0';
+  emergency_reason_ = reason;
 }
 
-void SimRobot::GetEmergencyState(bool& active, bool& latch, char* reason, size_t reason_len) {
+void SimRobot::GetEmergencyState(bool& active, bool& latch, uint16_t& reason) {
   std::lock_guard<std::mutex> lk{state_mutex_};
   active = emergency_active_;
   latch = emergency_latch_;
-  strncpy(reason, emergency_reason_, reason_len - 1);
-  reason[reason_len - 1] = '\0';
+  reason = emergency_reason_;
+  if (latch) {
+    reason |= EmergencyReason::LATCH;
+  }
 }
 
 void SimRobot::SetControlTwist(double linear, double angular) {
