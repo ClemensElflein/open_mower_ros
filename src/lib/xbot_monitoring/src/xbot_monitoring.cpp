@@ -154,10 +154,11 @@ bool has_map_overlay = false;
 EventHistory event_history;
 PositionHistory position_history;
 
+// clang-format off
 xbot_mqtt::RpcProvider rpc_provider("xbot_monitoring", {{
     RPC_METHOD("rpc.ping", {
-        return "pong";
-    }),
+return "pong";
+}),
     RPC_METHOD("rpc.methods", {
         std::lock_guard<std::mutex> lk(registered_methods_mutex);
         json methods = json::array();
@@ -170,7 +171,21 @@ xbot_mqtt::RpcProvider rpc_provider("xbot_monitoring", {{
         return methods;
     }),
     RPC_METHOD("events.history", {
-        return event_history.getAll();
+if (params.is_object() && params.contains("date")) {
+return event_history.getAll(params["date"].get<std::string>());
+} else {
+return event_history.getAll();
+}
+    }),
+    RPC_METHOD("events.history.list", {
+return event_history.listHistories();
+}),
+    RPC_METHOD("events.history.delete", {
+        if (params.is_object() && params.contains("date")) {
+            return event_history.deleteHistory(params["date"].get<std::string>());
+        } else {
+            return event_history.deleteHistory(std::nullopt);
+        }
     }),
     RPC_METHOD("position.history", {
         if (params.is_object() && params.contains("job_id")) {
@@ -180,8 +195,8 @@ xbot_mqtt::RpcProvider rpc_provider("xbot_monitoring", {{
         }
     }),
     RPC_METHOD("position.history.list", {
-        return position_history.listHistories();
-    }),
+return position_history.listHistories();
+}),
     RPC_METHOD("position.history.delete", {
         if (params.is_object() && params.contains("job_id")) {
             return position_history.deleteHistory(params["job_id"].get<std::string>());
@@ -190,6 +205,7 @@ xbot_mqtt::RpcProvider rpc_provider("xbot_monitoring", {{
         }
     }),
 }});
+// clang-format on
 
 void setupMqttClient() {
     // setup mqtt client for app use
@@ -816,11 +832,8 @@ int main(int argc, char **argv) {
         version_string = "UNKNOWN VERSION";
     }
 
-    {
-        int event_history_max_size = paramNh.param("event_history_max_size", 100);
-        event_history.init(static_cast<size_t>(event_history_max_size));
+                    event_history.init();
         position_history.init();
-    }
 
     external_mqtt_enable = paramNh.param("external_mqtt_enable", false);
     external_mqtt_topic_prefix = paramNh.param("external_mqtt_topic_prefix", std::string(""));
