@@ -569,7 +569,7 @@ void checkSafety(const ros::TimerEvent& timer_event) {
   // we are in non emergency, check if we should pause. This could be empty battery, rain or hot mower motor etc.
   bool dockingNeeded = false;
 
-  std::stringstream dockingReason("Docking: ", std::ios_base::ate | std::ios_base::in | std::ios_base::out);
+  std::stringstream dockingReason(std::ios_base::ate | std::ios_base::in | std::ios_base::out);
 
   if (last_config.manual_pause_mowing) {
     dockingReason << "Manual pause";
@@ -578,7 +578,7 @@ void checkSafety(const ros::TimerEvent& timer_event) {
 
   // Dock if below critical voltage to avoid BMS undervoltage protection
   if (!dockingNeeded && (last_battery_v < last_power_config.battery_critical_voltage)) {
-    dockingReason << "Battery voltage min critical: " << last_battery_v;
+    dockingReason << "Battery voltage critical: " << last_battery_v << " V";
     dockingNeeded = true;
   }
 
@@ -586,7 +586,7 @@ void checkSafety(const ros::TimerEvent& timer_event) {
   max_v_battery_seen = std::max<double>(max_v_battery_seen, last_battery_v);
   if (ros::Time::now() - last_v_battery_check > ros::Duration(20.0)) {
     if (!dockingNeeded && (max_v_battery_seen < last_power_config.battery_empty_voltage)) {
-      dockingReason << "Battery average voltage low: " << max_v_battery_seen;
+      dockingReason << "Battery average voltage low: " << max_v_battery_seen << " V";
       dockingNeeded = true;
     }
     max_v_battery_seen = 0.0;
@@ -594,7 +594,7 @@ void checkSafety(const ros::TimerEvent& timer_event) {
   }
 
   if (!dockingNeeded && last_status.mower_motor_temperature >= last_config.motor_hot_temperature) {
-    dockingReason << "Mow motor over temp: " << last_status.mower_motor_temperature;
+    dockingReason << "Mow motor over temp: " << last_status.mower_motor_temperature << " °C";
     dockingNeeded = true;
   }
 
@@ -624,7 +624,7 @@ void checkSafety(const ros::TimerEvent& timer_event) {
   if (dockingNeeded && currentBehavior != &DockingBehavior::INSTANCE &&
       currentBehavior != &UndockingBehavior::RETRY_INSTANCE && currentBehavior != &IdleBehavior::INSTANCE &&
       currentBehavior != &IdleBehavior::DOCKED_INSTANCE) {
-    ROS_INFO_STREAM(dockingReason.rdbuf());
+    ROS_INFO_STREAM("Docking: " << dockingReason.rdbuf());
     publishMowerEvent("DOCKING", json{{"reason", dockingReason.str()}});
     abortExecution();
   }
