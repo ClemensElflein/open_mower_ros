@@ -24,15 +24,19 @@
 #include <mower_msgs/Power.h>
 #include <tf2/LinearMath/Transform.h>
 
+#include <algorithm>
 #include <atomic>
+#include <csignal>
 #include <ios>
 #include <mutex>
+#include <random>
 #include <sstream>
 
 #include "StateSubscriber.h"
 #include "behaviors/AreaRecordingBehavior.h"
 #include "behaviors/Behavior.h"
 #include "behaviors/IdleBehavior.h"
+#include "behaviors/PerimeterDocking.h"
 #include "ftc_local_planner/PlannerGetProgress.h"
 #include "mbf_msgs/ExePathAction.h"
 #include "mbf_msgs/MoveBaseAction.h"
@@ -51,10 +55,26 @@
 #include "ros/ros.h"
 #include "slic3r_coverage_planner/PlanPath.h"
 #include "std_msgs/String.h"
+#include "xbot_mqtt/publish.h"
 #include "xbot_msgs/AbsolutePose.h"
 #include "xbot_msgs/RegisterActionsSrv.h"
 #include "xbot_positioning/GPSControlSrv.h"
 #include "xbot_positioning/SetPoseSrv.h"
+
+using json = nlohmann::ordered_json;
+
+std::string generateNanoId(size_t length = 32) {
+  static const char alphabet[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+  thread_local std::mt19937 rng{std::random_device{}()};
+  thread_local std::uniform_int_distribution<> dist(0, sizeof(alphabet) - 2);
+  std::string id(length, '\0');
+  std::generate_n(id.begin(), length, [&]() { return alphabet[dist(rng)]; });
+  return id;
+}
+
+std::string current_job_id;
+std::string current_session_id;
+bool current_job_finished = false;
 
 ros::ServiceClient pathClient, mapClient, dockingPointClient, gpsClient, mowClient, emergencyClient, pathProgressClient,
     setNavPointClient, clearNavPointClient, clearMapClient, positioningClient, actionRegistrationClient;
@@ -66,7 +86,7 @@ dynamic_reconfigure::Server<mower_logic::MowerLogicConfig>* reconfigServer;
 actionlib::SimpleActionClient<mbf_msgs::MoveBaseAction>* mbfClient;
 actionlib::SimpleActionClient<mbf_msgs::ExePathAction>* mbfClientExePath;
 
-ros::Publisher cmd_vel_pub, high_level_state_publisher;
+ros::Publisher cmd_vel_pub, high_level_state_publisher, mqtt_publish_pub;
 mower_logic::MowerLogicConfig last_config;
 ll::PowerConfig last_power_config;
 
@@ -86,6 +106,7 @@ std::recursive_mutex mower_logic_mutex;
 mower_msgs::HighLevelStatus high_level_status;
 
 std::atomic<bool> mowerAllowed;
+std::atomic<bool> shutdown_requested{false};
 
 Behavior* currentBehavior = &IdleBehavior::INSTANCE;
 
@@ -219,11 +240,29 @@ bool setGPS(bool enabled) {
   return success;
 }
 
+// Publishes a mower event. x/y from current pose are always included.
+// "id", "t", and "type" are added by publishEvent().
+void publishMowerEvent(const std::string& type, json details = json::object()) {
+  const auto& pose = pose_state_subscriber.getMessage();
+  details["x"] = pose.pose.pose.position.x;
+  details["y"] = pose.pose.pose.position.y;
+  if (!current_job_id.empty()) details["job_id"] = current_job_id;
+  if (!current_session_id.empty()) details["session_id"] = current_session_id;
+  xbot_mqtt::publishEvent(mqtt_publish_pub, type, details);
+}
+
 /// @brief If the BLADE Motor is not in the requested status (enabled),we call the
 ///        the mower_service/mow_enabled service to enable/disable. TODO: get feedback about spinup and delay if needed
 /// @param enabled
 /// @return
 bool setMowerEnabled(bool enabled) {
+  const auto last_status = status_state_subscriber.getMessage();
+
+  // For events, publish the intended state, ignoring the config.
+  if (last_status.mow_enabled != enabled) {
+    publishMowerEvent("BLADES", json{{"enabled", enabled}});
+  }
+
   const auto last_config = getConfig();
 
   if (!last_config.enable_mower && enabled) {
@@ -233,7 +272,6 @@ bool setMowerEnabled(bool enabled) {
   }
 
   // status change ?
-  const auto last_status = status_state_subscriber.getMessage();
   if (last_status.mow_enabled != enabled) {
     ros::Time started = ros::Time::now();
     mower_msgs::MowerControlSrv mow_srv;
@@ -311,6 +349,7 @@ void stopBlade() {
 /// @brief Stop BLADE motor and any movement
 /// @param emergency
 void setEmergencyMode(bool emergency) {
+  publishMowerEvent("EMERGENCY", json{{"active", emergency}});
   stopBlade();
   stopMoving();
   mower_msgs::EmergencyStopSrv emergencyStop;
@@ -336,7 +375,13 @@ void setEmergencyMode(bool emergency) {
 void updateUI(const ros::TimerEvent& timer_event) {
   if (currentBehavior == &MowingBehavior::INSTANCE) {
     try {
-      high_level_status.current_area = MowingBehavior::INSTANCE.get_current_area();
+      const auto& mb = MowingBehavior::INSTANCE;
+      int new_area = mb.get_current_area();
+      if (new_area != high_level_status.current_area && new_area != -1) {
+        publishMowerEvent("AREA",
+                          json{{"area_id", mb.get_current_area_id()}, {"area_name", mb.get_current_area_name()}});
+      }
+      high_level_status.current_area = new_area;
     } catch (const std::runtime_error& re) {
       // specific handling for runtime_error
       ROS_ERROR_STREAM("Error getting current area: " << re.what());
@@ -367,6 +412,8 @@ void updateUI(const ros::TimerEvent& timer_event) {
     high_level_status.sub_state_name = "";
     high_level_status.state = mower_msgs::HighLevelStatus::HIGH_LEVEL_STATE_NULL;
   }
+  high_level_status.job_id = current_job_id;
+  high_level_status.session_id = current_session_id;
   high_level_state_publisher.publish(high_level_status);
 }
 
@@ -481,6 +528,14 @@ void checkSafety(const ros::TimerEvent& timer_event) {
     }
   }
 
+  {
+    static bool last_gps_timeout = true;
+    if (gpsTimeout != last_gps_timeout) {
+      publishMowerEvent("GPS", json{{"available", !gpsTimeout}});
+      last_gps_timeout = gpsTimeout;
+    }
+  }
+
   if (currentBehavior != nullptr && currentBehavior->needs_gps()) {
     currentBehavior->setGoodGPS(!gpsTimeout);
     // Stop the mower
@@ -514,7 +569,7 @@ void checkSafety(const ros::TimerEvent& timer_event) {
   // we are in non emergency, check if we should pause. This could be empty battery, rain or hot mower motor etc.
   bool dockingNeeded = false;
 
-  std::stringstream dockingReason("Docking: ", std::ios_base::ate | std::ios_base::in | std::ios_base::out);
+  std::stringstream dockingReason(std::ios_base::ate | std::ios_base::in | std::ios_base::out);
 
   if (last_config.manual_pause_mowing) {
     dockingReason << "Manual pause";
@@ -523,7 +578,7 @@ void checkSafety(const ros::TimerEvent& timer_event) {
 
   // Dock if below critical voltage to avoid BMS undervoltage protection
   if (!dockingNeeded && (last_battery_v < last_power_config.battery_critical_voltage)) {
-    dockingReason << "Battery voltage min critical: " << last_battery_v;
+    dockingReason << "Battery voltage critical: " << last_battery_v << " V";
     dockingNeeded = true;
   }
 
@@ -531,7 +586,7 @@ void checkSafety(const ros::TimerEvent& timer_event) {
   max_v_battery_seen = std::max<double>(max_v_battery_seen, last_battery_v);
   if (ros::Time::now() - last_v_battery_check > ros::Duration(20.0)) {
     if (!dockingNeeded && (max_v_battery_seen < last_power_config.battery_empty_voltage)) {
-      dockingReason << "Battery average voltage low: " << max_v_battery_seen;
+      dockingReason << "Battery average voltage low: " << max_v_battery_seen << " V";
       dockingNeeded = true;
     }
     max_v_battery_seen = 0.0;
@@ -539,7 +594,7 @@ void checkSafety(const ros::TimerEvent& timer_event) {
   }
 
   if (!dockingNeeded && last_status.mower_motor_temperature >= last_config.motor_hot_temperature) {
-    dockingReason << "Mow motor over temp: " << last_status.mower_motor_temperature;
+    dockingReason << "Mow motor over temp: " << last_status.mower_motor_temperature << " °C";
     dockingNeeded = true;
   }
 
@@ -569,7 +624,8 @@ void checkSafety(const ros::TimerEvent& timer_event) {
   if (dockingNeeded && currentBehavior != &DockingBehavior::INSTANCE &&
       currentBehavior != &UndockingBehavior::RETRY_INSTANCE && currentBehavior != &IdleBehavior::INSTANCE &&
       currentBehavior != &IdleBehavior::DOCKED_INSTANCE) {
-    ROS_INFO_STREAM(dockingReason.rdbuf());
+    ROS_INFO_STREAM("Docking: " << dockingReason.rdbuf());
+    publishMowerEvent("DOCKING", json{{"reason", dockingReason.str()}});
     abortExecution();
   }
 }
@@ -655,10 +711,16 @@ void buildRootActions() {
   rootActions.push_back(reset_emergency_action);
 }
 
+void shutdownHandler(int) {
+  shutdown_requested.store(true, std::memory_order_relaxed);
+}
+
 int main(int argc, char** argv) {
   buildRootActions();
 
-  ros::init(argc, argv, "mower_logic");
+  ros::init(argc, argv, "mower_logic", ros::init_options::NoSigintHandler);
+  signal(SIGINT, shutdownHandler);
+  signal(SIGTERM, shutdownHandler);
 
   n = new ros::NodeHandle();
   paramNh = new ros::NodeHandle("~");
@@ -676,6 +738,7 @@ int main(int argc, char** argv) {
   cmd_vel_pub = n->advertise<geometry_msgs::Twist>("/logic_vel", 1);
 
   high_level_state_publisher = n->advertise<mower_msgs::HighLevelStatus>("mower_logic/current_state", 100, true);
+  mqtt_publish_pub = n->advertise<xbot_mqtt::MqttPublish>("/xbot_monitoring/mqtt_publish", 10);
 
   pathClient = n->serviceClient<slic3r_coverage_planner::PlanPath>("slic3r_coverage_planner/plan_path");
   mapClient = n->serviceClient<mower_map::GetMowingAreaSrv>("mower_map_service/get_mowing_area");
@@ -894,6 +957,7 @@ int main(int argc, char** argv) {
   registerActions("mower_logic", rootActions);
 
   ROS_INFO("om_mower_logic: Got all servers, we can mow");
+  publishMowerEvent("BOOTED");
 
   rain_resume = last_rain_check = last_v_battery_check = ros::Time::now();
   ros::Timer safety_timer = n->createTimer(ros::Duration(0.5), checkSafety);
@@ -908,10 +972,38 @@ int main(int argc, char** argv) {
 
   // Behavior execution loop
   while (ros::ok()) {
+    if (shutdown_requested.exchange(false, std::memory_order_relaxed)) {
+      publishMowerEvent("SHUTDOWN");
+      ros::shutdown();
+      break;
+    }
     if (currentBehavior != nullptr) {
       currentBehavior->start(last_config, shared_state);
       Behavior* newBehavior = currentBehavior->execute();
       currentBehavior->exit();
+
+      if (newBehavior != nullptr) {
+        // Session START: undocking begins a new session; mowing is the fallback for idle-start (not on charger)
+        if (newBehavior == &UndockingBehavior::INSTANCE || newBehavior == &PerimeterUndockingBehavior::INSTANCE ||
+            (newBehavior == &MowingBehavior::INSTANCE && current_session_id.empty())) {
+          if (current_job_id.empty()) current_job_id = generateNanoId();
+          current_session_id = generateNanoId();
+        }
+
+        // Session END: entering either idle variant (docked or not)
+        if (newBehavior == &IdleBehavior::INSTANCE || newBehavior == &IdleBehavior::DOCKED_INSTANCE) {
+          current_session_id = "";
+          if (current_job_finished) {
+            current_job_id = "";
+            current_job_finished = false;
+          }
+        }
+      }
+
+      if (newBehavior != currentBehavior && newBehavior != nullptr) {
+        publishMowerEvent("STATE", json{{"state", newBehavior->state_name()}});
+      }
+
       currentBehavior = newBehavior;
     } else {
       high_level_status.state_name = "NULL";
