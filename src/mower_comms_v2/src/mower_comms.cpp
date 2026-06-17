@@ -151,6 +151,7 @@ int main(int argc, char** argv) {
   std::string bind_ip = "0.0.0.0";
   paramNh.getParam("bind_ip", bind_ip);
   ROS_INFO_STREAM("Bind IP (Robot Internal): " << bind_ip);
+  xbot::serviceif::SetShutdownCallback([] { ros::requestShutdown(); });
   ctx = xbot::serviceif::Start(true, bind_ip);
 
   // Emergency service
@@ -296,6 +297,7 @@ int main(int argc, char** argv) {
   high_level_service->Start();
 
   ros::spin();
+  xbot::serviceif::Stop();
 
   return 0;
 }
