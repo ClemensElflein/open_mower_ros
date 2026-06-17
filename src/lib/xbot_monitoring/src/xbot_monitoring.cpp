@@ -270,7 +270,7 @@ void publish_version() {
     try_publish("version/json", version.dump(), true);
     if(external_mqtt_enable) {
         try {
-            client_external_->publish(external_mqtt_topic_prefix + "version", ersion.dump(), 1, true);
+            client_external_->publish(external_mqtt_topic_prefix + "version", version.dump(), 1, true);
             
         } catch (const mqtt::exception &e) {
             // client disconnected or something, we drop it.
