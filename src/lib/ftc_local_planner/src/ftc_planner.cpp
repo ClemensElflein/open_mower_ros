@@ -513,14 +513,10 @@ namespace ftc_local_planner
             // reduce angular error gain if there is a large lateral error
             double ang_gain_factor = 1.0;
             if(config.lateral_priority_distance > 0) {
-                if(abs(lat_error) >= config.lateral_priority_distance) {
-                    ang_gain_factor = 0;
-                } else {
-                    ang_gain_factor = (config.lateral_priority_distance - abs(lat_error))/config.lateral_priority_distance;
-                }
+                ang_gain_factor = (config.lateral_priority_distance - abs(lat_error))/config.lateral_priority_distance;
 
-                if(ang_gain_factor < 0.1) {
-                    ang_gain_factor = 0.1;
+                if(ang_gain_factor < config.lateral_priority_min_gain) {
+                    ang_gain_factor = config.lateral_priority_min_gain;
                 }
             }
 
