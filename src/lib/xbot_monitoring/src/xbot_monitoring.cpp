@@ -268,6 +268,14 @@ void publish_version() {
             {"version", version_string}
     };
     try_publish("version/json", version.dump(), true);
+    if(external_mqtt_enable) {
+        try {
+            client_external_->publish(external_mqtt_topic_prefix + "version", version.dump(), 1, true);
+            
+        } catch (const mqtt::exception &e) {
+            // client disconnected or something, we drop it.
+        }
+    }
     auto bson = json::to_bson(version);
     try_publish_binary("version", bson.data(), bson.size(), true);
 }
