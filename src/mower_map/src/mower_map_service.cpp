@@ -56,10 +56,9 @@ using json = nlohmann::ordered_json;
 #include "xbot_msgs/MapSize.h"
 
 // RPC
-#include "xbot_mqtt/provider.h"
 #include <mower_analytics/sentry_guard.h>
 
-#include "xbot_rpc/provider.h"
+#include "xbot_mqtt/provider.h"
 
 const std::string MAP_FILE = "map.json";
 const std::string LEGACY_MAP_FILE = "map.bag";

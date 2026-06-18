@@ -23,7 +23,6 @@ find_package(catkin REQUIRED
         xbot_msgs
         xbot_mqtt
         mower_analytics
-        xbot_rpc
         )
 
 ## System dependencies are found with CMake's conventions

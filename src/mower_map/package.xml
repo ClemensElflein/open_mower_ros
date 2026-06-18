@@ -33,7 +33,6 @@
     <exec_depend>geometry_msgs</exec_depend>
     <depend>xbot_msgs</depend>
     <depend>xbot_mqtt</depend>
-    <depend>xbot_rpc</depend>
     <depend>mower_analytics</depend>
 
 
