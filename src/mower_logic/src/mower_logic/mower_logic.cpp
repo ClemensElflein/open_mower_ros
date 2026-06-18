@@ -26,7 +26,6 @@
 
 #include <algorithm>
 #include <atomic>
-#include <csignal>
 #include <ios>
 #include <mutex>
 #include <random>
@@ -108,7 +107,6 @@ std::recursive_mutex mower_logic_mutex;
 mower_msgs::HighLevelStatus high_level_status;
 
 std::atomic<bool> mowerAllowed;
-std::atomic<bool> shutdown_requested{false};
 
 Behavior* currentBehavior = &IdleBehavior::INSTANCE;
 
@@ -713,16 +711,10 @@ void buildRootActions() {
   rootActions.push_back(reset_emergency_action);
 }
 
-void shutdownHandler(int) {
-  shutdown_requested.store(true, std::memory_order_relaxed);
-}
-
 int main(int argc, char** argv) {
   buildRootActions();
 
-  ros::init(argc, argv, "mower_logic", ros::init_options::NoSigintHandler);
-  signal(SIGINT, shutdownHandler);
-  signal(SIGTERM, shutdownHandler);
+  ros::init(argc, argv, "mower_logic");
 
   n = new ros::NodeHandle();
   paramNh = new ros::NodeHandle("~");
@@ -977,7 +969,6 @@ int main(int argc, char** argv) {
   registerActions("mower_logic", rootActions);
 
   ROS_INFO("om_mower_logic: Got all servers, we can mow");
-  publishMowerEvent("BOOTED");
 
   rain_resume = last_rain_check = last_v_battery_check = ros::Time::now();
   ros::Timer safety_timer = n->createTimer(ros::Duration(0.5), checkSafety);
@@ -992,11 +983,6 @@ int main(int argc, char** argv) {
 
   // Behavior execution loop
   while (ros::ok()) {
-    if (shutdown_requested.exchange(false, std::memory_order_relaxed)) {
-      publishMowerEvent("SHUTDOWN");
-      ros::shutdown();
-      break;
-    }
     if (currentBehavior != nullptr) {
       currentBehavior->start(last_config, shared_state);
       Behavior* newBehavior = currentBehavior->execute();

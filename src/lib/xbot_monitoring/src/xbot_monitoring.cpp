@@ -298,6 +298,12 @@ void try_publish(const std::string &topic, const std::string &data, bool retain 
     }
 }
 
+void publish_event(const std::string& type, json details = nullptr) {
+  const std::string payload_str = xbot_mqtt::buildEventPayload(type, details).dump();
+  try_publish(xbot_mqtt::EVENTS_TOPIC, payload_str);
+  event_history.add(payload_str);
+}
+
 void try_publish_binary(const std::string &topic, const void *data, size_t size, bool retain = false) {
     try {
         if (retain) {
@@ -879,6 +885,8 @@ int main(int argc, char **argv) {
 
     rpc_provider.init();
 
+    publish_event("BOOTED");
+
     ros::Rate sensor_check_rate(10.0);
 
     boost::regex topic_regex("/xbot_monitoring/sensors/.*/info");
@@ -928,6 +936,7 @@ int main(int argc, char **argv) {
         });
         sensor_check_rate.sleep();
     }
+    publish_event("SHUTDOWN");
     position_history.flush();
     return 0;
 }

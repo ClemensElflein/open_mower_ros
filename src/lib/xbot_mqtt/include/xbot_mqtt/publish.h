@@ -41,16 +41,21 @@ inline void publish(ros::Publisher& pub, const std::string& mqtt_topic, const js
   pub.publish(msg);
 }
 
-// Convenience wrapper to publish events.
+// Builds an event payload JSON object.
 // Always injects "id" (NanoId), "t" (current ROS time, float seconds), and "type".
 // Optional details object is merged into the payload for event-specific fields.
-inline void publishEvent(ros::Publisher& pub, const std::string& type, json details = nullptr, bool retain = false) {
+inline json buildEventPayload(const std::string& type, json details = nullptr) {
   json payload = json::object();
   payload["id"] = generateNanoId();
   payload["t"] = ros::Time::now().toSec();
   payload["type"] = type;
   if (details.is_object()) payload.update(details);
-  publish(pub, EVENTS_TOPIC, payload, retain);
+  return payload;
+}
+
+// Convenience wrapper to publish events via ROS.
+inline void publishEvent(ros::Publisher& pub, const std::string& type, json details = nullptr, bool retain = false) {
+  publish(pub, EVENTS_TOPIC, buildEventPayload(type, details), retain);
 }
 
 inline bool isEvent(const std::string& topic) {
