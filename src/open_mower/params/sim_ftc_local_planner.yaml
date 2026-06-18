@@ -20,3 +20,4 @@ FTCPlanner:
   speed_slow: 1.0
   forward_only: true
   speed_angular: 100.0
+  lateral_priority_distance: 0.1
