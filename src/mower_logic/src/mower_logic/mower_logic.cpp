@@ -152,7 +152,7 @@ void registerActions(std::string prefix, const std::vector<xbot_msgs::ActionInfo
   srv.request.actions = actions;
 
   ros::Rate retry_delay(1);
-  for (int i = 0; i < 10; i++) {
+  for (int i = 0; i < 10 && ros::ok(); i++) {
     if (actionRegistrationClient.call(srv)) {
       ROS_INFO_STREAM("successfully registered actions for " << prefix);
       break;
