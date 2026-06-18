@@ -6,11 +6,13 @@
 #include <atomic>
 #include <cstdlib>
 #include <filesystem>
+#include <shared_mutex>
 #include <string>
 
 namespace mower_analytics {
 
 static std::atomic<bool> s_initialized{false};
+static std::shared_mutex s_sentry_mutex;
 
 static std::string getenv_or(const char* name, const std::string& fallback = "") {
   const char* v = std::getenv(name);
@@ -114,6 +116,7 @@ SentryGuard::SentryGuard(const std::string& node_name) {
 
 SentryGuard::~SentryGuard() {
   if (enabled_) {
+    std::unique_lock lock(s_sentry_mutex);
     s_initialized = false;
     sentry_close();
   }
@@ -121,6 +124,7 @@ SentryGuard::~SentryGuard() {
 
 void SentryGuard::captureEvent(Level level, const std::string& message,
                                const std::map<std::string, std::string>& extra) {
+  std::shared_lock lock(s_sentry_mutex);
   if (!s_initialized) return;
   sentry_value_t event = sentry_value_new_message_event(toSentryLevel(level), "openmower", message.c_str());
 
@@ -136,6 +140,7 @@ void SentryGuard::captureEvent(Level level, const std::string& message,
 }
 
 void SentryGuard::addBreadcrumb(const std::string& message, const std::string& category) {
+  std::shared_lock lock(s_sentry_mutex);
   if (!s_initialized) return;
   sentry_value_t crumb = sentry_value_new_breadcrumb("default", message.c_str());
   sentry_value_set_by_key(crumb, "category", sentry_value_new_string(category.c_str()));
