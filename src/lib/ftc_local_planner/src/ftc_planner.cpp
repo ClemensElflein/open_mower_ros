@@ -514,7 +514,7 @@ namespace ftc_local_planner
             double ang_gain_factor = 1.0;
             if(config.lateral_priority_distance > 0) {
                 if(abs(lat_error) >= config.lateral_priority_distance) {
-                    ang_gain_factor = 1;
+                    ang_gain_factor = 0;
                 } else {
                     ang_gain_factor = (config.lateral_priority_distance - abs(lat_error))/config.lateral_priority_distance;
                 }
