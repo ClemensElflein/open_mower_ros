@@ -67,9 +67,7 @@ void* server_thread(void* arg) {
         echo_server.start_accept();
 
         // Start the ASIO io_service run loop
-        while(ros::ok()) {
-            echo_server.run_one();
-        }
+        echo_server.run();
     } catch (websocketpp::exception const & e) {
         std::cout << e.what() << std::endl;
         exit(1);
@@ -77,6 +75,7 @@ void* server_thread(void* arg) {
         std::cout << "other exception" << std::endl;
         exit(1);
     }
+    return nullptr;
 }
 
 int main(int argc, char **argv) {
