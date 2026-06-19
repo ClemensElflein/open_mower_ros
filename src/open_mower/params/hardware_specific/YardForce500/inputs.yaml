@@ -66,9 +66,8 @@ yf_cover_ui:
     channel: button
     button_id: 2
     actions:
-      idle/short: "mower_logic/command_home"
-      mowing/short: "mower_logic/command_home"
-      paused/short: "mower_logic/command_home"
+      mowing/short: "mower_logic:mowing/abort_mowing"
+      paused/short: "mower_logic:mowing/abort_mowing"
 
   - name: CoverUI play/start button
     channel: button
