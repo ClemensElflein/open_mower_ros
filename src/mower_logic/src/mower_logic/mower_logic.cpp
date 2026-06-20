@@ -352,9 +352,11 @@ void setEmergencyMode(bool emergency) {
   stopMoving();
   mower_msgs::EmergencyStopSrv emergencyStop;
   emergencyStop.request.emergency = emergency;
-  if (emergency) {
+  static bool last_emergency = false;
+  if (emergency && !last_emergency) {
     mower_analytics::SentryGuard::captureEvent(mower_analytics::Level::Error, "emergency.triggered");
   }
+  last_emergency = emergency;
 
   static bool last_emergency = false;
   if (emergency != last_emergency) {
