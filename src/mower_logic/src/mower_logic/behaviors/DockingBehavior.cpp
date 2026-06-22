@@ -163,6 +163,7 @@ bool DockingBehavior::dock_straight() {
           mbfClientExePath->cancelGoal();
           stopMoving();
           dockingSuccess = true;
+          publishMowerEvent("DOCKED");
           waitingForResult = false;
         }
         break;
@@ -173,6 +174,7 @@ bool DockingBehavior::dock_straight() {
           mbfClientExePath->cancelGoal();
           dockingSuccess = true;
           stopMoving();
+          publishMowerEvent("DOCKED");
         }
         waitingForResult = false;
         break;
@@ -199,6 +201,7 @@ Behavior* DockingBehavior::execute() {
   if (getPower().charge_voltage > 5.0 || getPower().charge_voltage_adc > 5.0) {
     ROS_INFO_STREAM("Already inside docking station, going directly to idle.");
     stopMoving();
+    publishMowerEvent("DOCKED");
     return &IdleBehavior::DOCKED_INSTANCE;
   }
 
@@ -227,10 +230,12 @@ Behavior* DockingBehavior::execute() {
     retryCount++;
     if (retryCount <= config.docking_retry_count) {
       ROS_ERROR("Retrying docking approach");
+      publishMowerEvent("DOCKING_RETRY", json{{"reason", "approach_failed"}, {"attempts", retryCount}});
       return &DockingBehavior::INSTANCE;
     }
 
     ROS_ERROR("Giving up on docking");
+    publishMowerEvent("DOCKING_FAILED", json{{"reason", "approach_failed"}, {"attempts", retryCount}});
     return &IdleBehavior::INSTANCE;
   }
 
@@ -257,12 +262,14 @@ Behavior* DockingBehavior::execute() {
     retryCount++;
     if (retryCount <= config.docking_retry_count && !aborted) {
       ROS_ERROR_STREAM("Retrying docking. Try " << retryCount << " / " << config.docking_retry_count);
+      publishMowerEvent("DOCKING_RETRY", json{{"reason", "dock_failed"}, {"attempts", retryCount}});
       return &UndockingBehavior::RETRY_INSTANCE;
     }
 
     ROS_ERROR("Giving up on docking");
     // Reset retryCount
     reset();
+    publishMowerEvent("DOCKING_FAILED", json{{"reason", "dock_failed"}, {"attempts", retryCount}});
     return &IdleBehavior::INSTANCE;
   }
 

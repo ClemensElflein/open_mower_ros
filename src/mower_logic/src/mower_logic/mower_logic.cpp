@@ -61,8 +61,6 @@
 #include "xbot_positioning/GPSControlSrv.h"
 #include "xbot_positioning/SetPoseSrv.h"
 
-using json = nlohmann::ordered_json;
-
 std::string generateNanoId(size_t length = 32) {
   static const char alphabet[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
   thread_local std::mt19937 rng{std::random_device{}()};
@@ -242,7 +240,7 @@ bool setGPS(bool enabled) {
 
 // Publishes a mower event. x/y from current pose are always included.
 // "id", "t", and "type" are added by publishEvent().
-void publishMowerEvent(const std::string& type, json details = json::object()) {
+void publishMowerEvent(const std::string& type, json details) {
   const auto& pose = pose_state_subscriber.getMessage();
   details["x"] = pose.pose.pose.position.x;
   details["y"] = pose.pose.pose.position.y;

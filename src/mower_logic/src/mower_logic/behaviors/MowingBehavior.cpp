@@ -115,6 +115,7 @@ void MowingBehavior::exit() {
 }
 
 void MowingBehavior::reset() {
+  publishMowerEvent("JOB_COMPLETE");
   current_job_finished = true;
   currentMowingPaths.clear();
   currentMowingArea = 0;
@@ -405,6 +406,7 @@ bool MowingBehavior::execute_mowing_plan() {
           // check if we should pause or abort mowing
           if (skip_area) {
             ROS_INFO_STREAM("MowingBehavior: (FIRST POINT) SKIP AREA was requested.");
+            publishMowerEvent("AREA_SKIPPED");
             // remove all paths in current area and return true
             mowerEnabled = false;
             mbfClientExePath->cancelAllGoals();
@@ -521,6 +523,7 @@ bool MowingBehavior::execute_mowing_plan() {
           // check if we should pause or abort mowing
           if (skip_area) {
             ROS_INFO_STREAM("MowingBehavior: (MOW) SKIP AREA was requested.");
+            publishMowerEvent("AREA_SKIPPED");
             // remove all paths in current area and return true
             mowerEnabled = false;
             currentMowingPaths.clear();
@@ -622,6 +625,7 @@ bool MowingBehavior::execute_mowing_plan() {
               }
             }
             ROS_INFO_STREAM("MowingBehavior: (MOW) PAUSED due to MBF Error at " << currentMowingPathIndex);
+            publishMowerEvent("NAVIGATION_ERROR");
             paused = true;
             update_actions();
           }

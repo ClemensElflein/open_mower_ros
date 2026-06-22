@@ -19,6 +19,8 @@
 
 #include <atomic>
 #include <memory>
+#include <nlohmann/json.hpp>
+#include <string>
 
 #include "mower_logic/MowerLogicConfig.h"
 #include "mower_msgs/HighLevelStatus.h"
@@ -32,6 +34,9 @@ struct sSharedState {
   // True, if the semiautomatic task is still in progress
   bool active_semiautomatic_task;
 };
+
+using json = nlohmann::ordered_json;
+extern void publishMowerEvent(const std::string& type, json details = json::object());
 
 /**
  * Behavior definition

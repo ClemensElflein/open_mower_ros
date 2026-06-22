@@ -134,6 +134,7 @@ Behavior* UndockingBehavior::execute() {
 
   if (!success) {
     ROS_ERROR_STREAM("Error during undock");
+    publishMowerEvent("UNDOCKING_FAILED", json{{"reason", "path_failed"}});
     return &IdleBehavior::INSTANCE;
   }
 
@@ -146,6 +147,7 @@ Behavior* UndockingBehavior::execute() {
   }
 
   // TODO return mow area
+  publishMowerEvent("UNDOCKED");
   return nextBehavior;
 }
 
