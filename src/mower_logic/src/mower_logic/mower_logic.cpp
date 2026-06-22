@@ -349,11 +349,16 @@ void stopBlade() {
 /// @brief Stop BLADE motor and any movement
 /// @param emergency
 void setEmergencyMode(bool emergency) {
-  publishMowerEvent("EMERGENCY", json{{"active", emergency}});
   stopBlade();
   stopMoving();
   mower_msgs::EmergencyStopSrv emergencyStop;
   emergencyStop.request.emergency = emergency;
+
+  static bool last_emergency = false;
+  if (emergency != last_emergency) {
+    publishMowerEvent("EMERGENCY", json{{"emergency", emergency}});
+    last_emergency = emergency;
+  }
 
   ros::Rate retry_delay(1);
   bool success = false;
