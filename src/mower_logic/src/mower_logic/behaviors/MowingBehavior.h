@@ -28,6 +28,9 @@ class MowingBehavior : public Behavior {
 
   bool skip_area;
   bool skip_path;
+  bool previous_path;
+  bool restart_path;
+  bool restart_path_segment;
   bool create_mowing_plan(int area_index);
 
   bool execute_mowing_plan();
