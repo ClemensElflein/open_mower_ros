@@ -57,6 +57,7 @@ static std::string ReasonToString(uint16_t reason) {
   CHECK_REASON(COLLISION)
   CHECK_REASON(TIMEOUT_HIGH_LEVEL)
   CHECK_REASON(HIGH_LEVEL)
+  CHECK_REASON(SERVICE_NOT_READY)
   return str.str();
 }
 
