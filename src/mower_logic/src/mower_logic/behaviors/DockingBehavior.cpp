@@ -267,9 +267,9 @@ Behavior* DockingBehavior::execute() {
     }
 
     ROS_ERROR("Giving up on docking");
+    publishMowerEvent("DOCKING_FAILED", json{{"reason", "dock_failed"}, {"attempts", retryCount}});
     // Reset retryCount
     reset();
-    publishMowerEvent("DOCKING_FAILED", json{{"reason", "dock_failed"}, {"attempts", retryCount}});
     return &IdleBehavior::INSTANCE;
   }
 

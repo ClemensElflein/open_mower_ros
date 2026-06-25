@@ -131,6 +131,7 @@ int main(int argc, char** argv) {
   ros::NodeHandle paramNh("/ll");
 
   highLevelClient = n.serviceClient<mower_msgs::HighLevelControlSrv>("mower_service/high_level_control");
+  action_pub = n.advertise<std_msgs::String>("xbot/action", 1);
 
   std::string bind_ip = "0.0.0.0";
   paramNh.getParam("bind_ip", bind_ip);
@@ -289,7 +290,6 @@ int main(int argc, char** argv) {
   // ros::Subscriber high_level_status_sub = n.subscribe("/mower_logic/current_state", 0, highLevelStatusReceived);
   ros::Timer publish_timer = n.createTimer(ros::Duration(0.5), sendEmergencyHeartbeatTimerTask);
   ros::Timer publish_timer_2 = n.createTimer(ros::Duration(5.0), sendMowerEnabledTimerTask);
-  action_pub = n.advertise<std_msgs::String>("xbot/action", 1);
   ros::Subscriber action_sub = n.subscribe("xbot/action", 0, actionReceived, ros::TransportHints().tcpNoDelay(true));
 
   ROS_INFO("All mower_comms_v2 services started");

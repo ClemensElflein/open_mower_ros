@@ -143,6 +143,7 @@ Behavior* UndockingBehavior::execute() {
 
   if (!hasGps) {
     ROS_ERROR_STREAM("Could not get GPS.");
+    publishMowerEvent("UNDOCKING_FAILED", json{{"reason", "no_gps"}});
     return &IdleBehavior::INSTANCE;
   }
 

@@ -91,9 +91,10 @@ class EventHistory {
  private:
   static std::string todayString() {
     std::time_t t = std::time(nullptr);
-    std::tm* lt = std::localtime(&t);
+    std::tm tm_result{};
+    localtime_r(&t, &tm_result);
     char buf[9];
-    std::strftime(buf, sizeof(buf), "%Y%m%d", lt);
+    std::strftime(buf, sizeof(buf), "%Y%m%d", &tm_result);
     return buf;
   }
 

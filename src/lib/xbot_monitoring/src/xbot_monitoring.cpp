@@ -611,7 +611,7 @@ void pose_publish_timer_callback(const ros::TimerEvent&) {
 }
 
 void position_history_flush_timer_callback(const ros::TimerEvent&) {
-  position_history.flush();
+  position_history.periodicFlush();
 }
 
 void mqtt_publish_callback(const xbot_mqtt::MqttPublish::ConstPtr& msg) {

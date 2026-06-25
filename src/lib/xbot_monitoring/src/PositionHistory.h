@@ -554,7 +554,7 @@ class PositionHistory {
       history_segments_.push_back(std::move(seg));
 
       written_seg_count_ = history_segments_.size() - 1;
-      written_point_count_ = 0;
+      written_point_count_ = history_segments_[written_seg_count_ - 1].points.size();
     }
   }
 
