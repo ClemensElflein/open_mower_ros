@@ -134,6 +134,7 @@ Behavior* UndockingBehavior::execute() {
 
   if (!success) {
     ROS_ERROR_STREAM("Error during undock");
+    publishMowerEvent("UNDOCKING_FAILED", json{{"reason", "path_failed"}});
     return &IdleBehavior::INSTANCE;
   }
 
@@ -141,11 +142,19 @@ Behavior* UndockingBehavior::execute() {
   bool hasGps = waitForGPS();
 
   if (!hasGps) {
-    ROS_ERROR_STREAM("Could not get GPS.");
+    if (aborted) {
+      ROS_INFO_STREAM("Undocking aborted while waiting for GPS.");
+    } else if (!ros::ok()) {
+      ROS_INFO_STREAM("ROS shutdown while waiting for GPS.");
+    } else {
+      ROS_ERROR_STREAM("Could not get GPS.");
+      publishMowerEvent("UNDOCKING_FAILED", json{{"reason", "no_gps"}});
+    }
     return &IdleBehavior::INSTANCE;
   }
 
   // TODO return mow area
+  publishMowerEvent("UNDOCKED");
   return nextBehavior;
 }
 

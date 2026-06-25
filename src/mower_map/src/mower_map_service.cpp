@@ -260,7 +260,7 @@ MapArea obstacleToInternal(const geometry_msgs::Polygon& obstacle, bool active) 
  */
 MapArea mowerMapAreaToInternal(const mower_map::MapArea& area, const std::string& type) {
   MapArea result;
-  result.id = generateNanoId();
+  result.id = area.id.empty() ? generateNanoId() : area.id;
   result.type = type;
   result.name = area.name;
   result.active = area.active;
@@ -277,6 +277,7 @@ MapArea mowerMapAreaToInternal(const mower_map::MapArea& area, const std::string
  */
 mower_map::MapArea internalMapAreaToMower(const MapArea& area) {
   mower_map::MapArea result;
+  result.id = area.id;
   result.name = area.name;
   result.active = area.active;
   result.angle = area.angle;
