@@ -71,6 +71,7 @@ Behavior* IdleBehavior::execute() {
   docking_pose_stamped.header.stamp = ros::Time::now();
 
   ros::Rate r(25);
+  bool seen_not_charging = false;
   while (ros::ok()) {
     stopMoving();
     stopBlade();
@@ -96,6 +97,15 @@ Behavior* IdleBehavior::execute() {
     const bool mower_ready = last_battery_v > last_power_config.battery_full_voltage &&
                              last_status.mower_motor_temperature < last_config.motor_cold_temperature &&
                              !last_config.manual_pause_mowing && !rain_delay;
+
+    const bool currently_charging = last_charge_v > 10.0;
+    if (!currently_charging) {
+      seen_not_charging = true;
+    }
+    if (mower_ready && currently_charging && seen_not_charging) {
+      publishMowerEvent("FULLY_CHARGED", json{{"battery_voltage", last_battery_v}});
+      seen_not_charging = false;
+    }
 
     if (manual_start_mowing || ((automatic_mode || active_semiautomatic_task) && mower_ready)) {
       // set the robot's position to the dock if we're actually docked

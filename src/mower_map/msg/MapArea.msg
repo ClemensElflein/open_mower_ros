@@ -1,3 +1,4 @@
+string id
 string name
 bool active
 geometry_msgs/Polygon area
