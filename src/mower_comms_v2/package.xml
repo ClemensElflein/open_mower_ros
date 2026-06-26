@@ -23,6 +23,7 @@
     <exec_depend>mower_msgs</exec_depend>
     <exec_depend>roscpp</exec_depend>
     <depend>xesc_msgs</depend>
+    <depend>mower_analytics</depend>
     <depend>nmea_msgs</depend>
     <depend>std_msgs</depend>
 

@@ -18,6 +18,7 @@
 #include <cryptopp/hex.h>
 #include <cryptopp/sha.h>
 #include <mbf_msgs/RecoveryAction.h>
+#include <mower_analytics/sentry_guard.h>
 #include <nav_msgs/Path.h>
 #include <rosbag/bag.h>
 #include <rosbag/view.h>
@@ -603,6 +604,8 @@ bool MowingBehavior::execute_mowing_plan() {
                     "MowingBehavior: (MOW) No recovery behavior configured - "
                     "skipping recovery.");
               } else if (!mbfClientRecovery->waitForServer(ros::Duration(1.0))) {
+                mower_analytics::SentryGuard::captureEvent(mower_analytics::Level::Warning,
+                                                           "MBF recovery action server unavailable");
                 ROS_WARN_STREAM(
                     "MowingBehavior: (MOW) Recovery action server unavailable - "
                     "skipping recovery.");
@@ -611,6 +614,8 @@ bool MowingBehavior::execute_mowing_plan() {
                   if (aborted) break;
                   mbf_msgs::RecoveryGoal recoveryGoal;
                   recoveryGoal.behavior = behavior;
+                  mower_analytics::SentryGuard::captureEvent(mower_analytics::Level::Info,
+                                                             "Running recovery behavior '" + behavior + "'");
                   ROS_INFO_STREAM(
                       "MowingBehavior: (MOW) Path following failed - running recovery "
                       "behavior '"
@@ -618,6 +623,9 @@ bool MowingBehavior::execute_mowing_plan() {
                   auto recoveryState = sendGoalAndWaitUnlessAborted(mbfClientRecovery, recoveryGoal);
                   ROS_INFO_STREAM("MowingBehavior: (MOW) Recovery behavior '" << behavior << "' finished with state "
                                                                               << recoveryState.toString());
+                  mower_analytics::SentryGuard::captureEvent(
+                      mower_analytics::Level::Info,
+                      "Recovery behavior '" + behavior + "' finished with state " + recoveryState.toString());
                   if (recoveryState == actionlib::SimpleClientGoalState::SUCCEEDED) {
                     break;
                   }
