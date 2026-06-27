@@ -106,7 +106,7 @@ class EventHistory {
     for (const auto& entry : std::filesystem::directory_iterator(base_dir_, ec)) {
       if (!entry.is_regular_file()) continue;
       const std::string name = entry.path().filename().string();
-      if (name.size() != 13 || name.substr(8) != ".jsonl") continue;
+      if (name.size() != 14 || name.substr(8) != ".jsonl") continue;
       dates.push_back(name.substr(0, 8));
     }
     std::sort(dates.begin(), dates.end(), std::greater<std::string>());
