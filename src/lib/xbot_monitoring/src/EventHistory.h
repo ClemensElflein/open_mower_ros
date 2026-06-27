@@ -42,15 +42,18 @@ class EventHistory {
   // Returns today's events as a JSON array of objects (parsed on read).
   json getAll() const {
     std::lock_guard<std::mutex> lk(mutex_);
+    if (current_date_ != todayString()) return json::array();
     return parseBuffer(today_buffer_);
   }
 
   // Returns events for the given date as a JSON array of objects.
-  // If date matches today or is empty, served from memory.
+  // If date matches today or is empty, served from memory (empty if day rolled over).
   // Otherwise read fresh from disk. Missing file → empty array.
   json getAll(const std::string& date) const {
     std::lock_guard<std::mutex> lk(mutex_);
-    if (date.empty() || date == current_date_) {
+    const std::string today = todayString();
+    if (date.empty() || date == today) {
+      if (current_date_ != today) return json::array();
       return parseBuffer(today_buffer_);
     }
     return parseBuffer(readLines(base_dir_ + "/" + date + ".jsonl"));
