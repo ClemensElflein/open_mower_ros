@@ -211,6 +211,18 @@ void traverse_from_right(std::vector<PerimeterGeneratorLoop> &contours, std::vec
     }
 }
 
+static void setLastVisited(const slic3r_coverage_planner::Path &path,double &lastX,double &lastY) {
+  const geometry_msgs::PoseStamped &pose=path.path.poses.back();
+  lastX=scale_(pose.pose.position.x);
+  lastY=scale_(pose.pose.position.y);
+}
+
+static double distance2(const Point &p,double lastX,double lastY) {
+  lastX-=p.x;
+  lastY-=p.y;
+  return lastX*lastX+lastY*lastY;
+}
+
 slic3r_coverage_planner::Path determinePathForOutline(std_msgs::Header &header, Slic3r::Polygon &outline_poly, Slic3r::Polygons &group, bool isObstacle, Point *areaLastPoint) {
     slic3r_coverage_planner::Path path;
     path.is_outline = true;
@@ -518,6 +530,8 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
     header.frame_id = "map";
     header.seq = 0;
 
+    double lastVisitedX=0,lastVisitedY=0;
+    
     /**
      * Some postprocessing is done here. Until now we just have polygons (just points), but the ROS
      * navigation stack requires an orientation for each of those points as well.
@@ -531,6 +545,7 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
         auto path = determinePathForOutline(header, outline_poly, group, false, &areaLastPoint);
         if (!path.path.poses.empty()) {
             res.paths.push_back(path);
+            setLastVisited(path,lastVisitedX,lastVisitedY);
         }
     }
 
@@ -576,11 +591,46 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
         if (!path.path.poses.empty()) {
             std::reverse(path.path.poses.begin(), path.path.poses.end());
             res.paths.push_back(path);
+            setLastVisited(path,lastVisitedX,lastVisitedY);
         }
     }
 
     if (!req.skip_fill) {
+      /* Try to optimize visit order of fill lines. We use a greedy algorithm and take the next unused fill line,
+       * whose starting or end point is nearest to the last visited point
+       */
+      
         for (int i = 0; i < fill_lines.size(); i++) {
+
+            {
+              /* Find nearest start point */
+              int optIndex=i;
+              int optReversed=0;
+              double minDistance=0;
+              for (int j=i; j<fill_lines.size(); j++) {
+                Polyline &line=fill_lines[j];
+                Point tmp=line.first_point();
+                double d2=distance2(tmp,lastVisitedX,lastVisitedY);
+                if (j==i || d2<minDistance) {
+                  minDistance=d2;
+                  optIndex=j;
+                  optReversed=0;
+                }
+                tmp=line.last_point();
+                d2=distance2(tmp,lastVisitedX,lastVisitedY);
+                if (d2<minDistance) {
+                  minDistance=d2;
+                  optIndex=j;
+                  optReversed=1;
+                }
+              }
+              if (optIndex!=i) {
+                Polyline tmp=fill_lines[i];
+                fill_lines[i]=fill_lines[optIndex];
+                fill_lines[optIndex]=tmp;
+              }
+              if (optReversed) fill_lines[i].reverse();
+            }
             auto &line = fill_lines[i];
             slic3r_coverage_planner::Path path;
             path.is_outline = false;
@@ -629,6 +679,7 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
             path.path.poses.push_back(pose);
 
             res.paths.push_back(path);
+            setLastVisited(path,lastVisitedX,lastVisitedY);
         }
     }
 
