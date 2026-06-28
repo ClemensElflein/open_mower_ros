@@ -273,7 +273,10 @@ int main(int argc, char** argv) {
   // Input service
   {
     std::string config_file = paramNh.param<std::string>("services/input/config_file", "");
-    input_service = std::make_unique<InputServiceInterface>(xbot::service_ids::INPUT, ctx, config_file, action_pub);
+    int lift_multiple_delay = paramNh.param("services/input/lift_multiple_delay", -1);
+    int collision_multiple_delay = paramNh.param("services/input/collision_multiple_delay", -1);
+    input_service = std::make_unique<InputServiceInterface>(xbot::service_ids::INPUT, ctx, config_file,
+                                                            lift_multiple_delay, collision_multiple_delay, action_pub);
     input_service->Start();
   }
 
