@@ -1,0 +1,137 @@
+gpio:
+  - name: Front left wheel lift
+    line: GPIO10
+    active: low
+    redundancy_group: left_lift
+    emergency:
+      reason: lift
+      delay: 2500
+
+  - name: Front left wheel lift 2
+    line: GPIO5
+    active: low
+    redundancy_group: left_lift
+    emergency:
+      reason: lift
+      delay: 2500
+
+  - name: Front right wheel lift
+    line: GPIO11
+    active: low
+    redundancy_group: right_lift
+    emergency:
+      reason: lift
+      delay: 2500
+
+  - name: Front right wheel lift 2
+    line: GPIO1
+    active: low
+    redundancy_group: right_lift
+    emergency:
+      reason: lift
+      delay: 2500
+
+  - name: Top stop button 1
+    line: GPIO12
+    active: low
+    emergency:
+      reason: stop
+      delay: 10
+
+  - name: Top stop button 2
+    line: GPIO13
+    active: low
+    emergency:
+      reason: stop
+      delay: 10
+
+yf_cover_ui:
+  # ---- Hall Inputs Source Selector ----
+  # "om" when the hall sensors get connected to the XHST plugs of theOpenMower board
+  #      (or the robot-adapter-pinheader)
+  # "oem_idc" when the hall sensors get connected to the (non-modded) OEM CoverUI board
+  #      (and CoverUI get connected via the 16pin IDC cable to the OpenMower board)
+  - name: Hall Inputs Source Selector
+    id: hall_mux
+    value: oem_idc
+
+  # ---- Emergency channels ----
+  # These directly reflect the Emergency_state bitmask received from the CoverUI panel.
+  # stop1 / stop2 are the STOP buttons on the CoverUI panel.
+  # lift / liftx are the lift sensors reported by the CoverUI panel.
+  # Note: the GPIO inputs above may detect the same physical events via different hardware paths.
+
+  - name: CoverUI stop button 1
+    channel: stop1
+    emergency:
+      reason: stop
+      delay: 10
+
+  - name: CoverUI stop button 2
+    channel: stop2
+    emergency:
+      reason: stop
+      delay: 10
+
+  - name: CoverUI lift sensor 1
+    channel: lift
+    emergency:
+      reason: lift
+      delay: 100
+
+  - name: CoverUI lift sensor 2
+    channel: liftx
+    emergency:
+      reason: lift
+      delay: 100
+
+  # ---- Button channels ----
+  # button_id values match those sent by the YardForce 500 CoverUI panel firmware.
+  # See old firmware mower_comms.cpp handleLowLevelUIEvent() for reference.
+
+  - name: CoverUI Home/docking button
+    channel: button
+    button_id: 2
+    actions:
+      mowing/short: "mower_logic:mowing/abort_mowing"
+      paused/short: "mower_logic:mowing/abort_mowing"
+
+  - name: CoverUI play/start button
+    channel: button
+    button_id: 3
+    actions:
+      idle/short: "mower_logic:idle/start_mowing"
+      mowing/short: "mower_logic:mowing/pause"
+      paused/short: "mower_logic:mowing/continue"
+      idle/long: "mower_logic/reset_emergency"
+      mowing/long: "mower_logic/reset_emergency"
+      paused/long: "mower_logic/reset_emergency"
+      docking/long: "mower_logic/reset_emergency"
+      undocking/long: "mower_logic/reset_emergency"
+      area_recording/long: "mower_logic/reset_emergency"
+
+  - name: CoverUI S1 button
+    channel: button
+    button_id: 4
+    actions:
+      idle/short: "mower_logic:idle/start_mowing"
+      mowing/short: "mower_logic:mowing/pause"
+      paused/short: "mower_logic:mowing/continue"
+
+  - name: CoverUI S2/home button
+    channel: button
+    button_id: 5
+    actions:
+      mowing/short: "mower_logic:mowing/abort_mowing"
+      paused/short: "mower_logic:mowing/abort_mowing"
+
+  - name: CoverUI lock/reset button (long press)
+    channel: button
+    button_id: 6
+    actions:
+      idle/long: "mower_logic/reset_emergency"
+      mowing/long: "mower_logic/reset_emergency"
+      paused/long: "mower_logic/reset_emergency"
+      docking/long: "mower_logic/reset_emergency"
+      undocking/long: "mower_logic/reset_emergency"
+      area_recording/long: "mower_logic/reset_emergency"
