@@ -24,7 +24,8 @@ class PowerServiceInterface : public PowerServiceInterfaceBase {
                         const ros::Publisher& status_publisher, float battery_full_voltage, float battery_empty_voltage,
                         float battery_critical_voltage, float battery_critical_high_voltage, float charge_voltage,
                         float charge_current, float charge_termination_current, float charge_precharge_current,
-                        int charge_recharge_voltage, float system_current, bool override_hardware_charge_current_limit)
+                        int charge_recharge_voltage, float system_current, bool override_hardware_charge_current_limit,
+                        bool log_debug)
       : PowerServiceInterfaceBase(service_id, ctx),
         status_publisher_(status_publisher),
         battery_full_voltage_(battery_full_voltage),
@@ -37,7 +38,8 @@ class PowerServiceInterface : public PowerServiceInterfaceBase {
         charge_precharge_current_(charge_precharge_current),
         charge_recharge_voltage_(charge_recharge_voltage),
         system_current_(system_current),
-        override_hardware_charge_current_limit_(override_hardware_charge_current_limit) {
+        override_hardware_charge_current_limit_(override_hardware_charge_current_limit),
+        log_debug_(log_debug) {
   }
 
  protected:
@@ -71,6 +73,7 @@ class PowerServiceInterface : public PowerServiceInterfaceBase {
   int charge_recharge_voltage_;
   float system_current_;
   bool override_hardware_charge_current_limit_;
+  bool log_debug_;
 };
 
 #endif  // POWERSERVICEINTERFACE_H
