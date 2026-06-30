@@ -22,12 +22,70 @@
 #include <rosbag/bag.h>
 #include <rosbag/view.h>
 
+#include <algorithm>
 #include <cmath>
+#include <utility>
+#include <vector>
 
 #include "mower_logic/CheckPoint.h"
 #include "mower_map/ClearNavPointSrv.h"
 #include "mower_map/GetMowingAreaSrv.h"
 #include "mower_map/SetNavPointSrv.h"
+
+namespace {
+// Squared distance from point p to the segment a-b.
+double pointSegmentDistSq(double px, double py, double ax, double ay, double bx, double by) {
+  const double dx = bx - ax, dy = by - ay;
+  const double len2 = dx * dx + dy * dy;
+  double t = len2 > 0.0 ? ((px - ax) * dx + (py - ay) * dy) / len2 : 0.0;
+  t = std::max(0.0, std::min(1.0, t));
+  const double ex = px - (ax + t * dx), ey = py - (ay + t * dy);
+  return ex * ex + ey * ey;
+}
+
+// Ramer-Douglas-Peucker: keep points that lie farther than `eps` from the simplified line (same
+// algorithm xbot_monitoring uses to compact the actual track in PositionHistory).
+void rdpKeep(const std::vector<std::pair<double, double>>& pts, size_t i, size_t j, double eps_sq,
+             std::vector<bool>& keep) {
+  if (j <= i + 1) return;
+  double max_d = 0.0;
+  size_t max_k = i;
+  for (size_t k = i + 1; k < j; k++) {
+    const double d =
+        pointSegmentDistSq(pts[k].first, pts[k].second, pts[i].first, pts[i].second, pts[j].first, pts[j].second);
+    if (d > max_d) {
+      max_d = d;
+      max_k = k;
+    }
+  }
+  if (max_d > eps_sq) {
+    keep[max_k] = true;
+    rdpKeep(pts, i, max_k, eps_sq, keep);
+    rdpKeep(pts, max_k, j, eps_sq, keep);
+  }
+}
+
+// Simplify a planned-path polyline for the overlay: RDP at `eps` metres, coordinates rounded to mm.
+// The slic3r plan ships every vertex; for a grey overlay the lanes are near-straight, so this drops
+// the large majority of points (and the MQTT payload size) with no visible difference.
+json simplifyPathPoints(const std::vector<geometry_msgs::PoseStamped>& poses, double eps) {
+  std::vector<std::pair<double, double>> pts;
+  pts.reserve(poses.size());
+  for (const auto& ps : poses) pts.emplace_back(ps.pose.position.x, ps.pose.position.y);
+
+  json out = json::array();
+  if (pts.empty()) return out;
+  std::vector<bool> keep(pts.size(), false);
+  keep.front() = keep.back() = true;
+  if (pts.size() > 2) rdpKeep(pts, 0, pts.size() - 1, eps * eps, keep);
+
+  const auto round_mm = [](double v) { return std::round(v * 1000.0) / 1000.0; };
+  for (size_t k = 0; k < pts.size(); k++) {
+    if (keep[k]) out.push_back({round_mm(pts[k].first), round_mm(pts[k].second)});
+  }
+  return out;
+}
+}  // namespace
 
 extern ros::ServiceClient mapClient;
 extern ros::ServiceClient pathClient;
@@ -229,6 +287,31 @@ bool MowingBehavior::create_mowing_plan(int area_index) {
   }
 
   currentMowingPaths = pathSrv.response.paths;
+
+  // Publish the slic3r-planned mowing path (map frame, metres) as JSON so xbot_monitoring can bridge it
+  // to MQTT and the app can draw the planned coverage overlay (grey) over the actual driven path.
+  {
+    json planned;
+    planned["job_id"] = current_job_id;
+    // step_index is the plan's ordinal position in the job and is the sole storage key (area order
+    // today, task order once the Tasklist feature lands), so the same area mowed more than once in a
+    // job stays distinct. area_id/angle/offset are stored as metadata only.
+    planned["step_index"] = area_index;
+    planned["area_id"] = currentMowingAreaId;
+    planned["angle"] = angle;
+    planned["offset"] = mow_angle_offset;
+    planned["paths"] = json::array();
+    for (const auto& path : currentMowingPaths) {
+      json path_json;
+      path_json["is_outline"] = path.is_outline != 0;
+      // Simplify for the overlay (RDP @ 1 cm, like PositionHistory's track compaction, + mm
+      // rounding) so the MQTT payload stays small without visibly cutting curves/turns; the
+      // full-resolution path is still executed from currentMowingPaths.
+      path_json["points"] = simplifyPathPoints(path.path.poses, 0.01);
+      planned["paths"].push_back(path_json);
+    }
+    publishPlannedPath(planned.dump());
+  }
 
   // Calculate mowing plan digest from the poses
   // TODO: move to slic3r_coverage_planner

@@ -85,7 +85,7 @@ actionlib::SimpleActionClient<mbf_msgs::MoveBaseAction>* mbfClient;
 actionlib::SimpleActionClient<mbf_msgs::ExePathAction>* mbfClientExePath;
 actionlib::SimpleActionClient<mbf_msgs::RecoveryAction>* mbfClientRecovery;
 
-ros::Publisher cmd_vel_pub, high_level_state_publisher, mqtt_publish_pub;
+ros::Publisher cmd_vel_pub, high_level_state_publisher, mqtt_publish_pub, planned_path_publisher;
 mower_logic::MowerLogicConfig last_config;
 ll::PowerConfig last_power_config;
 
@@ -247,6 +247,14 @@ void publishMowerEvent(const std::string& type, json details) {
   if (!current_job_id.empty()) details["job_id"] = current_job_id;
   if (!current_session_id.empty()) details["session_id"] = current_session_id;
   xbot_mqtt::publishEvent(mqtt_publish_pub, type, details);
+}
+
+// Publishes the slic3r-planned mowing path as a JSON string on a latched topic so xbot_monitoring can
+// bridge it to MQTT for the app to draw the planned coverage overlay.
+void publishPlannedPath(const std::string& json_str) {
+  std_msgs::String msg;
+  msg.data = json_str;
+  planned_path_publisher.publish(msg);
 }
 
 /// @brief If the BLADE Motor is not in the requested status (enabled),we call the
@@ -736,6 +744,7 @@ int main(int argc, char** argv) {
 
   high_level_state_publisher = n->advertise<mower_msgs::HighLevelStatus>("mower_logic/current_state", 100, true);
   mqtt_publish_pub = n->advertise<xbot_mqtt::MqttPublish>("/xbot_monitoring/mqtt_publish", 10);
+  planned_path_publisher = n->advertise<std_msgs::String>("mower_logic/planned_path", 1, true);
 
   pathClient = n->serviceClient<slic3r_coverage_planner::PlanPath>("slic3r_coverage_planner/plan_path");
   mapClient = n->serviceClient<mower_map::GetMowingAreaSrv>("mower_map_service/get_mowing_area");

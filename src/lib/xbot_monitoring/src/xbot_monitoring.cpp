@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "EventHistory.h"
+#include "PlannedPathHistory.h"
 #include "PositionHistory.h"
 #include "capabilities.h"
 #include "geometry_msgs/Twist.h"
@@ -42,6 +43,7 @@ void publish_capabilities();
 void publish_sensor_metadata();
 void publish_map();
 void publish_map_overlay();
+void publish_planned_path();
 void publish_actions();
 void publish_version();
 void publish_params();
@@ -87,6 +89,7 @@ class MqttCallback : public mqtt::callback {
         publish_sensor_metadata();
         publish_map();
         publish_map_overlay();
+        publish_planned_path();
         publish_actions();
         publish_version();
         publish_params();
@@ -154,6 +157,7 @@ bool has_map_overlay = false;
 
 EventHistory event_history;
 PositionHistory position_history;
+PlannedPathHistory planned_path_history;
 
 // clang-format off
 xbot_mqtt::RpcProvider rpc_provider("xbot_monitoring", {{
@@ -203,6 +207,34 @@ xbot_mqtt::RpcProvider rpc_provider("xbot_monitoring", {{
             return position_history.deleteHistory(params["job_id"].get<std::string>());
         } else {
             return position_history.deleteHistory(std::nullopt);
+        }
+    }),
+    RPC_METHOD("planned_path.history", {
+        // Step list (metadata only) for a job; the app fetches each area's geometry via .step.
+        if (params.is_object() && params.contains("job_id")) {
+            return planned_path_history.getSteps(params["job_id"].get<std::string>());
+        } else {
+            return planned_path_history.getSteps();
+        }
+    }),
+    RPC_METHOD("planned_path.history.step", {
+        std::string job_id;
+        int step_index = -1;
+        if (params.is_object()) {
+            if (params.contains("job_id") && params["job_id"].is_string()) job_id = params["job_id"].get<std::string>();
+            if (params.contains("step_index") && params["step_index"].is_number_integer())
+                step_index = params["step_index"].get<int>();
+        }
+        return planned_path_history.getStep(job_id, step_index);
+    }),
+    RPC_METHOD("planned_path.history.list", {
+        return planned_path_history.listHistories();
+    }),
+    RPC_METHOD("planned_path.history.delete", {
+        if (params.is_object() && params.contains("job_id")) {
+            return planned_path_history.deleteHistory(params["job_id"].get<std::string>());
+        } else {
+            return planned_path_history.deleteHistory(std::nullopt);
         }
     }),
 }});
@@ -681,6 +713,21 @@ void publish_map_overlay() {
     try_publish_binary("map_overlay/bson", bson.data(), bson.size(), true);
 }
 
+// Bridges only the CURRENT area's slic3r plan to the app as JSON (not the whole accumulated job), so
+// the retained MQTT payload stays bounded regardless of lawn size. The whole job is reachable one
+// area at a time via the planned_path.history / .step RPCs.
+void publish_planned_path() {
+    // JSON only (no BSON sibling): the app consumes the json topic, and we avoid the extra retained
+    // payload + to_bson cost.
+    if (!planned_path_history.hasCurrent()) {
+        // No live plan yet: clear any retained planned path so a stale plan from a previous job
+        // or sim run can't linger on the broker for newly connecting clients.
+        try_publish("map_layers/planned_path/json", "", true);
+        return;
+    }
+    try_publish("map_layers/planned_path/json", planned_path_history.getCurrentArea().dump(), true);
+}
+
 void map_callback(const std_msgs::String::ConstPtr &msg) {
     try {
         json m = json::parse(msg->data);
@@ -692,6 +739,19 @@ void map_callback(const std_msgs::String::ConstPtr &msg) {
         publish_map();
     } catch (const json::exception &e) {
         ROS_ERROR_STREAM("Error processing map JSON: " << e.what());
+    }
+}
+
+// Bridges the slic3r-planned mowing path (published per area as a JSON string by mower_logic) to the
+// app so it can draw the planned path (grey) over the actual driven path. PlannedPathHistory stores
+// the area per job (keyed by step_index) and serves it per area via the planned_path.history RPCs.
+void planned_path_callback(const std_msgs::String::ConstPtr &msg) {
+    try {
+        json m = json::parse(msg->data);
+        planned_path_history.addPlan(m);
+        publish_planned_path();
+    } catch (const json::exception &e) {
+        ROS_ERROR_STREAM("Error processing planned path JSON: " << e.what());
     }
 }
 
@@ -841,6 +901,7 @@ int main(int argc, char **argv) {
 
     event_history.init();
     position_history.init();
+    planned_path_history.init();
 
     external_mqtt_enable = paramNh.param("external_mqtt_enable", false);
     external_mqtt_topic_prefix = paramNh.param("external_mqtt_topic_prefix", std::string(""));
@@ -866,6 +927,7 @@ int main(int argc, char **argv) {
     ros::Subscriber robotStateSubscriber = n->subscribe("xbot_monitoring/robot_state", 10, robot_state_callback);
     ros::Subscriber mapSubscriber = n->subscribe("mower_map_service/json_map", 10, map_callback);
     ros::Subscriber mapOverlaySubscriber = n->subscribe("xbot_monitoring/map_overlay", 10, map_overlay_callback);
+    ros::Subscriber plannedPathSubscriber = n->subscribe("mower_logic/planned_path", 10, planned_path_callback);
     ros::Subscriber poseSubscriber = n->subscribe("/xbot_positioning/xb_pose", 10, pose_callback);
     ros::Timer posePublishTimer = n->createTimer(ros::Duration(MQTT_POSITION_PUBLISH_INTERVAL), pose_publish_timer_callback);
     ros::Timer positionHistoryFlushTimer =

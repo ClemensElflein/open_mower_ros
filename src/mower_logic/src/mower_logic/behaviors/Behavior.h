@@ -37,6 +37,7 @@ struct sSharedState {
 
 using json = nlohmann::ordered_json;
 extern void publishMowerEvent(const std::string& type, json details = json::object());
+extern void publishPlannedPath(const std::string& json_str);
 
 /**
  * Behavior definition
