@@ -15,16 +15,39 @@
 
 GpsServiceInterface::GpsServiceInterface(uint16_t service_id, const xbot::serviceif::Context& ctx,
                                          const ros::Publisher& absolute_pose_publisher,
-                                         const ros::Publisher& nmea_publisher, double datum_lat, double datum_long,
-                                         double datum_height, uint32_t baud_rate, const std::string& protocol,
-                                         uint8_t port_index, bool absolute_coords)
+                                         const ros::Publisher& nmea_publisher, const ros::NodeHandle& param_nh)
     : GpsServiceInterfaceBase(service_id, ctx),
       absolute_pose_publisher_(absolute_pose_publisher),
-      nmea_publisher_(nmea_publisher),
-      baud_rate_(baud_rate),
-      protocol_(protocol),
-      port_index_(port_index),
-      absolute_coords_(absolute_coords) {
+      nmea_publisher_(nmea_publisher) {
+  int baud_rate = 0;
+  param_nh.getParam("services/gps/baud_rate", baud_rate);
+  param_nh.getParam("services/gps/protocol", protocol_);
+  int port_index = 0;
+  param_nh.getParam("services/gps/port_index", port_index);
+  if (baud_rate == 0 || protocol_.empty()) {
+    ROS_ERROR("Need to specify GPS protocol and baud rate!");
+    param_error_ = 1;
+    return;
+  }
+  baud_rate_ = baud_rate;
+  port_index_ = port_index;
+  ROS_INFO_STREAM("GPS protocol: " << protocol_ << ", baud rate: " << baud_rate_
+                                   << ", gps port index:" << static_cast<int>(port_index_));
+
+  double datum_lat, datum_long, datum_height;
+  bool has_datum = true;
+  has_datum &= param_nh.getParam("services/gps/datum_lat", datum_lat);
+  has_datum &= param_nh.getParam("services/gps/datum_long", datum_long);
+  has_datum &= param_nh.getParam("services/gps/datum_height", datum_height);
+  if (!has_datum) {
+    ROS_ERROR_STREAM("You need to provide datum_lat and datum_long and datum_height in order to use the absolute mode");
+    param_error_ = 2;
+    return;
+  }
+  ROS_INFO_STREAM("Datum: " << datum_lat << ", " << datum_long << ", " << datum_height);
+
+  param_nh.getParam("services/gps/absolute_coords", absolute_coords_);
+
   RobotLocalization::NavsatConversions::LLtoUTM(datum_lat, datum_long, datum_n_, datum_e_, datum_zone_);
   datum_u_ = datum_height;
 }
