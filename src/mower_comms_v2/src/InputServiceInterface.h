@@ -10,10 +10,10 @@ using json = nlohmann::ordered_json;
 
 class InputServiceInterface : public InputServiceInterfaceBase {
  public:
-  InputServiceInterface(uint16_t service_id, const xbot::serviceif::Context& ctx, std::string config_file,
+  InputServiceInterface(uint16_t service_id, const xbot::serviceif::Context& ctx, const ros::NodeHandle& param_nh,
                         ros::Publisher action_pub)
       : InputServiceInterfaceBase(service_id, ctx),
-        config_file_(config_file),
+        config_file_(param_nh.param<std::string>("services/input/config_file", "")),
         action_pub_(action_pub),
         current_context_("idle") {
     ros::NodeHandle nh;
