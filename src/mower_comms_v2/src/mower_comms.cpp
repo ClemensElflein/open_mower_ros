@@ -239,10 +239,12 @@ int main(int argc, char** argv) {
   bool override_hw_charge_current_limit = false;
   paramNh.getParam("services/power/dangerously_override_hardware_charge_current_limit",
                    override_hw_charge_current_limit);
+  bool log_debug = false;
+  paramNh.getParam("services/power/log_debug", log_debug);
   power_service = std::make_unique<PowerServiceInterface>(
       xbot::service_ids::POWER, ctx, power_pub, battery_full_voltage, battery_empty_voltage, battery_critical_voltage,
       battery_critical_high_voltage, charge_voltage, charge_current, charge_termination_current,
-      charge_precharge_current, charge_recharge_voltage, system_current, override_hw_charge_current_limit);
+      charge_precharge_current, charge_recharge_voltage, system_current, override_hw_charge_current_limit, log_debug);
   power_service->Start();
 
   // BMS service
