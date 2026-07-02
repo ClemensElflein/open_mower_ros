@@ -43,6 +43,6 @@
         <param name="use_motion_vector_orientation" value="true"/>
     </node>
 
-    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find open_mower)/rviz/sim_mower_logic.rviz --fullscreen"
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find open_mower)/rviz/sim_mower_logic.rviz"
           required="true"/>
 </launch>
