@@ -28,15 +28,15 @@
   ],
   "docking_stations": [
     {
-      "id": "Js6JtvWeldgED3VbN5PCOb2eetcMV2vP",
+      "id": "FC8nd46Eopg7NjD8jMKwh2q1X5a8Ejgp",
       "properties": {
         "name": "Docking Station"
       },
       "position": {
-        "x": -0.5,
-        "y": 4.0
+        "x": 3.195062089203286,
+        "y": 3.3342815850808085
       },
-      "heading": 0.0
+      "heading": -0.31419098470141027
     }
   ]
 }

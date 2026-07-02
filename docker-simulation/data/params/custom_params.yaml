@@ -82,5 +82,3 @@ xbot_monitoring:
   # For an external (e.g. Home Assistant) integration only - the app itself doesn't use
   # this, it talks to the broker directly over ws://<host>:9001.
   external_mqtt_enable: false
-
-
