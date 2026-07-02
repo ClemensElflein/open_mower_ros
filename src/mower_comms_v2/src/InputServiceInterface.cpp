@@ -88,6 +88,12 @@ bool InputServiceInterface::OnConfigurationRequested(uint16_t service_id) {
 
   StartTransaction(true);
   SetRegisterInputConfigs(compressed.data(), compressed.size());
+  if (lift_multiple_delay_ >= 0) {
+    SetRegisterLiftMultipleDelay(static_cast<uint32_t>(lift_multiple_delay_));
+  }
+  if (collision_multiple_delay_ >= 0) {
+    SetRegisterCollisionMultipleDelay(static_cast<uint32_t>(collision_multiple_delay_));
+  }
   CommitTransaction();
 
   return true;
