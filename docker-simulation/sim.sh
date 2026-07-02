@@ -75,10 +75,17 @@ case "$cmd" in
         require_docker
         echo "Starting the simulation stack..."
         docker compose up -d "$@"
+        # Resolve NOVNC_PORT the same way compose does (process env wins, else .env,
+        # else default) so the printed URL matches the port actually bound.
+        novnc_port="${NOVNC_PORT:-}"
+        if [ -z "$novnc_port" ] && [ -f .env ]; then
+            novnc_port="$(grep -E '^NOVNC_PORT=' .env | tail -n1 | cut -d= -f2-)"
+        fi
         echo
         echo "Up. Give mower_simulation_gui a minute to report healthy (./sim.sh ps), then open:"
-        echo "  http://localhost:${NOVNC_PORT:-6080}  - simulation view (noVNC)"
-        echo "  http://localhost:8080                 - OpenMowerApp"
+        echo "  http://localhost:${novnc_port:-6080}  - simulation view (noVNC)"
+        echo "  http://localhost:3000                 - OpenMowerApp"
+        echo "  http://localhost:8080                 - OpenMowerApp (legacy)"
         ;;
     down)
         require_docker
@@ -95,7 +102,19 @@ case "$cmd" in
         ;;
     rebuild)
         require_docker
+        # Resolve BASE_IMAGE the same way compose does: process env wins, else .env, else default.
+        base_image="${BASE_IMAGE:-}"
+        if [ -z "$base_image" ] && [ -f .env ]; then
+            base_image="$(grep -E '^BASE_IMAGE=' .env | tail -n1 | cut -d= -f2-)"
+        fi
         echo "Rebuilding images from source (this can take a few minutes)..."
+        # `docker compose build` skips profiled services, so open_mower_ros's local
+        # build (build_from_source, gated behind the build-from-source profile) is only
+        # rebuilt when BASE_IMAGE actually points at it. Otherwise it comes from a
+        # published tag and there's nothing local to rebuild.
+        if [ "$base_image" = "local/open_mower_ros:local" ]; then
+            docker compose --profile build-from-source build build_from_source
+        fi
         docker compose build "$@"
         docker compose up -d
         ;;
