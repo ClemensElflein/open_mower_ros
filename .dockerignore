@@ -1,0 +1,25 @@
+# Local catkin build artifacts - the Dockerfiles do their own catkin_init_workspace /
+# catkin_make from a clean src tree, and collide with these if present (e.g.
+# catkin_init_workspace fails because src/CMakeLists.txt, a symlink, already exists).
+build/
+devel/
+build_isolated/
+devel_isolated/
+.catkin_workspace
+src/CMakeLists.txt
+cmake-build-debug/
+src/cmake-build-debug-ros
+
+# Not needed in the build context
+.git/
+.idea/
+.vscode/
+.venv/
+
+# docker-simulation/ is runtime-only for the sim compose stack - none of it is source.
+# Only Dockerfile.sim consumes docker-simulation/assets/; everything else here (.env,
+# docker-compose.yaml, sim.sh, data/, ...) must stay out of the build context so it can't
+# bust the catkin build cache in docker/Dockerfile (COPY ./ /opt/open_mower_ros).
+docker-simulation/**
+!docker-simulation/assets
+!docker-simulation/assets/**
