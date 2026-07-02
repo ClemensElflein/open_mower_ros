@@ -52,6 +52,11 @@ services:
     environment:
       - ROS_MASTER_URI=http://mower_simulation_gui:11311
       - DISPLAY_RESOLUTION=${DISPLAY_RESOLUTION:-1280x800x24}
+    # Mount the rviz config from source (read-write) so tweaks saved from the running
+    # rviz land back in the checked-out file and can be committed, instead of being lost
+    # inside the container image on the next rebuild.
+    volumes:
+      - ../src/open_mower/rviz/sim_mower_logic.rviz:/opt/open_mower_ros/src/open_mower/rviz/sim_mower_logic.rviz
     # GPU passthrough is optional. Uncomment ONE of the blocks below if the host has a
     # GPU; the container auto-detects and falls back to software rendering if absent.
     #
