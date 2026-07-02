@@ -11,8 +11,16 @@ mower, IMU, power, GPS) is simulated, by the `mower_simulation` node.
 ```bash
 # edit .env if you want to test a specific VERSION/APP_VERSION - the checked-in
 # defaults work as-is
-docker compose up -d --build
+./sim.sh up
+# or, without the wrapper script:
+docker compose up -d
 ```
+
+`mower_simulation_gui` is always built locally (never pulled) on first run - this can
+take a few minutes. If you later change source/config that's baked into the image, or
+switch `VERSION`/`BASE_IMAGE` in `.env`, re-run with `./sim.sh rebuild` (or
+`docker compose up -d --build`) to pick up the change - plain `up` reuses whatever was
+already built and won't rebuild on its own.
 
 Then open:
 - `http://<host>:6080` - the simulation's RViz view, in your browser (noVNC, no password,
@@ -46,16 +54,22 @@ around immediately instead of an empty map.
   software rendering automatically if it's not usable.
 - **Resetting**: map/params/ROS home persist as plain files under `./data/` (bind
   mounts, not Docker volumes, so `docker compose down -v` doesn't touch them). To go
-  back to the checked-in starter map, `git checkout data/ros/map.json
-  data/params/custom_params.yaml`; `git clean -fdx data/` wipes everything else
-  (logs, recordings, etc).
+  back to the checked-in starter map, `./sim.sh reset` (or `git checkout
+  data/ros/map.json data/params/custom_params.yaml`); `./sim.sh clean` (or `git clean
+  -fdx data/`) wipes everything else (logs, recordings, etc).
 - **Native VNC client**: if you'd rather use a VNC client than a browser, connect to
   `<host>:5900` (no password) instead of using noVNC.
+- **Wrapper script**: `./sim.sh help` lists shortcuts for the commands on this page
+  (`up`, `rebuild`, `logs`, `ps`, `reset`, `clean`, ...) with friendlier error messages
+  if Docker isn't installed/running.
 
 ## Troubleshooting
 
 ```bash
-docker compose ps                       # check mower_simulation_gui is "healthy"
-docker compose logs -f mower_simulation_gui
-docker compose logs -f open_mower_ros
+./sim.sh ps                             # check mower_simulation_gui is "healthy"
+./sim.sh logs mower_simulation_gui
+./sim.sh logs open_mower_ros
 ```
+
+If the stack was already up and your change doesn't seem to show up, you likely need a
+rebuild: `./sim.sh rebuild` (plain `up` never rebuilds on its own).

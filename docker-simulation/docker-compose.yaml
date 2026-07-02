@@ -39,6 +39,11 @@ services:
       args:
         - BASE_IMAGE=${BASE_IMAGE:-ghcr.io/clemenselflein/open_mower_ros:${VERSION}}
     image: local/open_mower_ros-sim:${VERSION}
+    # Never pull this - it only ever exists as a local build (see build: above), so
+    # trying to pull it first just fails with a confusing "access denied" before
+    # Compose falls back to building. This tag is a local build cache key, not a
+    # published image.
+    pull_policy: build
     container_name: mower_simulation_gui
     restart: unless-stopped
     ports:
