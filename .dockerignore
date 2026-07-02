@@ -1,0 +1,20 @@
+# Local catkin build artifacts - the Dockerfiles do their own catkin_init_workspace /
+# catkin_make from a clean src tree, and collide with these if present (e.g.
+# catkin_init_workspace fails because src/CMakeLists.txt, a symlink, already exists).
+build/
+devel/
+build_isolated/
+devel_isolated/
+.catkin_workspace
+src/CMakeLists.txt
+cmake-build-debug/
+src/cmake-build-debug-ros
+
+# Not needed in the build context
+.git/
+.idea/
+.vscode/
+.venv/
+
+# Runtime data for the docker-simulation stack - never baked into an image
+docker-simulation/data/

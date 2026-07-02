@@ -19,6 +19,7 @@ constexpr double SimRobot::CHARGE_CURRENT;
 constexpr double SimRobot::CHARGE_VOLTS;
 
 SimRobot::SimRobot(ros::NodeHandle& nh) : nh_{nh} {
+  nh_.param("publish_tf", publish_tf_, true);
 }
 
 void SimRobot::Start() {
@@ -138,27 +139,30 @@ void SimRobot::SimulationStep(const ros::TimerEvent& te) {
     last_noisy_vr_ = 0.0;
   } else {
     double time_diff_s = (now - last_update_).toSec();
-    // Skip noise when the robot is commanded to rest; a stationary mower does
-    // not random-walk its odometry, and unconditional noise integration would
-    // cause the simulated position to drift past the charging hysteresis window.
-    const bool at_rest = (vx_ == 0.0 && vr_ == 0.0);
-    double noisy_vx = at_rest ? 0.0 : vx_ + linear_speed_noise(generator);
-    double noisy_vr = at_rest ? 0.0 : vr_ + angular_speed_noise(generator);
-    last_noisy_vx_ = noisy_vx;
-    last_noisy_vr_ = noisy_vr;
-    if (fabs(noisy_vr) > 1e-6) {
-      double r = noisy_vx / noisy_vr;
-      pos_x_ += r * (sin(pos_heading_ + noisy_vr * time_diff_s) - sin(pos_heading_));
-      pos_y_ -= r * (cos(pos_heading_ + noisy_vr * time_diff_s) - cos(pos_heading_));
-      pos_heading_ += noisy_vr * time_diff_s;
+
+    // Ground truth integrates the commanded twist, not a noisy one. Noise belongs on
+    // the *reported* sensor values (wheel odometry / gyro) below, not fed back into the
+    // robot's actual simulated trajectory - otherwise sensor noise becomes a genuine
+    // random walk in the real path, which is what made the sim "drive like on rubber".
+    if (fabs(vr_) > 1e-6) {
+      double r = vx_ / vr_;
+      pos_x_ += r * (sin(pos_heading_ + vr_ * time_diff_s) - sin(pos_heading_));
+      pos_y_ -= r * (cos(pos_heading_ + vr_ * time_diff_s) - cos(pos_heading_));
+      pos_heading_ += vr_ * time_diff_s;
     } else {
-      pos_x_ += noisy_vx * cos(pos_heading_) * time_diff_s;
-      pos_y_ += noisy_vx * sin(pos_heading_) * time_diff_s;
+      pos_x_ += vx_ * cos(pos_heading_) * time_diff_s;
+      pos_y_ += vx_ * sin(pos_heading_) * time_diff_s;
     }
     pos_heading_ = fmod(pos_heading_, M_PI * 2.0);
     if (pos_heading_ < 0) {
       pos_heading_ += M_PI * 2.0;
     }
+
+    // Skip noise when the robot is commanded to rest; a stationary mower does not
+    // random-walk its reported odometry either.
+    const bool at_rest = (vx_ == 0.0 && vr_ == 0.0);
+    last_noisy_vx_ = at_rest ? 0.0 : vx_ + linear_speed_noise(generator);
+    last_noisy_vr_ = at_rest ? 0.0 : vr_ + angular_speed_noise(generator);
   }
 
   // Update Charger Status
@@ -248,7 +252,9 @@ void SimRobot::PublishPosition() {
   xb_absolute_pose_msg.motion_heading = pos_heading_;
 
   odometry_pub_.publish(odometry);
-  transform_broadcaster.sendTransform(odom_trans);
+  if (publish_tf_) {
+    transform_broadcaster.sendTransform(odom_trans);
+  }
   xbot_absolute_pose_pub_.publish(xb_absolute_pose_msg);
 
   spdlog::debug("Position: x:{}, y:{}, heading:{}", pos_x_, pos_y_, pos_heading_);

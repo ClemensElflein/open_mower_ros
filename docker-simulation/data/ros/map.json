@@ -1,0 +1,42 @@
+{
+  "areas": [
+    {
+      "id": "hEOn4ven2FuX6VHTAVeal1hNEhUrxdWa",
+      "properties": {
+        "name": "Starter Area",
+        "type": "mow"
+      },
+      "outline": [
+        {
+          "x": 0.0,
+          "y": 0.0
+        },
+        {
+          "x": 8.0,
+          "y": 0.0
+        },
+        {
+          "x": 8.0,
+          "y": 8.0
+        },
+        {
+          "x": 0.0,
+          "y": 8.0
+        }
+      ]
+    }
+  ],
+  "docking_stations": [
+    {
+      "id": "Js6JtvWeldgED3VbN5PCOb2eetcMV2vP",
+      "properties": {
+        "name": "Docking Station"
+      },
+      "position": {
+        "x": -0.5,
+        "y": 4.0
+      },
+      "heading": 0.0
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+ll:
+  bind_ip: "0.0.0.0"
+
+  services:
+    diff_drive:
+      # TODO: Set this to values for your mower
+      wheel_distance_m: 0.325
+      # TODO: Set this to values for your mower
+      ticks_per_m: 1600.0
+    sound:
+      language: "en"
+      volume: -1
+    gps:
+      baud_rate: 921600
+      protocol: "NMEA"
+      datum_height: 0
+      # mower_simulation always reports a local pose in meters, not real lat/long, so
+      # this must stay false for the simulation stack (datum_lat/long become cosmetic,
+      # NMEA-display-only, in this mode).
+      absolute_coords: false
+      # Set to coordinates near your docking station, this will be your map origin
+      datum_lat: 53.457452
+      datum_long: 10.014737
+      port_index: 8
+    imu:
+      # TODO: Set according to your mainboard orientation. This value is correct for "flat mainboard"
+      axis_config: "+X-Y-Z"
+    power:
+      # TODO: Set these to values for your battery
+      battery_full_voltage: 20.0
+      battery_empty_voltage: 18.5
+      battery_critical_voltage: 16.5
+      battery_critical_high_voltage: 21.0
+      charge_critical_high_voltage: 30.0
+      charge_critical_high_current: 1.5
+
+xbot_positioning:
+  # TODO: Set this to values for your mower
+  antenna_offset_x: 0.3
+  # TODO: Set this to values for your mower
+  antenna_offset_y: 0.0
+  max_gps_accuracy: 0.2
+  debug: false
+
+ntrip_client:
+  reconnect_attempt_max: 5
+  reconnect_attempt_wait_seconds: 99999
+  host: "www.your-ntrip-caster.de"
+  port: 2101
+  username: "ntripuser"
+  password: "ntrippass"
+  mountpoint: "ntripmount"
+
+mower_logic:
+  automatic_mode: 0
+  docking_approach_distance: 1.0
+  docking_extra_time: 1.0
+  docking_retry_count: 3
+  docking_redock: false
+  outline_overlap_count: 1
+  mow_angle_offset: 0
+  mow_angle_offset_is_absolute: false
+  mow_angle_increment: 0
+  gps_wait_time: 10.0
+  gps_timeout: 5.0
+  rain_mode: 0
+  rain_delay_minutes: 30
+  rain_check_seconds: 20
+  cu_rain_threshold: -1
+  undock_angled_distance: 0.0
+  undock_angle: 0.0
+  undock_fixed_angle: true
+  undock_use_curve: false
+  emergency_lift_period: -1
+  emergency_tilt_period: -1
+  ignore_charging_current: false
+  # Once you validated the functionality of your emergency sensors,
+  # set this to true to enable the mow-motor
+  enable_mower: false
+
+xbot_monitoring:
+  # For an external (e.g. Home Assistant) integration only - the app itself doesn't use
+  # this, it talks to the broker directly over ws://<host>:9001.
+  external_mqtt_enable: false
+
+

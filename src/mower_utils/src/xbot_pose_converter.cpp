@@ -13,6 +13,8 @@
 //
 // You should have received a copy of the GNU General Public License along with
 // OpenMower. If not, see <https://www.gnu.org/licenses/>.
+#include <cmath>
+
 #include "geometry_msgs/PoseWithCovarianceStamped.h"
 #include "mower_map/GetMowingAreaSrv.h"
 #include "ros/ros.h"
@@ -22,11 +24,22 @@
 ros::Publisher pose_pub;
 geometry_msgs::PoseWithCovarianceStamped out;
 std::string frame;
+bool use_motion_vector_orientation = false;
 
 void pose_received(const xbot_msgs::AbsolutePose::ConstPtr& msg) {
   out.header = msg->header;
   out.pose = msg->pose;
   out.pose.pose.position.z = 0;
+  if (use_motion_vector_orientation) {
+    // Show the GPS-derived motion vector's direction as orientation instead of
+    // msg's own orientation field, which sources like the raw GPS fix don't set
+    // meaningfully (no heading of their own, only a course-over-ground estimate).
+    const double yaw = std::atan2(msg->motion_vector.y, msg->motion_vector.x);
+    out.pose.pose.orientation.x = 0;
+    out.pose.pose.orientation.y = 0;
+    out.pose.pose.orientation.z = std::sin(yaw / 2.0);
+    out.pose.pose.orientation.w = std::cos(yaw / 2.0);
+  }
   out.header.frame_id = frame;
   pose_pub.publish(out);
 }
@@ -43,6 +56,7 @@ int main(int argc, char** argv) {
     return 1;
   }
   paramNh.param("frame", frame, std::string("frame"));
+  paramNh.param("use_motion_vector_orientation", use_motion_vector_orientation, false);
 
   std::string target_topic = topic + "/converted";
 

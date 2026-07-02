@@ -77,6 +77,12 @@ class SimRobot {
   ros::Time last_update_{0};
   ros::NodeHandle nh_;
 
+  // Whether to broadcast the map->base_link transform ourselves. Standalone simulation
+  // launch files (no real xbot_positioning running) need this; when a real
+  // xbot_positioning runs alongside (broadcasting its own EKF-filtered estimate on the
+  // exact same transform), it must be disabled here or the two race each other.
+  bool publish_tf_ = true;
+
   bool is_charging_ = false;
   ros::Time charging_started_time;
   double charger_volts_ = 0;
