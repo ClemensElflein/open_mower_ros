@@ -26,6 +26,7 @@
 
 #include "../../../services/service_ids.h"
 #include "SimRobot.h"
+#include "SimRpc.h"
 #include "dynamic_reconfigure/server.h"
 #include "mower_map/GetDockingPointSrv.h"
 #include "mower_simulation/MowerSimulationConfig.h"
@@ -98,6 +99,10 @@ int main(int argc, char** argv) {
   imu_service.start();
   power_service.start();
   gps_service.start();
+
+  // ROS-layer RPCs + MQTT state stream for driving the sim into test states from the app.
+  SimRpc sim_rpc{n, robot};
+  sim_rpc.Start();
 
   robot.Start();
 

@@ -24,11 +24,27 @@ class SimRobot {
   void GetPosition(double& x, double& y);
   void GetTwist(double& vx, double& vr);
 
-  void ResetEmergency();
-  void SetEmergency(bool active, const uint16_t& reason);
+  // Emergency latch mirroring the real firmware: `reasons_` is a bitfield of
+  // EmergencyReason flags; the robot is in emergency whenever any bit is set. The high
+  // level drives it with an (add, clear) pair - it can only clear the bits it explicitly
+  // names, so a latched reason (e.g. LATCH) persists until the high level clears it.
+  void ApplyEmergencyUpdate(uint16_t add, uint16_t clear);
+  // Latches an emergency from the sim-control RPC (LATCH stays until the high level clears
+  // it, exactly like a physical stop button).
+  void TriggerEmergency();
+  // Test hook: clears every emergency reason directly.
+  void ClearEmergency();
 
   void GetEmergencyState(bool& active, bool& latch, uint16_t& reason);
   void SetControlTwist(double linear, double angular);
+
+  // Overrides the commanded twist (like publishing cmd_vel, but from a sim RPC). While
+  // enabled the diff-drive command is ignored and this twist is used instead.
+  void SetTwistOverride(bool enabled, double linear, double angular);
+  // Instantly teleports the robot by (dx, dy, dheading) to simulate a GPS jump.
+  void Displace(double dx, double dy, double dheading);
+  // Snaps the robot onto the docking pose and starts charging.
+  void MoveToDock();
   void GetPosition(double& x, double& y, double& heading);
   void SetPosition(const double x, const double y, const double heading);
 
@@ -36,6 +52,37 @@ class SimRobot {
 
   void GetIsCharging(bool& charging, double& seconds_since_start, std::string& charging_status, double& charger_volts,
                      double& battery_volts, double& charging_current);
+
+  // Simulation control hooks (driven by the ROS-layer RPCs in SimRpc).
+  // When movement is disallowed the robot simulates being "stuck": the commanded twist
+  // is still reported on the wheel odometry / gyro (wheels keep turning) but the
+  // ground-truth position no longer integrates, so GPS reports no movement.
+  void SetMovementAllowed(bool allowed);
+  // Good GPS = RTK fix, ~2 cm accuracy. Bad GPS = no RTK fix, ~1 m accuracy.
+  void SetGpsGood(bool good);
+  bool IsGpsGood();
+  // Snap the battery to full or empty voltage.
+  void SetBatteryFull(bool full);
+  // Set the battery to an exact pack voltage. Values outside the normal
+  // [BATTERY_VOLTS_MIN, BATTERY_VOLTS_MAX] range are allowed so the app can
+  // simulate critically low / critically high (over-voltage) faults.
+  void SetBatteryVolts(double volts);
+
+  // Snapshot of the simulation control state, streamed to the app via MQTT.
+  struct SimControlState {
+    bool emergency_active;
+    bool emergency_latch;
+    uint16_t emergency_reason;
+    bool movement_allowed;
+    bool gps_good;
+    double battery_volts;
+    double battery_percentage;
+    bool charging;
+    bool twist_override;
+    double override_linear;
+    double override_angular;
+  };
+  SimControlState GetSimControlState();
 
   bool OnSetPose(xbot_positioning::SetPoseSrvRequest& req, xbot_positioning::SetPoseSrvResponse& res);
   bool OnSetGpsState(xbot_positioning::GPSControlSrvRequest& req, xbot_positioning::GPSControlSrvResponse& res);
@@ -65,15 +112,24 @@ class SimRobot {
   double pos_y_ = 0;
   double pos_heading_ = 0;
 
+  // When false, the ground-truth position is frozen while the reported wheel odometry
+  // still follows the commanded twist -> simulates a stuck robot.
+  bool movement_allowed_ = true;
+
   // Last noisy twist values (for encoder/IMU readback)
   double last_noisy_vx_ = 0;
   double last_noisy_vr_ = 0;
 
-  // Current Emergency State
-  bool emergency_active_ = false;
-  // Latched Emergency
-  bool emergency_latch_ = false;
-  uint16_t emergency_reason_ = EmergencyReason::LATCH;
+  // Emergency reason bitfield (see ApplyEmergencyUpdate). Starts blocked on
+  // TIMEOUT_HIGH_LEVEL so the robot won't move until the high level has connected, just
+  // like the real hardware; the EmergencyService clears it once heartbeats arrive.
+  uint16_t emergency_reasons_ = EmergencyReason::TIMEOUT_HIGH_LEVEL;
+
+  // Twist override (sim RPC). When active the diff-drive command is ignored.
+  bool twist_override_ = false;
+  double override_vx_ = 0;
+  double override_vr_ = 0;
+
   ros::Time last_update_{0};
   ros::NodeHandle nh_;
 
@@ -108,7 +164,8 @@ class SimRobot {
   ros::ServiceServer pose_service_;
   ros::Publisher odometry_pub_{};
   ros::Publisher xbot_absolute_pose_pub_{};
-  bool gps_enabled_ = true;
+  // GPS quality: true = RTK fix (~2 cm), false = no RTK fix (~1 m).
+  bool gps_good_ = true;
 };
 
 #endif  // SIMROBOT_H

@@ -26,13 +26,14 @@ ll:
       # TODO: Set according to your mainboard orientation. This value is correct for "flat mainboard"
       axis_config: "+X-Y-Z"
     power:
-      # TODO: Set these to values for your battery
-      battery_full_voltage: 20.0
-      battery_empty_voltage: 18.5
-      battery_critical_voltage: 16.5
-      battery_critical_high_voltage: 21.0
-      charge_critical_high_voltage: 30.0
-      charge_critical_high_current: 1.5
+      # Matched to the mower_simulation battery model: 7 cells, empty = 3.2 V/cell (22.4 V),
+      # full = 4.18 V/cell (29.26 V), charger = 32.0 V, charge current up to 2.5 A.
+      battery_full_voltage: 29.26
+      battery_empty_voltage: 22.4
+      battery_critical_voltage: 22.0
+      battery_critical_high_voltage: 30.0
+      charge_critical_high_voltage: 34.0
+      charge_critical_high_current: 3.0
 
 xbot_positioning:
   # TODO: Set this to values for your mower

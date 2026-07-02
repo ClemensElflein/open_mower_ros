@@ -40,6 +40,7 @@
   <depend>xbot_msgs</depend>
   <depend>xbot_positioning</depend>
   <depend>xbot_framework</depend>
+  <depend>xbot_mqtt</depend>
 
   <export>
   </export>

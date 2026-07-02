@@ -6,9 +6,12 @@
 
 void GpsService::tick() {
   StartTransaction();
-  std::string fix_type = "FIX";
+  // Good GPS = RTK fix (~2 cm); bad GPS = no RTK fix / RTK float (~1 m). Driven by the
+  // sim.gps.set RPC via SimRobot.
+  const bool gps_good = robot_.IsGpsGood();
+  std::string fix_type = gps_good ? "FIX" : "FLOAT";
   SendFixType(fix_type.c_str(), fix_type.length());
-  SendPositionHorizontalAccuracy(0.05);
+  SendPositionHorizontalAccuracy(gps_good ? 0.02 : 1.0);
   double xyz[3]{};
   double headingAndAccuracy[2];
   headingAndAccuracy[1] = M_PI / 10.0;

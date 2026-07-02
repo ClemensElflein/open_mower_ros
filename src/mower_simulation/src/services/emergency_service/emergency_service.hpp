@@ -20,7 +20,6 @@ class EmergencyService : public EmergencyServiceBase {
   }
 
  protected:
-  bool OnStart() override;
   void OnStop() override;
 
  private:
@@ -30,8 +29,9 @@ class EmergencyService : public EmergencyServiceBase {
 
   SimRobot& robot_;
 
-  ros::Time last_clear_emergency_message_{0};
-  uint16_t emergency_reason = EmergencyReason::LATCH;
+  // Time the last high-level emergency message was received. Used to raise
+  // TIMEOUT_HIGH_LEVEL when the high level goes quiet, and clear it once it is back.
+  ros::Time last_high_level_emergency_message_{0};
 
  protected:
   void OnHighLevelEmergencyChanged(const uint16_t* new_value, uint32_t length) override;

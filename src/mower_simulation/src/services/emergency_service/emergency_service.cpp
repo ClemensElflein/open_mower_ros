@@ -4,48 +4,43 @@
 
 #include "emergency_service.hpp"
 
-bool EmergencyService::OnStart() {
-  robot_.SetEmergency(true, EmergencyReason::LATCH);
-  return true;
-}
+// How long we tolerate silence from the high level before latching TIMEOUT_HIGH_LEVEL.
+// Matches the firmware's 1 s window.
+static constexpr double HIGH_LEVEL_TIMEOUT_S = 1.0;
 
 void EmergencyService::OnStop() {
-  robot_.SetEmergency(true, EmergencyReason::STOP);
+  // We won't get further updates from the high level, so raise the timeout reason.
+  robot_.ApplyEmergencyUpdate(EmergencyReason::TIMEOUT_HIGH_LEVEL, 0);
+}
+
+void EmergencyService::OnHighLevelEmergencyChanged(const uint16_t* new_value, uint32_t length) {
+  last_high_level_emergency_message_ = ros::Time::now();
+  if (length >= 2) {
+    // The high level sends an (add, clear) pair. It can only clear the reasons it names,
+    // so a latched reason it doesn't clear (e.g. LATCH) stays asserted - this is what
+    // makes an emergency triggered from the sim RPC persist until it is explicitly reset.
+    robot_.ApplyEmergencyUpdate(new_value[0], new_value[1]);
+  } else if (length == 1) {
+    // Legacy single-value form: just add.
+    robot_.ApplyEmergencyUpdate(new_value[0], 0);
+  }
 }
 
 void EmergencyService::tick() {
-  /*// Get the current emergency state
-  chMtxLock(&mower_status_mutex);
-  uint32_t status_copy = mower_status;
-  chMtxUnlock(&mower_status_mutex);
-  bool emergency_latch = (status_copy & MOWER_FLAG_EMERGENCY_LATCH) != 0;
-  bool emergency_active = (status_copy & MOWER_FLAG_EMERGENCY_ACTIVE) != 0;
-  // Check timeout, but only overwrite if no emergency is currently active
-  // reasoning is that we want to keep the original reason and not overwrite
-  // with "timeout"
-  if (!emergency_latch &&
-      chVTTimeElapsedSinceX(last_clear_emergency_message_) > TIME_S2I(1)) {
-    emergency_reason = "Timeout";
-    // set the emergency and notify services
-    chMtxLock(&mower_status_mutex);
-    mower_status |= MOWER_FLAG_EMERGENCY_LATCH;
-    chMtxUnlock(&mower_status_mutex);
-    chEvtBroadcastFlags(&mower_events, MOWER_EVT_EMERGENCY_CHANGED);
-    // The last flags did not have emergency yet, so need to set it here as well
-    emergency_latch = true;
-  }*/
+  // Raise or clear TIMEOUT_HIGH_LEVEL based on how recently we heard from the high level.
+  const bool timed_out = last_high_level_emergency_message_.isZero() ||
+                         (ros::Time::now() - last_high_level_emergency_message_).toSec() > HIGH_LEVEL_TIMEOUT_S;
+  if (timed_out) {
+    robot_.ApplyEmergencyUpdate(EmergencyReason::TIMEOUT_HIGH_LEVEL, 0);
+  } else {
+    robot_.ApplyEmergencyUpdate(0, EmergencyReason::TIMEOUT_HIGH_LEVEL);
+  }
 
   bool emergency_active, emergency_latch;
+  uint16_t emergency_reason;
   robot_.GetEmergencyState(emergency_active, emergency_latch, emergency_reason);
 
   StartTransaction();
   SendEmergencyReason(emergency_reason);
   CommitTransaction();
-}
-void EmergencyService::OnHighLevelEmergencyChanged(const uint16_t* new_value, uint32_t length) {
-  if (length > 0 && new_value[0] > 0) {
-    robot_.SetEmergency(true, EmergencyReason::HIGH_LEVEL);
-  } else {
-    robot_.ResetEmergency();
-  }
 }

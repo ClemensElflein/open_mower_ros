@@ -19,6 +19,7 @@ find_package(catkin REQUIRED COMPONENTS
         mower_map
         xbot_msgs
         xbot_positioning
+        xbot_mqtt
         )
 
 ## System dependencies are found with CMake's conventions
@@ -161,6 +162,8 @@ add_executable(mower_simulation
         src/mower_simulation.cpp
         src/SimRobot.cpp
         src/SimRobot.h
+        src/SimRpc.cpp
+        src/SimRpc.h
         src/services/imu_service/imu_service.cpp
         src/services/power_service/power_service.cpp
         src/services/emergency_service/emergency_service.cpp
