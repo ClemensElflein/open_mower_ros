@@ -9,12 +9,13 @@ usage() {
 Usage: ./sim.sh <command> [args]
 
 Commands:
-  up              Start the simulation stack in the background.
-                   (First run builds mower_simulation_gui locally - can take a
-                   few minutes. Does NOT rebuild on later runs, even if you
-                   changed source - use `rebuild` for that.)
+  up              Pull the latest published images, then start the stack in the
+                   background. (First run builds mower_simulation_gui locally -
+                   can take a few minutes. Locally-built images are NOT rebuilt
+                   or pulled on later runs, even if you changed source - use
+                   `rebuild` for that.)
   down            Stop the stack and remove its containers.
-  restart         Shortcut for `down` followed by `up`.
+  restart         Shortcut for `down` followed by `up` (also pulls images).
   rebuild         Force-rebuild mower_simulation_gui (and open_mower_ros, if
                    BASE_IMAGE points at a local build) from source, then start
                    the stack. Use this after editing code/config that's baked
@@ -67,12 +68,41 @@ confirm() {
     esac
 }
 
+# Resolve BASE_IMAGE the way compose does: process env wins, else .env, else the
+# published default (empty here -> not a local build).
+resolve_base_image() {
+    local base_image="${BASE_IMAGE:-}"
+    if [ -z "$base_image" ] && [ -f .env ]; then
+        base_image="$(grep -E '^BASE_IMAGE=' .env | tail -n1 | cut -d= -f2-)"
+    fi
+    printf '%s' "$base_image"
+}
+
+# Pull the newest published images on every start. --ignore-buildable skips the two
+# services built locally from a Dockerfile (mower_simulation_gui, build_from_source) -
+# they have no registry image to pull. If open_mower_ros is a local build too
+# (BASE_IMAGE=local/open_mower_ros:local) it can't be pulled either, so warn that it is
+# NOT being rebuilt and pull only the remaining published services.
+pull_images() {
+    if [ "$(resolve_base_image)" = "local/open_mower_ros:local" ]; then
+        echo "open_mower_ros is a local build (BASE_IMAGE=local/open_mower_ros:local)."
+        echo "  It is NOT rebuilt on start and cannot be pulled - run './sim.sh rebuild'"
+        echo "  to pick up source changes. Pulling the other images only..."
+        # Everything except the two local builds (open_mower_ros + mower_simulation_gui).
+        docker compose pull --ignore-buildable init_data_dirs mosquitto openmower_app app
+    else
+        echo "Pulling latest images..."
+        docker compose pull --ignore-buildable
+    fi
+}
+
 cmd="${1:-help}"
 shift || true
 
 case "$cmd" in
     up)
         require_docker
+        pull_images
         echo "Starting the simulation stack..."
         docker compose up -d "$@"
         # Resolve NOVNC_PORT the same way compose does (process env wins, else .env,
@@ -98,6 +128,7 @@ case "$cmd" in
     restart)
         require_docker
         docker compose down
+        pull_images
         docker compose up -d "$@"
         ;;
     rebuild)

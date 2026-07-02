@@ -16,5 +16,10 @@ src/cmake-build-debug-ros
 .vscode/
 .venv/
 
-# Runtime data for the docker-simulation stack - never baked into an image
-docker-simulation/data/
+# docker-simulation/ is runtime-only for the sim compose stack - none of it is source.
+# Only Dockerfile.sim consumes docker-simulation/assets/; everything else here (.env,
+# docker-compose.yaml, sim.sh, data/, ...) must stay out of the build context so it can't
+# bust the catkin build cache in docker/Dockerfile (COPY ./ /opt/open_mower_ros).
+docker-simulation/**
+!docker-simulation/assets
+!docker-simulation/assets/**

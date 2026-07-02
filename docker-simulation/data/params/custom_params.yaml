@@ -61,7 +61,7 @@ mower_logic:
   mow_angle_offset: 0
   mow_angle_offset_is_absolute: false
   mow_angle_increment: 0
-  gps_wait_time: 10.0
+  gps_wait_time: 1.0
   gps_timeout: 5.0
   rain_mode: 0
   rain_delay_minutes: 30
@@ -82,3 +82,8 @@ xbot_monitoring:
   # For an external (e.g. Home Assistant) integration only - the app itself doesn't use
   # this, it talks to the broker directly over ws://<host>:9001.
   external_mqtt_enable: false
+
+move_base_flex:
+  FTCPlanner:
+    speed_fast: 1.0
+    speed_slow: 1.0
