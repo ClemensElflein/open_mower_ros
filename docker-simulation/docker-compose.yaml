@@ -17,7 +17,10 @@ services:
   init_data_dirs:
     image: busybox
     container_name: init_data_dirs
-    command: sh -c "mkdir -p /data/ros /data/recordings /data/params && chmod -R 777 /data/ros /data/recordings /data/params"
+    # chmod dirs to 777 (so uid 1000 can create/write regardless of host uid) but
+    # files to 666 - a blanket `chmod -R 777` would flag every data file executable
+    # on each startup, which churns git status and is wrong for plain data files.
+    command: sh -c "mkdir -p /data/ros /data/recordings /data/params && find /data/ros /data/recordings /data/params -type d -exec chmod 777 {} + && find /data/ros /data/recordings /data/params -type f -exec chmod 666 {} +"
     volumes:
       - ./data/ros:/data/ros
       - ./data/recordings:/data/recordings
