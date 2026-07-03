@@ -27,13 +27,6 @@ gpio:
       reason: stop
       delay: 10
 
-  - name: CoverUI Home/docking button
-    line: GPIO9
-    active: low
-    actions:
-      mowing/short: "mower_logic:mowing/abort_mowing"
-      paused/short: "mower_logic:mowing/abort_mowing"
-
   - name: CoverUI play/start button
     line: GPIO8
     active: low
@@ -47,6 +40,13 @@ gpio:
       docking/long: "mower_logic/reset_emergency"
       undocking/long: "mower_logic/reset_emergency"
       area_recording/long: "mower_logic/reset_emergency"
+
+  - name: CoverUI Home/docking button
+    line: GPIO9
+    active: low
+    actions:
+      mowing/short: "mower_logic:mowing/abort_mowing"
+      paused/short: "mower_logic:mowing/abort_mowing"
 
 yf_cover_ui:
   # ---- Hall Inputs Source Selector ----

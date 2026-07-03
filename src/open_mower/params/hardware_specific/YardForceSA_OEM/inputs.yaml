@@ -41,6 +41,27 @@ gpio:
       reason: stop
       delay: 10
 
+  - name: CoverUI play/start button
+    line: GPIO8
+    active: low
+    actions:
+      idle/short: "mower_logic:idle/start_mowing"
+      mowing/short: "mower_logic:mowing/pause"
+      paused/short: "mower_logic:mowing/continue"
+      idle/long: "mower_logic/reset_emergency"
+      mowing/long: "mower_logic/reset_emergency"
+      paused/long: "mower_logic/reset_emergency"
+      docking/long: "mower_logic/reset_emergency"
+      undocking/long: "mower_logic/reset_emergency"
+      area_recording/long: "mower_logic/reset_emergency"
+
+  - name: CoverUI Home/docking button
+    line: GPIO9
+    active: low
+    actions:
+      mowing/short: "mower_logic:mowing/abort_mowing"
+      paused/short: "mower_logic:mowing/abort_mowing"
+
 yf_cover_ui:
   # ---- Hall Inputs Source Selector ----
   # "om" when the hall sensors get connected to the XHST plugs of theOpenMower board
