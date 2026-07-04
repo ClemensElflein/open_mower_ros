@@ -38,9 +38,6 @@ class SimRobot {
   void GetEmergencyState(bool& active, bool& latch, uint16_t& reason);
   void SetControlTwist(double linear, double angular);
 
-  // Overrides the commanded twist (like publishing cmd_vel, but from a sim RPC). While
-  // enabled the diff-drive command is ignored and this twist is used instead.
-  void SetTwistOverride(bool enabled, double linear, double angular);
   // Instantly teleports the robot by (dx, dy, dheading) to simulate a GPS jump.
   void Displace(double dx, double dy, double dheading);
   // Snaps the robot onto the docking pose and starts charging.
@@ -78,9 +75,6 @@ class SimRobot {
     double battery_volts;
     double battery_percentage;
     bool charging;
-    bool twist_override;
-    double override_linear;
-    double override_angular;
   };
   SimControlState GetSimControlState();
 
@@ -124,11 +118,6 @@ class SimRobot {
   // TIMEOUT_HIGH_LEVEL so the robot won't move until the high level has connected, just
   // like the real hardware; the EmergencyService clears it once heartbeats arrive.
   uint16_t emergency_reasons_ = EmergencyReason::TIMEOUT_HIGH_LEVEL;
-
-  // Twist override (sim RPC). When active the diff-drive command is ignored.
-  bool twist_override_ = false;
-  double override_vx_ = 0;
-  double override_vr_ = 0;
 
   ros::Time last_update_{0};
   ros::NodeHandle nh_;

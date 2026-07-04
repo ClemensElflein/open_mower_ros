@@ -25,18 +25,6 @@ bool requireBool(const nlohmann::basic_json<>& params, const char* key) {
   return params[key].get<bool>();
 }
 
-// Extracts an optional boolean parameter, falling back to `def` when absent.
-bool optionalBool(const nlohmann::basic_json<>& params, const char* key, bool def) {
-  if (params.is_object() && params.contains(key)) {
-    if (!params[key].is_boolean()) {
-      throw xbot_mqtt::RpcException(xbot_mqtt::RpcError::ERROR_INVALID_PARAMS,
-                                    std::string("non-boolean parameter: ") + key);
-    }
-    return params[key].get<bool>();
-  }
-  return def;
-}
-
 // Extracts an optional numeric parameter, falling back to `def` when absent.
 double optionalNumber(const nlohmann::basic_json<>& params, const char* key, double def) {
   if (params.is_object() && params.contains(key)) {
@@ -60,9 +48,6 @@ json toJson(const SimRobot::SimControlState& s) {
   state["battery_volts"] = s.battery_volts;
   state["battery_percentage"] = s.battery_percentage;
   state["charging"] = s.charging;
-  state["twist_override"] = s.twist_override;
-  state["override_linear"] = s.override_linear;
-  state["override_angular"] = s.override_angular;
   return state;
 }
 
@@ -115,17 +100,6 @@ void SimRpc::Start() {
   // Drive the robot onto the dock and start charging.
   rpc_provider_.addMethod("sim.dock.move", [this](const std::string&, const nlohmann::basic_json<>&) -> json {
     robot_.MoveToDock();
-    return toJson(robot_.GetSimControlState());
-  });
-
-  // Override the commanded twist (like cmd_vel, but from a sim RPC). `enabled` defaults to
-  // true; pass enabled=false to release the override and hand control back to the diff
-  // drive. `linear` (m/s) and `angular` (rad/s) default to 0.
-  rpc_provider_.addMethod("sim.twist.set", [this](const std::string&, const nlohmann::basic_json<>& params) -> json {
-    const bool enabled = optionalBool(params, "enabled", true);
-    const double linear = optionalNumber(params, "linear", 0.0);
-    const double angular = optionalNumber(params, "angular", 0.0);
-    robot_.SetTwistOverride(enabled, linear, angular);
     return toJson(robot_.GetSimControlState());
   });
 
