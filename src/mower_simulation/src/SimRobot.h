@@ -72,7 +72,7 @@ class SimRobot {
     uint16_t emergency_reason;
     bool movement_allowed;
     bool gps_good;
-    double battery_volts;
+    double battery_voltage;
     double battery_percentage;
     bool charging;
   };

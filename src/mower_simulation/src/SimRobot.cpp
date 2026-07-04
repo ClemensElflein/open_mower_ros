@@ -114,7 +114,7 @@ SimRobot::SimControlState SimRobot::GetSimControlState() {
   state.emergency_reason = emergency_reasons_;
   state.movement_allowed = movement_allowed_;
   state.gps_good = gps_good_;
-  state.battery_volts = battery_volts_;
+  state.battery_voltage = battery_volts_;
   state.battery_percentage =
       std::max(0.0, std::min(1.0, (battery_volts_ - BATTERY_VOLTS_MIN) / (BATTERY_VOLTS_MAX - BATTERY_VOLTS_MIN)));
   state.charging = is_charging_;

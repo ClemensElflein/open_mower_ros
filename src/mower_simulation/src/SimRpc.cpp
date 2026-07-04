@@ -25,6 +25,15 @@ bool requireBool(const nlohmann::basic_json<>& params, const char* key) {
   return params[key].get<bool>();
 }
 
+// Extracts a required numeric parameter, raising an RPC error when absent or wrong type.
+double requireNumber(const nlohmann::basic_json<>& params, const char* key) {
+  if (!params.is_object() || !params.contains(key) || !params[key].is_number()) {
+    throw xbot_mqtt::RpcException(xbot_mqtt::RpcError::ERROR_INVALID_PARAMS,
+                                  std::string("missing or non-numeric parameter: ") + key);
+  }
+  return params[key].get<double>();
+}
+
 // Extracts an optional numeric parameter, falling back to `def` when absent.
 double optionalNumber(const nlohmann::basic_json<>& params, const char* key, double def) {
   if (params.is_object() && params.contains(key)) {
@@ -45,7 +54,7 @@ json toJson(const SimRobot::SimControlState& s) {
   state["emergency_reason"] = s.emergency_reason;
   state["movement_allowed"] = s.movement_allowed;
   state["gps_good"] = s.gps_good;
-  state["battery_volts"] = s.battery_volts;
+  state["battery_voltage"] = s.battery_voltage;
   state["battery_percentage"] = s.battery_percentage;
   state["charging"] = s.charging;
   return state;
@@ -82,14 +91,9 @@ void SimRpc::Start() {
     return nullptr;
   });
 
-  // Set the battery. Pass `volts` for an exact pack voltage (takes precedence, used for
-  // critically low / high faults), or `full` to snap to the empty/full extreme.
+  // Set the simulated battery pack voltage.
   rpc_provider_.addMethod("sim.battery.set", [this](const std::string&, const nlohmann::basic_json<>& params) -> json {
-    if (params.is_object() && params.contains("volts")) {
-      robot_.SetBatteryVolts(optionalNumber(params, "volts", 0.0));
-    } else {
-      robot_.SetBatteryFull(requireBool(params, "full"));
-    }
+    robot_.SetBatteryVolts(requireNumber(params, "voltage"));
     PublishState();
     return nullptr;
   });
