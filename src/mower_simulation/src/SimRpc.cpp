@@ -70,14 +70,16 @@ void SimRpc::Start() {
                             } else {
                               robot_.ClearEmergency();
                             }
-                            return toJson(robot_.GetSimControlState());
+                            PublishState();
+                            return nullptr;
                           });
 
   // Allow / disallow movement. Disallowing simulates a stuck robot: wheels keep turning
   // (odometry reports motion) but the GPS position stays put.
   rpc_provider_.addMethod("sim.movement.set", [this](const std::string&, const nlohmann::basic_json<>& params) -> json {
     robot_.SetMovementAllowed(requireBool(params, "allowed"));
-    return toJson(robot_.GetSimControlState());
+    PublishState();
+    return nullptr;
   });
 
   // Set the battery. Pass `volts` for an exact pack voltage (takes precedence, used for
@@ -88,19 +90,22 @@ void SimRpc::Start() {
     } else {
       robot_.SetBatteryFull(requireBool(params, "full"));
     }
-    return toJson(robot_.GetSimControlState());
+    PublishState();
+    return nullptr;
   });
 
   // Set GPS quality: good = RTK fix (~2 cm), bad = no RTK fix (~1 m).
   rpc_provider_.addMethod("sim.gps.set", [this](const std::string&, const nlohmann::basic_json<>& params) -> json {
     robot_.SetGpsGood(requireBool(params, "good"));
-    return toJson(robot_.GetSimControlState());
+    PublishState();
+    return nullptr;
   });
 
   // Drive the robot onto the dock and start charging.
   rpc_provider_.addMethod("sim.dock.move", [this](const std::string&, const nlohmann::basic_json<>&) -> json {
     robot_.MoveToDock();
-    return toJson(robot_.GetSimControlState());
+    PublishState();
+    return nullptr;
   });
 
   // Teleport the robot by (dx, dy) meters and dheading radians to simulate a GPS jump.
@@ -109,7 +114,8 @@ void SimRpc::Start() {
     const double dy = optionalNumber(params, "dy", 0.0);
     const double dheading = optionalNumber(params, "dheading", 0.0);
     robot_.Displace(dx, dy, dheading);
-    return toJson(robot_.GetSimControlState());
+    PublishState();
+    return nullptr;
   });
 
   // Read the current simulation control state on demand.
@@ -124,6 +130,6 @@ void SimRpc::Start() {
   publish_timer_ = nh_.createTimer(ros::Duration(1.0), &SimRpc::PublishState, this);
 }
 
-void SimRpc::PublishState(const ros::TimerEvent&) {
+void SimRpc::PublishState() {
   xbot_mqtt::publish(mqtt_publish_pub_, SIM_STATE_TOPIC, toJson(robot_.GetSimControlState()), /*retain=*/true);
 }

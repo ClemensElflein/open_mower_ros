@@ -20,7 +20,10 @@ class SimRpc {
   void Start();
 
  private:
-  void PublishState(const ros::TimerEvent& te);
+  void PublishState();
+  void PublishState(const ros::TimerEvent&) {
+    PublishState();
+  }
 
   SimRobot& robot_;
   ros::NodeHandle& nh_;
