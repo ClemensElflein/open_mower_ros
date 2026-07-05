@@ -701,7 +701,7 @@ void actionReceived(const std_msgs::String::ConstPtr& action) {
 
 void joyVelReceived(const geometry_msgs::Twist::ConstPtr& joy_vel) {
   joy_vel_time = ros::Time::now();
-  if (currentBehavior && currentBehavior->redirect_joystick()) {
+  if (last_config.always_allow_joystick || (currentBehavior && currentBehavior->redirect_joystick())) {
     cmd_vel_pub.publish(joy_vel);
   }
 }

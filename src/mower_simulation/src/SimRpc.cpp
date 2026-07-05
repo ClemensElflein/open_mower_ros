@@ -25,16 +25,13 @@ bool requireBool(const nlohmann::basic_json<>& params, const char* key) {
   return params[key].get<bool>();
 }
 
-// Extracts an optional boolean parameter, falling back to `def` when absent.
-bool optionalBool(const nlohmann::basic_json<>& params, const char* key, bool def) {
-  if (params.is_object() && params.contains(key)) {
-    if (!params[key].is_boolean()) {
-      throw xbot_mqtt::RpcException(xbot_mqtt::RpcError::ERROR_INVALID_PARAMS,
-                                    std::string("non-boolean parameter: ") + key);
-    }
-    return params[key].get<bool>();
+// Extracts a required numeric parameter, raising an RPC error when absent or wrong type.
+double requireNumber(const nlohmann::basic_json<>& params, const char* key) {
+  if (!params.is_object() || !params.contains(key) || !params[key].is_number()) {
+    throw xbot_mqtt::RpcException(xbot_mqtt::RpcError::ERROR_INVALID_PARAMS,
+                                  std::string("missing or non-numeric parameter: ") + key);
   }
-  return def;
+  return params[key].get<double>();
 }
 
 // Extracts an optional numeric parameter, falling back to `def` when absent.
@@ -57,12 +54,9 @@ json toJson(const SimRobot::SimControlState& s) {
   state["emergency_reason"] = s.emergency_reason;
   state["movement_allowed"] = s.movement_allowed;
   state["gps_good"] = s.gps_good;
-  state["battery_volts"] = s.battery_volts;
+  state["battery_voltage"] = s.battery_voltage;
   state["battery_percentage"] = s.battery_percentage;
   state["charging"] = s.charging;
-  state["twist_override"] = s.twist_override;
-  state["override_linear"] = s.override_linear;
-  state["override_angular"] = s.override_angular;
   return state;
 }
 
@@ -85,48 +79,37 @@ void SimRpc::Start() {
                             } else {
                               robot_.ClearEmergency();
                             }
-                            return toJson(robot_.GetSimControlState());
+                            PublishState();
+                            return nullptr;
                           });
 
   // Allow / disallow movement. Disallowing simulates a stuck robot: wheels keep turning
   // (odometry reports motion) but the GPS position stays put.
   rpc_provider_.addMethod("sim.movement.set", [this](const std::string&, const nlohmann::basic_json<>& params) -> json {
     robot_.SetMovementAllowed(requireBool(params, "allowed"));
-    return toJson(robot_.GetSimControlState());
+    PublishState();
+    return nullptr;
   });
 
-  // Set the battery. Pass `volts` for an exact pack voltage (takes precedence, used for
-  // critically low / high faults), or `full` to snap to the empty/full extreme.
+  // Set the simulated battery pack voltage.
   rpc_provider_.addMethod("sim.battery.set", [this](const std::string&, const nlohmann::basic_json<>& params) -> json {
-    if (params.is_object() && params.contains("volts")) {
-      robot_.SetBatteryVolts(optionalNumber(params, "volts", 0.0));
-    } else {
-      robot_.SetBatteryFull(requireBool(params, "full"));
-    }
-    return toJson(robot_.GetSimControlState());
+    robot_.SetBatteryVolts(requireNumber(params, "voltage"));
+    PublishState();
+    return nullptr;
   });
 
   // Set GPS quality: good = RTK fix (~2 cm), bad = no RTK fix (~1 m).
   rpc_provider_.addMethod("sim.gps.set", [this](const std::string&, const nlohmann::basic_json<>& params) -> json {
     robot_.SetGpsGood(requireBool(params, "good"));
-    return toJson(robot_.GetSimControlState());
+    PublishState();
+    return nullptr;
   });
 
   // Drive the robot onto the dock and start charging.
   rpc_provider_.addMethod("sim.dock.move", [this](const std::string&, const nlohmann::basic_json<>&) -> json {
     robot_.MoveToDock();
-    return toJson(robot_.GetSimControlState());
-  });
-
-  // Override the commanded twist (like cmd_vel, but from a sim RPC). `enabled` defaults to
-  // true; pass enabled=false to release the override and hand control back to the diff
-  // drive. `linear` (m/s) and `angular` (rad/s) default to 0.
-  rpc_provider_.addMethod("sim.twist.set", [this](const std::string&, const nlohmann::basic_json<>& params) -> json {
-    const bool enabled = optionalBool(params, "enabled", true);
-    const double linear = optionalNumber(params, "linear", 0.0);
-    const double angular = optionalNumber(params, "angular", 0.0);
-    robot_.SetTwistOverride(enabled, linear, angular);
-    return toJson(robot_.GetSimControlState());
+    PublishState();
+    return nullptr;
   });
 
   // Teleport the robot by (dx, dy) meters and dheading radians to simulate a GPS jump.
@@ -135,7 +118,8 @@ void SimRpc::Start() {
     const double dy = optionalNumber(params, "dy", 0.0);
     const double dheading = optionalNumber(params, "dheading", 0.0);
     robot_.Displace(dx, dy, dheading);
-    return toJson(robot_.GetSimControlState());
+    PublishState();
+    return nullptr;
   });
 
   // Read the current simulation control state on demand.
@@ -150,6 +134,6 @@ void SimRpc::Start() {
   publish_timer_ = nh_.createTimer(ros::Duration(1.0), &SimRpc::PublishState, this);
 }
 
-void SimRpc::PublishState(const ros::TimerEvent&) {
+void SimRpc::PublishState() {
   xbot_mqtt::publish(mqtt_publish_pub_, SIM_STATE_TOPIC, toJson(robot_.GetSimControlState()), /*retain=*/true);
 }
