@@ -78,6 +78,7 @@ mower_logic:
   # Once you validated the functionality of your emergency sensors,
   # set this to true to enable the mow-motor
   enable_mower: false
+  always_allow_joystick: true
 
 xbot_monitoring:
   # For an external (e.g. Home Assistant) integration only - the app itself doesn't use
