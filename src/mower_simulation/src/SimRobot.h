@@ -5,6 +5,7 @@
 #ifndef SIMROBOT_H
 #define SIMROBOT_H
 
+#include <geometry_msgs/Twist.h>
 #include <nav_msgs/Odometry.h>
 #include <ros/ros.h>
 #include <xbot_positioning/GPSControlSrv.h>
@@ -55,6 +56,9 @@ class SimRobot {
   // is still reported on the wheel odometry / gyro (wheels keep turning) but the
   // ground-truth position no longer integrates, so GPS reports no movement.
   void SetMovementAllowed(bool allowed);
+  // When joy override is enabled, /joy_vel commands drive the robot directly and all
+  // SetControlTwist() calls from the normal mower stack are ignored.
+  void SetJoyOverride(bool enabled);
   // Good GPS = RTK fix, ~2 cm accuracy. Bad GPS = no RTK fix, ~1 m accuracy.
   void SetGpsGood(bool good);
   bool IsGpsGood();
@@ -75,6 +79,7 @@ class SimRobot {
     double battery_voltage;
     double battery_percentage;
     bool charging;
+    bool joy_override;
   };
   SimControlState GetSimControlState();
 
@@ -109,6 +114,11 @@ class SimRobot {
   // When false, the ground-truth position is frozen while the reported wheel odometry
   // still follows the commanded twist -> simulates a stuck robot.
   bool movement_allowed_ = true;
+
+  // When true, /joy_vel drives the robot and SetControlTwist() calls are ignored.
+  bool joy_override_ = false;
+
+  void OnJoyVel(const geometry_msgs::Twist::ConstPtr& msg);
 
   // Last noisy twist values (for encoder/IMU readback)
   double last_noisy_vx_ = 0;
@@ -153,6 +163,7 @@ class SimRobot {
   ros::ServiceServer pose_service_;
   ros::Publisher odometry_pub_{};
   ros::Publisher xbot_absolute_pose_pub_{};
+  ros::Subscriber joy_vel_sub_{};
   // GPS quality: true = RTK fix (~2 cm), false = no RTK fix (~1 m).
   bool gps_good_ = true;
 };

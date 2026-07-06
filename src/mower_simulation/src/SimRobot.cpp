@@ -33,6 +33,7 @@ void SimRobot::Start() {
   pose_service_ = nh_.advertiseService("/xbot_positioning/set_robot_pose", &SimRobot::OnSetPose, this);
   odometry_pub_ = nh_.advertise<nav_msgs::Odometry>("odom_out", 50);
   xbot_absolute_pose_pub_ = nh_.advertise<xbot_msgs::AbsolutePose>("xb_pose_out", 50);
+  joy_vel_sub_ = nh_.subscribe("/joy_vel", 1, &SimRobot::OnJoyVel, this, ros::TransportHints().tcpNoDelay(true));
   // Keep in sync with DiffDriveService::tick_schedule_
   timer_ = nh_.createTimer(ros::Duration(0.02), &SimRobot::SimulationStep, this);
   timer_.start();
@@ -118,13 +119,35 @@ SimRobot::SimControlState SimRobot::GetSimControlState() {
   state.battery_percentage =
       std::max(0.0, std::min(1.0, (battery_volts_ - BATTERY_VOLTS_MIN) / (BATTERY_VOLTS_MAX - BATTERY_VOLTS_MIN)));
   state.charging = is_charging_;
+  state.joy_override = joy_override_;
   return state;
 }
 
 void SimRobot::SetControlTwist(double linear, double angular) {
   std::lock_guard<std::mutex> lk{state_mutex_};
+  if (joy_override_) {
+    return;
+  }
   vx_ = linear;
   vr_ = angular;
+}
+
+void SimRobot::SetJoyOverride(bool enabled) {
+  std::lock_guard<std::mutex> lk{state_mutex_};
+  joy_override_ = enabled;
+  if (!enabled) {
+    vx_ = 0.0;
+    vr_ = 0.0;
+  }
+}
+
+void SimRobot::OnJoyVel(const geometry_msgs::Twist::ConstPtr& msg) {
+  std::lock_guard<std::mutex> lk{state_mutex_};
+  if (!joy_override_) {
+    return;
+  }
+  vx_ = msg->linear.x;
+  vr_ = msg->angular.z;
 }
 
 void SimRobot::Displace(double dx, double dy, double dheading) {
