@@ -57,6 +57,7 @@ json toJson(const SimRobot::SimControlState& s) {
   state["battery_voltage"] = s.battery_voltage;
   state["battery_percentage"] = s.battery_percentage;
   state["charging"] = s.charging;
+  state["joy_override"] = s.joy_override;
   return state;
 }
 
@@ -121,6 +122,15 @@ void SimRpc::Start() {
     PublishState();
     return nullptr;
   });
+
+  // Enable / disable joystick override. When enabled, /joy_vel drives the robot directly
+  // and all twist commands from the normal mower stack are ignored.
+  rpc_provider_.addMethod("sim.joy_override.set",
+                          [this](const std::string&, const nlohmann::basic_json<>& params) -> json {
+                            robot_.SetJoyOverride(requireBool(params, "enabled"));
+                            PublishState();
+                            return nullptr;
+                          });
 
   // Read the current simulation control state on demand.
   rpc_provider_.addMethod("sim.state.get", [this](const std::string&, const nlohmann::basic_json<>&) -> json {
