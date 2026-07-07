@@ -48,7 +48,7 @@ services:
     # published image.
     pull_policy: build
     container_name: mower_simulation_gui
-    restart: unless-stopped
+    restart: on-failure
     ports:
       - "${NOVNC_PORT:-6080}:6080"
       - "${VNC_PORT:-5900}:5900"
@@ -83,7 +83,7 @@ services:
   open_mower_ros:
     image: "${BASE_IMAGE:-ghcr.io/clemenselflein/open_mower_ros:${VERSION}}"
     container_name: open_mower_ros
-    restart: unless-stopped
+    restart: on-failure
     # xbot_monitoring's app-facing MQTT client is hardcoded to 127.0.0.1 (not
     # configurable) - so this shares mosquitto's network namespace rather than getting
     # its own, purely so "localhost" resolves to the same place mosquitto is listening.
@@ -114,7 +114,7 @@ services:
   mosquitto:
     image: eclipse-mosquitto:2
     container_name: mosquitto
-    restart: unless-stopped
+    restart: on-failure
     # 9002 is xbot_remote's teleop websocket server, in open_mower_ros - it has to be
     # published here since open_mower_ros shares this container's network namespace and
     # has no ports/network stack of its own to publish from.
@@ -128,7 +128,7 @@ services:
   openmower_app:
     image: ghcr.io/clemenselflein/openmowerapp:${LEGACY_APP_VERSION}
     container_name: openmower_app
-    restart: unless-stopped
+    restart: on-failure
     ports:
       - "8080:8080"
   app:
@@ -136,4 +136,4 @@ services:
     container_name: app
     ports:
       - 3000:3000
-    restart: unless-stopped
+    restart: on-failure
