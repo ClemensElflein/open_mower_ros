@@ -29,6 +29,7 @@ Commands:
                    Common services: mower_simulation_gui, open_mower_ros
   ps              Show container status (check mower_simulation_gui is
                    "healthy" if the stack seems stuck).
+  shell           Open a bash shell in the open_mower_ros container.
   reset           Discard local map/param edits, restoring the checked-in
                    starter map and config.
   clean           DESTRUCTIVE: wipe all simulation state (ROS home, logs,
@@ -163,6 +164,10 @@ case "$cmd" in
     ps|status)
         require_docker
         docker compose ps "$@"
+        ;;
+    shell)
+        require_docker
+        docker compose exec -it open_mower_ros bash
         ;;
     reset)
         git checkout -- data/ros/map.json data/params/custom_params.yaml
