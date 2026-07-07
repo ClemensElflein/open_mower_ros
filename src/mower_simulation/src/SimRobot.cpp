@@ -135,10 +135,8 @@ void SimRobot::SetControlTwist(double linear, double angular) {
 void SimRobot::SetJoyOverride(bool enabled) {
   std::lock_guard<std::mutex> lk{state_mutex_};
   joy_override_ = enabled;
-  if (!enabled) {
-    vx_ = 0.0;
-    vr_ = 0.0;
-  }
+  vx_ = 0.0;
+  vr_ = 0.0;
 }
 
 void SimRobot::OnJoyVel(const geometry_msgs::Twist::ConstPtr& msg) {
