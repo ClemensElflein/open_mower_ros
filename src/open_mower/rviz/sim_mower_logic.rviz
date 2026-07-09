@@ -10,6 +10,8 @@ Panels:
         - /TF1
         - /Path1
         - /Path2
+        - /Odometry2
+        - /Odometry2/Shape1
       Splitter Ratio: 0.5
     Tree Height: 803
   - Class: rviz/Selection
@@ -209,7 +211,7 @@ Visualization Manager:
       Marker Topic: /slic3r_coverage_planner/path_marker_array
       Name: MarkerArray
       Namespaces:
-        mower_map_service_lines: true
+        {}
       Queue Size: 100
       Value: true
     - Alpha: 1
@@ -318,6 +320,41 @@ Visualization Manager:
         {}
       Queue Size: 100
       Value: true
+    - Angle Tolerance: 0.10000000149011612
+      Class: rviz/Odometry
+      Covariance:
+        Orientation:
+          Alpha: 0.5
+          Color: 255; 255; 127
+          Color Style: Unique
+          Frame: Local
+          Offset: 1
+          Scale: 1
+          Value: true
+        Position:
+          Alpha: 0.30000001192092896
+          Color: 204; 51; 204
+          Scale: 1
+          Value: true
+        Value: true
+      Enabled: true
+      Keep: 100
+      Name: Odometry
+      Position Tolerance: 0.10000000149011612
+      Queue Size: 10
+      Shape:
+        Alpha: 1
+        Axes Length: 1
+        Axes Radius: 0.10000000149011612
+        Color: 85; 170; 255
+        Head Length: 0.30000001192092896
+        Head Radius: 0.10000000149011612
+        Shaft Length: 1
+        Shaft Radius: 0.05000000074505806
+        Value: Arrow
+      Topic: /mower_simulation/odom_out
+      Unreliable: false
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -355,10 +392,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Scale: -22.83734893798828
+      Scale: -24.645402908325195
       Target Frame: <Fixed Frame>
-      X: -3.886382579803467
-      Y: -4.597647190093994
+      X: -4.030423641204834
+      Y: 0.43581423163414
     Saved:
       - Angle: 0
         Class: rviz/TopDownOrtho
@@ -390,5 +427,5 @@ Window Geometry:
   Views:
     collapsed: false
   Width: 1920
-  X: 0
-  Y: 0
+  X: -1
+  Y: -20
