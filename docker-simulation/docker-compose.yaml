@@ -59,6 +59,9 @@ services:
     # rviz land back in the checked-out file and can be committed, instead of being lost
     # inside the container image on the next rebuild.
     volumes:
+      - ./data/ros:/data/ros
+      - ./data/recordings:/data/recordings
+      - ./data/params:/data/params
       - ../src/open_mower/rviz/sim_mower_logic.rviz:/opt/open_mower_ros/src/open_mower/rviz/sim_mower_logic.rviz
     # GPU passthrough is optional. Uncomment ONE of the blocks below if the host has a
     # GPU; the container auto-detects and falls back to software rendering if absent.

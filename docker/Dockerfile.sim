@@ -18,6 +18,7 @@ RUN apt-get update && apt-get install --no-install-recommends --yes \
         openbox \
         libgl1-mesa-dri \
         supervisor \
+        ros-noetic-plotjuggler-ros \
     && rm -rf /var/lib/apt/lists/* \
     && [ -e /usr/share/novnc/index.html ] || ln -s /usr/share/novnc/vnc.html /usr/share/novnc/index.html
 

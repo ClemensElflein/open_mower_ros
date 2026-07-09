@@ -83,9 +83,6 @@ class SimRobot {
   };
   SimControlState GetSimControlState();
 
-  bool OnSetPose(xbot_positioning::SetPoseSrvRequest& req, xbot_positioning::SetPoseSrvResponse& res);
-  bool OnSetGpsState(xbot_positioning::GPSControlSrvRequest& req, xbot_positioning::GPSControlSrvResponse& res);
-
  private:
   // 7 cells
   static constexpr double BATTERY_VOLTS_MIN = 3.2 * 7;
@@ -159,8 +156,6 @@ class SimRobot {
   std::normal_distribution<double> linear_speed_noise{0.0, 0.02};
   std::normal_distribution<double> angular_speed_noise{0.0, 0.02};
 
-  ros::ServiceServer gps_service_;
-  ros::ServiceServer pose_service_;
   ros::Publisher odometry_pub_{};
   ros::Publisher xbot_absolute_pose_pub_{};
   ros::Subscriber joy_vel_sub_{};

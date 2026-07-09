@@ -29,26 +29,13 @@ void SimRobot::Start() {
     return;
   }
   started_ = true;
-  gps_service_ = nh_.advertiseService("/xbot_positioning/set_gps_state", &SimRobot::OnSetGpsState, this);
-  pose_service_ = nh_.advertiseService("/xbot_positioning/set_robot_pose", &SimRobot::OnSetPose, this);
   odometry_pub_ = nh_.advertise<nav_msgs::Odometry>("odom_out", 50);
   xbot_absolute_pose_pub_ = nh_.advertise<xbot_msgs::AbsolutePose>("xb_pose_out", 50);
   joy_vel_sub_ = nh_.subscribe("/joy_vel", 1, &SimRobot::OnJoyVel, this, ros::TransportHints().tcpNoDelay(true));
   // Keep in sync with DiffDriveService::tick_schedule_
   timer_ = nh_.createTimer(ros::Duration(0.02), &SimRobot::SimulationStep, this);
   timer_.start();
-}
-
-bool SimRobot::OnSetGpsState(xbot_positioning::GPSControlSrvRequest& req,
-                             xbot_positioning::GPSControlSrvResponse& res) {
-  std::lock_guard<std::mutex> lk{state_mutex_};
-  gps_good_ = req.gps_enabled;
-  return true;
-}
-
-bool SimRobot::OnSetPose(xbot_positioning::SetPoseSrvRequest& req, xbot_positioning::SetPoseSrvResponse& res) {
-  // Ignored, because calling this service won't move a real mower either, it just improves the estimation.
-  return true;
+  gps_good_ = true;
 }
 
 void SimRobot::GetTwist(double& vx, double& vr) {
