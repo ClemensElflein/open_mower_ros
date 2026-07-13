@@ -114,8 +114,10 @@ Behavior* IdleBehavior::execute() {
     const bool currently_docked = last_charge_v > 5.0;
     if (currently_docked) {
       if (!pose_synced_to_dock) {
-        ROS_INFO_STREAM("Currently inside the docking station, we set the robot's pose to the docks pose.");
-        setRobotPose(docking_pose_stamped.pose);
+        if (!PerimeterUndockingBehavior::configured(config)) {
+          ROS_INFO_STREAM("Currently inside the docking station, we set the robot's pose to the docks pose.");
+          setRobotPose(docking_pose_stamped.pose);
+        }
         pose_synced_to_dock = true;
       }
     } else {
