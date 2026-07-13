@@ -232,6 +232,7 @@ Behavior* PerimeterDockingBehavior::arrived() {
     chargeSeen++;
     if (chargeSeen >= 2) {
       chargeSeen = 0;
+      ROS_INFO("Reached docking station after travelling %.f meters", travelled);
       return &IdleBehavior::DOCKED_INSTANCE;
     }
   } else {
@@ -267,21 +268,21 @@ Behavior* PerimeterFollowBehavior::execute() {
       continue;
     }
     /* Turn into direction of perimeter */
-    if (innerSignal() < 0) {
-      /* Inner coil is outside */
-      vel.linear.x = 0;
-      vel.angular.z = ANGULAR_SPEED * direction;
-      if (state != FOLLOW_STATE_TURN_IN) {
-        tries = 240;
-        state = FOLLOW_STATE_TURN_IN;
-      }
-    } else if (outerSignal() > 0) {
+    if (outerSignal() > 0) {
       /* Outer coil is inside */
       vel.linear.x = 0;
       vel.angular.z = -ANGULAR_SPEED * direction;
       if (state != FOLLOW_STATE_TURN_OUT) {
         tries = 240;
         state = FOLLOW_STATE_TURN_OUT;
+      }
+    } else if (innerSignal() < 0) {
+      /* Inner coil is outside */
+      vel.linear.x=0;
+      vel.angular.z=ANGULAR_SPEED*direction;
+      if (state!=FOLLOW_STATE_TURN_IN) {
+        tries=240;
+        state=FOLLOW_STATE_TURN_IN;
       }
     } else {
       vel.linear.x = SEARCH_SPEED;
