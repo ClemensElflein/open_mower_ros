@@ -25,7 +25,7 @@ class MowerService : public MowerServiceBase {
 
  protected:
   bool OnStart() override;
-  void OnMowerEnabledChanged(const uint8_t& new_value) override;
+  void OnMowerSpeedChanged(const float& new_value) override;
 };
 
 #endif  // MOWER_SERVICE_HPP
