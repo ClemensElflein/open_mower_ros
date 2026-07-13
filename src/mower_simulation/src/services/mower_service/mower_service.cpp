@@ -26,6 +26,6 @@ void MowerService::tick() {
   CommitTransaction();
 }
 
-void MowerService::OnMowerEnabledChanged(const uint8_t& new_value) {
-  mower_running_ = new_value;
+void MowerService::OnMowerSpeedChanged(const float& new_value) {
+  mower_running_ = new_value != 0.0f;
 }
