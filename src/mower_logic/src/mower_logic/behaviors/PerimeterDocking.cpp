@@ -278,11 +278,11 @@ Behavior* PerimeterFollowBehavior::execute() {
       }
     } else if (innerSignal() < 0) {
       /* Inner coil is outside */
-      vel.linear.x=0;
-      vel.angular.z=ANGULAR_SPEED*direction;
-      if (state!=FOLLOW_STATE_TURN_IN) {
-        tries=240;
-        state=FOLLOW_STATE_TURN_IN;
+      vel.linear.x = 0;
+      vel.angular.z = ANGULAR_SPEED * direction;
+      if (state != FOLLOW_STATE_TURN_IN) {
+        tries = 240;
+        state = FOLLOW_STATE_TURN_IN;
       }
     } else {
       vel.linear.x = SEARCH_SPEED;
