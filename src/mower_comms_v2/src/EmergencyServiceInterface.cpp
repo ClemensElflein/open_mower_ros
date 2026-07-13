@@ -69,4 +69,18 @@ void EmergencyServiceInterface::PublishEmergencyState() {
   emergency.active_emergency = reason != 0;
   emergency.reason = ReasonToString(reason);
   publisher_.publish(emergency);
+
+  // Also check, if there was a change and log
+  {
+    static uint16_t old_reasons = 0;
+    if (old_reasons != reason) {
+      if (reason == 0) {
+        ROS_INFO_STREAM("Emergency cleared");
+      } else {
+        ROS_WARN_STREAM("Emergency reason changed from: '" << ReasonToString(old_reasons) << "' to: '"
+                                                           << emergency.reason << "'");
+      }
+      old_reasons = reason;
+    }
+  }
 }
