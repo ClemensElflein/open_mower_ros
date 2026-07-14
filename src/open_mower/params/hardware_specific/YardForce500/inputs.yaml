@@ -28,6 +28,10 @@ gpio:
       delay: 10
 
 yf_cover_ui:
+  - name: CoverUI Protocol
+    id: protocol
+    value: om # "om" = OpenMower COBS based, "oem" = OEM (not yet implemented, UART deactivated)
+
   # ---- Emergency channels ----
   # These directly reflect the Emergency_state bitmask received from the CoverUI panel.
   # stop1 / stop2 are the STOP buttons on the CoverUI panel.
