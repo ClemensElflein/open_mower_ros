@@ -113,7 +113,7 @@ ros::Time last_v_battery_check;
 double max_v_battery_seen = 0.0;
 
 ros::Time last_rain_check;
-bool rain_detected = true;
+std::atomic<bool> rain_detected(true);
 ros::Time rain_resume;
 
 /**

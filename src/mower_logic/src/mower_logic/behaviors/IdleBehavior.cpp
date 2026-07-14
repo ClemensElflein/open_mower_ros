@@ -28,6 +28,7 @@ extern void setGPS(bool enabled);
 extern void setRobotPose(geometry_msgs::Pose& pose);
 extern void registerActions(std::string prefix, const std::vector<xbot_msgs::ActionInfo>& actions);
 extern ros::Time rain_resume;
+extern std::atomic<bool> rain_detected;
 
 extern ros::ServiceClient dockingPointClient;
 extern mower_msgs::Status getStatus();
@@ -87,6 +88,20 @@ Behavior* IdleBehavior::execute() {
     const bool rain_delay = last_config.rain_mode == 2 && ros::Time::now() < rain_resume;
     if (rain_delay) {
       ROS_INFO_STREAM_THROTTLE(300, "Rain delay: " << int((rain_resume - ros::Time::now()).toSec() / 60) << " minutes");
+    }
+
+    if (rain_detected && last_config.rain_mode) {
+      /* mower_logic would stop mowing immediately => disable "Start" button. */
+      if (actions[0].enabled) {
+        actions[0].enabled = false;
+        registerActions("mower_logic:idle", actions);
+      }
+    } else {
+      /* Dry conditions again => enable "Start" button */
+      if (!(actions[0].enabled)) {
+        actions[0].enabled = true;
+        registerActions("mower_logic:idle", actions);
+      }
     }
 
     // Use first valid sensor
@@ -162,8 +177,9 @@ void IdleBehavior::enter() {
   // disable it, so that we don't start mowing immediately
   manual_start_mowing = false;
 
-  for (auto& a : actions) {
-    a.enabled = true;
+  actions[0].enabled = rain_detected && getConfig().rain_mode;
+  for (int i = actions.size(); --i > 0;) {
+    actions[i].enabled = true;
   }
   registerActions("mower_logic:idle", actions);
 }
