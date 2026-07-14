@@ -91,13 +91,13 @@ Behavior* IdleBehavior::execute() {
     if (rain_detected && last_config.rain_mode) {
       /* mower_logic would stop mowing immediately => disable "Start" button. */
       if (actions[0].enabled) {
-        actions[0].enabled=false;
+        actions[0].enabled = false;
         registerActions("mower_logic:idle", actions);
       }
     } else {
       /* Dry conditions again => enable "Start" button */
       if (!(actions[0].enabled)) {
-        actions[0].enabled=true;
+        actions[0].enabled = true;
         registerActions("mower_logic:idle", actions);
       }
     }
@@ -153,8 +153,8 @@ void IdleBehavior::enter() {
   // disable it, so that we don't start mowing immediately
   manual_start_mowing = false;
 
-  actions[0].enabled=rain_detected && getConfig().rain_mode;
-  for (int i=actions.size(); --i>0; ) {
+  actions[0].enabled = rain_detected && getConfig().rain_mode;
+  for (int i = actions.size(); --i > 0;) {
     actions[i].enabled = true;
   }
   registerActions("mower_logic:idle", actions);
