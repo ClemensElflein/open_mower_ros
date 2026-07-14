@@ -337,8 +337,16 @@ bool planPath(slic3r_coverage_planner::PlanPathRequest &req, slic3r_coverage_pla
         }
         hole_poly.make_clockwise();
 
-        if (intersection(outline_poly, hole_poly).empty()) continue;
-        expoly.holes.push_back(hole_poly);
+        // Clip the hole to the outline instead of using it as-is. An obstacle that only
+        // partially overlaps the area (or extends beyond it) can otherwise own the extreme
+        // vertex of the whole path set, which makes Clipper's offset engine (ClipperOffset::
+        // FixOrientations) flip the orientation of every path, including the outline itself.
+        // That makes the planner fill inside the obstacle instead of inside the area.
+        Polygons clipped_holes = intersection(outline_poly, hole_poly);
+        for (auto &clipped_hole: clipped_holes) {
+            clipped_hole.make_clockwise();
+            expoly.holes.push_back(clipped_hole);
+        }
     }
 
 

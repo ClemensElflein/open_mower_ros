@@ -1,0 +1,43 @@
+# GUI/simulation image: layers a virtual desktop (Xvfb + openbox), a VNC server, and
+# noVNC (browser access) on top of open_mower_ros, so the mower_simulation node and its
+# rviz config always match whatever is running in the open_mower_ros container - either
+# a published release (BASE_IMAGE pointing at ghcr.io) or a local build (BASE_IMAGE
+# pointing at the image produced by the build_from_source compose profile).
+ARG BASE_IMAGE=ghcr.io/clemenselflein/open_mower_ros:edge
+FROM ${BASE_IMAGE}
+
+USER root
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install --no-install-recommends --yes \
+        ros-noetic-rviz \
+        xvfb \
+        x11vnc \
+        novnc \
+        websockify \
+        openbox \
+        libgl1-mesa-dri \
+        supervisor \
+        ros-noetic-plotjuggler-ros \
+    && rm -rf /var/lib/apt/lists/* \
+    && [ -e /usr/share/novnc/index.html ] || ln -s /usr/share/novnc/vnc.html /usr/share/novnc/index.html
+
+COPY --link docker-simulation/assets/supervisord.conf /etc/supervisor/conf.d/simulation.conf
+COPY --link docker-simulation/assets/mower_simulation_gui.launch /opt/mower_simulation_gui.launch
+COPY --link docker-simulation/assets/entrypoint-sim.sh /entrypoint-sim.sh
+RUN chmod +x /entrypoint-sim.sh
+
+ENV DISPLAY=:99 \
+    DISPLAY_RESOLUTION=1280x800x24 \
+    NOVNC_PORT=6080 \
+    VNC_PORT=5900 \
+    DISABLE_ROS1_EOL_WARNINGS=1
+
+# Healthy once the mower_simulation node (the "board") is actually registered with the
+# ROS master, since open_mower_ros depends on this being true before it starts.
+HEALTHCHECK --interval=5s --start-period=45s --timeout=5s --retries=30 \
+    CMD bash -lc 'source /opt/ros/$ROS_DISTRO/setup.bash && rosnode list 2>/dev/null | grep -q "/mower_simulation"'
+
+USER openmower
+
+ENTRYPOINT ["/entrypoint-sim.sh"]

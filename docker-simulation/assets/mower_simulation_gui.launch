@@ -1,0 +1,48 @@
+<!--
+    Runs ONLY the mower_simulation node (emulates the low-level board over the
+    xbot-service protocol, same as the real hardware would) plus rviz for visualization.
+    No mower_logic, no navigation, no planner - those run for real in the open_mower_ros
+    container, unmodified, exactly like they would against a real mower.
+
+    Deliberately does NOT include mower_simulation's own _mower_simulation.launch: that
+    file remaps mower_simulation's ~xb_pose_out straight to xbot_positioning/xb_pose,
+    which is meant to stand in for a real xbot_positioning EKF when none is running (as
+    in the package's other standalone sim launch files). Our open_mower_ros container
+    runs the real, unmodified open_mower.launch, which starts a real xbot_positioning -
+    its EKF output is remapped to that exact same topic in _localization.launch. Reusing
+    the stock remap here would give that topic two independent publishers (the real
+    filtered estimate and the simulator's raw, noise-jittered dead-reckoned pose),
+    interleaving unpredictably on every subscriber callback - the simulated mower's
+    "jumpy" pose during things like outline recording. The simulator's pose already
+    reaches xbot_positioning through the real path (its GPS service -> mower_comms_v2 ->
+    /ll/position/gps -> xbot_positioning's xb_pose_in -> EKF), so no remap is needed here.
+
+    Same reasoning applies to the map->base_link transform: mower_simulation broadcasts
+    it directly by default (for its standalone launch files), but xbot_positioning
+    broadcasts that exact same transform from its own EKF estimate here too. Two
+    independent publishers on one transform race each other on every TF lookup, which is
+    what made rviz/costmap/move_base see a "clashing"/jittery pose. publish_tf:=false
+    leaves that transform solely to the real xbot_positioning.
+-->
+<launch>
+    <node pkg="mower_simulation" type="mower_simulation" name="mower_simulation" required="true">
+        <param name="publish_tf" value="false"/>
+    </node>
+
+    <!-- Republishes /ll/position/gps (the raw simulated GPS fix, xbot_msgs/AbsolutePose)
+         as /ll/position/gps/converted (geometry_msgs/PoseWithCovarianceStamped, frame
+         "map") so it can be added as an RViz Pose display - useful for comparing the
+         raw GPS pose against xbot_positioning's fused estimate (the map->base_link tf).
+         use_motion_vector_orientation is needed because the raw GPS fix doesn't carry a
+         meaningful orientation of its own (orientation_valid is never set) - the motion
+         vector's direction (course over ground) is the only usable heading-like signal
+         it has, and is exactly what xbot_positioning's own orientation correction uses. -->
+    <node name="gps_pose_converter" pkg="mower_utils" type="xbot_pose_converter">
+        <param name="topic" value="/ll/position/gps"/>
+        <param name="frame" value="map"/>
+        <param name="use_motion_vector_orientation" value="true"/>
+    </node>
+
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find open_mower)/rviz/sim_mower_logic.rviz"
+          required="true"/>
+</launch>

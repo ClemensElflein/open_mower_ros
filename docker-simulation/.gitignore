@@ -1,0 +1,11 @@
+# ROS_HOME clutter (logs, rospack cache, position/event history, checkpoints) - only
+# map.json (the starter mowing area + docking point) is worth keeping.
+data/ros/*
+!data/ros/map.json
+
+data/recordings/
+
+# Editor swap files
+*.swp
+*.swo
+*~

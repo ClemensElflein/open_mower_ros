@@ -26,6 +26,7 @@
 
 #include "../../../services/service_ids.h"
 #include "SimRobot.h"
+#include "SimRpc.h"
 #include "dynamic_reconfigure/server.h"
 #include "mower_map/GetDockingPointSrv.h"
 #include "mower_simulation/MowerSimulationConfig.h"
@@ -66,8 +67,20 @@ int main(int argc, char** argv) {
   SimRobot robot{paramNh};
 
   // Move the robot to the docking station.
-  // TODO: Use a better way to make sure that the docking position is loaded.
+  // mower_map_service can live in another, independently-starting container and may take longer
+  // to come up than the retry loop below alone can cover (slow machine, cold image pull, ...) -
+  // wait for the service itself first. Without this, a slow/cold boot could exhaust the retry
+  // loop before mower_map_service ever answers, leaving the robot stuck at the origin for the
+  // whole session while mower_logic (which waits far longer for the same service) later seeds
+  // the EKF with the real dock pose - a position/orientation mismatch between ground truth and
+  // what the EKF believes.
+  ROS_INFO("Waiting for mower_map_service...");
+  if (!docking_point_client.waitForExistence(ros::Duration(300.0))) {
+    ROS_WARN("mower_map_service did not come up within 5 minutes, robot will start at the origin.");
+  }
+
   mower_map::GetDockingPointSrv get_docking_point_srv;
+  bool docked = false;
   for (int i = 0; i < 20; ++i) {
     if (docking_point_client.call(get_docking_point_srv)) {
       const auto& docking_pose = get_docking_point_srv.response.docking_pose;
@@ -79,10 +92,14 @@ int main(int argc, char** argv) {
         m.getRPY(roll, pitch, yaw);
         robot.SetDockingPose(docking_pose.position.x, docking_pose.position.y, yaw);
         robot.SetPosition(docking_pose.position.x, docking_pose.position.y, yaw);
+        docked = true;
         break;
       }
     }
     sleep(1);
+  }
+  if (!docked) {
+    ROS_WARN("No docking point configured after waiting 20s, robot will start at the origin.");
   }
 
   EmergencyService emergency_service{xbot::service_ids::EMERGENCY, robot};
@@ -98,6 +115,10 @@ int main(int argc, char** argv) {
   imu_service.start();
   power_service.start();
   gps_service.start();
+
+  // ROS-layer RPCs + MQTT state stream for driving the sim into test states from the app.
+  SimRpc sim_rpc{n, robot};
+  sim_rpc.Start();
 
   robot.Start();
 

@@ -42,15 +42,18 @@ class EventHistory {
   // Returns today's events as a JSON array of objects (parsed on read).
   json getAll() const {
     std::lock_guard<std::mutex> lk(mutex_);
+    if (current_date_ != todayString()) return json::array();
     return parseBuffer(today_buffer_);
   }
 
   // Returns events for the given date as a JSON array of objects.
-  // If date matches today or is empty, served from memory.
+  // If date matches today or is empty, served from memory (empty if day rolled over).
   // Otherwise read fresh from disk. Missing file → empty array.
   json getAll(const std::string& date) const {
     std::lock_guard<std::mutex> lk(mutex_);
-    if (date.empty() || date == current_date_) {
+    const std::string today = todayString();
+    if (date.empty() || date == today) {
+      if (current_date_ != today) return json::array();
       return parseBuffer(today_buffer_);
     }
     return parseBuffer(readLines(base_dir_ + "/" + date + ".jsonl"));
@@ -106,7 +109,7 @@ class EventHistory {
     for (const auto& entry : std::filesystem::directory_iterator(base_dir_, ec)) {
       if (!entry.is_regular_file()) continue;
       const std::string name = entry.path().filename().string();
-      if (name.size() != 13 || name.substr(8) != ".jsonl") continue;
+      if (name.size() != 14 || name.substr(8) != ".jsonl") continue;
       dates.push_back(name.substr(0, 8));
     }
     std::sort(dates.begin(), dates.end(), std::greater<std::string>());

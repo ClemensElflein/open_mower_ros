@@ -4,7 +4,7 @@ ll:
       wheel_distance_m: 0.325
       ticks_per_m: 1964.0
     power:
-      battery_full_voltage: 28.5
+      battery_full_voltage: 27.0
       battery_empty_voltage: 24.0
       battery_critical_voltage: 23.0
       battery_critical_high_voltage: 29.0
