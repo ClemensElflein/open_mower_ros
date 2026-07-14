@@ -1,7 +1,7 @@
 gpio:
   - name: Front left wheel lift
     line: GPIO10
-    active: low
+    active: high
     redundancy_group: left_lift
     emergency:
       reason: lift
@@ -9,7 +9,7 @@ gpio:
 
   - name: Front left wheel lift 2
     line: GPIO5
-    active: low
+    active: high
     redundancy_group: left_lift
     emergency:
       reason: lift
@@ -17,7 +17,7 @@ gpio:
 
   - name: Front right wheel lift
     line: GPIO11
-    active: low
+    active: high
     redundancy_group: right_lift
     emergency:
       reason: lift
@@ -25,7 +25,7 @@ gpio:
 
   - name: Front right wheel lift 2
     line: GPIO1
-    active: low
+    active: high
     redundancy_group: right_lift
     emergency:
       reason: lift
@@ -33,14 +33,14 @@ gpio:
 
   - name: Top stop button 1
     line: GPIO12
-    active: low
+    active: high
     emergency:
       reason: stop
       delay: 10
 
   - name: Top stop button 2
     line: GPIO13
-    active: low
+    active: high
     emergency:
       reason: stop
       delay: 10

@@ -29,14 +29,14 @@ gpio:
 
   - name: Top stop button 1
     line: GPIO12
-    active: low
+    active: high
     emergency:
       reason: stop
       delay: 10
 
   - name: Top stop button 2
     line: GPIO13
-    active: low
+    active: high
     emergency:
       reason: stop
       delay: 10
