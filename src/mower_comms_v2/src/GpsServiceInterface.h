@@ -4,7 +4,7 @@
 
 #ifndef GPSSERVICEINTERFACE_H
 #define GPSSERVICEINTERFACE_H
-#include <ros/publisher.h>
+#include <ros/ros.h>
 #include <xbot_msgs/AbsolutePose.h>
 
 #include <GpsServiceInterfaceBase.hpp>
@@ -12,10 +12,16 @@
 class GpsServiceInterface : public GpsServiceInterfaceBase {
  public:
   GpsServiceInterface(uint16_t service_id, const xbot::serviceif::Context& ctx, const ros::Publisher& imu_publisher,
-                      const ros::Publisher& nmea_publisher, double datum_lat, double datum_long, double datum_height,
-                      uint32_t baud_rate, const std::string& protocol, uint8_t port_index, bool absolute_coords);
+                      const ros::Publisher& nmea_publisher, const ros::NodeHandle& param_nh);
 
   bool OnConfigurationRequested(uint16_t service_id) override;
+
+  /**
+   * Exit code for missing required parameters (0 = parameters valid).
+   */
+  int GetParamError() const {
+    return param_error_;
+  }
 
  protected:
   void OnPositionChanged(const double* new_value, uint32_t length) override;
@@ -33,9 +39,10 @@ class GpsServiceInterface : public GpsServiceInterfaceBase {
   const ros::Publisher& nmea_publisher_;
 
   std::string protocol_;
-  uint32_t baud_rate_;
-  uint8_t port_index_;
-  bool absolute_coords_;
+  uint32_t baud_rate_ = 0;
+  uint8_t port_index_ = 0;
+  bool absolute_coords_ = true;
+  int param_error_ = 0;
 
   xbot_msgs::AbsolutePose pose_msg_{};
   double datum_e_, datum_n_, datum_u_;

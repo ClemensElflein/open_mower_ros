@@ -5,7 +5,7 @@
 #ifndef IMUSERVICEINTERFACE_H
 #define IMUSERVICEINTERFACE_H
 
-#include <ros/publisher.h>
+#include <ros/ros.h>
 #include <sensor_msgs/Imu.h>
 
 #include <ImuServiceInterfaceBase.hpp>
@@ -13,8 +13,10 @@
 class ImuServiceInterface : public ImuServiceInterfaceBase {
  public:
   ImuServiceInterface(uint16_t service_id, const xbot::serviceif::Context& ctx, const ros::Publisher& imu_publisher,
-                      const std::string& axis_config)
-      : ImuServiceInterfaceBase(service_id, ctx), imu_publisher_(imu_publisher), axis_config_(axis_config) {
+                      const ros::NodeHandle& param_nh)
+      : ImuServiceInterfaceBase(service_id, ctx), imu_publisher_(imu_publisher) {
+    param_nh.getParam("services/imu/axis_config", axis_config_);
+    ROS_INFO_STREAM("IMU axis config: " << axis_config_);
   }
 
   bool OnConfigurationRequested(uint16_t service_id) override;

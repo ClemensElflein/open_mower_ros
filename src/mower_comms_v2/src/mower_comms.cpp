@@ -148,39 +148,9 @@ int main(int argc, char** argv) {
   actual_twist_pub = n.advertise<geometry_msgs::TwistStamped>("ll/diff_drive/measured_twist", 1);
   status_left_esc_pub = n.advertise<mower_msgs::ESCStatus>("ll/diff_drive/left_esc_status", 1);
   status_right_esc_pub = n.advertise<mower_msgs::ESCStatus>("ll/diff_drive/right_esc_status", 1);
-  double wheel_ticks_per_m = 0.0;
-  double wheel_distance_m = 0.0;
-  if (!paramNh.getParam("services/diff_drive/ticks_per_m", wheel_ticks_per_m)) {
-    ROS_ERROR("Need to provide param services/diff_drive/ticks_per_m");
-    return 1;
-  }
-  if (!paramNh.getParam("services/diff_drive/wheel_distance_m", wheel_distance_m)) {
-    ROS_ERROR("Need to provide param services/diff_drive/wheel_distance_m");
-    return 1;
-  }
-  ROS_INFO_STREAM("Wheel ticks [1/m]: " << wheel_ticks_per_m);
-  ROS_INFO_STREAM("Wheel distance [m]: " << wheel_distance_m);
-
-  int baud_rate = 0;
-  paramNh.getParam("services/gps/baud_rate", baud_rate);
-
-  std::string protocol;
-  paramNh.getParam("services/gps/protocol", protocol);
-
-  int gps_port_index = 0;
-  paramNh.getParam("services/gps/port_index", gps_port_index);
-
-  if (baud_rate == 0 || protocol.empty()) {
-    ROS_ERROR("Need to specify GPS protocol and baud rate!");
-    return 1;
-  }
-
-  ROS_INFO_STREAM("GPS protocol: " << protocol << ", baud rate: " << baud_rate
-                                   << ", gps port index:" << gps_port_index);
-
   diff_drive_service = std::make_unique<DiffDriveServiceInterface>(xbot::service_ids::DIFF_DRIVE, ctx, actual_twist_pub,
-                                                                   status_left_esc_pub, status_right_esc_pub,
-                                                                   wheel_ticks_per_m, wheel_distance_m);
+                                                                   status_left_esc_pub, status_right_esc_pub, paramNh);
+  if (int err = diff_drive_service->GetParamError()) return err;
   diff_drive_service->Start();
 
   // Mower service
@@ -189,60 +159,14 @@ int main(int argc, char** argv) {
   mower_service->Start();
 
   // IMU service
-  std::string imu_axis_config;
-  paramNh.getParam("services/imu/axis_config", imu_axis_config);
-  ROS_INFO_STREAM("IMU axis config: " << imu_axis_config);
   sensor_imu_pub = n.advertise<sensor_msgs::Imu>("ll/imu/data_raw", 1);
-  imu_service = std::make_unique<ImuServiceInterface>(xbot::service_ids::IMU, ctx, sensor_imu_pub, imu_axis_config);
+  imu_service = std::make_unique<ImuServiceInterface>(xbot::service_ids::IMU, ctx, sensor_imu_pub, paramNh);
   imu_service->Start();
 
   // Power service
   power_pub = n.advertise<mower_msgs::Power>("ll/power", 1);
-
-  // Mainly for monitoring and informational purposes
-  float battery_full_voltage;
-  float battery_empty_voltage;
-  float battery_critical_voltage;
-  float battery_critical_high_voltage;
-  if (!paramNh.getParam("services/power/battery_full_voltage", battery_full_voltage)) {
-    ROS_ERROR("Need to set param: services/power/battery_full_voltage");
-    return 1;
-  }
-  if (!paramNh.getParam("services/power/battery_empty_voltage", battery_empty_voltage)) {
-    ROS_ERROR("Need to set param: services/power/battery_empty_voltage");
-    return 1;
-  }
-  if (!paramNh.getParam("services/power/battery_critical_voltage", battery_critical_voltage)) {
-    ROS_ERROR("Need to set param: services/power/battery_critical_voltage");
-    return 1;
-  }
-  if (!paramNh.getParam("services/power/battery_critical_high_voltage", battery_critical_high_voltage)) {
-    ROS_ERROR("Need to set param: services/power/battery_critical_high_voltage");
-    return 1;
-  }
-
-  // Optional charger configuration
-  float charge_voltage = -1.0f;
-  float charge_current = -1.0f;
-  float charge_termination_current = -1.0f;
-  float charge_precharge_current = -1.0f;
-  int charge_recharge_voltage = -1;
-  paramNh.getParam("services/power/charge_voltage", charge_voltage);
-  paramNh.getParam("services/power/charge_current", charge_current);
-  paramNh.getParam("services/power/charge_termination_current", charge_termination_current);
-  paramNh.getParam("services/power/charge_pre_charge_current", charge_precharge_current);
-  paramNh.getParam("services/power/charge_re_charge_voltage", charge_recharge_voltage);
-
-  // Optional settings also required for charger DPM (dynamic power management)
-  float system_current = -1.0f;  // Max. current allowed to be drawn from wall AC/DC
-  paramNh.getParam("services/power/system_current", system_current);
-  bool override_hw_charge_current_limit = false;
-  paramNh.getParam("services/power/dangerously_override_hardware_charge_current_limit",
-                   override_hw_charge_current_limit);
-  power_service = std::make_unique<PowerServiceInterface>(
-      xbot::service_ids::POWER, ctx, power_pub, battery_full_voltage, battery_empty_voltage, battery_critical_voltage,
-      battery_critical_high_voltage, charge_voltage, charge_current, charge_termination_current,
-      charge_precharge_current, charge_recharge_voltage, system_current, override_hw_charge_current_limit);
+  power_service = std::make_unique<PowerServiceInterface>(xbot::service_ids::POWER, ctx, power_pub, paramNh);
+  if (int err = power_service->GetParamError()) return err;
   power_service->Start();
 
   // BMS service
@@ -251,31 +175,15 @@ int main(int argc, char** argv) {
   bms_service->Start();
 
   // GPS service
-  double datum_lat, datum_long, datum_height;
-  bool has_datum = true;
-  has_datum &= paramNh.getParam("services/gps/datum_lat", datum_lat);
-  has_datum &= paramNh.getParam("services/gps/datum_long", datum_long);
-  has_datum &= paramNh.getParam("services/gps/datum_height", datum_height);
-  if (!has_datum) {
-    ROS_ERROR_STREAM("You need to provide datum_lat and datum_long and datum_height in order to use the absolute mode");
-    return 2;
-  }
-  ROS_INFO_STREAM("Datum: " << datum_lat << ", " << datum_long << ", " << datum_height);
   gps_position_pub = n.advertise<xbot_msgs::AbsolutePose>("ll/position/gps", 1);
   nmea_pub = n.advertise<nmea_msgs::Sentence>("ll/position/gps/nmea", 1);
-  bool absolute_coords = true;
-  paramNh.getParam("services/gps/absolute_coords", absolute_coords);
-  gps_service = std::make_unique<GpsServiceInterface>(xbot::service_ids::GPS, ctx, gps_position_pub, nmea_pub,
-                                                      datum_lat, datum_long, datum_height, baud_rate, protocol,
-                                                      gps_port_index, absolute_coords);
+  gps_service = std::make_unique<GpsServiceInterface>(xbot::service_ids::GPS, ctx, gps_position_pub, nmea_pub, paramNh);
+  if (int err = gps_service->GetParamError()) return err;
   gps_service->Start();
 
   // Input service
-  {
-    std::string config_file = paramNh.param<std::string>("services/input/config_file", "");
-    input_service = std::make_unique<InputServiceInterface>(xbot::service_ids::INPUT, ctx, config_file, action_pub);
-    input_service->Start();
-  }
+  input_service = std::make_unique<InputServiceInterface>(xbot::service_ids::INPUT, ctx, paramNh, action_pub);
+  input_service->Start();
 
   // HighLevel service
   high_level_service = std::make_unique<HighLevelServiceInterface>(xbot::service_ids::HIGH_LEVEL, ctx);
