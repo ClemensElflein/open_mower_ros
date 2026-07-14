@@ -776,8 +776,8 @@ void rpc_request_callback(const std::string &payload) {
 
     // Check if the method is registered
     const std::string method = req["method"];
-    if (method.compare(0, 5, "meta.") == 0) {
-      // Silently ignore methods that are handled by the meta service.
+    if (method.compare(0, 5, "meta.") == 0 || method.compare(0, 4, "ext.") == 0) {
+      // Silently ignore methods that are handled by other services.
       return;
     }
     bool is_registered = false;
