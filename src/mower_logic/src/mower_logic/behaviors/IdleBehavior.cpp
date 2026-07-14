@@ -28,7 +28,7 @@ extern void setGPS(bool enabled);
 extern void setRobotPose(geometry_msgs::Pose& pose);
 extern void registerActions(std::string prefix, const std::vector<xbot_msgs::ActionInfo>& actions);
 extern ros::Time rain_resume;
-extern bool rain_detected;
+extern std::atomic<bool> rain_detected;
 
 extern ros::ServiceClient dockingPointClient;
 extern mower_msgs::Status getStatus();
@@ -153,8 +153,9 @@ void IdleBehavior::enter() {
   // disable it, so that we don't start mowing immediately
   manual_start_mowing = false;
 
-  for (auto& a : actions) {
-    a.enabled = true;
+  actions[0].enabled=rain_detected && getConfig().rain_mode;
+  for (int i=actions.size(); --i>0; ) {
+    actions[i].enabled = true;
   }
   registerActions("mower_logic:idle", actions);
 }
