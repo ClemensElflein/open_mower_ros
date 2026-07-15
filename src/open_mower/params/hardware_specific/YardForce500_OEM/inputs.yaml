@@ -1,42 +1,75 @@
 gpio:
   - name: Front left wheel lift
-    line: GPIO10
-    active: low
+    line: GPIO11
+    active: high
     emergency:
       reason: lift
       delay: 2500
 
   - name: Front right wheel lift
-    line: GPIO11
-    active: low
+    line: GPIO5
+    active: high
     emergency:
       reason: lift
       delay: 2500
 
   - name: Top stop button 1
     line: GPIO12
-    active: low
+    active: high
     emergency:
       reason: stop
       delay: 10
 
   - name: Top stop button 2
     line: GPIO13
-    active: low
+    active: high
     emergency:
       reason: stop
       delay: 10
 
+  - name: CoverUI play/start button
+    line: GPIO8
+    active: low
+    actions:
+      idle/short: "mower_logic:idle/start_mowing"
+      mowing/short: "mower_logic:mowing/pause"
+      paused/short: "mower_logic:mowing/continue"
+      idle/long: "mower_logic/reset_emergency"
+      mowing/long: "mower_logic/reset_emergency"
+      paused/long: "mower_logic/reset_emergency"
+      docking/long: "mower_logic/reset_emergency"
+      undocking/long: "mower_logic/reset_emergency"
+      area_recording/long: "mower_logic/reset_emergency"
+
+  - name: CoverUI Home/docking button
+    line: GPIO9
+    active: low
+    actions:
+      mowing/short: "mower_logic:mowing/abort_mowing"
+      paused/short: "mower_logic:mowing/abort_mowing"
+
 yf_cover_ui:
+  # ---- Hall Inputs Source Selector ----
+  # "om" when the hall sensors get connected to the XHST plugs of theOpenMower board
+  #      (or the robot-adapter-pinheader)
+  # "oem_idc" when the hall sensors get connected to the (non-modded) OEM CoverUI board
+  #      (and CoverUI get connected via the 16pin IDC cable to the OpenMower board)
+  - name: Hall Inputs Source Selector
+    id: hall_mux
+    value: oem_idc
+
   - name: CoverUI Protocol
     id: protocol
-    value: om # "om" = OpenMower COBS based, "oem" = OEM (not yet implemented, UART deactivated)
+    value: oem # "om" = OpenMower COBS based, "oem" = OEM (not yet implemented, UART deactivated)
 
   # ---- Emergency channels ----
   # These directly reflect the Emergency_state bitmask received from the CoverUI panel.
   # stop1 / stop2 are the STOP buttons on the CoverUI panel.
   # lift / liftx are the lift sensors reported by the CoverUI panel.
-  # Note: the GPIO inputs above may detect the same physical events via different hardware paths.
+  #
+  # Note1: the GPIO inputs above may detect the same physical events via different hardware paths.
+  # Note2: The following emergency and button definitions are orphaned protocol=om definitions,
+  #        but are kept here for reference and future protocol=oem use.
 
   - name: CoverUI stop button 1
     channel: stop1
