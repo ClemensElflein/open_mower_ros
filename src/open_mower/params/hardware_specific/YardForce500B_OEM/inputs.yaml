@@ -68,7 +68,7 @@ gpio:
 
 yf_cover_ui:
   # ---- Hall Inputs Source Selector ----
-  # "om" when the hall sensors get connected to the XHST plugs of theOpenMower board
+  # "om" when the hall sensors get connected to the XHST plugs of the OpenMower board
   #      (or the robot-adapter-pinheader)
   # "oem_idc" when the hall sensors get connected to the (non-modded) OEM CoverUI board
   #      (and CoverUI get connected via the 16pin IDC cable to the OpenMower board)
