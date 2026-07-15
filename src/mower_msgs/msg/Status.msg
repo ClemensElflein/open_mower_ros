@@ -21,4 +21,4 @@ uint8   mower_esc_status
 float32 mower_esc_temperature
 float32 mower_esc_current
 float32 mower_motor_temperature
-float32 mower_motor_rpm
+float32 mower_motor_rpm  # signed: sign = spin direction, magnitude = rpm
