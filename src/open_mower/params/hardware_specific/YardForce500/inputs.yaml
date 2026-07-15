@@ -54,13 +54,13 @@ yf_cover_ui:
     channel: lift
     emergency:
       reason: lift
-      delay: 100
+      delay: 2500
 
   - name: CoverUI lift sensor 2
     channel: liftx
     emergency:
       reason: lift
-      delay: 100
+      delay: 2500
 
   # ---- Button channels ----
   # button_id values match those sent by the YardForce 500 CoverUI panel firmware.

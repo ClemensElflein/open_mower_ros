@@ -66,7 +66,10 @@ yf_cover_ui:
   # These directly reflect the Emergency_state bitmask received from the CoverUI panel.
   # stop1 / stop2 are the STOP buttons on the CoverUI panel.
   # lift / liftx are the lift sensors reported by the CoverUI panel.
-  # Note: the GPIO inputs above may detect the same physical events via different hardware paths.
+  #
+  # Note1: the GPIO inputs above may detect the same physical events via different hardware paths.
+  # Note2: The following emergency and button definitions are orphaned protocol=om definitions,
+  #        but are kept here for reference and future protocol=oem use.
 
   - name: CoverUI stop button 1
     channel: stop1
@@ -84,13 +87,13 @@ yf_cover_ui:
     channel: lift
     emergency:
       reason: lift
-      delay: 100
+      delay: 2500
 
   - name: CoverUI lift sensor 2
     channel: liftx
     emergency:
       reason: lift
-      delay: 100
+      delay: 2500
 
   # ---- Button channels ----
   # button_id values match those sent by the YardForce 500 CoverUI panel firmware.
