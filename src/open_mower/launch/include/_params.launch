@@ -86,14 +86,22 @@
         <param name="xbot_positioning/antenna_offset_y" value="$(env OM_ANTENNA_OFFSET_Y)"/>
         <param name="xbot_positioning/debug" value="false"/>
 
-        <!-- ntrip_client -->
+        <!-- ros_ntrip_client -->
         <param name="ntrip_client/host" value="$(env OM_NTRIP_HOSTNAME)"/>
         <param name="ntrip_client/port" value="$(env OM_NTRIP_PORT)"/>
         <param name="ntrip_client/mountpoint" value="$(env OM_NTRIP_ENDPOINT)"/>
         <param name="ntrip_client/username" value="$(env OM_NTRIP_USER)"/>
         <param name="ntrip_client/password" value="$(env OM_NTRIP_PASSWORD)"/>
-        <param name="ntrip_client/reconnect_attempt_wait_seconds" value="$(optenv OM_NTRIP_RECONNECT_WAIT_SECONDS 5)"/>
-        <param name="ntrip_client/reconnect_attempt_max" value="$(optenv OM_NTRIP_RECONNECT_MAX 99999)"/>
+        <param name="ntrip_client/rtcm_timeout_sec" value="$(optenv OM_NTRIP_RTCM_TIMEOUT_SEC 4.0)"/>
+        <param name="ntrip_client/adaptive_reconnect" value="$(optenv OM_NTRIP_ADAPTIVE_RECONNECT True)"/>
+        <param name="ntrip_client/adaptive_burst_max_attempts" value="$(optenv OM_NTRIP_ADAPTIVE_BURST_MAX_ATTEMPTS 12)"/>
+        <param name="ntrip_client/adaptive_burst_window_sec" value="$(optenv OM_NTRIP_ADAPTIVE_BURST_WINDOW_SEC 60.0)"/>
+        <param name="ntrip_client/adaptive_slow_after_sec" value="$(optenv OM_NTRIP_ADAPTIVE_SLOW_AFTER_SEC 300.0)"/>
+        <param name="ntrip_client/adaptive_slow_interval_sec" value="$(optenv OM_NTRIP_ADAPTIVE_SLOW_INTERVAL_SEC 300.0)"/>
+        <param name="ntrip_client/reconnect_initial_delay_sec" value="$(optenv OM_NTRIP_RECONNECT_INITIAL_DELAY_SEC 10.0)"/>
+        <param name="ntrip_client/reconnect_max_delay_sec" value="$(optenv OM_NTRIP_RECONNECT_MAX_DELAY_SEC 300.0)"/>
+        <param name="ntrip_client/reconnect_backoff_multiplier" value="$(optenv OM_NTRIP_RECONNECT_BACKOFF_MULTIPLIER 2.0)"/>
+        <param name="ntrip_client/max_attempts" value="$(optenv OM_NTRIP_MAX_ATTEMPTS 0)"/>
 
         <!-- mower_logic -->
         <arg name="battery_empty_voltage" value="$(env OM_BATTERY_EMPTY_VOLTAGE)"/>

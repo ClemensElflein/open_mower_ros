@@ -2,30 +2,39 @@
 // Created by Clemens Elflein on 22.11.22.
 // Copyright (c) 2022 Clemens Elflein. All rights reserved.
 //
-#include <filesystem>
-
-#include "ros/ros.h"
-#include <memory>
-#include <boost/regex.hpp>
-#include "xbot_msgs/SensorInfo.h"
-#include "xbot_msgs/SensorDataString.h"
-#include "xbot_msgs/SensorDataDouble.h"
-#include "xbot_msgs/RobotState.h"
 #include <mqtt/async_client.h>
+
+#include <algorithm>
+#include <boost/regex.hpp>
+#include <filesystem>
+#include <memory>
 #include <nlohmann/json.hpp>
 #include <vector>
+
+#include "EventHistory.h"
+#include "PositionHistory.h"
+#include "capabilities.h"
 #include "geometry_msgs/Twist.h"
+#include "ros/ros.h"
 #include "std_msgs/String.h"
-#include "xbot_msgs/RegisterActionsSrv.h"
-#include "xbot_msgs/ActionInfo.h"
-#include "xbot_msgs/MapOverlay.h"
+#include "xbot_mqtt/RegisterMethodsSrv.h"
 #include "xbot_mqtt/RpcError.h"
 #include "xbot_mqtt/RpcRequest.h"
 #include "xbot_mqtt/RpcResponse.h"
 #include "xbot_mqtt/constants.h"
 #include "xbot_mqtt/provider.h"
-#include "xbot_mqtt/RegisterMethodsSrv.h"
-#include "capabilities.h"
+#include "xbot_mqtt/publish.h"
+#include "xbot_msgs/AbsolutePose.h"
+#include "xbot_msgs/ActionInfo.h"
+#include "xbot_msgs/MapOverlay.h"
+#include "xbot_msgs/RegisterActionsSrv.h"
+#include "xbot_msgs/RobotState.h"
+#include "xbot_msgs/SensorDataDouble.h"
+#include "xbot_msgs/SensorDataString.h"
+#include "xbot_msgs/SensorInfo.h"
+
+const double MQTT_POSITION_PUBLISH_INTERVAL = 0.150;
+const double POSITION_HISTORY_FLUSH_INTERVAL = 30.0;
 
 using json = nlohmann::ordered_json;
 
@@ -143,6 +152,10 @@ std::mutex map_overlay_mutex;
 bool has_map = false;
 bool has_map_overlay = false;
 
+EventHistory event_history;
+PositionHistory position_history;
+
+// clang-format off
 xbot_mqtt::RpcProvider rpc_provider("xbot_monitoring", {{
     RPC_METHOD("rpc.ping", {
         return "pong";
@@ -158,7 +171,42 @@ xbot_mqtt::RpcProvider rpc_provider("xbot_monitoring", {{
         std::sort(methods.begin(), methods.end());
         return methods;
     }),
+    RPC_METHOD("events.history", {
+        if (params.is_object() && params.contains("date")) {
+            return event_history.getAll(params["date"].get<std::string>());
+        } else {
+            return event_history.getAll();
+        }
+    }),
+    RPC_METHOD("events.history.list", {
+        return event_history.listHistories();
+    }),
+    RPC_METHOD("events.history.delete", {
+        if (params.is_object() && params.contains("date")) {
+            return event_history.deleteHistory(params["date"].get<std::string>());
+        } else {
+            return event_history.deleteHistory(std::nullopt);
+        }
+    }),
+    RPC_METHOD("position.history", {
+        if (params.is_object() && params.contains("job_id")) {
+            return position_history.getHistory(params["job_id"].get<std::string>());
+        } else {
+            return position_history.getHistory();
+        }
+    }),
+    RPC_METHOD("position.history.list", {
+        return position_history.listHistories();
+    }),
+    RPC_METHOD("position.history.delete", {
+        if (params.is_object() && params.contains("job_id")) {
+            return position_history.deleteHistory(params["job_id"].get<std::string>());
+        } else {
+            return position_history.deleteHistory(std::nullopt);
+        }
+    }),
 }});
+// clang-format on
 
 void setupMqttClient() {
     // setup mqtt client for app use
@@ -224,7 +272,7 @@ void setupMqttClient() {
     }
 }
 
-void try_publish(std::string topic, std::string data, bool retain = false) {
+void try_publish(const std::string &topic, const std::string &data, bool retain = false) {
     try {
         if (retain) {
             // QOS 1 so that the data actually arrives at the client at least once.
@@ -250,7 +298,13 @@ void try_publish(std::string topic, std::string data, bool retain = false) {
     }
 }
 
-void try_publish_binary(std::string topic, const void *data, size_t size, bool retain = false) {
+void publish_event(const std::string& type, json details = nullptr) {
+  const std::string payload_str = xbot_mqtt::buildEventPayload(type, details).dump();
+  try_publish(xbot_mqtt::EVENTS_TOPIC, payload_str);
+  event_history.add(payload_str);
+}
+
+void try_publish_binary(const std::string &topic, const void *data, size_t size, bool retain = false) {
     try {
         if (retain) {
             // QOS 1 so that the data actually arrives at the client at least once.
@@ -512,6 +566,68 @@ void robot_state_callback(const xbot_msgs::RobotState::ConstPtr &msg) {
     try_publish_binary("robot_state/bson", bson.data(), bson.size());
 }
 
+struct PoseSample {
+    double x, y, heading;
+};
+std::vector<PoseSample> pose_buffer;
+std::mutex pose_buffer_mutex;
+
+void pose_callback(const xbot_msgs::AbsolutePose::ConstPtr& msg) {
+  std::lock_guard<std::mutex> lk(pose_buffer_mutex);
+  pose_buffer.push_back({msg->pose.pose.position.x, msg->pose.pose.position.y, msg->vehicle_heading});
+}
+
+void pose_publish_timer_callback(const ros::TimerEvent&) {
+    std::vector<PoseSample> buf;
+    {
+        std::lock_guard<std::mutex> lk(pose_buffer_mutex);
+        if (pose_buffer.empty()) return;
+        buf.swap(pose_buffer);
+    }
+
+    const size_t n = buf.size();
+    const size_t mid = n / 2;
+
+    std::vector<double> xs(n), ys(n), hs(n);
+    for (size_t i = 0; i < n; ++i) {
+        xs[i] = buf[i].x;
+        ys[i] = buf[i].y;
+        hs[i] = buf[i].heading;
+    }
+    std::nth_element(xs.begin(), xs.begin() + mid, xs.end());
+    std::nth_element(ys.begin(), ys.begin() + mid, ys.end());
+    std::nth_element(hs.begin(), hs.begin() + mid, hs.end());
+
+    position_history.addPoint(xs[mid], ys[mid]);
+
+    const auto attrs = position_history.getAttributes();
+    const json j = {
+        {"x", xs[mid]},
+        {"y", ys[mid]},
+        {"heading", hs[mid]},
+        {"attributes", attrs},
+    };
+    try_publish("position/json", j.dump());
+}
+
+void position_history_flush_timer_callback(const ros::TimerEvent&) {
+  position_history.periodicFlush();
+}
+
+void mqtt_publish_callback(const xbot_mqtt::MqttPublish::ConstPtr& msg) {
+    try_publish(msg->topic, msg->payload, msg->retain);
+
+    if (xbot_mqtt::isEvent(msg->topic)) {
+        event_history.add(msg->payload);
+        try {
+          const json event = json::parse(msg->payload);
+          position_history.onEvent(event);
+        } catch (const json::exception& e) {
+            ROS_WARN_STREAM("mqtt_publish_callback: failed to parse event JSON: " << e.what());
+        }
+    }
+}
+
 void publish_actions() {
     json actions = json::array();
     {
@@ -660,8 +776,8 @@ void rpc_request_callback(const std::string &payload) {
 
     // Check if the method is registered
     const std::string method = req["method"];
-    if (method.compare(0, 5, "meta.") == 0) {
-      // Silently ignore methods that are handled by the meta service.
+    if (method.compare(0, 5, "meta.") == 0 || method.compare(0, 4, "ext.") == 0) {
+      // Silently ignore methods that are handled by other services.
       return;
     }
     bool is_registered = false;
@@ -723,6 +839,9 @@ int main(int argc, char **argv) {
         version_string = "UNKNOWN VERSION";
     }
 
+    event_history.init();
+    position_history.init();
+
     external_mqtt_enable = paramNh.param("external_mqtt_enable", false);
     external_mqtt_topic_prefix = paramNh.param("external_mqtt_topic_prefix", std::string(""));
     if(!external_mqtt_topic_prefix.empty() && external_mqtt_topic_prefix.back() != '/') {
@@ -747,6 +866,11 @@ int main(int argc, char **argv) {
     ros::Subscriber robotStateSubscriber = n->subscribe("xbot_monitoring/robot_state", 10, robot_state_callback);
     ros::Subscriber mapSubscriber = n->subscribe("mower_map_service/json_map", 10, map_callback);
     ros::Subscriber mapOverlaySubscriber = n->subscribe("xbot_monitoring/map_overlay", 10, map_overlay_callback);
+    ros::Subscriber poseSubscriber = n->subscribe("/xbot_positioning/xb_pose", 10, pose_callback);
+    ros::Timer posePublishTimer = n->createTimer(ros::Duration(MQTT_POSITION_PUBLISH_INTERVAL), pose_publish_timer_callback);
+    ros::Timer positionHistoryFlushTimer =
+        n->createTimer(ros::Duration(POSITION_HISTORY_FLUSH_INTERVAL), position_history_flush_timer_callback);
+    ros::Subscriber mqttPublishSubscriber = n->subscribe("/xbot_monitoring/mqtt_publish", 50, mqtt_publish_callback);
 
     cmd_vel_pub = n->advertise<geometry_msgs::Twist>("xbot_monitoring/remote_cmd_vel", 1);
     action_pub = n->advertise<std_msgs::String>("xbot/action", 1);
@@ -760,6 +884,8 @@ int main(int argc, char **argv) {
     spinner.start();
 
     rpc_provider.init();
+
+    publish_event("BOOTED");
 
     ros::Rate sensor_check_rate(10.0);
 
@@ -810,5 +936,7 @@ int main(int argc, char **argv) {
         });
         sensor_check_rate.sleep();
     }
+    publish_event("SHUTDOWN");
+    position_history.flush();
     return 0;
 }

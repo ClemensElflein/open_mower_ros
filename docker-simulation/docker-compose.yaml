@@ -1,0 +1,142 @@
+services:
+  # Optional: builds open_mower_ros from the local checked-out source (docker/Dockerfile)
+  # instead of pulling a published release. Not run by default - opt in with:
+  #   docker compose --profile build-from-source build build_from_source
+  # then point BASE_IMAGE at local/open_mower_ros:local in .env before `docker compose up`.
+  build_from_source:
+    profiles: ["build-from-source"]
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: local/open_mower_ros:local
+
+  # open_mower_ros runs as a non-root user (uid 1000) and needs to write into
+  # ./data/{ros,recordings,params} - which Docker otherwise creates root-owned on first
+  # run. This makes the directories writable regardless of the host user's uid, so
+  # `docker compose up` works with no manual chmod/sudo step.
+  init_data_dirs:
+    image: busybox
+    container_name: init_data_dirs
+    # chmod dirs to 777 (so uid 1000 can create/write regardless of host uid) but
+    # files to 666 - a blanket `chmod -R 777` would flag every data file executable
+    # on each startup, which churns git status and is wrong for plain data files.
+    command: sh -c "mkdir -p /data/ros /data/recordings /data/params && find /data/ros /data/recordings /data/params -type d -exec chmod 777 {} + && find /data/ros /data/recordings /data/params -type f -exec chmod 666 {} +"
+    volumes:
+      - ./data/ros:/data/ros
+      - ./data/recordings:/data/recordings
+      - ./data/params:/data/params
+
+  # Emulates the low-level board (drive, mower, IMU, power, GPS) over the same
+  # xbot-service protocol real hardware uses, plus rviz for visualization. Starts
+  # first and owns the ROS master - open_mower_ros waits for it to be healthy
+  # before starting, otherwise it comes up with no mower to talk to.
+  #
+  # Lives entirely on the compose-managed bridge network - no host networking. The
+  # xbot-service discovery protocol uses IP multicast rather than literal loopback, so
+  # it works fine between containers on the same bridge network, and ROS_MASTER_URI
+  # just points at this service's name via Docker's built-in DNS.
+  mower_simulation_gui:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.sim
+      args:
+        - BASE_IMAGE=${BASE_IMAGE:-ghcr.io/clemenselflein/open_mower_ros:${VERSION}}
+    image: local/open_mower_ros-sim:${VERSION}
+    # Never pull this - it only ever exists as a local build (see build: above), so
+    # trying to pull it first just fails with a confusing "access denied" before
+    # Compose falls back to building. This tag is a local build cache key, not a
+    # published image.
+    pull_policy: build
+    container_name: mower_simulation_gui
+    restart: on-failure
+    ports:
+      - "${NOVNC_PORT:-6080}:6080"
+      - "${VNC_PORT:-5900}:5900"
+    environment:
+      - ROS_MASTER_URI=http://mower_simulation_gui:11311
+      - DISPLAY_RESOLUTION=${DISPLAY_RESOLUTION:-1280x800x24}
+    # Mount the rviz config from source (read-write) so tweaks saved from the running
+    # rviz land back in the checked-out file and can be committed, instead of being lost
+    # inside the container image on the next rebuild.
+    volumes:
+      - ./data/ros:/data/ros
+      - ./data/recordings:/data/recordings
+      - ./data/params:/data/params
+      - ../src/open_mower/rviz/sim_mower_logic.rviz:/opt/open_mower_ros/src/open_mower/rviz/sim_mower_logic.rviz
+    # GPU passthrough is optional. Uncomment ONE of the blocks below if the host has a
+    # GPU; the container auto-detects and falls back to software rendering if absent.
+    #
+    # Intel/AMD integrated GPU:
+    # devices:
+    #   - /dev/dri:/dev/dri
+    #
+    # NVIDIA GPU (requires the NVIDIA Container Toolkit on the host):
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+  # The real ROS logic and app stack under test, unmodified launch/config-wise - it just
+  # talks to the simulated board instead of a real one. BASE_IMAGE picks where the image
+  # itself comes from: a published release (default, ghcr.io + VERSION) or a local build
+  # from source (set BASE_IMAGE=local/open_mower_ros:local - see build_from_source above).
+  open_mower_ros:
+    image: "${BASE_IMAGE:-ghcr.io/clemenselflein/open_mower_ros:${VERSION}}"
+    container_name: open_mower_ros
+    restart: on-failure
+    # xbot_monitoring's app-facing MQTT client is hardcoded to 127.0.0.1 (not
+    # configurable) - so this shares mosquitto's network namespace rather than getting
+    # its own, purely so "localhost" resolves to the same place mosquitto is listening.
+    # This is a private namespace between these two containers, not host networking.
+    network_mode: "service:mosquitto"
+    depends_on:
+      mower_simulation_gui:
+        condition: service_healthy
+      init_data_dirs:
+        condition: service_completed_successfully
+    # Passes through anything else you add to .env (e.g. DEBUG=True), same as a real
+    # deployment. Values below still win over env_file for the same key.
+    env_file:
+      - .env
+    environment:
+      - ROS_MASTER_URI=http://mower_simulation_gui:11311
+      - HARDWARE_PLATFORM=2
+      - MOWER=${MOWER:-CUSTOM}
+      - OM_USE_NTRIP=False
+      - RECORDINGS_PATH=/data/recordings
+      - PARAMS_PATH=/data/params
+      - ROS_HOME=/data/ros
+    volumes:
+      - ./data/ros:/data/ros
+      - ./data/recordings:/data/recordings
+      - ./data/params:/data/params
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: mosquitto
+    restart: on-failure
+    # 9002 is xbot_remote's teleop websocket server, in open_mower_ros - it has to be
+    # published here since open_mower_ros shares this container's network namespace and
+    # has no ports/network stack of its own to publish from.
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+      - "9002:9002"
+    volumes:
+      - ../docker/assets/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+
+  openmower_app:
+    image: ghcr.io/clemenselflein/openmowerapp:${LEGACY_APP_VERSION}
+    container_name: openmower_app
+    restart: on-failure
+    ports:
+      - "8080:8080"
+  app:
+    image: ghcr.io/xtech/openmower-app:${APP_VERSION}
+    container_name: app
+    ports:
+      - 3000:3000
+    restart: on-failure

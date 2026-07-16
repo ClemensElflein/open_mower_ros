@@ -55,8 +55,10 @@ static std::string ReasonToString(uint16_t reason) {
   CHECK_REASON(LIFT)
   CHECK_REASON(LIFT_MULTIPLE)
   CHECK_REASON(COLLISION)
+  CHECK_REASON(COLLISION_MULTIPLE)
   CHECK_REASON(TIMEOUT_HIGH_LEVEL)
   CHECK_REASON(HIGH_LEVEL)
+  CHECK_REASON(SERVICE_NOT_READY)
   return str.str();
 }
 
@@ -68,4 +70,18 @@ void EmergencyServiceInterface::PublishEmergencyState() {
   emergency.active_emergency = reason != 0;
   emergency.reason = ReasonToString(reason);
   publisher_.publish(emergency);
+
+  // Also check, if there was a change and log
+  {
+    static uint16_t old_reasons = 0;
+    if (old_reasons != reason) {
+      if (reason == 0) {
+        ROS_INFO_STREAM("Emergency cleared");
+      } else {
+        ROS_WARN_STREAM("Emergency reason changed from: '" << ReasonToString(old_reasons) << "' to: '"
+                                                           << emergency.reason << "'");
+      }
+      old_reasons = reason;
+    }
+  }
 }

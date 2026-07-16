@@ -12,6 +12,8 @@ uint8 SUBSTATE_SHIFT=6
 uint8 state
 string state_name
 string sub_state_name
+string job_id
+string session_id
 int16 current_area
 int16 current_path
 int16 current_path_index

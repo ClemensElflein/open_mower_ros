@@ -71,6 +71,8 @@ Behavior* IdleBehavior::execute() {
   docking_pose_stamped.header.stamp = ros::Time::now();
 
   ros::Rate r(25);
+  bool seen_not_charging = false;
+  bool pose_synced_to_dock = false;
   while (ros::ok()) {
     stopMoving();
     stopBlade();
@@ -97,12 +99,34 @@ Behavior* IdleBehavior::execute() {
                              last_status.mower_motor_temperature < last_config.motor_cold_temperature &&
                              !last_config.manual_pause_mowing && !rain_delay;
 
+    const bool currently_charging = last_charge_v > 10.0;
+    if (!currently_charging) {
+      seen_not_charging = true;
+    }
+    if (mower_ready && currently_charging && seen_not_charging) {
+      publishMowerEvent("FULLY_CHARGED", json{{"battery_voltage", last_battery_v}});
+      seen_not_charging = false;
+    }
+
+    // Sync the EKF's pose to the dock's pose as soon as we detect we're docked (e.g. right after startup), instead
+    // of waiting until we're actually about to undock. Otherwise the EKF may keep a stale/uninitialized pose while
+    // we sit here idle-docked waiting for automatic_mode / mower_ready / etc.
+    const bool currently_docked = last_charge_v > 5.0;
+    if (currently_docked) {
+      if (!pose_synced_to_dock) {
+        if (!PerimeterUndockingBehavior::configured(config)) {
+          ROS_INFO_STREAM("Currently inside the docking station, we set the robot's pose to the docks pose.");
+          setRobotPose(docking_pose_stamped.pose);
+        }
+        pose_synced_to_dock = true;
+      }
+    } else {
+      pose_synced_to_dock = false;
+    }
+
     if (manual_start_mowing || ((automatic_mode || active_semiautomatic_task) && mower_ready)) {
-      // set the robot's position to the dock if we're actually docked
-      if (last_charge_v > 5.0) {
+      if (currently_docked) {
         if (PerimeterUndockingBehavior::configured(config)) return &PerimeterUndockingBehavior::INSTANCE;
-        ROS_INFO_STREAM("Currently inside the docking station, we set the robot's pose to the docks pose.");
-        setRobotPose(docking_pose_stamped.pose);
         return &UndockingBehavior::INSTANCE;
       }
       // Not docked, so just mow

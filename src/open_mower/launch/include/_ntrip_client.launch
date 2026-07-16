@@ -1,56 +1,8 @@
 <?xml version="1.1"?>
 <launch>
-    <!-- Standalone example launch file for an ntrip client -->
-
-    <!-- Declare arguments with default values -->
-    <arg name="authenticate" default="true"/>
-    <arg name="ntrip_version" default=""/>
-    <arg name="ssl" default="false"/>
-    <arg name="cert" default=""/>
-    <arg name="key" default=""/>
-    <arg name="ca_cert" default=""/>
-    <arg name="debug" default="false"/>
-    <arg name="rtcm_message_package" default="rtcm_msgs"/>
-
-    <!-- Set the log level to debug -->
-    <env name="NTRIP_CLIENT_DEBUG" value="$(arg debug)"/>
-
-    <!-- ****************************************************************** -->
-    <!-- NTRIP Client Node -->
-    <!-- ****************************************************************** -->
-    <node name="ntrip_client" pkg="ntrip_client" type="ntrip_ros.py" output="screen"
+    <node name="ntrip_client" pkg="ros_ntrip_client" type="ntrip_client_node" output="screen"
           respawn="true" respawn_delay="10">
-
-        <!-- Optional parameter that will set the NTRIP version in the initial HTTP request to the NTRIP caster. -->
-        <param name="ntrip_version" value="$(arg ntrip_version)"/>
-
-        <!-- If this is set to true, we will read the username and password and attempt to authenticate. If not, we will attempt to connect unauthenticated -->
-        <param name="authenticate" value="$(arg authenticate)"/>
-
-        <!-- Whether to connect with SSL. cert, key, and ca_cert options will only take effect if this is true -->
-        <param name="ssl" value="$(arg ssl)"/>
-
-        <!-- If the NTRIP caster uses cert based authentication, you can specify the cert and keys to use with these options -->
-        <param name="cert" value="$(arg cert)"/>
-        <param name="key" value="$(arg key)"/>
-
-        <!-- If the NTRIP caster uses self signed certs, or you need to use a different CA chain, specify the path to the file here -->
-        <param name="ca_cert" value="$(arg ca_cert)"/>
-
-        <!-- Not sure if this will be looked at, but this frame ID will be added to the RTCM messages published by this node -->
-        <param name="rtcm_frame_id" value="odom"/>
-
-        <!-- Optional parameters that will allow for longer or shorter NMEA messages. Standard max length for NMEA is 82 -->
-        <param name="nmea_max_length" value="82"/>
-        <param name="nmea_min_length" value="3"/>
-
-        <!-- Use this parameter to change the type of RTCM message published by the node. Defaults to "mavros_msgs", but we also support "rtcm_msgs" -->
-        <param name="rtcm_message_package" value="$(arg rtcm_message_package)"/>
-
-        <!-- How many seconds is acceptable in between receiving RTCM. If RTCM is not received for this duration, the node will attempt to reconnect -->
-        <param name="rtcm_timeout_seconds" value="30"/>
-        <remap from="/nmea" to="/ll/position/gps/nmea"/>
-        <remap from="/rtcm" to="/ll/position/gps/rtcm"/>
-
+        <remap from="nmea" to="/ll/position/gps/nmea"/>
+        <remap from="rtcm" to="/ll/position/gps/rtcm"/>
     </node>
 </launch>

@@ -28,3 +28,5 @@ FTCPlanner:
   speed_fast_threshold: 1.0
   speed_fast_threshold_angle: 20.0
   speed_slow: 0.15
+  lateral_priority_distance: 0.1
+  lateral_priority_min_gain: 0.1

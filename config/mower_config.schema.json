@@ -152,19 +152,75 @@
                     "description": "NTRIP endpoint / mount point.",
                     "x-environment-variable": "OM_NTRIP_ENDPOINT"
                   },
-                  "OM_NTRIP_RECONNECT_WAIT_SECONDS": {
+                  "OM_NTRIP_RTCM_TIMEOUT_SEC": {
                     "type": "number",
-                    "title": "NTRIP Reconnect Wait Seconds",
-                    "default": "5",
-                    "description": "How long in seconds the NTRIP client waits before reconnecting",
-                    "x-environment-variable": "OM_NTRIP_RECONNECT_WAIT_SECONDS"
+                    "title": "NTRIP RTCM Timeout Seconds",
+                    "default": "4.0",
+                    "description": "How long ros_ntrip_client waits for RTCM data before reconnecting.",
+                    "x-environment-variable": "OM_NTRIP_RTCM_TIMEOUT_SEC"
                   },
-                  "OM_NTRIP_RECONNECT_MAX": {
+                  "OM_NTRIP_ADAPTIVE_RECONNECT": {
+                    "type": "boolean",
+                    "title": "Adaptive Reconnect",
+                    "default": true,
+                    "description": "Enable ros_ntrip_client adaptive reconnect pacing.",
+                    "x-environment-variable": "OM_NTRIP_ADAPTIVE_RECONNECT"
+                  },
+                  "OM_NTRIP_ADAPTIVE_BURST_MAX_ATTEMPTS": {
                     "type": "number",
-                    "title": "NTRIP Max Reconnection Attempts",
-                    "default": "99999",
-                    "description": "The maximum number of times the NTRIP client retries",
-                    "x-environment-variable": "OM_NTRIP_RECONNECT_MAX"
+                    "title": "Adaptive Burst Max Attempts",
+                    "default": "12",
+                    "description": "Maximum reconnect attempts allowed within the adaptive burst window.",
+                    "x-environment-variable": "OM_NTRIP_ADAPTIVE_BURST_MAX_ATTEMPTS"
+                  },
+                  "OM_NTRIP_ADAPTIVE_BURST_WINDOW_SEC": {
+                    "type": "number",
+                    "title": "Adaptive Burst Window Seconds",
+                    "default": "60.0",
+                    "description": "Window length used for adaptive burst-rate limiting.",
+                    "x-environment-variable": "OM_NTRIP_ADAPTIVE_BURST_WINDOW_SEC"
+                  },
+                  "OM_NTRIP_ADAPTIVE_SLOW_AFTER_SEC": {
+                    "type": "number",
+                    "title": "Adaptive Slowdown After Seconds",
+                    "default": "300.0",
+                    "description": "Continuous failure time before ros_ntrip_client enters slow reconnect mode.",
+                    "x-environment-variable": "OM_NTRIP_ADAPTIVE_SLOW_AFTER_SEC"
+                  },
+                  "OM_NTRIP_ADAPTIVE_SLOW_INTERVAL_SEC": {
+                    "type": "number",
+                    "title": "Adaptive Slowdown Interval Seconds",
+                    "default": "300.0",
+                    "description": "Reconnect interval once adaptive slow mode is active.",
+                    "x-environment-variable": "OM_NTRIP_ADAPTIVE_SLOW_INTERVAL_SEC"
+                  },
+                  "OM_NTRIP_RECONNECT_INITIAL_DELAY_SEC": {
+                    "type": "number",
+                    "title": "Reconnect Initial Delay Seconds",
+                    "default": "10.0",
+                    "description": "Initial reconnect delay used by ros_ntrip_client exponential backoff.",
+                    "x-environment-variable": "OM_NTRIP_RECONNECT_INITIAL_DELAY_SEC"
+                  },
+                  "OM_NTRIP_RECONNECT_MAX_DELAY_SEC": {
+                    "type": "number",
+                    "title": "Reconnect Max Delay Seconds",
+                    "default": "300.0",
+                    "description": "Maximum reconnect delay used by ros_ntrip_client exponential backoff.",
+                    "x-environment-variable": "OM_NTRIP_RECONNECT_MAX_DELAY_SEC"
+                  },
+                  "OM_NTRIP_RECONNECT_BACKOFF_MULTIPLIER": {
+                    "type": "number",
+                    "title": "Reconnect Backoff Multiplier",
+                    "default": "2.0",
+                    "description": "Exponential backoff multiplier for ros_ntrip_client reconnect attempts.",
+                    "x-environment-variable": "OM_NTRIP_RECONNECT_BACKOFF_MULTIPLIER"
+                  },
+                  "OM_NTRIP_MAX_ATTEMPTS": {
+                    "type": "number",
+                    "title": "NTRIP Max Attempts",
+                    "default": "0",
+                    "description": "Maximum reconnect attempts for ros_ntrip_client. 0 means retry indefinitely.",
+                    "x-environment-variable": "OM_NTRIP_MAX_ATTEMPTS"
                   }
                 }
               }
