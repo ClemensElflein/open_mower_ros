@@ -28,6 +28,7 @@
   <exec_depend>serial</exec_depend>
   <exec_depend>xesc_driver</exec_depend>
   <depend>xesc_msgs</depend>
+  <depend>mower_analytics</depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->
