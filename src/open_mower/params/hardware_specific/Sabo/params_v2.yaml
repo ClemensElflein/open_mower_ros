@@ -24,4 +24,6 @@ xbot_positioning:
   antenna_offset_y: 0.0
 
 mower_logic:
-  tool_width: 0.28
+  tool_width: 0.25
+  mower_spinup_rpm: 3000
+  mower_spinup_timeout: 30.0

@@ -56,10 +56,11 @@ mower_logic:
   emergency_lift_period: -1
   emergency_tilt_period: -1
   ignore_charging_current: false
+  mower_spinup_rpm: 2500
+  mower_spinup_timeout: 10.0
 
 xbot_monitoring:
   external_mqtt_enable: false
-
 
 # Openmower doesn't work in m/s but duty cycle by default, so we must adjust the speed for the recovery behavior
 move_base_flex:
