@@ -44,6 +44,7 @@ extern mower_logic::MowerLogicConfig getConfig();
 extern void setConfig(mower_logic::MowerLogicConfig);
 
 extern void registerActions(std::string prefix, const std::vector<xbot_msgs::ActionInfo>& actions);
+extern void setEmergencyMode(bool emergency);
 
 extern StateSubscriber<mower_msgs::Status> status_state_subscriber;
 
@@ -336,11 +337,12 @@ bool MowingBehavior::wait_for_mower_spinup() {
       return true;
     }
     if (ros::Time::now() - spinup_start > ros::Duration(config.mower_spinup_timeout)) {
-      ROS_ERROR_STREAM("MowingBehavior: (MOW) Mower motor failed to reach "
-                       << config.mower_spinup_rpm << " RPM within " << config.mower_spinup_timeout << "s. Aborting.");
+      ROS_ERROR_STREAM("MowingBehavior: (MOW) Mower motor failed to reach " << config.mower_spinup_rpm << " RPM within "
+                                                                            << config.mower_spinup_timeout
+                                                                            << "s. Entering emergency.");
       publishMowerEvent("MOW_MOTOR_SPINUP_FAILED");
       mowerEnabled = false;
-      this->abort();
+      setEmergencyMode(true);
       return false;
     }
     check_rate.sleep();
