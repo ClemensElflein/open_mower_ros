@@ -56,7 +56,7 @@ mower_logic:
   emergency_lift_period: -1
   emergency_tilt_period: -1
   ignore_charging_current: false
-  mower_spinup_rpm: 2500
+  mower_spinup_rpm: 2000
   mower_spinup_timeout: 10.0
 
 xbot_monitoring:

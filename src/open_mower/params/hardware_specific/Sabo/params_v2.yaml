@@ -25,5 +25,5 @@ xbot_positioning:
 
 mower_logic:
   tool_width: 0.25
-  mower_spinup_rpm: 3000
+  mower_spinup_rpm: 2000
   mower_spinup_timeout: 30.0
