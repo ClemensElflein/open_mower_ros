@@ -5,12 +5,14 @@
 #include "MowerServiceInterface.h"
 
 void MowerServiceInterface::Tick() {
-  SendMowerEnabled(status_msg_.mow_enabled);
+  SendMowerSpeed(commanded_speed_);
 }
 
-void MowerServiceInterface::SetMowerEnabled(bool enabled) {
-  SendMowerEnabled(enabled);
-  status_msg_.mow_enabled = enabled;
+void MowerServiceInterface::SetMowerSpeed(float speed) {
+  // Signed speed/duty in [-1, 1]: sign = direction, 0 = off.
+  commanded_speed_ = speed;
+  SendMowerSpeed(speed);
+  status_msg_.mow_enabled = speed != 0.0f;
   status_publisher_.publish(status_msg_);
 }
 
@@ -44,7 +46,9 @@ void MowerServiceInterface::OnMowerMotorRPMChanged(const float& new_value) {
 
 void MowerServiceInterface::OnServiceConnected(uint16_t service_id) {
   status_msg_ = {};
-  SendMowerEnabled(false);
+  // Clear the cached speed so a stale value isn't replayed after reconnect.
+  commanded_speed_ = 0.0f;
+  SendMowerSpeed(commanded_speed_);
 }
 
 void MowerServiceInterface::OnTransactionStart(uint64_t timestamp) {
