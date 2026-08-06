@@ -17,7 +17,7 @@ class MowerServiceInterface : public MowerServiceInterfaceBase {
       : MowerServiceInterfaceBase(service_id, ctx), status_publisher_(status_publisher) {
   }
 
-  void SetMowerEnabled(bool enabled);
+  void SetMowerSpeed(float speed);
 
   void Tick();
 
@@ -38,6 +38,7 @@ class MowerServiceInterface : public MowerServiceInterfaceBase {
  private:
   mower_msgs::Status status_msg_{};
   const ros::Publisher& status_publisher_;
+  float commanded_speed_ = 0.0f;  // commanded normalized speed in [-1, 1]; re-sent every tick
 };
 
 #endif  // MOWERSERVICEINTERFACE_H

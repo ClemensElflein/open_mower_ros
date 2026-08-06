@@ -274,7 +274,8 @@ bool setMowerEnabled(bool enabled) {
     ros::Time started = ros::Time::now();
     mower_msgs::MowerControlSrv mow_srv;
     mow_srv.request.mow_enabled = enabled;
-    mow_srv.request.mow_direction = started.sec & 0x1;  // Randomize mower direction on second
+    // Opt-in direction alternation; forward (1) by default.
+    mow_srv.request.mow_direction = last_config.randomize_mow_motor_direction ? (started.sec & 0x1) : 1;
     ROS_WARN_STREAM("#### om_mower_logic: setMowerEnabled("
                     << enabled << ", " << static_cast<unsigned>(mow_srv.request.mow_direction) << ") call");
 
