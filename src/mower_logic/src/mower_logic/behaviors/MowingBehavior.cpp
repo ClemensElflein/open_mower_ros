@@ -22,6 +22,7 @@
 #include <rosbag/bag.h>
 #include <rosbag/view.h>
 
+#include <EmergencyServiceInterfaceBase.hpp>
 #include <cmath>
 
 #include "../StateSubscriber.h"
@@ -44,7 +45,7 @@ extern mower_logic::MowerLogicConfig getConfig();
 extern void setConfig(mower_logic::MowerLogicConfig);
 
 extern void registerActions(std::string prefix, const std::vector<xbot_msgs::ActionInfo>& actions);
-extern void setEmergencyMode(bool emergency);
+extern void setEmergencyMode(uint16_t reason);
 
 extern StateSubscriber<mower_msgs::Status> status_state_subscriber;
 
@@ -342,7 +343,7 @@ bool MowingBehavior::wait_for_mower_spinup() {
                                                                             << "s. Entering emergency.");
       publishMowerEvent("MOW_MOTOR_SPINUP_FAILED");
       mowerEnabled = false;
-      setEmergencyMode(true);
+      setEmergencyMode(EmergencyReason::MOWER_RPM_TIMEOUT);
       return false;
     }
     check_rate.sleep();
