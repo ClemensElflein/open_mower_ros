@@ -332,7 +332,7 @@ bool MowingBehavior::wait_for_mower_spinup() {
       return false;
     }
     auto last_status = status_state_subscriber.getMessage();
-    if (last_status.mower_motor_rpm >= config.mower_spinup_rpm) {
+    if (std::abs(last_status.mower_motor_rpm) >= config.mower_spinup_rpm) {
       ROS_INFO_STREAM("MowingBehavior: (MOW) Mower motor reached " << last_status.mower_motor_rpm << " RPM after "
                                                                    << (ros::Time::now() - spinup_start).toSec() << "s");
       return true;
