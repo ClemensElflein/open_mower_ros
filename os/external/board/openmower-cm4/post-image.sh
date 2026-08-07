@@ -50,6 +50,19 @@ if [ "${OPENMOWER_BUILD_SDCARD:-1}" = "1" ]; then
         --inputpath "$BINARIES_DIR" \
         --outputpath "$BINARIES_DIR" \
         --config "$BOARD_DIR/genimage.cfg"
+
+    # Release asset scripts/migrate-to-openmower.sh downloads directly over
+    # HTTPS (a GitHub Releases upload, see that script's own header -- no
+    # manifest, no update server of our own). gzipped: sdcard.img's 4096M
+    # data partition is freshly formatted and empty (see genimage.cfg), so
+    # it's mostly sparse zero bytes on disk -- gzip shrinks the image back
+    # down to roughly its real unique content instead of shipping the full
+    # nominal size. Sidecar is a bare hex digest (not `sha256sum` output
+    # format) so the migrate script can use it directly without parsing.
+    IMG_GZ="$BINARIES_DIR/openmower-$OPENMOWER_VERSION.img.gz"
+    rm -f "$BINARIES_DIR"/openmower-*.img.gz "$BINARIES_DIR"/openmower-*.img.gz.sha256
+    gzip -c "$BINARIES_DIR/sdcard.img" > "$IMG_GZ"
+    sha256sum "$IMG_GZ" | cut -d' ' -f1 > "$IMG_GZ.sha256"
 fi
 
 # --- Build the RAUC bundle ---------------------------------------------------
@@ -91,5 +104,6 @@ rauc bundle \
 
 if [ "${OPENMOWER_BUILD_SDCARD:-1}" = "1" ]; then
     echo ">> Image:  $BINARIES_DIR/sdcard.img"
+    echo ">> Release asset: $IMG_GZ (+ .sha256)"
 fi
 echo ">> Bundle: $BUNDLE_OUT"

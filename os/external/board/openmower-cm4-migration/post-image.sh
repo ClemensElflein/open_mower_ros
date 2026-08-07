@@ -1,14 +1,21 @@
 #!/bin/bash
 # Assemble the self-extracting migration installer: scripts/migrate-to-openmower.sh
-# (the header/logic) + a tar payload (kernel, both dtbs, this rescue
-# initramfs, and the config/boot-a/boot-b/rootfs images from a *prior*
-# openmower_cm4_defconfig build) appended after its marker line.
+# (the header/logic) + a tar payload (kernel, both dtbs, and this migration
+# initramfs) appended after its marker line.
 #
-# Needs `make image` to have already produced output/images/{Image,*.dtb,
-# config.vfat,boot-a.vfat,boot-b.vfat,rootfs.squashfs} -- this defconfig
-# builds none of that itself, just rootfs.cpio.gz (see that defconfig's own
-# header for why it gets its own output-rescue/ dir instead of sharing
-# output/ with prod).
+# Deliberately just these three -- a few tens of MB, rarely changes. The
+# actual OS (sdcard.img, easily 1GB+ compressed) is NOT bundled here:
+# scripts/migrate-to-openmower.sh fetches that over the network at run time
+# from a static HTTPS URL (a GitHub Releases asset -- see
+# external/board/openmower-cm4/post-image.sh for how it's built), which is
+# what lets this installer script stay small and not need
+# rebuilding/republishing every time the OS/app changes -- only when the
+# kernel/dtbs/this initramfs itself changes.
+#
+# Needs `make image` to have already produced output/images/{Image,*.dtb} --
+# this defconfig builds no kernel itself, just rootfs.cpio.gz (see that
+# defconfig's own header for why it gets its own output-migration/ dir instead
+# of sharing output/ with prod).
 set -eu
 
 BOARD_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -17,10 +24,10 @@ PROD_IMAGES="$OS_DIR/output/images"
 
 OPENMOWER_VERSION="${OPENMOWER_VERSION:-$(date -u +%Y%m%d%H%M%S)}"
 
-PROD_FILES="Image bcm2711-rpi-cm4.dtb bcm2711-rpi-4-b.dtb config.vfat boot-a.vfat boot-b.vfat rootfs.squashfs"
+PROD_FILES="Image bcm2711-rpi-cm4.dtb bcm2711-rpi-4-b.dtb"
 for f in $PROD_FILES; do
     if [ ! -f "$PROD_IMAGES/$f" ]; then
-        echo ">> ERROR: $PROD_IMAGES/$f missing -- run 'make image' before 'make image-rescue'" >&2
+        echo ">> ERROR: $PROD_IMAGES/$f missing -- run 'make image' before 'make image-migration'" >&2
         exit 1
     fi
 done

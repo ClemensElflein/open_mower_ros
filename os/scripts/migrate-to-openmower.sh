@@ -2,35 +2,47 @@
 # Migrate a running stock Raspberry Pi OS install to OpenMower OS, in place,
 # over the network -- no SD card removal.
 #
-# This file is the HEADER of a self-extracting installer: `make image-rescue`
-# (see external/board/openmower-cm4-rescue/post-image.sh) appends a tar
-# payload (kernel, dtbs, rescue initramfs, and the boot/rootfs images) after
-# the marker line at the bottom, producing a single runnable
-# openmower-migrate-<version>.sh that carries everything it needs -- no
-# server, no separate downloads. Run *this* checked-in copy directly and it
-# will just fail cleanly at the "no embedded payload found" check below.
+# This file is the HEADER of a self-extracting installer: `make image-migration`
+# (see external/board/openmower-cm4-migration/post-image.sh) appends a tar
+# payload -- kernel, both dtbs, and the migration initramfs, a few tens of MB,
+# rarely changes -- after the marker line at the bottom, producing a single
+# runnable openmower-migrate-<version>.sh. Run *this* checked-in copy
+# directly and it will just fail cleanly at the "no embedded payload found"
+# check below.
+#
+# The actual OS this installs -- sdcard.img, easily 1GB+ compressed -- is
+# deliberately NOT part of that embedded payload. It's fetched fresh over
+# the network at run time instead, from a single static HTTPS URL (a
+# GitHub Releases asset, see external/board/openmower-cm4/post-image.sh for
+# how it's built and named -- no manifest, no update server of our own,
+# unlike openmower-updater's OTA flow), which is what lets this small
+# installer stay usable across every future OS release without itself
+# needing to be rebuilt/redistributed each time -- only when the
+# kernel/dtbs/migration initramfs change does `make image-migration` need
+# re-running.
 #
 # Mechanism: NOT kexec -- kexec_load is either outright disabled in stock
 # Raspberry Pi OS kernels, or hangs on real hardware even when enabled
 # ("CPUs are stuck in the kernel"): Raspberry Pi's boot firmware has no PSCI,
 # so Linux has no way to park and re-wake the secondary cores across the
-# jump. Long-standing, unresolved upstream. Instead this drops the rescue
-# kernel/dtbs/initramfs/cmdline into a rescue/ subdirectory of the EXISTING
+# jump. Long-standing, unresolved upstream. Instead this drops the migration
+# kernel/dtbs/initramfs/cmdline into a migration/ subdirectory of the EXISTING
 # stock boot partition (purely additive, nothing existing is touched) plus a
-# tryboot.txt at its root (os_prefix=rescue/), then triggers Raspberry Pi
+# tryboot.txt at its root (os_prefix=migration/), then triggers Raspberry Pi
 # firmware's own one-shot `tryboot` reboot -- a real cold reset, so no PSCI
 # involved at all. Firmware loads tryboot.txt instead of config.txt for
-# exactly one boot attempt; the rescue initramfs then repartitions this same
-# disk into the openmower-cm4 A/B layout and writes the first slot. See
-# external/board/openmower-cm4-rescue/rootfs-overlay/init for exactly what
+# exactly one boot attempt; the migration initramfs then `dd`s the downloaded
+# OS image (see below) straight onto this same disk, partition table and
+# all, giving it the openmower-cm4 A/B layout in one shot. See
+# external/board/openmower-cm4-migration/rootfs-overlay/init for exactly what
 # happens to the disk.
 #
 # Safety net, same one openmower-updater/rauc-mark-good rely on elsewhere in
 # this project: the tryboot flag is one-shot and self-clears the moment it's
-# consumed. If the rescue boot never gets far enough to trigger its own
+# consumed. If the migration boot never gets far enough to trigger its own
 # (ordinary, non-tryboot) reboot -- crash, hang, power loss -- any
 # subsequent reset boots config.txt/the stock OS again, automatically. And
-# per Raspberry Pi's own firmware behavior, if tryboot.txt/rescue/ turns out
+# per Raspberry Pi's own firmware behavior, if tryboot.txt/migration/ turns out
 # to be misconfigured (wrong filename, missing file), the os_prefix is
 # silently dropped and firmware just boots normally -- not a hang.
 #
@@ -44,12 +56,17 @@
 # restart on next boot) but real, so it's still gated behind its own yes.
 #
 # Usage:
-#   sudo ./openmower-migrate-<version>.sh [--yes] [--dry-run]
+#   sudo ./openmower-migrate-<version>.sh --url <image-url> [--yes] [--dry-run]
 #
+#   --url URL  direct HTTPS URL of a specific openmower-<version>.img.gz OS
+#              image (a GitHub Releases asset -- pick whichever version you
+#              want on the device). A same-named "<url>.sha256" must exist
+#              alongside it. Also settable via the IMAGE_URL env var.
 #   --yes      skip the interactive confirmations (fleet automation)
-#   --dry-run  verify + extract the payload, stage user data + the rescue
-#              boot files (all reversible, no stopping of the running
-#              stack), stop before the reboot that commits to it
+#   --dry-run  verify + extract the embedded payload, download + verify the
+#              OS image, stage user data + the migration boot files (all
+#              reversible, no stopping of the running stack), stop before
+#              the reboot that commits to it
 #
 # Must be run as a real file (`sh $0` needs to read its own embedded payload
 # off disk) -- `curl ... | sh` will not work, download it first.
@@ -60,16 +77,21 @@ PAYLOAD_SHA256="@@PAYLOAD_SHA256@@"
 log() { echo "migrate-to-openmower: $*"; }
 die() { echo "migrate-to-openmower: ERROR: $*" >&2; exit 1; }
 
-ASSUME_YES=0 DRY_RUN=0
-for arg in "$@"; do
-    case "$arg" in
+ASSUME_YES=0 DRY_RUN=0 IMAGE_URL="${IMAGE_URL:-}"
+while [ $# -gt 0 ]; do
+    case "$1" in
         --yes | -y) ASSUME_YES=1 ;;
         --dry-run) DRY_RUN=1 ;;
-        *) die "unknown option: $arg (usage: $0 [--yes] [--dry-run])" ;;
+        --url) shift; IMAGE_URL="${1:?--url requires an argument}" ;;
+        --url=*) IMAGE_URL="${1#--url=}" ;;
+        *) die "unknown option: $1 (usage: $0 --url <image-url> [--yes] [--dry-run])" ;;
     esac
+    shift
 done
 
 [ "$(id -u)" = "0" ] || die "must run as root"
+command -v curl >/dev/null 2>&1 || die "curl not found -- required to fetch the OS image"
+[ -n "$IMAGE_URL" ] || die "no image URL given -- pass --url <image-url> or set IMAGE_URL (a GitHub Releases asset, see README.md)"
 
 # --- Detect source OS: REFUSES to run without real evidence this is an ----
 # --- OpenMower device, doesn't just warn ------------------------------------
@@ -170,8 +192,12 @@ else
 fi
 
 # --- Preflight checks ------------------------------------------------------
+# Covers the small embedded payload (tens of MB) plus the downloaded
+# sdcard.img.gz (see below -- gzip shrinks its mostly-sparse content back
+# down to roughly its real unique bytes, currently ~1-1.5GB) staged
+# alongside it, with some margin.
 AVAILKB="$(df -Pk / | awk 'NR==2{print $4}')"
-[ "$AVAILKB" -ge 1572864 ] || die "need >=1.5GiB free on / to extract the embedded payload (have $((AVAILKB / 1024))MiB)"
+[ "$AVAILKB" -ge 2097152 ] || die "need >=2GiB free on / to extract the embedded payload and download the OS image (have $((AVAILKB / 1024))MiB)"
 
 # --- Locate the boot (firmware) partition ----------------------------------
 # Bookworm-and-later Raspberry Pi OS mounts it at /boot/firmware; older
@@ -185,7 +211,7 @@ BOOT_MNT="$(findmnt -n -o TARGET "$BOOT_SRC" 2>/dev/null || true)"
 log "boot partition: $BOOT_SRC on $BOOT_MNT"
 
 BOOT_AVAILKB="$(df -Pk "$BOOT_MNT" | awk 'NR==2{print $4}')"
-[ "$BOOT_AVAILKB" -ge 65536 ] || die "need >=64MiB free on $BOOT_MNT for the rescue kernel/dtbs/initramfs (have $((BOOT_AVAILKB / 1024))MiB)"
+[ "$BOOT_AVAILKB" -ge 65536 ] || die "need >=64MiB free on $BOOT_MNT for the migration kernel/dtbs/initramfs (have $((BOOT_AVAILKB / 1024))MiB)"
 
 # --- Locate + verify + extract the embedded payload ------------------------
 # The marker string must appear as a CONTIGUOUS literal exactly once in this
@@ -196,7 +222,7 @@ BOOT_AVAILKB="$(df -Pk "$BOOT_MNT" | awk 'NR==2{print $4}')"
 # the file than the real one, and grep would find that instead).
 MARKER="#__OPENMOWER_MIGRATE""_PAYLOAD__"
 PAYLOAD_LINE="$(grep -aFn -m1 "$MARKER" "$SELF" | cut -d: -f1)"
-[ -n "$PAYLOAD_LINE" ] || die "no embedded payload found in $SELF -- this is the bare template, not a build output (run 'make image-rescue' to produce openmower-migrate-<version>.sh)"
+[ -n "$PAYLOAD_LINE" ] || die "no embedded payload found in $SELF -- this is the bare template, not a build output (run 'make image-migration' to produce openmower-migrate-<version>.sh)"
 
 # Deliberately NOT a literal match against the "@@PAYLOAD_SHA256@@"
 # placeholder text: post-image.sh's sed substitutes that placeholder
@@ -221,18 +247,52 @@ rm -rf "$STAGE_ROOT"
 mkdir -p "$STAGE_ROOT"
 tail -n +$((PAYLOAD_LINE + 1)) "$SELF" | tar -x -C "$STAGE_ROOT" || die "payload extraction failed"
 
-for f in Image "$DTB" rootfs.cpio.gz config.vfat boot-a.vfat boot-b.vfat rootfs.squashfs; do
+for f in Image "$DTB" rootfs.cpio.gz; do
     [ -f "$STAGE_ROOT/$f" ] || die "extracted payload is missing $f"
 done
-log "payload extracted and verified."
+log "embedded migration-loader payload extracted and verified."
+
+# --- Fetch + verify the OS image --------------------------------------------
+# A single static HTTPS URL -- a GitHub Releases asset -- not a manifest
+# poll: unlike openmower-updater's OTA flow, which needs a manifest.json to
+# decide whether a newer version even exists, this is a one-time, explicitly
+# requested install with an explicitly requested URL. Nothing to compare
+# against, so nothing to look up first.
+#
+# Checksum comes from a plain-text "<url>.sha256" sidecar (just the hex
+# digest, see external/board/openmower-cm4/post-image.sh) rather than a
+# signature: fetched over the same HTTPS connection as the image itself, so
+# it guards against a corrupted/truncated download, not a compromised host.
+log "fetching checksum from $IMAGE_URL.sha256..."
+IMG_SHA256="$(curl -fsSL --max-time 30 "$IMAGE_URL.sha256")" \
+    || die "cannot fetch $IMAGE_URL.sha256"
+IMG_SHA256="$(printf '%s' "$IMG_SHA256" | tr -d '[:space:]')"
+case "$IMG_SHA256" in
+    *[!0-9a-f]* | "") die "malformed checksum at $IMAGE_URL.sha256 ('$IMG_SHA256')" ;;
+esac
+[ ${#IMG_SHA256} -eq 64 ] || die "checksum at $IMAGE_URL.sha256 has the wrong length ('$IMG_SHA256')"
+
+IMG_GZ="$STAGE_ROOT/sdcard.img.gz"
+log "downloading OS image from $IMAGE_URL..."
+# Stall-detection instead of a flat deadline, same reasoning as
+# openmower-updater's own bundle download: this image is 1GB+ compressed,
+# so a fixed wall-clock cap would time out legitimate slow-but-progressing
+# downloads. Abort only if throughput drops below 1KB/s for a full minute.
+curl -fSL --speed-limit 1024 --speed-time 60 "$IMAGE_URL" -o "$IMG_GZ" \
+    || die "download failed: $IMAGE_URL"
+
+log "verifying OS image checksum..."
+echo "$IMG_SHA256  $IMG_GZ" | sha256sum -c - >/dev/null \
+    || die "OS image checksum mismatch (expected $IMG_SHA256) -- download is corrupted or was tampered with, re-run to retry"
+log "OS image downloaded and verified."
 
 # --- Best-effort: stage user data next to the new OS image ------------------
-# Copied into $STAGE_ROOT -- same filesystem as the payload just extracted
-# above (i.e. this running system's own root disk, plenty of room), NOT the
-# small FAT32 boot partition -- so the rescue initramfs can find it via the
-# same /mnt/old/$STAGE mount it already uses for config.vfat etc., and copy
-# it onto the freshly-formatted data partition before the final reboot (see
-# external/board/openmower-cm4-rescue/rootfs-overlay/init).
+# Copied into $STAGE_ROOT -- same filesystem as the payload extracted and
+# image downloaded above (i.e. this running system's own root disk, plenty
+# of room), NOT the small FAT32 boot partition -- so the migration initramfs
+# can find it via the same /mnt/old/$STAGE mount it already uses for
+# sdcard.img.gz, and copy it onto the OS image's data partition before the
+# final reboot (see external/board/openmower-cm4-migration/rootfs-overlay/init).
 #
 # Best-effort and non-fatal throughout: this is a bonus, not the point of
 # the migration -- a missing/failed copy here must never abort the OS
@@ -244,16 +304,14 @@ mkdir -p "$MIGRATE_DIR"
 if [ -d /home/openmower ]; then
     log "staging /home/openmower (params/maps/recordings/...) for migration..."
     # This installer is commonly downloaded/run from inside /home/openmower
-    # itself -- and since it carries its own embedded tar payload
-    # (kernel/dtbs/rescue initramfs/boot+rootfs images, see the header
-    # comment), it's easily 1GB+. A plain `cp -a` would sweep it up along
-    # with everything else and dwarf the actual data being migrated, so
-    # exclude it (and any other openmower-migrate-*.sh -- an older download
-    # left sitting there, say) at copy time via tar rather than copying it
-    # and cleaning up after. POSIX sh has no pipefail, so this goes through
-    # an intermediate tar file to keep each step's exit status checkable,
-    # instead of a `tar ... | tar ...` pipe that would silently ignore the
-    # first tar failing.
+    # itself. It's small (kernel/dtbs/migration initramfs only, see the header
+    # comment -- the actual OS image is downloaded straight to $STAGE_ROOT,
+    # never into /home/openmower), but exclude it anyway (and any other
+    # openmower-migrate-*.sh -- an older download left sitting there, say):
+    # it has no business ending up on the new install's data partition. POSIX
+    # sh has no pipefail, so this goes through an intermediate tar file to
+    # keep each step's exit status checkable, instead of a `tar ... | tar
+    # ...` pipe that would silently ignore the first tar failing.
     mkdir -p "$MIGRATE_DIR/home-openmower"
     HOME_OPENMOWER_TAR="$STAGE_ROOT/home-openmower.tar"
     if tar --exclude="$(basename "$SELF")" --exclude='openmower-migrate-*.sh' \
@@ -275,8 +333,8 @@ if [ -f /opt/stacks/openmower/.env ]; then
         || log "WARNING: failed to stage /opt/stacks/openmower/.env"
 fi
 
-# --- Stage the rescue boot files onto the EXISTING boot partition ----------
-# Purely additive: a new rescue/ subdirectory plus one new top-level file
+# --- Stage the migration boot files onto the EXISTING boot partition ----------
+# Purely additive: a new migration/ subdirectory plus one new top-level file
 # (tryboot.txt). Nothing already on the boot partition is read, modified, or
 # removed, so this step alone is fully and trivially reversible (delete
 # those two paths) regardless of what happens next.
@@ -286,24 +344,24 @@ fi
 # a Renesas xHCI chip (drivers/usb/host/xhci-pci-renesas.c) that needs a
 # firmware blob (renesas_usb_fw.mem via request_firmware) neither this
 # project's rootfs nor rpi-firmware ships anywhere -- confirmed missing
-# even from the full prod build, not something the rescue image regressed.
+# even from the full prod build, not something the migration image regressed.
 # The driver is also only built as a module (CONFIG_USB_XHCI_PCI_RENESAS=m)
 # and this initramfs has no modules at all. So HDMI+USB keyboard doesn't
 # work in EITHER image; serial (GPIO14/15, 115200 8N1, this project's own
 # documented debug method -- see README's "Flashing" section) is what
 # actually lets you interact with the fallback shell if something goes
 # wrong.
-CMDLINE="console=serial0,115200 omrescue.disk=$DISK omrescue.src=$ROOT_SRC omrescue.srcfs=$ROOT_FSTYPE omrescue.stage=$STAGE_ROOT"
-RESCUE_DIR="$BOOT_MNT/rescue"
-log "writing rescue boot files to $RESCUE_DIR..."
-rm -rf "$RESCUE_DIR"
-mkdir -p "$RESCUE_DIR"
-cp "$STAGE_ROOT/Image" "$STAGE_ROOT/bcm2711-rpi-cm4.dtb" "$STAGE_ROOT/bcm2711-rpi-4-b.dtb" "$STAGE_ROOT/rootfs.cpio.gz" "$RESCUE_DIR/"
-printf '%s\n' "$CMDLINE" > "$RESCUE_DIR/cmdline.txt"
+CMDLINE="console=serial0,115200 ommigration.disk=$DISK ommigration.src=$ROOT_SRC ommigration.srcfs=$ROOT_FSTYPE ommigration.stage=$STAGE_ROOT"
+BOOT_MIGRATION_DIR="$BOOT_MNT/migration"
+log "writing migration boot files to $BOOT_MIGRATION_DIR..."
+rm -rf "$BOOT_MIGRATION_DIR"
+mkdir -p "$BOOT_MIGRATION_DIR"
+cp "$STAGE_ROOT/Image" "$STAGE_ROOT/bcm2711-rpi-cm4.dtb" "$STAGE_ROOT/bcm2711-rpi-4-b.dtb" "$STAGE_ROOT/rootfs.cpio.gz" "$BOOT_MIGRATION_DIR/"
+printf '%s\n' "$CMDLINE" > "$BOOT_MIGRATION_DIR/cmdline.txt"
 # Raspberry Pi firmware loads tryboot.txt instead of config.txt for exactly
 # one boot, when rebooted with the "0 tryboot" one-shot flag (below) --
 # os_prefix prefixes every OS file it loads (kernel, initramfs, dtb,
-# cmdline.txt) with rescue/, so this is a complete, self-contained config
+# cmdline.txt) with migration/, so this is a complete, self-contained config
 # for that one boot; it does NOT inherit anything from the real config.txt,
 # including enable_uart=1 -- without it here too, the mini-UART (GPIO14/15,
 # what console=serial0 above actually needs) never gets enabled/clocked by
@@ -320,14 +378,14 @@ gpu_mem=16
 disable_splash=1
 enable_uart=1
 initramfs rootfs.cpio.gz followkernel
-os_prefix=rescue/
+os_prefix=migration/
 EOF
 sync
-log "rescue boot files staged."
+log "migration boot files staged."
 
 if [ "$DRY_RUN" = "1" ]; then
     log "--dry-run: stopping here, before the reboot. $BOOT_MNT/tryboot.txt and"
-    log "$RESCUE_DIR are staged; re-run without --dry-run to reboot into them."
+    log "$BOOT_MIGRATION_DIR are staged; re-run without --dry-run to reboot into them."
     exit 0
 fi
 
@@ -345,12 +403,12 @@ WARN
 if [ "$ASSUME_YES" != "1" ]; then
     printf 'Type "yes" to continue: '
     read -r ans
-    [ "$ans" = "yes" ] || die "aborted -- $RESCUE_DIR and $BOOT_MNT/tryboot.txt are staged but inert; delete them to fully undo"
+    [ "$ans" = "yes" ] || die "aborted -- $BOOT_MIGRATION_DIR and $BOOT_MNT/tryboot.txt are staged but inert; delete them to fully undo"
 fi
 
-log "rebooting into the rescue system now (tryboot) -- this console goes quiet"
+log "rebooting into the migration system now (tryboot) -- this console goes quiet"
 log "until it either comes back up as OpenMower OS, or (if tryboot isn't"
-log "supported, or rescue/ wasn't found) boots this same Raspberry Pi OS again."
+log "supported, or migration/ wasn't found) boots this same Raspberry Pi OS again."
 mkdir -p /run/systemd
 printf '0 tryboot' > /run/systemd/reboot-param
 systemctl reboot

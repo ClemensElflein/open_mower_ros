@@ -1,6 +1,6 @@
 .cache/
 output/
-output-rescue/
+output-migration/
 keys/
 *.img
 *.raucb

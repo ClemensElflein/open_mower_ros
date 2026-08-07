@@ -264,21 +264,39 @@ Devices already in the field running stock Raspberry Pi OS can move onto
 this A/B/RAUC-managed OS entirely over the network — no SD card removal.
 
 ```sh
-make image          # -> Image, *.dtb, config.vfat, boot-a.vfat, boot-b.vfat, rootfs.squashfs
-make image-rescue    # -> output-rescue/images/openmower-migrate-<version>.sh
+make image            # -> Image, *.dtb, config.vfat, boot-a.vfat, boot-b.vfat, rootfs.squashfs, sdcard.img
+make image-migration  # -> output-migration/images/openmower-migrate-<version>.sh
 ```
 
-`image-rescue` produces a single self-extracting installer script (kernel +
-both dtbs + the rescue initramfs + the boot/rootfs images all embedded in
-one file, checksummed — no update server or manifest needed for this,
-unlike the ongoing OTA flow below). Copy it to the device however's
-convenient (`scp`, USB stick, ...) and run it as root:
+`image-migration` produces a single self-extracting installer script -- but
+deliberately a *small* one: just the kernel, both dtbs, and the migration
+initramfs embedded and checksummed (a few tens of MB, rarely changes). The
+actual OS -- `openmower-<version>.img.gz`, easily 1GB+ -- is `make image`'s
+own output (`external/board/openmower-cm4/post-image.sh` gzips `sdcard.img`
+and writes a matching `.sha256` sidecar next to it), meant to be uploaded as
+a GitHub Releases asset. The installer downloads it straight from that
+static URL over HTTPS at run time -- no manifest, no update server of our
+own, just the URL and its sha256. That split is what lets the installer
+script itself stay valid across every future OS release without needing to
+be rebuilt or redistributed each time -- only rerun `make image-migration`
+when the kernel/dtbs/migration initramfs change.
 
 ```sh
-scp output-rescue/images/openmower-migrate-*.sh pi@device:/tmp/
-ssh pi@device sudo /tmp/openmower-migrate-*.sh --dry-run   # verify first: checks + extracts, no disk writes
-ssh pi@device sudo /tmp/openmower-migrate-*.sh
+gh release upload v1.2.3 output/images/openmower-*.img.gz output/images/openmower-*.img.gz.sha256
 ```
+
+Copy the installer to the device however's convenient (`scp`, USB stick,
+...) and run it as root, pointing `--url` at that uploaded asset:
+
+```sh
+scp output-migration/images/openmower-migrate-*.sh pi@device:/tmp/
+ssh pi@device sudo /tmp/openmower-migrate-*.sh --url https://github.com/<org>/<repo>/releases/download/v1.2.3/openmower-v1.2.3.img.gz --dry-run   # verify first: checks + downloads, no disk writes
+ssh pi@device sudo /tmp/openmower-migrate-*.sh --url https://github.com/<org>/<repo>/releases/download/v1.2.3/openmower-v1.2.3.img.gz
+```
+
+The version is baked into the asset filename (same as the `.raucb`
+bundle), so `--url` always names a specific release explicitly -- pick
+whichever one you actually want on the device.
 
 It's a real file on disk, not something to pipe into `sh` — it re-reads its
 own embedded payload off disk partway through.
@@ -293,13 +311,14 @@ that check, it prints a warning:
 and may fail partway, in which case recovery needs physical access to the
 mower (SD card out, reflash) — no remote recovery path. Requires typed
 `yes` (or `--yes`) before proceeding. It then makes a best-effort attempt
-to carry your data over on its own: stops the running `openmower`/docker
-stack and prunes docker images (frees up disk space, skipped under
-`--dry-run`), and stages `/home/openmower` plus your stack's `.env` next
-to the embedded OS image so the rescue initramfs restores them onto the
-new `/data/openmower` after repartitioning — non-fatal at every step, a
-failure here never blocks the OS migration itself, it's still your job to
-have backed up separately.
+to carry your data over on its own: downloads + sha256-verifies the OS
+image from `--url` before touching anything else, stops the running
+`openmower`/docker stack and prunes docker images (frees up disk space,
+skipped under `--dry-run`), and stages `/home/openmower` plus your stack's
+`.env` next to the downloaded OS image so the migration initramfs restores
+them onto the new `/data/openmower` after writing it — non-fatal at every
+step, a failure here never blocks the OS migration itself, it's still your
+job to have backed up separately.
 
 Mechanism: NOT kexec -- `kexec_load` is either disabled outright in stock
 Raspberry Pi OS kernels, or hangs on real hardware even when enabled ("CPUs
@@ -307,30 +326,31 @@ are stuck in the kernel"): Raspberry Pi's boot firmware has no PSCI, so the
 kernel has no way to park/re-wake secondary cores across the jump
 (long-standing, unresolved upstream -- confirmed the hard way against real
 CM4 hardware before switching approaches). Instead the script drops the
-rescue kernel/dtbs/initramfs/cmdline into a `rescue/` subdirectory of the
+migration kernel/dtbs/initramfs/cmdline into a `migration/` subdirectory of the
 *existing* stock boot partition (purely additive) plus a `tryboot.txt` at
-its root (`os_prefix=rescue/`), then triggers Raspberry Pi firmware's own
+its root (`os_prefix=migration/`), then triggers Raspberry Pi firmware's own
 one-shot `tryboot` reboot -- a real cold reset, no PSCI involved. Firmware
 loads `tryboot.txt` instead of `config.txt` for exactly one boot attempt;
-the embedded busybox initramfs (`openmower_cm4_rescue_defconfig`) then
-stages `config.vfat` / `boot-a.vfat` / `boot-b.vfat` / `rootfs.squashfs`
-into RAM, repartitions the same disk into the layout below, writes them
-into place, and reboots again — firmware then boots the new slot A like any
-other device. See `external/board/openmower-cm4-rescue/rootfs-overlay/init`
-for exactly what happens to the disk, and `scripts/migrate-to-openmower.sh`'s
-own header for the safety checks (disk space, payload checksum) it runs
-first.
+the embedded busybox initramfs (`openmower_cm4_migration_defconfig`) then
+stages the downloaded `sdcard.img.gz` into RAM and `dd`s it wholesale onto
+the disk -- partition table included, so the layout below comes straight
+from the image, nothing re-declared at migration time -- and reboots again —
+firmware then boots the new slot A like any other device. See
+`external/board/openmower-cm4-migration/rootfs-overlay/init` for exactly what
+happens to the disk, and `scripts/migrate-to-openmower.sh`'s own header for
+the safety checks (disk space, embedded-payload checksum, OS-image
+checksum) it runs first.
 
 Same safety net `rauc-mark-good`/`openmower-updater` rely on elsewhere in
 this project: the tryboot flag is one-shot and self-clears the moment it's
-consumed, so if the rescue boot never gets far enough to trigger its own
+consumed, so if the migration boot never gets far enough to trigger its own
 (ordinary) reboot — crash, hang, power loss — any subsequent reset boots
 the stock OS again, automatically. And per Raspberry Pi's firmware
-behavior, a misconfigured `tryboot.txt`/`rescue/` (wrong filename, missing
+behavior, a misconfigured `tryboot.txt`/`migration/` (wrong filename, missing
 file) just gets silently ignored, not hung. **The actual repartitioning is
 still destructive and cannot be undone** — everything up to the explicit
 "type yes to continue" prompt only stages files (reversibly: delete
-`rescue/` and `tryboot.txt` off the boot partition to fully undo), nothing
+`migration/` and `tryboot.txt` off the boot partition to fully undo), nothing
 irreversible happens until the reboot after that prompt.
 
 ## Disk layout

@@ -1,8 +1,8 @@
 # Host-side convenience wrapper. Real work happens in the container (build.sh).
 
-.PHONY: image image-dev image-rescue shell menuconfig menuconfig-dev \
-	menuconfig-rescue linux-menuconfig \
-	savedefconfig savedefconfig-dev savedefconfig-rescue clean distclean
+.PHONY: image image-dev image-migration shell menuconfig menuconfig-dev \
+	menuconfig-migration linux-menuconfig \
+	savedefconfig savedefconfig-dev savedefconfig-migration clean distclean
 
 image:
 	./build.sh image
@@ -12,12 +12,12 @@ image:
 image-dev:
 	DEFCONFIG=openmower_cm4_dev_defconfig ./build.sh image
 
-# Rescue/migration installer, see external/configs/openmower_cm4_rescue_defconfig
+# Migration installer, see external/configs/openmower_cm4_migration_defconfig
 # and scripts/migrate-to-openmower.sh. Needs a prior `make image` (pulls the
-# kernel/dtbs/boot-*/rootfs images from output/images/); own output-rescue/
-# dir otherwise. Result: output-rescue/images/openmower-migrate-<version>.sh
-image-rescue:
-	./build.sh image-rescue
+# kernel/dtbs from output/images/); own output-migration/ dir otherwise.
+# Result: output-migration/images/openmower-migrate-<version>.sh
+image-migration:
+	./build.sh image-migration
 
 shell:
 	./build.sh shell
@@ -28,8 +28,8 @@ menuconfig:
 menuconfig-dev:
 	DEFCONFIG=openmower_cm4_dev_defconfig ./build.sh menuconfig
 
-menuconfig-rescue:
-	./build.sh menuconfig-rescue
+menuconfig-migration:
+	./build.sh menuconfig-migration
 
 linux-menuconfig:
 	./build.sh linux-menuconfig
@@ -42,12 +42,12 @@ savedefconfig:
 savedefconfig-dev:
 	./build.sh savedefconfig BR2_DEFCONFIG=/work/os/external/configs/openmower_cm4_dev_defconfig
 
-# Write the current .config back to external/configs/openmower_cm4_rescue_defconfig
-savedefconfig-rescue:
-	./build.sh savedefconfig-rescue
+# Write the current .config back to external/configs/openmower_cm4_migration_defconfig
+savedefconfig-migration:
+	./build.sh savedefconfig-migration
 
 clean:
 	./build.sh clean
 
 distclean:
-	rm -rf output output-rescue
+	rm -rf output output-migration

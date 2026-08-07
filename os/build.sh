@@ -2,10 +2,10 @@
 # Run Buildroot inside the toolchain container.
 #
 # Usage:
-#   ./build.sh                  # full image build
-#   ./build.sh image-rescue     # rescue/migration installer, see external/configs/openmower_cm4_rescue_defconfig
-#   ./build.sh menuconfig       # any Buildroot make target
-#   ./build.sh shell            # interactive shell in the container
+#   ./build.sh                    # full image build
+#   ./build.sh image-migration    # migration installer, see external/configs/openmower_cm4_migration_defconfig
+#   ./build.sh menuconfig         # any Buildroot make target
+#   ./build.sh shell              # interactive shell in the container
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -22,8 +22,8 @@ SUBCOMMAND="${1:-image}"
 OPENMOWER_VERSION="$(date -u +%Y%m%d%H%M%S)"
 OPENMOWER_GIT_REV="$(git -C "$HERE" describe --always --dirty 2>/dev/null || echo unknown)"
 
-# The rescue/migration initramfs gets its OWN output dir (output-rescue),
-# not output/. It shares no packages with the prod/dev rootfs (systemd vs.
+# The migration initramfs gets its OWN output dir (output-migration), not
+# output/. It shares no packages with the prod/dev rootfs (systemd vs.
 # no-init, squashfs vs. cpio, ...), and Buildroot has no mechanism to prune
 # a package's installed files from target/ when a defconfig switch disables
 # it -- sharing output/ with prod produced a rootfs.cpio with the *entire*
@@ -31,16 +31,16 @@ OPENMOWER_GIT_REV="$(git -C "$HERE" describe --always --dirty 2>/dev/null || ech
 # of the tiny busybox image it's supposed to be. Separate output dirs sidesteps
 # the problem entirely. .cache/dl and .cache/ccache are still shared (below),
 # so this doesn't mean rebuilding the toolchain from scratch.
-if [ "$SUBCOMMAND" = "image-rescue" ] || [ "$SUBCOMMAND" = "menuconfig-rescue" ] || [ "$SUBCOMMAND" = "savedefconfig-rescue" ]; then
-    OUTPUT_DIR=/work/os/output-rescue
-    DEFCONFIG=openmower_cm4_rescue_defconfig
+if [ "$SUBCOMMAND" = "image-migration" ] || [ "$SUBCOMMAND" = "menuconfig-migration" ] || [ "$SUBCOMMAND" = "savedefconfig-migration" ]; then
+    OUTPUT_DIR=/work/os/output-migration
+    DEFCONFIG=openmower_cm4_migration_defconfig
 else
     OUTPUT_DIR=/work/os/output
 fi
 
-mkdir -p "$HERE/.cache/dl" "$HERE/.cache/ccache" "$HERE/output" "$HERE/output-rescue"
+mkdir -p "$HERE/.cache/dl" "$HERE/.cache/ccache" "$HERE/output" "$HERE/output-migration"
 
-# Every image/image-rescue build forces a fresh target/ + staging/ --
+# Every image/image-migration build forces a fresh target/ + staging/ --
 # Buildroot's own incremental build never deletes a target-dir file whose
 # source (rootfs-overlay entry, or a line removed from some package's
 # INSTALL_TARGET_CMDS) disappeared; it only adds/updates. A stale unit file
@@ -69,7 +69,7 @@ mkdir -p "$HERE/.cache/dl" "$HERE/.cache/ccache" "$HERE/output" "$HERE/output-re
 # already-built .stamp_built -- scripts/rebuild-changed-local-packages.sh
 # (below) exists specifically for that.
 HOST_OUTPUT_DIR="$HERE${OUTPUT_DIR#/work/os}"
-if [ "$SUBCOMMAND" = "image" ] || [ "$SUBCOMMAND" = "image-rescue" ]; then
+if [ "$SUBCOMMAND" = "image" ] || [ "$SUBCOMMAND" = "image-migration" ]; then
     rm -rf "$HOST_OUTPUT_DIR/target" "$HOST_OUTPUT_DIR/staging" "$HOST_OUTPUT_DIR/images"
     mkdir -p "$HOST_OUTPUT_DIR/target" "$HOST_OUTPUT_DIR/staging" "$HOST_OUTPUT_DIR/images"
     if [ -d "$HOST_OUTPUT_DIR/build" ]; then
@@ -131,10 +131,10 @@ fi
 # ./build.sh doesn't pay for a re-pull/rebuild every time — only when the
 # resolved image (ghcr) or this repo's HEAD (local) changed.
 #
-# Skipped entirely for image-rescue/menuconfig-rescue/savedefconfig-rescue:
+# Skipped entirely for image-migration/menuconfig-migration/savedefconfig-migration:
 # that's a tiny busybox initramfs with no openmower-ros package in it, so
 # pulling multi-GB of ROS/Ubuntu here would be pure waste.
-if [ "$OUTPUT_DIR" != "/work/os/output-rescue" ]; then
+if [ "$OUTPUT_DIR" != "/work/os/output-migration" ]; then
     OMR_SOURCE="${OMR_SOURCE:-ghcr}"
     OMR_IMAGE="${OMR_IMAGE:-ghcr.io/clemenselflein/open_mower_ros:edge}"
     # os/ lives inside the open_mower_ros checkout itself now (no separate
@@ -272,12 +272,12 @@ case "$SUBCOMMAND" in
         exec docker run "${DOCKER_ARGS[@]}" "$IMAGE_TAG" \
             bash -c "${BR_MAKE[*]} $DEFCONFIG && /work/os/scripts/rebuild-changed-local-packages.sh /work/os/buildroot $OUTPUT_DIR /work/os/external && ${BR_MAKE[*]}"
         ;;
-    image-rescue)
-        # No local-package rebuild step -- the rescue defconfig enables none.
+    image-migration)
+        # No local-package rebuild step -- the migration defconfig enables none.
         exec docker run "${DOCKER_ARGS[@]}" "$IMAGE_TAG" \
             bash -c "${BR_MAKE[*]} $DEFCONFIG && ${BR_MAKE[*]}"
         ;;
-    menuconfig | menuconfig-rescue)
+    menuconfig | menuconfig-migration)
         # A fresh output directory has no .config, so Buildroot would otherwise
         # open menuconfig with its generic (x86) defaults.
         if [ ! -f "$HERE${OUTPUT_DIR#/work/os}/.config" ]; then
@@ -286,9 +286,9 @@ case "$SUBCOMMAND" in
         fi
         exec docker run "${DOCKER_ARGS[@]}" "$IMAGE_TAG" "${BR_MAKE[@]}" menuconfig
         ;;
-    savedefconfig-rescue)
+    savedefconfig-migration)
         exec docker run "${DOCKER_ARGS[@]}" "$IMAGE_TAG" "${BR_MAKE[@]}" \
-            savedefconfig BR2_DEFCONFIG=/work/os/external/configs/openmower_cm4_rescue_defconfig
+            savedefconfig BR2_DEFCONFIG=/work/os/external/configs/openmower_cm4_migration_defconfig
         ;;
     *)
         exec docker run "${DOCKER_ARGS[@]}" "$IMAGE_TAG" "${BR_MAKE[@]}" "$@"
