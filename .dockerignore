@@ -23,3 +23,10 @@ src/cmake-build-debug-ros
 docker-simulation/**
 !docker-simulation/assets
 !docker-simulation/assets/**
+
+# os/ is the Buildroot-based embedded-Linux OS build system, not ROS source --
+# a Buildroot checkout, ccache/download caches, and build output all live
+# under here (multi-GB), and OMR_SOURCE=local (os/build.sh) uses this repo's
+# own root as the docker build context, so it must stay out or COPY ./
+# in docker/Dockerfile's assemble stage would vendor it wholesale.
+os/

@@ -1,0 +1,194 @@
+#!/bin/sh
+# PID1 of the rescue initramfs (see ../../../configs/openmower_cm4_rescue_defconfig).
+#
+# tryboot'd from a running stock Raspberry Pi OS install by
+# scripts/migrate-to-openmower.sh to convert the SD card from the stock
+# single-rootfs layout to the openmower-cm4 A/B layout, over the network,
+# with no SD card removal. Runs once, never returns: either it reboots into
+# the freshly-written slot A, or it fails before touching the disk and drops
+# to a shell (old install is untouched at that point).
+#
+# Partition layout written below MUST match
+# board/openmower-cm4/genimage.cfg (that file's own header has the same
+# "keep in sync" note pointing back here).
+set -eu
+export PATH=/sbin:/usr/sbin:/bin:/usr/bin
+
+log() { echo "[openmower-rescue] $*"; }
+
+DIRTY=0
+
+fail() {
+    log "FATAL: $*"
+    if [ "$DIRTY" = 1 ]; then
+        log "Disk is PARTIALLY migrated -- old install may no longer boot."
+        log "Do NOT power off. Recover from this shell: re-run sfdisk/dd/mkfs"
+        log "by hand against \$DISK using the payload staged in /run/stage"
+        log "(see this script for the exact commands)."
+    else
+        log "Disk has NOT been touched -- power-cycling now boots back into"
+        log "the old install."
+    fi
+    log "Dropping to a shell (this console only) for debugging."
+    exec /bin/sh
+}
+trap 'fail "unexpected error at line $LINENO"' EXIT
+
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+# CONFIG_DEVTMPFS_MOUNT=y only pre-populates a handful of static nodes
+# baked into the cpio at build time (console, null, tty...) -- it does NOT
+# mean the kernel auto-mounts a live devtmpfs here for us. Confirmed
+# against real hardware: the kernel found mmcblk0/p1/p2 fine
+# (/proc/partitions, dmesg's "mmcblk0: p1 p2"), but /dev/mmcblk0p2 never
+# existed because nothing had mounted devtmpfs at all.
+mount -t devtmpfs devtmpfs /dev
+
+# --- Parse kernel cmdline -----------------------------------------------
+DISK="" SRC="" SRCFS="" STAGE=""
+for kv in $(cat /proc/cmdline); do
+    case "$kv" in
+        omrescue.disk=*)  DISK="${kv#omrescue.disk=}" ;;
+        omrescue.src=*)   SRC="${kv#omrescue.src=}" ;;
+        omrescue.srcfs=*) SRCFS="${kv#omrescue.srcfs=}" ;;
+        omrescue.stage=*) STAGE="${kv#omrescue.stage=}" ;;
+    esac
+done
+[ -n "$DISK" ] || fail "omrescue.disk= missing from kernel cmdline"
+[ -n "$SRC" ] || fail "omrescue.src= missing from kernel cmdline"
+[ -n "$SRCFS" ] || fail "omrescue.srcfs= missing from kernel cmdline"
+[ -n "$STAGE" ] || fail "omrescue.stage= missing from kernel cmdline"
+
+log "disk=$DISK src=$SRC ($SRCFS) stage=$STAGE"
+
+# MMC enumeration isn't done by the time /init starts -- devtmpfs creates
+# block device nodes as the controller/card driver discovers them, which
+# takes a moment (observed in practice: $SRC not yet present, "mounting
+# ... failed: no such file or directory"). Used again below for the
+# freshly-partitioned nodes after sfdisk, same reason.
+wait_for_device() {
+    tries=20
+    while [ ! -b "$1" ] && [ "$tries" -gt 0 ]; do
+        sleep 1
+        tries=$((tries - 1))
+    done
+    [ -b "$1" ]
+}
+
+# --- Stage the payload into RAM, then let go of the source partition ----
+# Everything we need must be fully read into tmpfs BEFORE the first write
+# to $DISK: the new partition table's early partitions physically overlap
+# where the old boot/rootfs partitions live, so reading $SRC after that
+# point would race an in-progress overwrite of its own filesystem.
+wait_for_device "$SRC" || fail "$SRC never appeared (mmc enumeration timeout)"
+mkdir -p /mnt/old
+mount -t "$SRCFS" -o ro "$SRC" /mnt/old || fail "cannot mount $SRC as $SRCFS"
+
+mkdir -p /run/stage
+for f in config.vfat boot-a.vfat boot-b.vfat rootfs.squashfs; do
+    [ -f "/mnt/old/$STAGE/$f" ] || fail "missing staged file: $STAGE/$f on $SRC"
+done
+log "copying staged payload from $SRC into tmpfs..."
+cp "/mnt/old/$STAGE/config.vfat" /run/stage/config.vfat
+cp "/mnt/old/$STAGE/boot-a.vfat" /run/stage/boot-a.vfat
+cp "/mnt/old/$STAGE/boot-b.vfat" /run/stage/boot-b.vfat
+cp "/mnt/old/$STAGE/rootfs.squashfs" /run/stage/rootfs.squashfs
+
+# Best-effort: user data staged by migrate-to-openmower.sh (see its own
+# "stage user data next to the new OS image" comment) -- optional, absent
+# on manually-built installers or if staging failed there, so no fail()
+# here, just skip and move on.
+if [ -d "/mnt/old/$STAGE/migrated-data" ]; then
+    log "found staged user data, copying into tmpfs..."
+    cp -a "/mnt/old/$STAGE/migrated-data" /run/stage/migrated-data \
+        || log "WARNING: failed to copy staged user data, continuing without it"
+fi
+
+sync
+umount /mnt/old
+
+# --- Point of no return --------------------------------------------------
+log "payload staged in RAM. Repartitioning $DISK in 5s (old data goes now)..."
+sleep 5
+DIRTY=1
+
+wipefs -a "$DISK" >/dev/null || fail "wipefs $DISK failed"
+
+# config(16M) boot-a(128M) boot-b(128M) [ext] rootfs-a(3584M) rootfs-b(3584M) data(rest)
+# dos label does NOT auto-create the extended/logical container just
+# because >4 lines are listed -- confirmed against sfdisk 2.41's actual
+# source (has_container_or_unused() in disk-utils/sfdisk.c: once all 4
+# primary slots are filled and none of them is a container, it stops and
+# prints "All partitions used", silently dropping the remaining script
+# lines). The extended partition must be declared explicitly (type=Ex,
+# no size = "as much as possible" = rest of disk) so p4 becomes the
+# extended container and p5/p6/p7 become its logical partitions -- same
+# runtime numbering genimage.cfg's comment describes.
+sfdisk --force "$DISK" <<EOF || fail "sfdisk $DISK failed"
+label: dos
+unit: sectors
+
+size=16M,   type=c
+size=128M,  type=c
+size=128M,  type=c
+type=Ex
+size=3584M, type=83
+size=3584M, type=83
+type=83
+EOF
+
+blockdev --rereadpt "$DISK" 2>/dev/null || true
+
+p() { echo "${DISK}p$1"; }
+
+wait_for_device "$(p 1)" || fail "$(p 1) never appeared after partitioning"
+
+log "writing config partition ($(p 1))..."
+dd if=/run/stage/config.vfat of="$(p 1)" bs=4M conv=fsync status=none
+log "writing boot-a partition ($(p 2))..."
+dd if=/run/stage/boot-a.vfat of="$(p 2)" bs=4M conv=fsync status=none
+log "writing boot-b partition ($(p 3))..."
+dd if=/run/stage/boot-b.vfat of="$(p 3)" bs=4M conv=fsync status=none
+log "writing rootfs-a partition ($(p 5))..."
+dd if=/run/stage/rootfs.squashfs of="$(p 5)" bs=4M conv=fsync status=none
+log "rootfs-b ($(p 6)) left raw/empty -- RAUC writes it on the first real OTA update."
+log "formatting data partition ($(p 7))..."
+mkfs.ext4 -q -F -L data "$(p 7)" || fail "mkfs.ext4 $(p 7) failed"
+
+# Restore staged user data (best-effort, see above) onto the fresh data
+# partition, matching openmower-ros's expected layout: /data/openmower is
+# the ROS user's whole $HOME (see README's "Configuration" section), same
+# principle the old /home/openmower was built on, so this is a direct
+# wholesale copy, not a curated one. openmower.env becomes openmower.conf
+# directly -- same KEY=VALUE-no-export format and variable names as the
+# new EnvironmentFile= (HARDWARE_PLATFORM, MOWER, ESC_TYPE, ...); a stray
+# old-only key (e.g. VERSION) is a harmless unused var, not a conflict.
+# Non-fatal throughout: the OS itself is already fully written to disk by
+# this point, so a failure here must not fail() into a dropped shell --
+# that would make a successful OS migration look like it failed.
+if [ -d /run/stage/migrated-data ]; then
+    log "restoring staged user data onto data partition..."
+    mkdir -p /mnt/newdata
+    if mount -t ext4 "$(p 7)" /mnt/newdata; then
+        mkdir -p /mnt/newdata/openmower
+        if [ -d /run/stage/migrated-data/home-openmower ]; then
+            cp -a /run/stage/migrated-data/home-openmower/. /mnt/newdata/openmower/ \
+                || log "WARNING: failed to restore /home/openmower data"
+        fi
+        if [ -f /run/stage/migrated-data/openmower.env ]; then
+            cp -a /run/stage/migrated-data/openmower.env /mnt/newdata/openmower/openmower.conf \
+                || log "WARNING: failed to restore openmower.env -> openmower.conf"
+        fi
+        sync
+        umount /mnt/newdata
+    else
+        log "WARNING: could not mount $(p 7) to restore staged user data, skipping"
+    fi
+fi
+
+sync
+log "done. Rebooting into OpenMower OS (slot A)..."
+sleep 2
+reboot -f
+# reboot -f should never return control; if it does, fall through to the
+# EXIT trap below rather than silently hanging.

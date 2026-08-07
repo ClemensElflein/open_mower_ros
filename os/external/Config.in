@@ -1,0 +1,4 @@
+source "$BR2_EXTERNAL_OPENMOWER_PATH/package/openmower-updater/Config.in"
+source "$BR2_EXTERNAL_OPENMOWER_PATH/package/improv-ble/Config.in"
+source "$BR2_EXTERNAL_OPENMOWER_PATH/package/openmower-ros/Config.in"
+source "$BR2_EXTERNAL_OPENMOWER_PATH/package/openmower-cli/Config.in"

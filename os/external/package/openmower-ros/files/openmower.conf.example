@@ -1,0 +1,51 @@
+# OpenMower systemd EnvironmentFile (KEY=VALUE, no "export", unlike
+# open_mower_ros's own config/mower_config.sh.example which this mirrors).
+#
+# This file (/etc/openmower/openmower.conf) ships safe/empty defaults and is
+# read first. Put your actual per-device values in
+# /data/openmower/openmower.conf instead -- it's on the persistent /data
+# partition, survives RAUC A/B updates, and is loaded second (so it
+# overrides this file). Never edit this file directly on a device; it lives
+# on the read-only squashfs rootfs and changes would be lost on next update.
+#
+# Required -- roslaunch hard-fails at startup without these. HARDWARE_PLATFORM
+# defaults to 2 here (v2/xbot_framework RPC -- CM4 + the internal 172.16.78.x
+# LAN this image sets up is v2-hardware-shaped by construction); override in
+# /data/openmower/openmower.conf if you're actually on v1. MOWER has no sane
+# default (no template can guess your robot) and must be set per-device.
+HARDWARE_PLATFORM=2
+#   MOWER=YardForce500           # see open_mower_ros/src/open_mower/params/hardware_specific/
+#
+# Not read by roslaunch/open_mower_ros itself -- consumed by openmower-cli's
+# `openmower update-firmware` (xCore firmware identifier, e.g. the release asset
+# openmower-<FIRMWARE>.bin). Lives here anyway since this is openmower-cli's own
+# config file on this OS (see OPENMOWER_ENV_PATH). No sane default, same as MOWER.
+#   FIRMWARE=CHANGE_ME
+#
+# Required if HARDWARE_PLATFORM=1:
+#   ESC_TYPE=xesc_mini
+#
+# Also required: a per-robot /data/openmower/params/mower_params.yaml
+# (calibration -- not something a template can provide).
+# openmower-check-config refuses to start the service until it exists.
+#
+# openmower-start already sets these to persistent locations under
+# /data/openmower (survives RAUC A/B updates -- the whole ROS user's $HOME
+# is bind-mounted from there, not just these three) -- matches the
+# "OS-level compose provides services" convention the lean Dockerfile was
+# written for (see open_mower_ros's docker-simulation/docker-compose.yaml).
+# Override here only if you want something else:
+#   ROS_HOME=/data/openmower/ros              # ROS logs, rospack cache, etc.
+#   RECORDINGS_PATH=/data/openmower/recordings # rosbag output (OM_ENABLE_RECORDING*)
+#   PARAMS_PATH=/data/openmower/params         # mower_params.yaml / custom_params.yaml
+#
+# Optional, see open_mower_ros/config/mower_config.sh.example for the full
+# list (NTRIP, MQTT, docking/mowing behavior tuning, etc.) -- same var
+# names, just without "export" here.
+#
+# Mosquitto (MQTT broker for xbot_monitoring/OpenMowerApp) runs as part of
+# the auxiliary Docker stack -- see /data/stacks/openmower/compose.yaml --
+# and publishes to the host, so this nspawn container (shares the host
+# network namespace) reaches it at localhost. Uncomment to use it:
+#   OM_MQTT_HOSTNAME=localhost
+#   OM_MQTT_PORT=1883
