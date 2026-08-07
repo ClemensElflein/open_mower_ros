@@ -69,7 +69,7 @@ fi
 # The bundle carries the A-variant boot image; a post-install hook rewrites
 # cmdline.txt when the target is slot B.
 BUNDLE_DIR="$(mktemp -d)"
-trap 'rm -rf "$ROOTPATH_TMP" "$BUNDLE_DIR"' EXIT
+trap 'rm -rf "${ROOTPATH_TMP:-}" "$BUNDLE_DIR"' EXIT
 
 cp "$BINARIES_DIR/boot-a.vfat" "$BUNDLE_DIR/boot.vfat"
 cp "$BINARIES_DIR/rootfs.squashfs" "$BUNDLE_DIR/rootfs.squashfs"
