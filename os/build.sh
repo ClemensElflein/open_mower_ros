@@ -63,11 +63,11 @@ mkdir -p "$HERE/.cache/dl" "$HERE/.cache/ccache" "$HERE/output" "$HERE/output-mi
 # extract/patch/configure/build entirely, using Buildroot's own mature
 # incremental logic for that part, unchanged and untouched by us.
 #
-# The one gap that logic doesn't cover on its own: SITE_METHOD=local
-# packages (openmower-ros, improv-ble, openmower-updater), where Buildroot
-# doesn't auto-detect the local source tree changing underneath an
-# already-built .stamp_built -- scripts/rebuild-changed-local-packages.sh
-# (below) exists specifically for that.
+# The one gap that logic doesn't cover on its own: SITE_METHOD=local packages
+# (openmower-ros, improv-ble), where Buildroot doesn't auto-detect the local
+# source tree changing underneath an already-built .stamp_built --
+# scripts/rebuild-changed-local-packages.sh (below) exists specifically for
+# that.
 HOST_OUTPUT_DIR="$HERE${OUTPUT_DIR#/work/os}"
 if [ "$SUBCOMMAND" = "image" ] || [ "$SUBCOMMAND" = "image-migration" ]; then
     rm -rf "$HOST_OUTPUT_DIR/target" "$HOST_OUTPUT_DIR/staging" "$HOST_OUTPUT_DIR/images"
@@ -207,8 +207,8 @@ if [ "$OUTPUT_DIR" != "/work/os/output-migration" ]; then
     # stage into .cache/, gate on a content-hash key so a normal ./build.sh
     # doesn't re-fetch every time -- only when the latest release actually
     # changed. openmower-cli.mk is SITE_METHOD=local pointed at this cache,
-    # matching openmower-ros.mk/improv-ble.mk/openmower-updater.mk, none of
-    # which use Buildroot's hash mechanism either.
+    # matching openmower-ros.mk/improv-ble.mk, neither of which uses
+    # Buildroot's hash mechanism either.
     #
     # Trade-off worth naming: this trades reproducibility (same build.sh
     # invocation can fetch different bytes on different days) and a human

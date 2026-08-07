@@ -7,7 +7,7 @@
 # Always the latest GitHub release, resolved and staged into .cache/openmower-cli
 # by build.sh (see its own comment for why this isn't Buildroot's normal
 # pinned-URL + static .hash download) -- SITE_METHOD=local like
-# openmower-ros.mk/improv-ble.mk/openmower-updater.mk, none of which go
+# openmower-ros.mk/improv-ble.mk, neither of which goes
 # through Buildroot's hash mechanism either.
 OPENMOWER_CLI_VERSION = 1.0
 OPENMOWER_CLI_SITE = $(BR2_EXTERNAL_OPENMOWER_PATH)/../.cache/openmower-cli

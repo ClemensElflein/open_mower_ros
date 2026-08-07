@@ -15,7 +15,6 @@ enable openmower-hostname.service
 enable openmower-sync-bootcfg.service
 enable openmower-sync-bootcfg.path
 enable rauc-mark-good.timer
-enable openmower-updater.timer
 # Not auto-started: an unconfigured/untuned mower shouldn't come alive just
 # because the device booted. Start explicitly via openmower-cli (`systemctl
 # start openmower`) once HARDWARE_PLATFORM/MOWER/mower_params.yaml are set.

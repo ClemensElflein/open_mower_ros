@@ -1,7 +1,0 @@
-config BR2_PACKAGE_OPENMOWER_UPDATER
-	bool "openmower-updater"
-	depends on BR2_PACKAGE_RAUC
-	help
-	  OTA update poller: fetches a manifest from the configured
-	  update server, downloads and installs newer RAUC bundles and
-	  reboots into the new slot via the Pi tryboot mechanism.

@@ -20,8 +20,8 @@ source_hash() {
     # export step) instead of paying for a full per-file walk here. Needed
     # for local packages whose source tree is too large to hash on every
     # invocation (tens/hundreds of thousands of files) — the two-file
-    # openmower-updater/improv-ble packages never set this and fall through
-    # to the walk below unchanged.
+    # improv-ble package never sets this and falls through to the walk below
+    # unchanged.
     if [ -f "$source_dir/.br-content-hash" ]; then
         cat "$source_dir/.br-content-hash"
         return
@@ -68,9 +68,9 @@ while IFS= read -r -d '' package_mk; do
 
     # Also hash the package's own directory (Config.in, *.mk, and any files/
     # it installs itself), not just SITE. For packages where SITE *is* their
-    # files/ dir (openmower-updater, improv-ble) this is redundant but
-    # harmless. It's not redundant for packages like openmower-ros, whose
-    # SITE points at an external vendored tree (.cache/openmower-rootfs) --
+    # files/ dir (improv-ble) this is redundant but harmless. It's not
+    # redundant for packages like openmower-ros, whose SITE points at an
+    # external vendored tree (.cache/openmower-rootfs) --
     # without this, edits to its own files/openmower.service etc. were
     # invisible to this script entirely, so a real source change never
     # triggered a rebuild.

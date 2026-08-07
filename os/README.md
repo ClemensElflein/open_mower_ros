@@ -341,9 +341,9 @@ happens to the disk, and `scripts/migrate-to-openmower.sh`'s own header for
 the safety checks (disk space, embedded-payload checksum, OS-image
 checksum) it runs first.
 
-Same safety net `rauc-mark-good`/`openmower-updater` rely on elsewhere in
-this project: the tryboot flag is one-shot and self-clears the moment it's
-consumed, so if the migration boot never gets far enough to trigger its own
+Same safety net `rauc-mark-good` relies on elsewhere in this project: the
+tryboot flag is one-shot and self-clears the moment it's consumed, so if
+the migration boot never gets far enough to trigger its own
 (ordinary) reboot — crash, hang, power loss — any subsequent reset boots
 the stock OS again, automatically. And per Raspberry Pi's firmware
 behavior, a misconfigured `tryboot.txt`/`migration/` (wrong filename, missing
@@ -368,26 +368,20 @@ these are starting budgets, re-tune after measuring a real build.
 
 ## Update flow
 
-1. `openmower-updater.timer` polls `$UPDATE_URL/manifest.json` hourly
-   (config: `/etc/openmower-updater.conf`, device override in
-   `/data/openmower-updater.conf`; see `server/README.md`).
-2. Newer version ⇒ download bundle (multi-GB — carries the full vendored ROS
-   tree along with the base OS), verify RAUC signature, install into the
-   inactive slot pair.
-3. Reboot with the one-shot `tryboot` flag ⇒ firmware boots the new slot
-   **once**.
-4. Reaching `multi-user.target` runs `rauc-mark-good.service` ⇒ the
+Updates are installed on demand, not auto-polled: run `openmower update-os`
+(openmower-cli; `--from-pr`/`--from-branch`/`--tag` select the build, see
+its own `--help`) on the device, or manually:
+
+1. Fetch a `.raucb` bundle (carries the full vendored ROS tree along with
+   the base OS, so multi-GB) and `rauc install` it into the inactive slot
+   pair -- RAUC verifies the bundle signature as part of install.
+2. Reboot with the one-shot `tryboot` flag ⇒ firmware boots the new slot
+   **once**: `printf '0 tryboot' > /run/systemd/reboot-param && systemctl reboot`.
+3. Reaching `multi-user.target` runs `rauc-mark-good.service` ⇒ the
    tryboot backend commits the new slot as primary in `autoboot.txt`.
-5. Any crash/hang before that (hardware watchdog, 15 s) resets the SoC ⇒
+4. Any crash/hang before that (hardware watchdog, 15 s) resets the SoC ⇒
    tryboot flag is gone ⇒ firmware boots the old slot. Rollback is
    firmware-guaranteed, no software has to run for it.
-
-A failed/rolled-back version is remembered in `/data/update/attempted`
-and not retried until the server publishes a different version
-(delete the file to force a retry).
-
-Manual update: `rauc install /data/update/bundle.raucb`, then
-`printf '0 tryboot' > /run/systemd/reboot-param && systemctl reboot`.
 
 ## Wifi provisioning
 
@@ -439,11 +433,9 @@ docker/           build container (Buildroot toolchain only)
 buildroot/        Buildroot submodule (2026.02 LTS)
 external/         BR2_EXTERNAL tree: defconfig, board files, own packages
   board/openmower-cm4/       partition layout, tryboot + RAUC integration, overlay
-  package/openmower-updater/ OTA poller
   package/improv-ble/        BLE provisioning daemon
   package/openmower-ros/     vendors the docker-buildx-built ROS tree + runtime unit
   package/openmower-cli/     fetches the openmower-cli zipapp release (see "Manage the auxiliary stack")
-server/           bundle publishing for the update server
 keys/             dev signing keys (gitignored, auto-generated)
 ```
 

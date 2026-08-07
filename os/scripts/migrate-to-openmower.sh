@@ -14,12 +14,11 @@
 # deliberately NOT part of that embedded payload. It's fetched fresh over
 # the network at run time instead, from a single static HTTPS URL (a
 # GitHub Releases asset, see external/board/openmower-cm4/post-image.sh for
-# how it's built and named -- no manifest, no update server of our own,
-# unlike openmower-updater's OTA flow), which is what lets this small
-# installer stay usable across every future OS release without itself
-# needing to be rebuilt/redistributed each time -- only when the
-# kernel/dtbs/migration initramfs change does `make image-migration` need
-# re-running.
+# how it's built and named -- no manifest, no update server of our own),
+# which is what lets this small installer stay usable across every future
+# OS release without itself needing to be rebuilt/redistributed each time
+# -- only when the kernel/dtbs/migration initramfs change does
+# `make image-migration` need re-running.
 #
 # Mechanism: NOT kexec -- kexec_load is either outright disabled in stock
 # Raspberry Pi OS kernels, or hangs on real hardware even when enabled
@@ -37,9 +36,9 @@
 # external/board/openmower-cm4-migration/rootfs-overlay/init for exactly what
 # happens to the disk.
 #
-# Safety net, same one openmower-updater/rauc-mark-good rely on elsewhere in
-# this project: the tryboot flag is one-shot and self-clears the moment it's
-# consumed. If the migration boot never gets far enough to trigger its own
+# Safety net, same one rauc-mark-good relies on elsewhere in this project:
+# the tryboot flag is one-shot and self-clears the moment it's consumed. If
+# the migration boot never gets far enough to trigger its own
 # (ordinary, non-tryboot) reboot -- crash, hang, power loss -- any
 # subsequent reset boots config.txt/the stock OS again, automatically. And
 # per Raspberry Pi's own firmware behavior, if tryboot.txt/migration/ turns out
@@ -254,10 +253,8 @@ log "embedded migration-loader payload extracted and verified."
 
 # --- Fetch + verify the OS image --------------------------------------------
 # A single static HTTPS URL -- a GitHub Releases asset -- not a manifest
-# poll: unlike openmower-updater's OTA flow, which needs a manifest.json to
-# decide whether a newer version even exists, this is a one-time, explicitly
-# requested install with an explicitly requested URL. Nothing to compare
-# against, so nothing to look up first.
+# poll: this is a one-time, explicitly requested install with an explicitly
+# requested URL. Nothing to compare against, so nothing to look up first.
 #
 # Checksum comes from a plain-text "<url>.sha256" sidecar (just the hex
 # digest, see external/board/openmower-cm4/post-image.sh) rather than a
@@ -274,8 +271,7 @@ esac
 
 IMG_GZ="$STAGE_ROOT/sdcard.img.gz"
 log "downloading OS image from $IMAGE_URL..."
-# Stall-detection instead of a flat deadline, same reasoning as
-# openmower-updater's own bundle download: this image is 1GB+ compressed,
+# Stall-detection instead of a flat deadline: this image is 1GB+ compressed,
 # so a fixed wall-clock cap would time out legitimate slow-but-progressing
 # downloads. Abort only if throughput drops below 1KB/s for a full minute.
 curl -fSL --speed-limit 1024 --speed-time 60 "$IMAGE_URL" -o "$IMG_GZ" \
