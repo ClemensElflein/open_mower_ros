@@ -1,0 +1,10 @@
+[Unit]
+Description=Periodic OTA update check
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=1h
+RandomizedDelaySec=10min
+
+[Install]
+WantedBy=timers.target

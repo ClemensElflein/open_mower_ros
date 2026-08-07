@@ -1,0 +1,200 @@
+name: Build OS
+
+# Chained onto "Build" (build-image.yaml) via workflow_run, deliberately not
+# a standalone pull_request/push trigger: the whole point is to vendor the
+# REAL open_mower_ros image built from this exact commit/PR, not some
+# unrelated ghcr tag that may not even reflect the change being tested yet.
+# "Build" already does the actual arm64 build (native arm64 runner, no
+# emulation) and, for PRs, exports it as an artifact (image-arm64-default --
+# see push-pr-image.yaml, which consumes the same artifact the same way).
+# This workflow, build-image.yaml and push-pr-image.yaml are otherwise
+# completely independent -- none of those are touched here.
+on:
+  workflow_dispatch:
+    inputs:
+      build_sdcard:
+        description: 'Also build the full flashable sdcard.img'
+        default: false
+        type: boolean
+  workflow_run:
+    workflows: ["Build"]
+    types: [completed]
+
+concurrency:
+  group: build-os-${{ github.event.workflow_run.head_branch || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write   # only actually used by the release step, tag builds only
+  actions: read     # cross-workflow-run artifact download (the PR image tar)
+
+jobs:
+  build:
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && (github.event.workflow_run.event == 'pull_request' || github.event.workflow_run.event == 'push'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - name: Resolve PR number (if this is a PR build)
+        id: pr
+        if: github.event_name == 'workflow_run' && github.event.workflow_run.event == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_INFO=$(gh api "repos/${{ github.repository }}/pulls?state=all" \
+            --jq ".[] | select(.head.sha == \"${{ github.event.workflow_run.head_sha }}\") | {number: .number, state: .state}" \
+            | head -1)
+          PR_NUMBER=$(echo "$PR_INFO" | jq -r '.number // empty')
+          PR_STATE=$(echo "$PR_INFO" | jq -r '.state // empty')
+          if [[ ! "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
+            echo "::error::Could not resolve PR number for SHA ${{ github.event.workflow_run.head_sha }} (got: '${PR_NUMBER}')" >&2
+            exit 1
+          fi
+          if [[ "$PR_STATE" != "open" ]]; then
+            echo "::notice::PR #${PR_NUMBER} is already ${PR_STATE}, skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+          echo "number=${PR_NUMBER}" >> "$GITHUB_OUTPUT"
+
+      # Deliberately NOT gated on the PR touching os/: the RAUC bundle
+      # vendors open_mower_ros wholesale (external/package/openmower-ros),
+      # so a ROS-only change (no os/ touched at all) still changes what the
+      # bundle actually contains -- skipping those would mean the OS build
+      # is only ever validated against os/ changes, never against the ROS
+      # payload it ships, which is most of what actually goes into it. The
+      # PR-closed check below still applies (a workflow_run can fire after
+      # the PR that triggered it already closed/merged).
+      - name: Should this run proceed?
+        id: go
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event.workflow_run.event }}" = "pull_request" ]; then
+            if [ "${{ steps.pr.outputs.skip }}" != "true" ]; then
+              echo "go=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "go=false" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout
+        if: steps.go.outputs.go == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          submodules: recursive
+          fetch-depth: 0   # need tag history to tell a release tag from an ordinary branch push, below
+          fetch-tags: true
+
+      - name: Free up disk space
+        if: steps.go.outputs.go == 'true'
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+              /opt/hostedtoolcache "$AGENT_TOOLSDIRECTORY" || true
+          df -h /
+
+      # Tag pushes (v*, same tags build-image.yaml itself reacts to) get the
+      # full flashable sdcard.img and a GitHub Release; everything else
+      # (PR builds, ordinary branch pushes, or a manual dispatch that didn't
+      # ask for it) only builds the RAUC bundle -- see post-image.sh:
+      # skipping sdcard assembly skips ~8GB of pure disk-image
+      # allocation/writing the bundle doesn't need at all.
+      - name: Determine build mode
+        if: steps.go.outputs.go == 'true'
+        id: mode
+        run: |
+          is_release=false
+          if [ "${{ github.event.workflow_run.event }}" = "push" ] && git tag --points-at HEAD | grep -qE '^v'; then
+            is_release=true
+          fi
+          if [ "$is_release" = "true" ] || [ "${{ inputs.build_sdcard }}" = "true" ]; then
+            echo "build_sdcard=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "build_sdcard=0" >> "$GITHUB_OUTPUT"
+          fi
+          echo "is_release=$is_release" >> "$GITHUB_OUTPUT"
+
+      # PRs: vendor the exact image "Build" just built from this PR's own
+      # source (see the header comment above) instead of an unrelated ghcr
+      # tag. Branch/tag pushes: "Build"'s own merge job has, by the time
+      # this workflow_run fired, already pushed a `sha-<short-sha>` tag for
+      # every push it handles (edge/branch/semver/sha are all applied
+      # together, see build-image.yaml's Docker meta step) -- always
+      # present regardless of branch vs. tag, so no need to special-case
+      # which one this is.
+      - name: Fetch the open_mower_ros image built from this commit (PR)
+        if: steps.go.outputs.go == 'true' && github.event.workflow_run.event == 'pull_request'
+        uses: actions/download-artifact@v4
+        with:
+          name: image-arm64-default
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Load the PR image and point the OS build at it
+        if: steps.go.outputs.go == 'true' && github.event.workflow_run.event == 'pull_request'
+        run: |
+          docker load < image.tar
+          echo "OMR_SOURCE=local-image" >> "$GITHUB_ENV"
+          echo "OMR_IMAGE=open_mower-pr:default" >> "$GITHUB_ENV"
+
+      - name: Point the OS build at this commit's published image (branch/tag push)
+        if: steps.go.outputs.go == 'true' && github.event.workflow_run.event == 'push'
+        env:
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          sha="${{ github.event.workflow_run.head_sha }}"
+          echo "OMR_SOURCE=ghcr" >> "$GITHUB_ENV"
+          echo "OMR_IMAGE=ghcr.io/${REPOSITORY,,}:sha-${sha:0:7}" >> "$GITHUB_ENV"
+
+      - name: Cache Buildroot state
+        if: steps.go.outputs.go == 'true'
+        uses: actions/cache@v4
+        with:
+          path: |
+            os/.cache/dl
+            os/.cache/ccache
+            os/.cache/openmower-cli
+            os/output/build
+            os/output/host
+          key: os-build-${{ github.run_id }}
+          restore-keys: |
+            os-build-
+
+      # OMR_SOURCE/OMR_IMAGE come from GITHUB_ENV (set above); ghcr's own
+      # default fallback in build.sh only applies if neither step above ran
+      # (workflow_dispatch), which is exactly when the ghcr default is
+      # actually what you want.
+      - name: Build
+        if: steps.go.outputs.go == 'true'
+        working-directory: os
+        env:
+          OPENMOWER_BUILD_SDCARD: ${{ steps.mode.outputs.build_sdcard }}
+        run: ./build.sh image
+
+      - name: Upload RAUC bundle
+        if: steps.go.outputs.go == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: openmower-os-raucb
+          path: os/output/images/openmower-*.raucb
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload sdcard.img
+        if: steps.go.outputs.go == 'true' && steps.mode.outputs.build_sdcard == '1'
+        uses: actions/upload-artifact@v4
+        with:
+          name: openmower-os-sdcard
+          path: os/output/images/sdcard.img
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Create GitHub Release
+        if: steps.go.outputs.go == 'true' && steps.mode.outputs.is_release == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.workflow_run.head_branch }}
+          files: |
+            os/output/images/openmower-*.raucb
+            os/output/images/sdcard.img

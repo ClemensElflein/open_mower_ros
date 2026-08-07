@@ -1,0 +1,11 @@
+[Unit]
+Description=OpenMower OTA update check
+Wants=network-online.target
+After=network-online.target rauc.service
+RequiresMountsFor=/data
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/openmower-updater
+Nice=10
+IOSchedulingClass=idle

@@ -1,0 +1,15 @@
+# Ported byte-identical (values, not just shape) from OpenMowerOS's
+# stage-openmower/40-openmower/files/opt/stacks/openmower/mosquitto.conf.
+# allow_anonymous is inherited as-is from the predecessor -- this broker is
+# reachable from wherever eth0 is plugged in (see README's "Internal LAN"
+# section), same posture the old image shipped for years.
+log_type notice
+log_dest stdout
+
+# Add 0.0.0.0 to listen on all interfaces and not only localhost
+listener 1883
+allow_anonymous true
+
+listener 9001 0.0.0.0
+protocol websockets
+allow_anonymous true
