@@ -129,6 +129,7 @@ BR2_PACKAGE_SOCAT=y
 BR2_PACKAGE_PYTHON_SERIAL=y
 BR2_PACKAGE_HTOP=y
 BR2_PACKAGE_NANO=y
+BR2_PACKAGE_MC=y
 
 # SWD flashing/debugging of the xCore (LL board MCU) via the CM4's own GPIO
 # -- openmower-cli's firmware uploader shells out to openocd with
