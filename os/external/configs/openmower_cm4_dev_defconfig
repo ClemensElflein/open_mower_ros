@@ -119,6 +119,7 @@ BR2_PACKAGE_CA_CERTIFICATES=y
 
 # Provisioning daemon runtime
 BR2_PACKAGE_PYTHON3=y
+BR2_PACKAGE_PYTHON3_SSL=y
 BR2_PACKAGE_PYTHON_DBUS_FAST=y
 # zipapp/zipfile support (zlib) -- without it, Python can't open compressed
 # zip members at all, which breaks any shiv-built zipapp, openmower-cli
