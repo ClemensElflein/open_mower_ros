@@ -16,8 +16,9 @@ bool EmergencyServiceInterface::SetHighLevelEmergency(uint16_t reason) {
     latest_emergency_reason_ |= high_level_emergency_reason_;
     PublishEmergencyState();
   } else {
-    // TODO: Add a separate service call to clear the latch.
-    SendHighLevelEmergencyHelper(0, EmergencyReason::HIGH_LEVEL | EmergencyReason::LATCH);
+    // Clear all previously set high-level emergency bits.
+    SendHighLevelEmergencyHelper(0, high_level_emergency_reason_);
+    high_level_emergency_reason_ = 0;
   }
 
   return true;
