@@ -158,11 +158,15 @@ jobs:
       # self-consistent across runs. Falls through to build.sh's own
       # generate-on-demand default if the secrets aren't set.
       - name: Install the CI dev signing key
-        if: steps.go.outputs.go == 'true' && secrets.RAUC_CI_DEV_CERT != ''
+        if: steps.go.outputs.go == 'true'
         env:
           RAUC_CI_DEV_CERT: ${{ secrets.RAUC_CI_DEV_CERT }}
           RAUC_CI_DEV_KEY: ${{ secrets.RAUC_CI_DEV_KEY }}
         run: |
+          if [ -z "$RAUC_CI_DEV_CERT" ]; then
+            echo "No RAUC_CI_DEV_CERT secret set, falling back to build.sh's own throwaway key"
+            exit 0
+          fi
           mkdir -p os/keys
           printf '%s' "$RAUC_CI_DEV_CERT" > os/keys/dev-cert.pem
           printf '%s' "$RAUC_CI_DEV_KEY" > os/keys/dev-key.pem
