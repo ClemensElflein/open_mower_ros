@@ -185,6 +185,12 @@ jobs:
           key: os-build-${{ github.run_id }}
           restore-keys: |
             os-build-
+          # Saved from a later failed Build step too, not just success -- a
+          # failing build has still done most of the slow work (downloads,
+          # ccache, output/build|host), which is exactly what following
+          # debugging runs want restored via restore-keys above. Default
+          # (false) would skip the save entirely once any later step fails.
+          save-always: true
 
       # OMR_SOURCE/OMR_IMAGE come from GITHUB_ENV (set above); ghcr's own
       # default fallback in build.sh only applies if neither step above ran
