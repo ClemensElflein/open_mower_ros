@@ -147,6 +147,27 @@ jobs:
           echo "OMR_SOURCE=ghcr" >> "$GITHUB_ENV"
           echo "OMR_IMAGE=ghcr.io/${REPOSITORY,,}:sha-${sha:0:7}" >> "$GITHUB_ENV"
 
+      # Stable CI signing identity instead of build.sh's own default (a
+      # fresh throwaway keypair generated every run and discarded with the
+      # runner -- self-consistent within one run, useless across runs: no
+      # future CI build can ever produce an update signed with a key that
+      # no longer exists). NOT the production key -- that stays offline per
+      # the README ("Production: sign with an offline CA"); this is a
+      # dedicated CI dev key, distinct from any individual's own local
+      # keys/dev-cert.pem, so CI-built artifacts are at least
+      # self-consistent across runs. Falls through to build.sh's own
+      # generate-on-demand default if the secrets aren't set.
+      - name: Install the CI dev signing key
+        if: steps.go.outputs.go == 'true' && secrets.RAUC_CI_DEV_CERT != ''
+        env:
+          RAUC_CI_DEV_CERT: ${{ secrets.RAUC_CI_DEV_CERT }}
+          RAUC_CI_DEV_KEY: ${{ secrets.RAUC_CI_DEV_KEY }}
+        run: |
+          mkdir -p os/keys
+          printf '%s' "$RAUC_CI_DEV_CERT" > os/keys/dev-cert.pem
+          printf '%s' "$RAUC_CI_DEV_KEY" > os/keys/dev-key.pem
+          chmod 600 os/keys/dev-key.pem
+
       - name: Cache Buildroot state
         if: steps.go.outputs.go == 'true'
         uses: actions/cache@v4
