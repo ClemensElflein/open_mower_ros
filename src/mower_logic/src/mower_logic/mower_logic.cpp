@@ -24,6 +24,7 @@
 #include <mower_msgs/Power.h>
 #include <tf2/LinearMath/Transform.h>
 
+#include <EmergencyServiceInterfaceBase.hpp>
 #include <algorithm>
 #include <atomic>
 #include <ios>
@@ -161,7 +162,7 @@ xbot_msgs::AbsolutePose getPose() {
   return pose_state_subscriber.getMessage();
 }
 
-void setEmergencyMode(bool emergency);
+void setEmergencyMode(uint16_t reason);
 
 void registerActions(std::string prefix, const std::vector<xbot_msgs::ActionInfo>& actions) {
   xbot_msgs::RegisterActionsSrv srv;
@@ -203,7 +204,7 @@ void setRobotPose(geometry_msgs::Pose& pose) {
 
   if (!success) {
     ROS_ERROR_STREAM("Error setting robot pose. Going to emergency. THIS SHOULD NEVER HAPPEN");
-    setEmergencyMode(true);
+    setEmergencyMode(EmergencyReason::HIGH_LEVEL);
   }
 }
 
@@ -232,7 +233,7 @@ bool setGPS(bool enabled) {
 
   if (!success) {
     ROS_ERROR_STREAM("Error setting GPS. Going to emergency. THIS SHOULD NEVER HAPPEN");
-    setEmergencyMode(true);
+    setEmergencyMode(EmergencyReason::HIGH_LEVEL);
   }
 
   return success;
@@ -274,7 +275,8 @@ bool setMowerEnabled(bool enabled) {
     ros::Time started = ros::Time::now();
     mower_msgs::MowerControlSrv mow_srv;
     mow_srv.request.mow_enabled = enabled;
-    mow_srv.request.mow_direction = started.sec & 0x1;  // Randomize mower direction on second
+    // Opt-in direction alternation; forward (1) by default.
+    mow_srv.request.mow_direction = last_config.randomize_mow_motor_direction ? (started.sec & 0x1) : 1;
     ROS_WARN_STREAM("#### om_mower_logic: setMowerEnabled("
                     << enabled << ", " << static_cast<unsigned>(mow_srv.request.mow_direction) << ") call");
 
@@ -345,28 +347,28 @@ void stopBlade() {
 }
 
 /// @brief Stop BLADE motor and any movement
-/// @param emergency
-void setEmergencyMode(bool emergency) {
+/// @param reason Emergency reason bitfield (0 = clear, != 0 = emergency with given reasons)
+void setEmergencyMode(uint16_t reason) {
   stopBlade();
   stopMoving();
   mower_msgs::EmergencyStopSrv emergencyStop;
-  emergencyStop.request.emergency = emergency;
+  emergencyStop.request.reason = reason;
 
-  static bool last_emergency = false;
-  if (emergency != last_emergency) {
-    publishMowerEvent("EMERGENCY", json{{"emergency", emergency}});
-    last_emergency = emergency;
+  static uint16_t last_reason = 0;
+  if (reason != last_reason) {
+    publishMowerEvent("EMERGENCY", json{{"emergency", reason != 0}, {"reason", reason}});
+    last_reason = reason;
   }
 
   ros::Rate retry_delay(1);
   bool success = false;
   for (int i = 0; i < 10; i++) {
     if (emergencyClient.call(emergencyStop)) {
-      ROS_INFO_STREAM("successfully set emergency enabled to " << emergency);
+      ROS_INFO_STREAM("successfully set emergency reason to " << reason);
       success = true;
       break;
     }
-    ROS_ERROR_STREAM("Error setting emergency enabled to " << emergency << ". Retrying.");
+    ROS_ERROR_STREAM("Error setting emergency reason to " << reason << ". Retrying.");
     retry_delay.sleep();
   }
 
@@ -463,7 +465,7 @@ void checkSafety(const ros::TimerEvent& timer_event) {
         if (high_level_status.is_charging) {
           // emergency and docked and idle or area recording, so it's safe to reset the emergency mode, reset it. It's
           // safe since we won't start moving in this mode.
-          setEmergencyMode(false);
+          setEmergencyMode(0);
         }
       }
     } else {
@@ -485,7 +487,7 @@ void checkSafety(const ros::TimerEvent& timer_event) {
   // check if status is current. if not, we have a problem since it contains wheel ticks and so on.
   // Since these should never drop out, we enter emergency instead of "only" stopping
   if (ros::Time::now() - status_time > ros::Duration(3) || ros::Time::now() - power_time > ros::Duration(3)) {
-    setEmergencyMode(true);
+    setEmergencyMode(EmergencyReason::HIGH_LEVEL);
     ROS_WARN_STREAM_THROTTLE(
         5, "om_mower_logic: EMERGENCY /mower/status values stopped. dt was: " << (ros::Time::now() - status_time));
     return;
@@ -494,7 +496,7 @@ void checkSafety(const ros::TimerEvent& timer_event) {
   // If the motor controllers error, we enter emergency mode in the hope to save them. They should not error.
   if (last_left_esc_state.status <= mower_msgs::ESCStatus::ESC_STATUS_ERROR ||
       last_right_esc_state.status <= mower_msgs::ESCStatus::ESC_STATUS_ERROR) {
-    setEmergencyMode(true);
+    setEmergencyMode(EmergencyReason::HIGH_LEVEL);
     ROS_ERROR_STREAM("EMERGENCY: at least one motor control errored. errors left: "
                      << (last_left_esc_state.status) << ", status right: " << last_right_esc_state.status);
     return;
@@ -681,7 +683,7 @@ bool highLevelCommand(mower_msgs::HighLevelControlSrvRequest& req, mower_msgs::H
     } break;
     case mower_msgs::HighLevelControlSrvRequest::COMMAND_RESET_EMERGENCY:
       ROS_WARN_STREAM("COMMAND_RESET_EMERGENCY");
-      setEmergencyMode(false);
+      setEmergencyMode(0);
       break;
   }
   return true;
@@ -690,7 +692,7 @@ bool highLevelCommand(mower_msgs::HighLevelControlSrvRequest& req, mower_msgs::H
 void actionReceived(const std_msgs::String::ConstPtr& action) {
   if (action->data == "mower_logic/reset_emergency") {
     ROS_WARN_STREAM("Got reset emergency action.");
-    setEmergencyMode(false);
+    setEmergencyMode(0);
     return;
   }
 
@@ -963,7 +965,7 @@ int main(int argc, char** argv) {
     r.sleep();
     if (emergency_state_subscriber.getMessage().latched_emergency) {
       ROS_INFO_STREAM("Got emergency, resetting it");
-      setEmergencyMode(false);
+      setEmergencyMode(0);
       break;
     }
   }
@@ -978,7 +980,7 @@ int main(int argc, char** argv) {
   ros::Timer ui_timer = n->createTimer(ros::Duration(1.0), updateUI);
 
   // release emergency if it was set
-  setEmergencyMode(false);
+  setEmergencyMode(0);
 
   // initialise the shared state object to be passed into the behaviors
   auto shared_state = std::make_shared<sSharedState>();
@@ -1020,7 +1022,7 @@ int main(int argc, char** argv) {
       high_level_state_publisher.publish(high_level_status);
       // we have no defined behavior, set emergency
       ROS_ERROR_STREAM("null behavior - emergency mode");
-      setEmergencyMode(true);
+      setEmergencyMode(EmergencyReason::HIGH_LEVEL);
       ros::Rate r(1.0);
       r.sleep();
     }

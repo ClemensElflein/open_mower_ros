@@ -1,0 +1,18 @@
+# OpenMower OS: local Raspberry Pi firmware config overrides.
+#
+# Included at the end of config.txt (Pi firmware `include usercfg.txt`) --
+# anything here overrides settings shipped in config.txt itself. config.txt
+# is overwritten wholesale by every OS update; THIS file lives on /data and
+# survives updates instead -- see openmower-sync-bootcfg (applies it live,
+# on edit) and rauc-hook.sh (re-applies it to freshly installed OTA images).
+#
+# Edit this file directly on a running device (/data/boot/usercfg.txt), then
+# reboot for it to take effect. One reboot is usually enough (an edit is
+# applied to the active boot partition immediately, see
+# openmower-sync-bootcfg.path) -- but config.txt itself is read by the Pi
+# firmware before Linux even starts, so if your edit lands too late to be
+# picked up before that reboot's firmware stage, the boot after it will.
+#
+# Example: switch the CM4 Wi-Fi antenna from internal (config.txt's default,
+# dtparam=ant1) to an external U.FL/IPEX antenna:
+#dtparam=ant2

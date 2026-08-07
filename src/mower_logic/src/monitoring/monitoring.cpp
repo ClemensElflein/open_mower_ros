@@ -18,6 +18,8 @@
 #include <mower_msgs/Power.h>
 #include <xbot_msgs/SensorDataString.h>
 
+#include <cmath>
+
 #include "mower_logic/MowerLogicConfig.h"
 #include "mower_logic/PowerConfig.h"
 #include "mower_logic/utils.h"

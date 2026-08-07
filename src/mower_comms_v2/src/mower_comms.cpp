@@ -66,7 +66,7 @@ std::unique_ptr<HighLevelServiceInterface> high_level_service = nullptr;
 xbot::serviceif::Context ctx{};
 
 bool setEmergencyStop(mower_msgs::EmergencyStopSrvRequest& req, mower_msgs::EmergencyStopSrvResponse& res) {
-  emergency_service->SetHighLevelEmergency(req.emergency);
+  emergency_service->SetHighLevelEmergency(req.reason);
   return true;
 }
 
@@ -100,7 +100,9 @@ void sendMowerEnabledTimerTask(const ros::TimerEvent& e) {
 }
 
 bool setMowEnabled(mower_msgs::MowerControlSrvRequest& req, mower_msgs::MowerControlSrvResponse& res) {
-  mower_service->SetMowerEnabled(req.mow_enabled);
+  // enable + direction -> signed speed: +1 forward, -1 reverse, 0 off.
+  const float speed = req.mow_enabled ? (req.mow_direction ? 1.0f : -1.0f) : 0.0f;
+  mower_service->SetMowerSpeed(speed);
   return true;
 }
 

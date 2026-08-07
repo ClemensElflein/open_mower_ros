@@ -23,7 +23,6 @@
 
 extern void stopMoving();
 extern void stopBlade();
-extern void setEmergencyMode(bool emergency);
 extern void setGPS(bool enabled);
 extern void setRobotPose(geometry_msgs::Pose& pose);
 extern void registerActions(std::string prefix, const std::vector<xbot_msgs::ActionInfo>& actions);

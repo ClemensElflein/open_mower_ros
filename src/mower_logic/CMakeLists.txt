@@ -11,6 +11,7 @@ find_package(catkin REQUIRED COMPONENTS
         dynamic_reconfigure
         ftc_local_planner
         mbf_msgs
+        mower_comms_v2
         mower_map
         mower_msgs
         nav_msgs
@@ -139,6 +140,9 @@ include_directories(
         ${catkin_INCLUDE_DIRS}
         ${CRYPTOPP_INCLUDE_DIRS}
         ${xbot_mqtt_INCLUDE_DIRS}
+        ${CMAKE_BINARY_DIR}/mower_comms_v2/generated/include
+        ${CMAKE_SOURCE_DIR}/lib/xbot_framework/include
+        ${CMAKE_SOURCE_DIR}/lib/xbot_framework/libxbot-service-interface/include
 )
 
 ## Declare a C++ library

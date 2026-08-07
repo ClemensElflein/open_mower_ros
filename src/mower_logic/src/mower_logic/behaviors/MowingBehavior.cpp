@@ -22,12 +22,15 @@
 #include <rosbag/bag.h>
 #include <rosbag/view.h>
 
+#include <EmergencyServiceInterfaceBase.hpp>
 #include <cmath>
 
+#include "../StateSubscriber.h"
 #include "mower_logic/CheckPoint.h"
 #include "mower_map/ClearNavPointSrv.h"
 #include "mower_map/GetMowingAreaSrv.h"
 #include "mower_map/SetNavPointSrv.h"
+#include "mower_msgs/Status.h"
 
 extern ros::ServiceClient mapClient;
 extern ros::ServiceClient pathClient;
@@ -42,6 +45,9 @@ extern mower_logic::MowerLogicConfig getConfig();
 extern void setConfig(mower_logic::MowerLogicConfig);
 
 extern void registerActions(std::string prefix, const std::vector<xbot_msgs::ActionInfo>& actions);
+extern void setEmergencyMode(uint16_t reason);
+
+extern StateSubscriber<mower_msgs::Status> status_state_subscriber;
 
 extern std::string current_job_id;
 extern bool current_job_finished;
@@ -311,6 +317,40 @@ std::vector<std::string> getConfiguredRecoveryBehaviors() {
 }
 }  // namespace
 
+/// @return true if spinup succeeded or spinup is disabled, false if we should abort/exit
+bool MowingBehavior::wait_for_mower_spinup() {
+  if (config.mower_spinup_rpm <= 0) {
+    return true;  // spinup check disabled
+  }
+
+  ROS_INFO_STREAM("MowingBehavior: (MOW) Waiting for mower motor to reach " << config.mower_spinup_rpm
+                                                                            << " RPM before driving");
+  ros::Time spinup_start = ros::Time::now();
+  ros::Rate check_rate(10);
+  while (ros::ok()) {
+    if (aborted || requested_pause_flag || skip_area || skip_path) {
+      return false;
+    }
+    auto last_status = status_state_subscriber.getMessage();
+    if (std::abs(last_status.mower_motor_rpm) >= config.mower_spinup_rpm) {
+      ROS_INFO_STREAM("MowingBehavior: (MOW) Mower motor reached " << last_status.mower_motor_rpm << " RPM after "
+                                                                   << (ros::Time::now() - spinup_start).toSec() << "s");
+      return true;
+    }
+    if (ros::Time::now() - spinup_start > ros::Duration(config.mower_spinup_timeout)) {
+      ROS_ERROR_STREAM("MowingBehavior: (MOW) Mower motor failed to reach " << config.mower_spinup_rpm << " RPM within "
+                                                                            << config.mower_spinup_timeout
+                                                                            << "s. Entering emergency.");
+      publishMowerEvent("MOW_MOTOR_SPINUP_FAILED");
+      mowerEnabled = false;
+      setEmergencyMode(EmergencyReason::MOWER_RPM_TIMEOUT);
+      return false;
+    }
+    check_rate.sleep();
+  }
+  return false;
+}
+
 bool MowingBehavior::execute_mowing_plan() {
   int first_point_attempt_counter = 0;
   int first_point_trim_counter = 0;
@@ -493,7 +533,13 @@ bool MowingBehavior::execute_mowing_plan() {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////
     {
       // enable mower (only when we reach the start not on the way to mowing already)
+      bool mower_enabled_last = mowerEnabled;
       mowerEnabled = true;
+
+      // Wait for mower motor to spin up to target RPM (if configured and previously disabled)
+      if (!mower_enabled_last && !wait_for_mower_spinup()) {
+        return false;
+      }
 
       mbf_msgs::ExePathGoal exePathGoal;
       nav_msgs::Path exePath;
