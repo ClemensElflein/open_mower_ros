@@ -2,19 +2,19 @@
 
 #include <mower_msgs/Emergency.h>
 
-bool EmergencyServiceInterface::SetHighLevelEmergency(bool new_value) {
-  high_level_emergency_reason_ = new_value ? EmergencyReason::HIGH_LEVEL | EmergencyReason::LATCH : 0;
+bool EmergencyServiceInterface::SetHighLevelEmergency(uint16_t reason) {
+  // reason == 0 means clear the emergency. Otherwise latch the given reason(s).
+  if (reason != 0) {
+    reason |= EmergencyReason::HIGH_LEVEL | EmergencyReason::LATCH;
+  }
+  high_level_emergency_reason_ = reason;
 
-  // Send the new emergency state to the service.
-  if (new_value) {
-    SendHighLevelEmergencyHelper(high_level_emergency_reason_);
-
-    // Update cached state for immediate feedback.
-    latest_emergency_reason_ |= high_level_emergency_reason_;
-    PublishEmergencyState();
+  if (reason != 0) {
+    SendHighLevelEmergencyHelper(reason);
+    OnEmergencyReasonChanged(latest_emergency_reason_ |= high_level_emergency_reason_);
   } else {
-    // TODO: Add a separate service call to clear the latch.
-    SendHighLevelEmergencyHelper(0, EmergencyReason::HIGH_LEVEL | EmergencyReason::LATCH);
+    SendHighLevelEmergencyHelper(
+        0, EmergencyReason::HIGH_LEVEL | EmergencyReason::MOWER_RPM_TIMEOUT | EmergencyReason::LATCH);
   }
 
   return true;
@@ -59,6 +59,8 @@ static std::string ReasonToString(uint16_t reason) {
   CHECK_REASON(TIMEOUT_HIGH_LEVEL)
   CHECK_REASON(HIGH_LEVEL)
   CHECK_REASON(SERVICE_NOT_READY)
+  CHECK_REASON(MOWER_RPM_TIMEOUT)
+  CHECK_REASON(MOWER_RPM_LIMIT)
   return str.str();
 }
 

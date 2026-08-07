@@ -434,14 +434,14 @@ bool setMowEnabled(mower_msgs::MowerControlSrvRequest& req, mower_msgs::MowerCon
 }
 
 bool setEmergencyStop(mower_msgs::EmergencyStopSrvRequest& req, mower_msgs::EmergencyStopSrvResponse& res) {
-  if (req.emergency) {
-    ROS_ERROR_STREAM("Setting emergency!!");
+  if (req.reason) {
+    ROS_ERROR_STREAM("Setting emergency with reason: " << req.reason);
     ll_clear_emergency = false;
   } else {
     ll_clear_emergency = true;
   }
   // Set the high level emergency instantly. Low level value will be set on next update.
-  emergency_high_level = req.emergency;
+  emergency_high_level = req.reason != 0;
   publishActuators();
   return true;
 }

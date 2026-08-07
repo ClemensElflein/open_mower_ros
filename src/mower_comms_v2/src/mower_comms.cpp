@@ -66,7 +66,7 @@ std::unique_ptr<HighLevelServiceInterface> high_level_service = nullptr;
 xbot::serviceif::Context ctx{};
 
 bool setEmergencyStop(mower_msgs::EmergencyStopSrvRequest& req, mower_msgs::EmergencyStopSrvResponse& res) {
-  emergency_service->SetHighLevelEmergency(req.emergency);
+  emergency_service->SetHighLevelEmergency(req.reason);
   return true;
 }
 

@@ -32,6 +32,9 @@ class MowingBehavior : public Behavior {
 
   bool execute_mowing_plan();
 
+  /// @return true if spinup succeeded or spinup is disabled, false if we should abort/exit
+  bool wait_for_mower_spinup();
+
   // Progress
   bool mowerEnabled = false;
   std::vector<slic3r_coverage_planner::Path> currentMowingPaths;

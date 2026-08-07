@@ -11,7 +11,7 @@ class EmergencyServiceInterface : public EmergencyServiceInterfaceBase {
       : EmergencyServiceInterfaceBase(service_id, ctx), publisher_(publisher) {
   }
 
-  bool SetHighLevelEmergency(bool new_value);
+  bool SetHighLevelEmergency(uint16_t reason);
   void Heartbeat();
 
  protected:
