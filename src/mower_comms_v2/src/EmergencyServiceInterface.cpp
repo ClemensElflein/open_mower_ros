@@ -11,14 +11,10 @@ bool EmergencyServiceInterface::SetHighLevelEmergency(uint16_t reason) {
 
   if (reason != 0) {
     SendHighLevelEmergencyHelper(reason);
-
-    // Update cached state for immediate feedback.
-    latest_emergency_reason_ |= high_level_emergency_reason_;
-    PublishEmergencyState();
+    OnEmergencyReasonChanged(latest_emergency_reason_ |= high_level_emergency_reason_);
   } else {
-    // Clear all previously set high-level emergency bits.
-    SendHighLevelEmergencyHelper(0, high_level_emergency_reason_);
-    high_level_emergency_reason_ = 0;
+    SendHighLevelEmergencyHelper(
+        0, EmergencyReason::HIGH_LEVEL | EmergencyReason::MOWER_RPM_TIMEOUT | EmergencyReason::LATCH);
   }
 
   return true;
