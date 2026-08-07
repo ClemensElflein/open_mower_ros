@@ -26,7 +26,8 @@ concurrency:
 
 permissions:
   contents: write   # only actually used by the release step, tag builds only
-  actions: read     # cross-workflow-run artifact download (the PR image tar)
+  actions: write    # cross-workflow-run artifact download (read) + deleting the
+                     # stale Buildroot cache entry below (write) so it can be re-saved
 
 jobs:
   build:
@@ -172,9 +173,32 @@ jobs:
           printf '%s' "$RAUC_CI_DEV_KEY" > os/keys/dev-key.pem
           chmod 600 os/keys/dev-key.pem
 
-      - name: Cache Buildroot state
+      # Single fixed key, not key-per-run: actions/cache never overwrites an
+      # existing key, so a per-run key (os-build-${{ github.run_id }}) leaves
+      # a fresh ~6GB blob behind on every run that nothing ever deletes. That
+      # competes with build-image.yaml's docker buildx cache for the same
+      # repo-wide 10GB cache pool; once combined usage tips over the cap,
+      # GitHub evicts whichever cache was least-recently touched -- and since
+      # this workflow runs far less often than "Build" (which writes to its
+      # cache on nearly every push/PR), this cache is always the one evicted,
+      # sometimes before a second run ever gets to reuse it. Fixed key avoids
+      # the pile-up; see the delete+save steps below (after Build) for how it
+      # still gets updated despite the "never overwrites a key" restriction.
+      #
+      # Explicit restore, not the combined actions/cache@v4 (restore + an
+      # automatic post-job save): that combo is what save-always was for, and
+      # the deprecation warning it prints ("save-always does not work as
+      # intended ... a separate actions/cache/restore step should be used
+      # instead") is not a formality -- the automatic post-save is unreliable
+      # exactly when this job gets cancelled by a concurrency-group
+      # cancel-in-progress (new push while a build is still running, which
+      # happens a lot here given how long these builds take). Explicit save
+      # steps gated on if: always() below don't have that problem: GitHub
+      # only force-kills the step that's actively running at cancel time,
+      # steps after it guarded by always() still run normally.
+      - name: Restore Buildroot cache
         if: steps.go.outputs.go == 'true'
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: |
             os/.cache/dl
@@ -182,15 +206,7 @@ jobs:
             os/.cache/openmower-cli
             os/output/build
             os/output/host
-          key: os-build-${{ github.run_id }}
-          restore-keys: |
-            os-build-
-          # Saved from a later failed Build step too, not just success -- a
-          # failing build has still done most of the slow work (downloads,
-          # ccache, output/build|host), which is exactly what following
-          # debugging runs want restored via restore-keys above. Default
-          # (false) would skip the save entirely once any later step fails.
-          save-always: true
+          key: os-build
 
       # OMR_SOURCE/OMR_IMAGE come from GITHUB_ENV (set above); ghcr's own
       # default fallback in build.sh only applies if neither step above ran
@@ -202,6 +218,32 @@ jobs:
         env:
           OPENMOWER_BUILD_SDCARD: ${{ steps.mode.outputs.build_sdcard }}
         run: ./build.sh image
+
+      # if: always() (not steps.go.outputs.go == 'true' alone) so this still
+      # runs when Build fails or the job gets cancelled mid-Build -- a failed
+      # or cancelled build has still done most of the slow work (downloads,
+      # ccache, output/build|host), which is exactly what a following
+      # debugging run wants restored. Delete-then-save (rather than one
+      # combined step) because actions/cache/save also silently no-ops on an
+      # existing key -- must clear it first so the save below actually lands.
+      - name: Delete stale Buildroot cache entry
+        if: always() && steps.go.outputs.go == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh cache delete os-build --repo "${{ github.repository }}" || true
+
+      - name: Save Buildroot cache
+        if: always() && steps.go.outputs.go == 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            os/.cache/dl
+            os/.cache/ccache
+            os/.cache/openmower-cli
+            os/output/build
+            os/output/host
+          key: os-build
 
       - name: Upload RAUC bundle
         if: steps.go.outputs.go == 'true'
