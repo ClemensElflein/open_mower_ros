@@ -196,6 +196,16 @@ jobs:
       # steps gated on if: always() below don't have that problem: GitHub
       # only force-kills the step that's actively running at cancel time,
       # steps after it guarded by always() still run normally.
+      #
+      # Deliberately NOT covering os/output-kernel-cm4|cm5 here -- see the
+      # two content-hash-keyed cache blocks below instead. Those two kernels
+      # change on a totally different cadence than this (open_mower_ros
+      # itself, vendored wholesale, changes on nearly every push; the kernel
+      # defconfigs/fragments change rarely). Folding them into this same
+      # rolling "os-build" key meant EVERY run re-uploaded the full compiled
+      # kernel object trees too, even on runs that didn't touch either
+      # kernel at all and got a 100% cache hit on them -- wasted upload time
+      # + faster runs into the shared 10GB cap for zero benefit.
       - name: Restore Buildroot cache
         if: steps.go.outputs.go == 'true'
         uses: actions/cache/restore@v4
@@ -207,6 +217,49 @@ jobs:
             os/output/build
             os/output/host
           key: os-build
+
+      # Content-hash keys (not the single rolling "os-build" key above): the
+      # kernel defconfigs/fragments -- and the pinned Buildroot commit,
+      # which also gates the toolchain/patches/linux.mk logic actually used
+      # to build them -- change rarely, so let actions/cache's own "never
+      # overwrites an existing key" behavior do the staleness check for us
+      # instead of the delete+save dance the rolling key needs: same inputs
+      # next run => same key => exact hit => the Save step below is a
+      # guaranteed no-op (nothing to upload), not just a fast one. Only an
+      # actual kernel-affecting change produces a new key, which naturally
+      # triggers a real save. restore-keys falls back to the most recent
+      # cache for the same Buildroot commit if the exact defconfig/fragment
+      # hash doesn't match (e.g. a fragment tweak) -- still a useful warm
+      # start (extracted kernel source, prior .stamp_* files) even on a
+      # miss, on top of the ccache hits the "os-build" cache's
+      # os/.cache/ccache already gives any changed kernel objects
+      # individually.
+      - name: Resolve Buildroot submodule commit
+        if: steps.go.outputs.go == 'true'
+        id: buildroot-rev
+        run: echo "sha=$(git -C os/buildroot rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore CM4 kernel cache
+        if: steps.go.outputs.go == 'true'
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            os/output-kernel-cm4/build
+            os/output-kernel-cm4/host
+          key: os-kernel-cm4-${{ steps.buildroot-rev.outputs.sha }}-${{ hashFiles('os/external/configs/openmower_kernel-cm4_defconfig', 'os/external/board/openmower-kernel/kernel-fragment-common.config', 'os/external/board/openmower-kernel/kernel-fragment-cm4.config') }}
+          restore-keys: |
+            os-kernel-cm4-${{ steps.buildroot-rev.outputs.sha }}-
+
+      - name: Restore CM5 kernel cache
+        if: steps.go.outputs.go == 'true'
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            os/output-kernel-cm5/build
+            os/output-kernel-cm5/host
+          key: os-kernel-cm5-${{ steps.buildroot-rev.outputs.sha }}-${{ hashFiles('os/external/configs/openmower_kernel-cm5_defconfig', 'os/external/board/openmower-kernel/kernel-fragment-common.config', 'os/external/board/openmower-kernel/kernel-fragment-cm5.config') }}
+          restore-keys: |
+            os-kernel-cm5-${{ steps.buildroot-rev.outputs.sha }}-
 
       # OMR_SOURCE/OMR_IMAGE come from GITHUB_ENV (set above); ghcr's own
       # default fallback in build.sh only applies if neither step above ran
@@ -244,6 +297,30 @@ jobs:
             os/output/build
             os/output/host
           key: os-build
+
+      # No delete-first step needed for either of these two, unlike the
+      # rolling "os-build" key above -- actions/cache/save already silently
+      # no-ops on an existing key, and that's exactly what we want here: an
+      # exact-hit run (nothing kernel-related changed) has nothing new to
+      # save, so it shouldn't upload ~6GB of unchanged kernel build output
+      # just to re-produce the cache entry that's already there.
+      - name: Save CM4 kernel cache
+        if: always() && steps.go.outputs.go == 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            os/output-kernel-cm4/build
+            os/output-kernel-cm4/host
+          key: os-kernel-cm4-${{ steps.buildroot-rev.outputs.sha }}-${{ hashFiles('os/external/configs/openmower_kernel-cm4_defconfig', 'os/external/board/openmower-kernel/kernel-fragment-common.config', 'os/external/board/openmower-kernel/kernel-fragment-cm4.config') }}
+
+      - name: Save CM5 kernel cache
+        if: always() && steps.go.outputs.go == 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            os/output-kernel-cm5/build
+            os/output-kernel-cm5/host
+          key: os-kernel-cm5-${{ steps.buildroot-rev.outputs.sha }}-${{ hashFiles('os/external/configs/openmower_kernel-cm5_defconfig', 'os/external/board/openmower-kernel/kernel-fragment-common.config', 'os/external/board/openmower-kernel/kernel-fragment-cm5.config') }}
 
       - name: Upload RAUC bundle
         if: steps.go.outputs.go == 'true'
