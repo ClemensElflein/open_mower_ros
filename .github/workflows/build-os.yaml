@@ -299,14 +299,26 @@ jobs:
       # the artifact - no window where the check looks done but the upload
       # hasn't landed yet. always() so failed/cancelled builds still get
       # marked, matching the cache-save steps' reasoning above.
-      - name: Finish check run
-        if: always() && steps.go.outputs.go == 'true'
+      # Status check functions like cancelled() only parse inside `if:` - not
+      # in a `${{ }}` expression anywhere else (confirmed the hard way: using
+      # it inline in the run script below made the whole workflow file
+      # rejected as invalid at dispatch time). Split into two mutually
+      # exclusive steps instead of branching on it inside one script.
+      - name: Finish check run (cancelled)
+        if: always() && steps.go.outputs.go == 'true' && cancelled()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if [ "${{ cancelled() }}" = "true" ]; then
-            conclusion=cancelled
-          elif [ "${{ steps.build.outcome }}" = "success" ]; then
+          gh api --method PATCH "repos/${{ github.repository }}/check-runs/${{ steps.check.outputs.id }}" \
+            -f status=completed \
+            -f conclusion=cancelled >/dev/null
+
+      - name: Finish check run
+        if: always() && steps.go.outputs.go == 'true' && !cancelled()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${{ steps.build.outcome }}" = "success" ]; then
             conclusion=success
           else
             conclusion=failure
