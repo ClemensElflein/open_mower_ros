@@ -139,10 +139,10 @@ cat << WARN
 
 ##############################################################################
 # BACK UP YOUR MAP AND SETTINGS NOW if you haven't already. This tool makes
-# a best-effort attempt to carry over /home/openmower and your stack's
-# .env (see below) -- anything it misses, or that only ever existed
-# somewhere else (e.g. only in the app, or on a different device), is gone
-# once you continue. There is no automatic backup step.
+# a best-effort attempt to carry over /home/openmower, your stack's .env,
+# and your WiFi credentials (see below) -- anything it misses, or that only
+# ever existed somewhere else (e.g. only in the app, or on a different
+# device), is gone once you continue. There is no automatic backup step.
 #
 # This migration is EXPERIMENTAL and may fail partway. If it does, the
 # fallback is physical access to the mower: pull the SD card (or put the
@@ -327,6 +327,55 @@ if [ -f /opt/stacks/openmower/.env ]; then
     log "staging /opt/stacks/openmower/.env (HARDWARE_PLATFORM/MOWER/... settings)..."
     cp -a /opt/stacks/openmower/.env "$MIGRATE_DIR/openmower.env" \
         || log "WARNING: failed to stage /opt/stacks/openmower/.env"
+fi
+
+# WiFi: old OS uses NetworkManager, new OS uses a plain wpa_supplicant.conf
+# at /data/wifi/wpa_supplicant-wlan0.conf (see external/package/improv-ble's
+# write_wifi_config(), which this reproduces) -- not something a straight
+# file copy can bridge, so pull SSID/PSK out via nmcli and re-render it in
+# the target format. Prefers the currently-connected wifi profile; falls
+# back to the first saved wifi profile (e.g. migrating over Ethernet while
+# wifi is configured but idle). Best-effort like the rest of this section:
+# no wifi found/configured is a normal outcome (Ethernet-only setups), not
+# an error.
+if command -v nmcli >/dev/null 2>&1; then
+    WIFI_CONN="$(nmcli -t -f TYPE,STATE,CONNECTION device status 2>/dev/null \
+        | awk -F: '$1=="wifi" && $2=="connected" {print $3; exit}')"
+    [ -n "$WIFI_CONN" ] || WIFI_CONN="$(nmcli -t -f TYPE,NAME connection show 2>/dev/null \
+        | awk -F: '$1=="802-11-wireless" {print $2; exit}')"
+    if [ -n "$WIFI_CONN" ]; then
+        WIFI_SSID="$(nmcli -s -g 802-11-wireless.ssid connection show "$WIFI_CONN" 2>/dev/null)"
+        WIFI_PSK="$(nmcli -s -g 802-11-wireless-security.psk connection show "$WIFI_CONN" 2>/dev/null)"
+        if [ -n "$WIFI_SSID" ]; then
+            log "staging wifi credentials from NetworkManager connection '$WIFI_CONN'..."
+            # ssid=<hex> (raw octets, unquoted) instead of a quoted string --
+            # sidesteps quoting entirely and matches what write_wifi_config()
+            # emits, so provisioning state looks identical either way.
+            SSID_HEX="$(printf '%s' "$WIFI_SSID" | od -An -tx1 | tr -d ' \n')"
+            if [ -n "$WIFI_PSK" ]; then
+                ESCAPED_PSK="$(printf '%s' "$WIFI_PSK" | sed 's/\\/\\\\/g; s/"/\\"/g')"
+                SECRET_LINE="$(printf '\tpsk="%s"' "$ESCAPED_PSK")"
+            else
+                SECRET_LINE="$(printf '\tkey_mgmt=NONE')"
+            fi
+            mkdir -p "$MIGRATE_DIR/wifi"
+            {
+                printf 'ctrl_interface=/var/run/wpa_supplicant\n'
+                printf 'update_config=0\n\n'
+                printf 'network={\n'
+                printf '\tssid=%s\n' "$SSID_HEX"
+                printf '%s\n' "$SECRET_LINE"
+                printf '}\n'
+            } > "$MIGRATE_DIR/wifi/wpa_supplicant-wlan0.conf"
+            chmod 600 "$MIGRATE_DIR/wifi/wpa_supplicant-wlan0.conf"
+        else
+            log "WARNING: found NetworkManager wifi connection '$WIFI_CONN' but couldn't read its SSID, skipping wifi staging"
+        fi
+    else
+        log "no active/saved NetworkManager wifi connection found, skipping wifi staging"
+    fi
+else
+    log "nmcli not found, skipping wifi credential staging"
 fi
 
 # --- Stage the migration boot files onto the EXISTING boot partition ----------

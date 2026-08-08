@@ -139,6 +139,10 @@ wait_for_device "$(p 7)" || fail "$(p 7) (data partition) never appeared after w
 # directly -- same KEY=VALUE-no-export format and variable names as the
 # new EnvironmentFile= (HARDWARE_PLATFORM, MOWER, ESC_TYPE, ...); a stray
 # old-only key (e.g. VERSION) is a harmless unused var, not a conflict.
+# wpa_supplicant-wlan0.conf is dropped straight into /data/wifi -- already
+# rendered into the target format by migrate-to-openmower.sh (old OS uses
+# NetworkManager, not wpa_supplicant.conf), so this is a plain file copy
+# same as the others.
 # Non-fatal throughout: the OS itself is already fully written to disk by
 # this point, so a failure here must not fail() into a dropped shell --
 # that would make a successful OS migration look like it failed.
@@ -154,6 +158,11 @@ if [ -d /run/stage/migrated-data ]; then
         if [ -f /run/stage/migrated-data/openmower.env ]; then
             cp -a /run/stage/migrated-data/openmower.env /mnt/newdata/openmower/openmower.conf \
                 || log "WARNING: failed to restore openmower.env -> openmower.conf"
+        fi
+        if [ -f /run/stage/migrated-data/wifi/wpa_supplicant-wlan0.conf ]; then
+            mkdir -p /mnt/newdata/wifi
+            cp -a /run/stage/migrated-data/wifi/wpa_supplicant-wlan0.conf /mnt/newdata/wifi/wpa_supplicant-wlan0.conf \
+                || log "WARNING: failed to restore wifi credentials"
         fi
         sync
         umount /mnt/newdata
