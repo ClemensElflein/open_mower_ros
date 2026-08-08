@@ -21,13 +21,24 @@ on:
     types: [completed]
 
 concurrency:
-  group: build-os-${{ github.event.workflow_run.head_branch || github.ref }}
+  # head_sha, not head_branch: a workflow_run-triggered run's own head_branch
+  # is always the repo's default branch (see "Start check run" below), so
+  # head_branch here would put every PR/branch's build-os run in the SAME
+  # group and let one PR's push cancel a completely unrelated PR's build.
+  group: build-os-${{ github.event.workflow_run.head_sha || github.ref }}
   cancel-in-progress: true
 
 permissions:
   contents: write   # only actually used by the release step, tag builds only
   actions: write    # cross-workflow-run artifact download (read) + deleting the
                      # stale Buildroot cache entry below (write) so it can be re-saved
+  checks: write     # pin build status to the real PR/commit sha below - a
+                     # workflow_run-triggered run's own head_sha/head_branch
+                     # (as reported by the Actions API) is always the repo's
+                     # default branch, never the PR/commit that indirectly
+                     # triggered it, so callers can't find this run by
+                     # querying the workflow's run list for that sha. A check
+                     # run pinned explicitly to the real sha sidesteps that.
 
 jobs:
   build:
@@ -78,6 +89,29 @@ jobs:
           else
             echo "go=true" >> "$GITHUB_OUTPUT"
           fi
+
+      # Pinned to the real commit sha (not this run's own head_sha, which is
+      # always the default branch for a workflow_run trigger - see the
+      # concurrency/permissions comments above), so a caller can look this
+      # run up later via GET /commits/{sha}/check-runs regardless of which
+      # branch build-os itself thinks it ran on. details_url points back at
+      # this exact run (github.run_id, known now even though this run's own
+      # API-reported head_sha isn't usable for the lookup) so the caller can
+      # jump straight to its artifacts without re-deriving anything.
+      - name: Start check run
+        if: steps.go.outputs.go == 'true'
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          id=$(gh api "repos/${{ github.repository }}/check-runs" \
+            -f name="OS Build" \
+            -f head_sha="$SHA" \
+            -f status=in_progress \
+            -f details_url="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            --jq .id)
+          echo "id=$id" >> "$GITHUB_OUTPUT"
 
       - name: Checkout
         if: steps.go.outputs.go == 'true'
@@ -214,6 +248,7 @@ jobs:
       # actually what you want.
       - name: Build
         if: steps.go.outputs.go == 'true'
+        id: build
         working-directory: os
         env:
           OPENMOWER_BUILD_SDCARD: ${{ steps.mode.outputs.build_sdcard }}
@@ -253,6 +288,25 @@ jobs:
           path: os/output/images/openmower-*.raucb
           if-no-files-found: error
           retention-days: 14
+
+      # After the RAUC bundle upload (not right after Build) so a caller
+      # that sees this check run go "completed"/"success" can already find
+      # the artifact - no window where the check looks done but the upload
+      # hasn't landed yet. always() so failed/cancelled builds still get
+      # marked, matching the cache-save steps' reasoning above.
+      - name: Finish check run
+        if: always() && steps.go.outputs.go == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          case "${{ steps.build.outcome }}" in
+            success) conclusion=success ;;
+            cancelled) conclusion=cancelled ;;
+            *) conclusion=failure ;;
+          esac
+          gh api "repos/${{ github.repository }}/check-runs/${{ steps.check.outputs.id }}" \
+            -f status=completed \
+            -f conclusion="$conclusion" >/dev/null
 
       - name: Upload sdcard.img
         if: steps.go.outputs.go == 'true' && steps.mode.outputs.build_sdcard == '1'
