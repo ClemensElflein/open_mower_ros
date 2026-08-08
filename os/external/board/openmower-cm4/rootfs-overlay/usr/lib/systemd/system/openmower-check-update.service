@@ -1,0 +1,9 @@
+[Unit]
+Description=Check for an available OpenMower OS update
+Wants=network-online.target
+After=network-online.target
+RequiresMountsFor=/data
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/openmower check-os-update

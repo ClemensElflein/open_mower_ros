@@ -364,9 +364,12 @@ these are starting budgets, re-tune after measuring a real build.
 
 ## Update flow
 
-Updates are installed on demand, not auto-polled: run `openmower update-os`
-(openmower-cli; `--from-pr`/`--from-branch`/`--tag` select the build, see
-its own `--help`) on the device, or manually:
+`openmower-check-update.timer` polls api.openmower.de once a day for a newer
+release and records the result to `/data/openmower/cli/os_update_status.json`
+(the CLI warns about it on next use) -- but updates are still installed on
+demand, never automatically: run `openmower update-os` (openmower-cli;
+`--from-pr`/`--from-branch`/`--tag` select the build, see its own `--help`)
+on the device, or manually:
 
 1. Fetch a `.raucb` bundle (carries the full vendored ROS tree along with
    the base OS, so multi-GB) and `rauc install` it into the inactive slot
