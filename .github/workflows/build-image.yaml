@@ -296,7 +296,11 @@ jobs:
       # directly off the push event, so that context is already
       # trustworthy without an extra checkout.
       - name: Trigger OS build
-        if: matrix.variant == 'default' && (github.event_name != 'workflow_dispatch' || inputs.variant == 'all' || inputs.variant == matrix.variant)
+        # A workflow_dispatch filtered to a single arch (inputs.arch !=
+        # 'all') pushes a single-platform manifest -- OpenMower always
+        # pulls --platform linux/arm64, so dispatching from an amd64-only
+        # manual run would hand it an image with no arm64 to pull at all.
+        if: matrix.variant == 'default' && (github.event_name != 'workflow_dispatch' || (inputs.variant == 'all' || inputs.variant == matrix.variant) && inputs.arch == 'all')
         env:
           GH_TOKEN: ${{ secrets.REPO_DISPATCH_TOKEN }}
           # api.openmower.de has exactly three modes (PR/BRANCH/TAG) --
