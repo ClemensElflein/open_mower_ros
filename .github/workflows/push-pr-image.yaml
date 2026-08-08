@@ -131,14 +131,21 @@ jobs:
 
       - name: Create manifest
         if: steps.pr.outputs.skip != 'true'
+        id: manifest
         run: |
           REPO="ghcr.io/${{ env.REPOSITORY_LC }}"
           PR="${{ steps.pr.outputs.number }}"
           SUFFIX="${{ matrix.tag_suffix }}"
-          docker buildx imagetools create \
+          # --metadata-file captures the manifest list's own content-addressed
+          # digest -- the OS build dispatch below needs THAT (immutable),
+          # not the pr-<number> tag above (mutable: replaced on every new
+          # push to the PR, so a queued/delayed OS build could otherwise
+          # pull content that no longer matches client_payload[sha]).
+          docker buildx imagetools create --metadata-file /tmp/manifest-metadata.json \
             -t "${REPO}:pr-${PR}${SUFFIX}" \
             "${REPO}:pr-${PR}-amd64${SUFFIX}" \
             "${REPO}:pr-${PR}-arm64${SUFFIX}"
+          echo "digest=$(jq -r '."containerimage.descriptor".digest' /tmp/manifest-metadata.json)" >> "$GITHUB_OUTPUT"
 
       # Only the default variant is ever vendored into the OS/RAUC build
       # (see the matching guard in build-image.yaml's merge job) -- the
@@ -150,7 +157,7 @@ jobs:
           GH_TOKEN: ${{ secrets.REPO_DISPATCH_TOKEN }}
           PR: ${{ steps.pr.outputs.number }}
           SHA: ${{ github.event.workflow_run.head_sha }}
-          IMAGE: ghcr.io/${{ env.REPOSITORY_LC }}:pr-${{ steps.pr.outputs.number }}
+          IMAGE: ghcr.io/${{ env.REPOSITORY_LC }}@${{ steps.manifest.outputs.digest }}
         run: |
           gh api --method POST /repos/ClemensElflein/OpenMower/dispatches \
             -f event_type=os-build \
@@ -158,4 +165,5 @@ jobs:
             -f "client_payload[ref]=$PR" \
             -f "client_payload[sha]=$SHA" \
             -f "client_payload[image]=$IMAGE" \
-            -F "client_payload[is_release]=false"
+            -F "client_payload[is_release]=false" \
+            -f "client_payload[tag_name]="
