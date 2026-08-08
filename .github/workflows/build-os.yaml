@@ -287,6 +287,7 @@ jobs:
 
       - name: Upload RAUC bundle
         if: steps.go.outputs.go == 'true'
+        id: upload
         uses: actions/upload-artifact@v4
         with:
           name: openmower-os-raucb
@@ -298,18 +299,30 @@ jobs:
       # that sees this check run go "completed"/"success" can already find
       # the artifact - no window where the check looks done but the upload
       # hasn't landed yet. always() so failed/cancelled builds still get
-      # marked, matching the cache-save steps' reasoning above.
+      # marked, matching the cache-save steps' reasoning above. Requires the
+      # upload step to have succeeded too, not just Build - Build succeeding
+      # doesn't guarantee the artifact actually made it up.
       # Status check functions like cancelled() only parse inside `if:` - not
       # in a `${{ }}` expression anywhere else (confirmed the hard way: using
       # it inline in the run script below made the whole workflow file
       # rejected as invalid at dispatch time). Split into two mutually
       # exclusive steps instead of branching on it inside one script.
+      #
+      # CHECK_RUN_ID/REPO go through env (not interpolated straight into the
+      # script) so the shell only ever sees a github-generated numeric id and
+      # "owner/repo" string, never a raw ${{ }} expansion in the script text
+      # itself - the actual injection risk here is negligible (nothing here
+      # is attacker-influenced text like a PR title), but it's what the rest
+      # of this file already does (e.g. the SHA env var above) and zizmor
+      # flags any direct ${{ }} in a run: block on principle either way.
       - name: Finish check run (cancelled)
         if: always() && steps.go.outputs.go == 'true' && cancelled()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          CHECK_RUN_ID: ${{ steps.check.outputs.id }}
         run: |
-          gh api --method PATCH "repos/${{ github.repository }}/check-runs/${{ steps.check.outputs.id }}" \
+          gh api --method PATCH "repos/$REPO/check-runs/$CHECK_RUN_ID" \
             -f status=completed \
             -f conclusion=cancelled >/dev/null
 
@@ -317,13 +330,17 @@ jobs:
         if: always() && steps.go.outputs.go == 'true' && !cancelled()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          CHECK_RUN_ID: ${{ steps.check.outputs.id }}
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          UPLOAD_OUTCOME: ${{ steps.upload.outcome }}
         run: |
-          if [ "${{ steps.build.outcome }}" = "success" ]; then
+          if [ "$BUILD_OUTCOME" = "success" ] && [ "$UPLOAD_OUTCOME" = "success" ]; then
             conclusion=success
           else
             conclusion=failure
           fi
-          gh api --method PATCH "repos/${{ github.repository }}/check-runs/${{ steps.check.outputs.id }}" \
+          gh api --method PATCH "repos/$REPO/check-runs/$CHECK_RUN_ID" \
             -f status=completed \
             -f conclusion="$conclusion" >/dev/null
 
