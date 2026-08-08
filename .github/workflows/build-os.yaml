@@ -94,10 +94,15 @@ jobs:
       # always the default branch for a workflow_run trigger - see the
       # concurrency/permissions comments above), so a caller can look this
       # run up later via GET /commits/{sha}/check-runs regardless of which
-      # branch build-os itself thinks it ran on. details_url points back at
-      # this exact run (github.run_id, known now even though this run's own
-      # API-reported head_sha isn't usable for the lookup) so the caller can
-      # jump straight to its artifacts without re-deriving anything.
+      # branch build-os itself thinks it ran on. external_id carries this
+      # exact run's own id (github.run_id, known now even though this run's
+      # own API-reported head_sha isn't usable for the lookup) so the caller
+      # can jump straight to its artifacts without re-deriving anything -
+      # NOT details_url/html_url: GitHub silently forces both of those to the
+      # check run's own page for check runs created via the Actions token,
+      # ignoring whatever URL you pass. external_id is the field actually
+      # meant for "the integrator's own reference for this run" and isn't
+      # overridden.
       - name: Start check run
         if: steps.go.outputs.go == 'true'
         id: check
@@ -109,7 +114,7 @@ jobs:
             -f name="OS Build" \
             -f head_sha="$SHA" \
             -f status=in_progress \
-            -f details_url="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            -f external_id="${{ github.run_id }}" \
             --jq .id)
           echo "id=$id" >> "$GITHUB_OUTPUT"
 
