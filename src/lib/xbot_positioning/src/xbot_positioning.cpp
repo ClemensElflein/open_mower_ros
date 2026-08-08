@@ -41,12 +41,25 @@ xbot_msgs::WheelTick last_ticks;
 bool has_gps;
 xbot_msgs::AbsolutePose last_gps;
 
-// True, if last_imu is valid and gyro_offset is valid
+// True, if last_imu is valid
 bool has_gyro;
 sensor_msgs::Imu last_imu;
 ros::Time gyro_calibration_start;
-double gyro_offset;
-int gyro_offset_samples;
+static double gyro_offset=0;
+
+// Needed for offset calibration
+static double gyro_offset_s=0;
+static double gyro_offset_s2=0;
+static int gyro_offset_samples=0;
+
+// We consider to be at rest, if no activity has been detected for this number of seconds.
+#define FROZEN_DELAY 5
+// Samples needed for averaging
+#define GYRO_OFFSET_SAMPLES 500
+// How long did we not move
+static double frozen_duration=FROZEN_DELAY;
+// Maximum velocity, that we accept as standing still
+static double frozen_angular_max_velocity=1000;
 
 // Current speed calculated by wheel ticks
 double vx = 0.0;
@@ -77,34 +90,32 @@ ros::Time last_gps_time(0.0);
 void onImu(const sensor_msgs::Imu::ConstPtr &msg) {
     if (!has_gyro) {
         if (!skip_gyro_calibration) {
-            if (gyro_offset_samples == 0) {
-                ROS_INFO_STREAM("Started gyro calibration");
-                gyro_calibration_start = msg->header.stamp;
-                gyro_offset = 0;
-            }
-            gyro_offset += msg->angular_velocity.z;
-            gyro_offset_samples++;
-            if ((msg->header.stamp - gyro_calibration_start).toSec() < 5) {
-                last_imu = *msg;
-                return;
-            }
-            has_gyro = true;
-            if (gyro_offset_samples > 0) {
-                gyro_offset /= gyro_offset_samples;
-            } else {
-                gyro_offset = 0;
-            }
-            gyro_offset_samples = 0;
-            ROS_INFO_STREAM("Calibrated gyro offset: " << gyro_offset);
+            ROS_INFO_STREAM("Started gyro calibration");
         } else {
             ROS_WARN("Skipped gyro calibration");
-            has_gyro = true;
-            return;
         }
+        has_gyro = true;
+        last_imu = *msg;
+        return;
     }
 
-    core.predict(vx, msg->angular_velocity.z - gyro_offset, (msg->header.stamp - last_imu.header.stamp).toSec());
-    auto x = core.updateSpeed(vx, msg->angular_velocity.z - gyro_offset, 0.01);
+    double angular_velocity=msg->angular_velocity.z-gyro_offset;
+    if (!skip_gyro_calibration && frozen_duration>=FROZEN_DELAY) {
+      if (fabs(angular_velocity)<frozen_angular_max_velocity) {
+        /* Angular velocity in limit => re-calibrate */
+        angular_velocity=0;
+        gyro_offset_s += msg->angular_velocity.z;
+        gyro_offset_s2 += msg->angular_velocity.z*msg->angular_velocity.z;
+        gyro_offset_samples++;
+      } else {
+        /* Perhaps someone moved us */
+        ROS_WARN("External movement detected");
+        frozen_duration=0;
+      }
+    }
+
+    core.predict(vx, angular_velocity, (msg->header.stamp - last_imu.header.stamp).toSec());
+    auto x = core.updateSpeed(vx, angular_velocity, 0.01);
 
     odometry.header.stamp = ros::Time::now();
     odometry.header.seq++;
@@ -173,35 +184,36 @@ void onImu(const sensor_msgs::Imu::ConstPtr &msg) {
     last_imu = *msg;
 }
 
-void onWheelTicks(const xbot_msgs::WheelTick::ConstPtr &msg) {
-    if (!has_ticks) {
-        last_ticks = *msg;
-        has_ticks = true;
-        return;
-    }
-    double dt = (msg->stamp - last_ticks.stamp).toSec();
-
-    double d_wheel_l = (double) (msg->wheel_ticks_rl - last_ticks.wheel_ticks_rl) * (
-                           1 / (double) msg->wheel_tick_factor);
-    double d_wheel_r = (double) (msg->wheel_ticks_rr - last_ticks.wheel_ticks_rr) * (
-                           1 / (double) msg->wheel_tick_factor);
-
-    if (msg->wheel_direction_rl) {
-        d_wheel_l *= -1.0;
-    }
-    if (msg->wheel_direction_rr) {
-        d_wheel_r *= -1.0;
-    }
-
-
-    double d_ticks = (d_wheel_l + d_wheel_r) / 2.0;
-    vx = d_ticks / dt;
-
-    last_ticks = *msg;
-}
-
 void onTwistIn(const geometry_msgs::TwistStamped::ConstPtr &msg) {
-    vx = msg->twist.linear.x;
+   static double lastTime=0;
+   double msgTime=msg->header.stamp.toSec();
+   vx = msg->twist.linear.x;
+   if (vx==0 && msg->twist.angular.z==0 && lastTime!=0) {
+     /* Standing still! */
+     if (frozen_duration==0) {
+       gyro_offset_s = gyro_offset_s2 = gyro_offset_samples = 0;
+     }
+     frozen_duration += msgTime-lastTime;
+     if (gyro_offset_samples >= GYRO_OFFSET_SAMPLES) {
+       static int first_message=1;
+       gyro_offset = gyro_offset_s / gyro_offset_samples;
+       /* Calculate deviation */
+       double deviation = sqrt((gyro_offset_s2-gyro_offset_s*gyro_offset_s/gyro_offset_samples)/(gyro_offset_samples-1));
+       frozen_angular_max_velocity=deviation*5+0.06; // At least one revolution in two minutes.
+       /* Reset statistic */
+       gyro_offset_s = gyro_offset_s2 = gyro_offset_samples = 0;
+
+       if (first_message) {
+         ROS_INFO_STREAM("Calibrated gyro offset: " << gyro_offset);
+         first_message=false;
+       } else {
+         ROS_DEBUG_STREAM("Re-calibrated gyro offset: " << gyro_offset);
+       }
+     }
+   } else {
+     frozen_duration = 0;
+   }
+   lastTime=msgTime;
 }
 
 bool setGpsState(xbot_positioning::GPSControlSrvRequest &req, xbot_positioning::GPSControlSrvResponse &res) {
@@ -354,7 +366,6 @@ int main(int argc, char **argv) {
     ros::Subscriber imu_sub = paramNh.subscribe("imu_in", 10, onImu);
     ros::Subscriber twist_sub = paramNh.subscribe("twist_in", 10, onTwistIn);
     ros::Subscriber pose_sub = paramNh.subscribe("xb_pose_in", 10, onPose);
-    ros::Subscriber wheel_tick_sub = paramNh.subscribe("wheel_ticks_in", 10, onWheelTicks);
 
     ros::spin();
     return 0;
