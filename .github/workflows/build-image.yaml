@@ -83,6 +83,17 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: 'recursive'
+          # Full history + tags so `git describe` can resolve the real version below.
+          fetch-depth: 0
+
+      # Compute the software version here (git is available in the runner, but the
+      # Docker build context excludes .git/, so the container can't compute it itself).
+      - name: Compute version
+        id: version
+        run: |
+          version=$(git describe --tags 2>/dev/null || git describe --always 2>/dev/null || echo v0.0.0)
+          echo "version=${version}" >> ${GITHUB_OUTPUT}
+          echo "Software version: ${version}"
 
       # Setup Python 3
       - name: Set up Python
@@ -144,6 +155,8 @@ jobs:
           context: .
           file: ${{ matrix.dockerfile }}
           platforms: ${{ matrix.docker_build_arch }}
+          build-args: |
+            OM_SOFTWARE_VERSION=${{ steps.version.outputs.version }}
           no-cache: ${{ inputs.clean_build == true || false }}
           labels: ${{ env.META_LABELS }}
           outputs: type=image,name=ghcr.io/${{ env.REPOSITORY_LC }},push-by-digest=true,name-canonical=true,push=true
@@ -157,6 +170,8 @@ jobs:
           context: .
           file: ${{ matrix.dockerfile }}
           platforms: ${{ matrix.docker_build_arch }}
+          build-args: |
+            OM_SOFTWARE_VERSION=${{ steps.version.outputs.version }}
           tags: open_mower-pr:${{ matrix.variant }}
           outputs: type=docker,dest=/tmp/image.tar
           cache-from: type=gha,scope=${{ matrix.os }}-${{ matrix.variant }}
