@@ -109,3 +109,4 @@ Copy the settings for **Build directory** and **CMake options**. Everything else
 # License
 
 This work is licensed under the [GNU General Public License version 3](https://www.gnu.org/licenses/gpl-3.0.html). See the [LICENSE](LICENSE) file for details.
+<!-- test: verifying OS build check-run tagging after #338, throwaway PR -->
