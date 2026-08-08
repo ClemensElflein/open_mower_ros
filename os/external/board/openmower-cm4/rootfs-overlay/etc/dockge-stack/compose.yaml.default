@@ -1,14 +1,13 @@
 # Upstream compose.yaml (github.com/louislam/dockge, master branch, as
 # fetched for this port -- see README if bumping the pinned `image:` tag).
 # DOCKGE_ENABLE_CONSOLE=false added on top: ttyd (see /etc/webterminal-stack)
-# already covers in-browser console access, matching the same tweak
-# OpenMowerOS made in stage-openmower/32-dockge/00-run-chroot.sh.
+# already covers in-browser console access.
 #
 # /opt/stacks and /opt/dockge are symlinks into /data (see post-build.sh) --
 # host path == container path is required below (Dockge's own comment).
-# data/ (Dockge's SQLite DB) is pre-seeded from the predecessor's own
-# fleet-wide DB (auth disabled, one fixed jwtSecret, same on every device)
-# -- see rootfs-overlay/etc/tmpfiles.d/docker-stacks.conf and README's
+# data/ (Dockge's SQLite DB) is pre-seeded with a fixed fleet-wide DB (auth
+# disabled, one jwtSecret, same on every device) -- see
+# rootfs-overlay/etc/tmpfiles.d/docker-stacks.conf and README's
 # "Known trade-offs".
 services:
   dockge:

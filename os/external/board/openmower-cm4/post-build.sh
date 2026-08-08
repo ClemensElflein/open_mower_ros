@@ -40,10 +40,9 @@ cat > "$TARGET_DIR/etc/motd" <<EOF
 EOF
 
 # /etc/issue: shown by getty on the serial console BEFORE login (unlike
-# motd above, which only prints after auth succeeds) -- same role as the
-# predecessor's /etc/rpi-issue ("OpenMowerOS v2.x YYYY-MM-DD"), so a
-# technician at the console can identify the running build without
-# credentials. Overwrites whatever BR2_TARGET_GENERIC_ISSUE put here at
+# motd above, which only prints after auth succeeds) -- so a technician at
+# the console can identify the running build without credentials.
+# Overwrites whatever BR2_TARGET_GENERIC_ISSUE put here at
 # rootfs-skeleton time (this script runs later); reuses the same version
 # variables already computed above instead of a second mechanism.
 echo "OpenMower OS $OPENMOWER_VERSION ($OPENMOWER_GIT_REV)" > "$TARGET_DIR/etc/issue"
@@ -98,3 +97,26 @@ ln -s /data/dropbear "$TARGET_DIR/etc/dropbear"
 rm -rf "$TARGET_DIR/opt/stacks" "$TARGET_DIR/opt/dockge"
 ln -s /data/stacks "$TARGET_DIR/opt/stacks"
 ln -s /data/dockge "$TARGET_DIR/opt/dockge"
+
+# Bake usercfg.txt.default's hardware config.txt addendum (UART, antenna,
+# fan) onto config.txt itself, instead of keeping two copies of the same
+# directives in the repo -- single source of truth is usercfg.txt.default
+# (see its own comments), which also ships as-is to /data/boot/usercfg.txt
+# as the live editable copy of those same defaults. Applied to both the
+# real boot-partition config.txt (already installed by the rpi-firmware
+# package, from config.txt.default) and the /data reference copy in
+# TARGET_DIR (tmpfiles seeds /data/boot/config.txt from it, see
+# rootfs-overlay/etc/tmpfiles.d/openmower.conf) so the two never drift
+# apart. `include usercfg.txt` must come LAST, after the baked-in defaults
+# it's appended alongside -- config.txt semantics are "later directives
+# win", so an actual on-device edit to usercfg.txt (included at that same
+# point once synced) overrides the baked default for the same setting
+# rather than being overridden by it.
+USERCFG_DEFAULT="$TARGET_DIR/etc/openmower/usercfg.txt.default"
+for CONFIG_TXT in \
+    "$BINARIES_DIR/rpi-firmware/config.txt" \
+    "$TARGET_DIR/etc/openmower/config.txt.default"
+do
+    cat "$USERCFG_DEFAULT" >> "$CONFIG_TXT"
+    echo "include usercfg.txt" >> "$CONFIG_TXT"
+done

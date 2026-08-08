@@ -52,7 +52,7 @@ BR2_LINUX_KERNEL_NEEDS_HOST_OPENSSL=y
 # Firmware / boot
 BR2_PACKAGE_RPI_FIRMWARE=y
 BR2_PACKAGE_RPI_FIRMWARE_VARIANT_PI4=y
-BR2_PACKAGE_RPI_FIRMWARE_CONFIG_FILE="$(BR2_EXTERNAL_OPENMOWER_PATH)/board/openmower-cm4/config.txt"
+BR2_PACKAGE_RPI_FIRMWARE_CONFIG_FILE="$(BR2_EXTERNAL_OPENMOWER_PATH)/board/openmower-cm4/rootfs-overlay/etc/openmower/config.txt.default"
 BR2_PACKAGE_BRCMFMAC_SDIO_FIRMWARE_RPI=y
 BR2_PACKAGE_BRCMFMAC_SDIO_FIRMWARE_RPI_WIFI=y
 BR2_PACKAGE_BRCMFMAC_SDIO_FIRMWARE_RPI_BT=y
@@ -118,7 +118,7 @@ BR2_PACKAGE_BASH=y
 BR2_PACKAGE_E2FSPROGS=y
 BR2_PACKAGE_E2FSPROGS_FSCK=y
 
-# Diagnostics (ported from OpenMowerOS's package list, buildroot subset).
+# Diagnostics tools (buildroot subset).
 # mc dropped: 4.8.33's build hits an ncursesw wide-char detection issue
 # under this cross setup (implicit decl of getcchar/setcchar/mvin_wchnstr
 # in tty-ncurses.c) despite BR2_PACKAGE_NCURSES_WCHAR=y being correctly

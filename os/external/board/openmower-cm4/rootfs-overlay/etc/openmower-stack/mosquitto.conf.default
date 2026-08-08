@@ -1,8 +1,5 @@
-# Ported byte-identical (values, not just shape) from OpenMowerOS's
-# stage-openmower/40-openmower/files/opt/stacks/openmower/mosquitto.conf.
-# allow_anonymous is inherited as-is from the predecessor -- this broker is
-# reachable from wherever eth0 is plugged in (see README's "Internal LAN"
-# section), same posture the old image shipped for years.
+# allow_anonymous: this broker is reachable from wherever eth0 is plugged in
+# (see README's "Internal LAN" section and "Known trade-offs").
 log_type notice
 log_dest stdout
 

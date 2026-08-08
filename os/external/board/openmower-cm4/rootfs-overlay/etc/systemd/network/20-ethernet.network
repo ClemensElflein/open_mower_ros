@@ -9,9 +9,8 @@ MulticastDNS=yes
 # onboard ethernet is wired to the carrier board's internal switch (xCore +
 # external RJ45 jack both on the same physical eth0), not two separate
 # interfaces. Matches open_mower_ros's own hardcoded expectation
-# (params/hardware_specific/*/params_v2.yaml: ll.bind_ip) and OpenMowerOS's
-# reference network config. dnsmasq.service serves DHCP to the xCore on
-# this subnet -- see /etc/dnsmasq.conf.
+# (params/hardware_specific/*/params_v2.yaml: ll.bind_ip). dnsmasq.service
+# serves DHCP to the xCore on this subnet -- see /etc/dnsmasq.conf.
 Address=172.16.78.1/24
 
 [DHCPv4]

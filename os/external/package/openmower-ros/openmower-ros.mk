@@ -56,9 +56,9 @@ define OPENMOWER_ROS_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/etc/openmower/openmower.conf
 	$(INSTALL) -D -m 0644 $(OPENMOWER_ROS_PKGDIR)/files/openmower.conf.example \
 		$(TARGET_DIR)/opt/openmower-root/etc/openmower/openmower.conf
-	# Default mower_params.yaml (safe generic values, enable_mower: false),
-	# ported from OpenMowerOS -- copied to /data/openmower/params/ on first
-	# boot if missing (see rootfs-overlay/etc/tmpfiles.d/openmower.conf's
+	# Default mower_params.yaml (safe generic values, enable_mower: false) --
+	# copied to /data/openmower/params/ on first boot if missing (see
+	# rootfs-overlay/etc/tmpfiles.d/openmower.conf's
 	# "C" line) so openmower-check-config doesn't block startup on a
 	# freshly-flashed device, at the cost of the mower being unconfigured
 	# (enable_mower: false) until someone edits it for their actual robot.

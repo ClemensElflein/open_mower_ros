@@ -115,7 +115,7 @@ so it behaves like the original Docker container's writable home did
 - `/data/openmower/params/mower_params.yaml` — per-robot calibration.
   Required; `openmower.service` refuses to start without it (checked by
   `openmower-check-config`, logged to the journal, not a crash-loop). A
-  generic-but-safe default (`enable_mower: false`, ported from OpenMowerOS)
+  generic-but-safe default (`enable_mower: false`)
   is copied here on first boot if missing, so that whenever you *do* start
   the service (not automatic — see below) it doesn't immediately fail on a
   missing file — edit it for your robot before relying on it.
@@ -168,18 +168,14 @@ matching anything without it. `wlan0` is unaffected either way (the
 onboard-index heuristic only targets platform/PCI-bus devices with a
 slot/index, not the SDIO wifi chip).
 
-Ported from OpenMowerOS's ifupdown+NetworkManager+dnsmasq reference setup,
-translated to our systemd-networkd stack.
-
 ### Debug hardware access (dev image)
 
 `openocd` (`/etc/openocd/xcore.cfg`, dev image only) flashes/debugges the
 xCore MCU via SWD using the CM4's own GPIO as a bitbang adapter
 (`swclk`=GPIO27, `swdio`=GPIO22) — `openocd -f /etc/openocd/xcore.cfg`.
-Ported from OpenMowerOS, adapted for CM4/BCM2711 (their config targets a Pi
-5's `linuxgpiod` driver; ours uses `bcm2835gpio`, the only option buildroot
-builds for this SoC). Not verified against real hardware as part of this
-port — double check the pin mapping before relying on it.
+Targets CM4/BCM2711 specifically: buildroot only builds the `bcm2835gpio`
+driver for this SoC (`linuxgpiod` needs a Pi 5). Not verified against real
+hardware yet — double check the pin mapping before relying on it.
 
 ### open_mower_ros source
 
@@ -197,8 +193,8 @@ nested submodules (`xbot_driver_gps`, `xbot_framework`, `services`,
 
 Docker + Compose run a small stack of third-party images alongside
 open_mower_ros: Mosquitto (MQTT broker), OpenMowerApp (web dashboard),
-Dockge (container-manager GUI), ttyd (web terminal). Ported from
-OpenMowerOS; ROS itself is not part of this stack (see above).
+Dockge (container-manager GUI), ttyd (web terminal). ROS itself is not
+part of this stack (see above).
 
 Only Dockge and ttyd start automatically. Mosquitto+OpenMowerApp do not —
 same reasoning as `openmower.service` not auto-starting (see above):
@@ -396,9 +392,7 @@ onboarding at home, revisit (BLE pairing or app-layer crypto) before
 shipping.
 
 BLE is the *only* provisioning path — deliberately, see "Known trade-offs".
-Unlike OpenMowerOS's Comitup (which opens an "OpenMower-\<nnn\>" open Wi-Fi
-AP with a captive config page when no known network is found), there is no
-AP/captive-portal fallback here. If no BLE-capable client is available,
+There is no AP/captive-portal fallback here. If no BLE-capable client is available,
 provision over Ethernet (`ssh root@<hostname or IP>`, edit
 `/data/wifi/wpa_supplicant-wlan0.conf` by hand) -- GPIO14/15 is a plain
 UART wired to real mower hardware, not a debug console (see "Local
@@ -406,22 +400,42 @@ boot-config overrides" below), so there's no serial fallback either.
 
 ## Local boot-config overrides
 
-`config.txt` (Pi firmware config -- antenna selection, UART setup, etc.,
-see `external/board/openmower-cm4/config.txt`) is baked into every image
-and OTA bundle, overwritten wholesale on each update -- there is no
-runtime mount of it at all otherwise (root is squashfs; the boot
-partitions aren't mounted anywhere in the running OS). `/data/boot/usercfg.txt`
-is the escape hatch: config.txt ends with `include usercfg.txt`, and this
-file lives on `/data` instead, so it survives updates. Seeded on first
-boot from `/etc/openmower/usercfg.txt.default` (see its own comments,
-e.g. for switching the CM4 antenna from internal to external).
+`config.txt` (Pi firmware config, see `external/board/openmower-cm4/rootfs-overlay/etc/openmower/config.txt.default`)
+is baked into every image and OTA bundle, overwritten wholesale on each
+update -- there is no runtime mount of it at all otherwise (root is
+squashfs; the boot partitions aren't mounted anywhere in the running OS).
+It only holds the pre-Linux essentials itself, though: the actual OpenMower
+hardware config (antenna selection, UART setup, fan control) lives entirely
+in `usercfg.txt.default` instead, single-sourced from there -- `post-build.sh` appends that file's
+content onto config.txt at build time (plus a trailing `include usercfg.txt`
+it adds itself), so those defaults are baked in and active from the very
+first boot of a fresh flash. A read-only copy of the fully-assembled
+config.txt (base + baked defaults + include) is also seeded to
+`/data/boot/config.txt` on first boot, purely so it's browsable without
+mounting the boot partition -- editing it there does nothing, it's never
+read back.
 
-Edit it directly on a running device, then reboot (usually once is
-enough — `openmower-sync-bootcfg.path` applies an edit to the active boot
-partition immediately; worst case the boot after that picks it up, since
-config.txt itself is read by the Pi firmware before Linux even starts).
-OTA updates re-apply it to the freshly installed boot partition too (see
-`rauc-hook.sh`), so it isn't lost on the next update either.
+`/data/boot/usercfg.txt` is the actual escape hatch: it lives on `/data`
+instead of the boot partition, so unlike config.txt it survives updates.
+Seeded on first boot from the same `/etc/openmower/usercfg.txt.default` that
+got baked into config.txt -- not an empty template, it ships with the real
+live defaults (see its own comments, e.g. for switching the CM4/CM5 antenna
+from internal to external). Because config.txt's baked copy comes first and
+this file is `include`d after it, an edit here overrides the baked default
+for the same setting -- normal config.txt semantics, later directives win.
+
+Edit it directly on a running device (`/data/boot/usercfg.txt`), then
+reboot -- no race with "edit, then immediately reboot": editing it triggers
+`openmower-sync-bootcfg.path` (an inotify watch on that exact file), which
+applies the edit to the active boot partition right away, in the
+background, well before you'd get to typing `reboot` yourself. Worst case
+(edit lands mid-sync) the boot after that picks it up instead, since
+config.txt/usercfg.txt are read by the Pi firmware before Linux even
+starts. `openmower-sync-bootcfg.service` also runs unconditionally on every
+boot regardless (self-healing fallback, e.g. after a fresh flash before any
+edit/OTA has happened at all), and OTA updates re-apply it to the freshly
+installed *other* slot's boot partition too, before that slot is ever
+booted (see `rauc-hook.sh`), so it isn't lost on the next update either.
 
 ## Layout
 
@@ -455,15 +469,12 @@ keys/             dev signing keys (gitignored, auto-generated)
 - Python-based improv daemon costs ~30 MB rootfs; C rewrite is a later
   size optimization.
 - Bluetooth is deliberately kept enabled (`config.txt` does NOT set
-  `dtoverlay=disable-bt`, unlike OpenMowerOS's reference config) because
-  `improv-ble` needs it for BLE wifi provisioning. `uart2-5` already provide
-  four independent hardware UARTs for LL board/xESC/GPS comms, so this
-  shouldn't cost any usable serial capacity in practice — just flagging the
-  deviation from the reference config.
+  `dtoverlay=disable-bt`) because `improv-ble` needs it for BLE wifi
+  provisioning. `uart2-5` already provide four independent hardware UARTs
+  for LL board/xESC/GPS comms, so this shouldn't cost any usable serial
+  capacity in practice.
 - No Raspberry Pi Imager first-boot customization (no `userconf`/`firstrun`/
-  cloud-init anywhere in this repo, unlike OpenMowerOS's pi-gen-based image,
-  which honored Imager's hostname/password/SSH-key/Wi-Fi custom settings).
-  Hostname and password both default the same on every device at flash
+  cloud-init anywhere in this repo). Hostname and password both default the same on every device at flash
   time (see below) and Wi-Fi has no preseed path — only BLE provisioning
   post-boot. Flashing is `dd` of a prebuilt image; deliberately not
   pursuing Imager compatibility for now, so there's no way to set any of
@@ -478,9 +489,8 @@ keys/             dev signing keys (gitignored, auto-generated)
 - No AP/captive-portal Wi-Fi fallback — see "Wifi provisioning" above.
 - Mosquitto (`allow_anonymous`), ttyd's host root shell (`--credential` auth
   off by default), and Dockge (pre-baked DB, `disableAuth=true`, one fixed
-  `jwtSecret`) are all ported byte-identical/as-is from OpenMowerOS — all
-  three reachable, unauthenticated, from wherever `eth0`/Wi-Fi is plugged
-  in. Same `jwtSecret` on every device means anyone who can reach one
+  `jwtSecret`) are all reachable, unauthenticated, from wherever `eth0`/Wi-Fi
+  is plugged in. Same `jwtSecret` on every device means anyone who can reach one
   device's Dockge and gets hold of it can forge a valid session against
   any other. Keep these off untrusted networks. See "Manage the auxiliary
   stack".
