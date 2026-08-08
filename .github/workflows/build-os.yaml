@@ -304,12 +304,14 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          case "${{ steps.build.outcome }}" in
-            success) conclusion=success ;;
-            cancelled) conclusion=cancelled ;;
-            *) conclusion=failure ;;
-          esac
-          gh api "repos/${{ github.repository }}/check-runs/${{ steps.check.outputs.id }}" \
+          if [ "${{ cancelled() }}" = "true" ]; then
+            conclusion=cancelled
+          elif [ "${{ steps.build.outcome }}" = "success" ]; then
+            conclusion=success
+          else
+            conclusion=failure
+          fi
+          gh api --method PATCH "repos/${{ github.repository }}/check-runs/${{ steps.check.outputs.id }}" \
             -f status=completed \
             -f conclusion="$conclusion" >/dev/null
 
