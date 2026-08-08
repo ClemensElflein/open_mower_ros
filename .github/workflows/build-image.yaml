@@ -292,6 +292,12 @@ jobs:
         if: matrix.variant == 'default' && (github.event_name != 'workflow_dispatch' || inputs.variant == 'all' || inputs.variant == matrix.variant)
         env:
           GH_TOKEN: ${{ secrets.REPO_DISPATCH_TOKEN }}
+          # api.openmower.de has exactly three modes (PR/BRANCH/TAG) --
+          # ref_type is 'tag' for any tag push (this workflow only ever
+          # triggers on 'v*' tags, see the top-level `on:` block), 'branch'
+          # otherwise. is_release is a separate concern: whether to also
+          # cut a GitHub Release, not what mode this build is in.
+          EVENT: ${{ github.ref_type == 'tag' && 'TAG' || 'BRANCH' }}
           REF: ${{ github.ref_name }}
           SHA: ${{ github.sha }}
           IS_RELEASE: ${{ github.ref_type == 'tag' && startsWith(github.ref_name, 'v') }}
@@ -302,7 +308,7 @@ jobs:
           IMAGE="ghcr.io/${REPOSITORY_LC}:sha-${SHA:0:7}"
           gh api --method POST /repos/ClemensElflein/OpenMower/dispatches \
             -f event_type=os-build \
-            -f "client_payload[event]=push" \
+            -f "client_payload[event]=$EVENT" \
             -f "client_payload[ref]=$REF" \
             -f "client_payload[sha]=$SHA" \
             -f "client_payload[image]=$IMAGE" \

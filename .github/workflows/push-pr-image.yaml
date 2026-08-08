@@ -154,8 +154,8 @@ jobs:
         run: |
           gh api --method POST /repos/ClemensElflein/OpenMower/dispatches \
             -f event_type=os-build \
-            -f "client_payload[event]=pull_request" \
-            -f "client_payload[ref]=pr-$PR" \
+            -f "client_payload[event]=PR" \
+            -f "client_payload[ref]=$PR" \
             -f "client_payload[sha]=$SHA" \
             -f "client_payload[image]=$IMAGE" \
             -F "client_payload[is_release]=false"
