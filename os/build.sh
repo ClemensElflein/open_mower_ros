@@ -4,7 +4,8 @@
 # Usage:
 #   ./build.sh                    # full image build
 #   ./build.sh image-migration    # migration installer, see external/configs/openmower_cm4_migration_defconfig
-#   ./build.sh menuconfig         # any Buildroot make target
+#   ./build.sh menuconfig         # any Buildroot make target -- auto-persists to the checked-in defconfig on exit, see below
+#   ./build.sh savedefconfig      # persist output/.config by hand (e.g. after editing it some other way)
 #   ./build.sh shell              # interactive shell in the container
 set -euo pipefail
 
@@ -281,14 +282,37 @@ case "$SUBCOMMAND" in
         # A fresh output directory has no .config, so Buildroot would otherwise
         # open menuconfig with its generic (x86) defaults.
         if [ ! -f "$HERE${OUTPUT_DIR#/work/os}/.config" ]; then
-            exec docker run "${DOCKER_ARGS[@]}" "$IMAGE_TAG" \
+            docker run "${DOCKER_ARGS[@]}" "$IMAGE_TAG" \
                 bash -c "${BR_MAKE[*]} $DEFCONFIG && ${BR_MAKE[*]} menuconfig"
+        else
+            docker run "${DOCKER_ARGS[@]}" "$IMAGE_TAG" "${BR_MAKE[@]}" menuconfig
         fi
-        exec docker run "${DOCKER_ARGS[@]}" "$IMAGE_TAG" "${BR_MAKE[@]}" menuconfig
+        # Auto-persist: without this, the very next `./build.sh` starts with
+        # `make $DEFCONFIG`, which wholesale-regenerates output/.config FROM
+        # the checked-in file below -- silently wiping whatever menuconfig
+        # just set there instead. Harmless no-op diff if nothing changed
+        # (exited menuconfig without saving, or saved back the same values).
+        # DEFCONFIG already resolves to the migration one too when
+        # SUBCOMMAND=menuconfig-migration (set above), so this needs no
+        # separate case for that.
+        exec docker run "${DOCKER_ARGS[@]}" "$IMAGE_TAG" "${BR_MAKE[@]}" \
+            savedefconfig BR2_DEFCONFIG=/work/os/external/configs/$DEFCONFIG
         ;;
     savedefconfig-migration)
         exec docker run "${DOCKER_ARGS[@]}" "$IMAGE_TAG" "${BR_MAKE[@]}" \
             savedefconfig BR2_DEFCONFIG=/work/os/external/configs/openmower_cm4_migration_defconfig
+        ;;
+    savedefconfig)
+        # Writes the CURRENT output/.config (whatever menuconfig left behind)
+        # back out to the checked-in $DEFCONFIG file -- needed because
+        # `./build.sh image` always starts with `make $DEFCONFIG`, which
+        # wholesale-regenerates output/.config FROM that checked-in file. A
+        # menuconfig change that's only ever been saved to output/.config
+        # (not back to here) is silently gone the next time you build.
+        # DEFCONFIG=openmower_cm4_dev_defconfig ./build.sh savedefconfig to
+        # target the dev variant instead of the default.
+        exec docker run "${DOCKER_ARGS[@]}" "$IMAGE_TAG" "${BR_MAKE[@]}" \
+            savedefconfig BR2_DEFCONFIG=/work/os/external/configs/$DEFCONFIG
         ;;
     *)
         exec docker run "${DOCKER_ARGS[@]}" "$IMAGE_TAG" "${BR_MAKE[@]}" "$@"
