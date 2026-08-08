@@ -1,0 +1,52 @@
+# Higher priority than 50-wpa_supplicant.preset and 80-buildroot.preset;
+# buildroot runs `systemctl preset-all` on the rootfs after the overlay is
+# merged, so enablement must be expressed here, not only as wants-symlinks.
+# wpa_supplicant@wlan0 is started by the wlan0 udev event. Enabling it here
+# would make systemd wait for its required device unit at boot when Wi-Fi is
+# unavailable or still initializing.
+disable wpa_supplicant@.service
+disable wpa_supplicant.service
+disable wpa_supplicant-nl80211@.service
+disable wpa_supplicant-wired@.service
+enable openmower-etc-overlay.service
+enable openmower-detect-hardware.service
+enable openmower-expand-data.service
+enable improv-ble.service
+enable openmower-machine-id.service
+enable openmower-hostname.service
+enable openmower-sync-bootcfg.service
+enable openmower-sync-bootcfg.path
+enable rauc-mark-good.timer
+enable openmower-check-update.timer
+# Not auto-started: an unconfigured/untuned mower shouldn't come alive just
+# because the device booted. Start explicitly via openmower-cli (`systemctl
+# start openmower`) once HARDWARE_PLATFORM/MOWER/mower_params.yaml are set.
+# `systemctl enable` now actually persists (openmower-etc-overlay.service
+# makes /etc writable, /data-backed), so openmower-cli's planned `enable`
+# subcommand can just be a plain `systemctl enable` once it exists --
+# no bespoke marker-file mechanism needed after all.
+disable openmower.service
+enable dnsmasq.service
+enable docker.service
+enable webterminal.service
+enable dockge.service
+
+# USB0 composite gadget (console + Improv WiFi + ethernet) -- see
+# board/openmower/rootfs-overlay's openmower-usb-gadget-init. Host vs.
+# device switching itself is automatic in dwc2 (native USB_OTG_ID pin),
+# nothing to enable for that separately.
+enable openmower-usb-gadget-init.service
+enable improv-serial.service
+# `enable` here does NOT actually enable it on its own: `systemctl
+# preset-all --root=...` (what Buildroot runs at image build time) works
+# by enumerating unit files already on disk, and a template instance like
+# serial-getty@ttyGS0.service has no such file -- only the bare
+# serial-getty@.service template does -- so this line silently no-ops at
+# build time. Confirmed on real hardware: fresh image, unit shows up
+# "disabled" despite this. The actual enablement is the baked symlink at
+# etc/systemd/system/getty.target.wants/serial-getty@ttyGS0.service in
+# this same rootfs overlay (the same reason wpa_supplicant@wlan0 below
+# uses udev SYSTEMD_WANTS instead of a preset enable). Left here anyway as
+# a no-cost second attempt in case a future `systemctl preset-all` (e.g. a
+# factory-reset flow) gets re-run against an already-installed system.
+enable serial-getty@ttyGS0.service
