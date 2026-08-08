@@ -10,6 +10,3 @@
 [submodule "src/lib/ros_ntrip_client"]
 	path = src/lib/ros_ntrip_client
 	url = https://github.com/olliewalsh/ros_ntrip_client.git
-[submodule "os/buildroot"]
-	path = os/buildroot
-	url = https://gitlab.com/buildroot.org/buildroot.git

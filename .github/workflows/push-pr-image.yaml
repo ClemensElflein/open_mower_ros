@@ -139,3 +139,23 @@ jobs:
             -t "${REPO}:pr-${PR}${SUFFIX}" \
             "${REPO}:pr-${PR}-amd64${SUFFIX}" \
             "${REPO}:pr-${PR}-arm64${SUFFIX}"
+
+      # Only the default variant is ever vendored into the OS/RAUC build
+      # (see the matching guard in build-image.yaml's merge job) -- the
+      # image is public as soon as the manifest above exists, so the OS
+      # build repo can pull it with no auth/artifact transfer needed.
+      - name: Trigger OS build
+        if: steps.pr.outputs.skip != 'true' && matrix.variant == 'default'
+        env:
+          GH_TOKEN: ${{ secrets.REPO_DISPATCH_TOKEN }}
+          PR: ${{ steps.pr.outputs.number }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+          IMAGE: ghcr.io/${{ env.REPOSITORY_LC }}:pr-${{ steps.pr.outputs.number }}
+        run: |
+          gh api --method POST /repos/ClemensElflein/OpenMower/dispatches \
+            -f event_type=os-build \
+            -f "client_payload[event]=pull_request" \
+            -f "client_payload[ref]=pr-$PR" \
+            -f "client_payload[sha]=$SHA" \
+            -f "client_payload[image]=$IMAGE" \
+            -F "client_payload[is_release]=false"
