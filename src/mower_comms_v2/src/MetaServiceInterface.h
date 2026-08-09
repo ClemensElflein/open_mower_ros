@@ -14,11 +14,11 @@ class MetaServiceInterface : public MetaServiceInterfaceBase {
       : MetaServiceInterfaceBase(service_id, ctx), firmware_name_(firmware_name) {
   }
 
+ protected:
+  bool OnConfigurationRequested(uint16_t service_id) override;
+
  private:
   void OnServiceConnected(uint16_t service_id) override;
-
-  // Called from OnServiceConnected on every connect (initial + FW reboot).
-  bool SetRobotFirmware();
 
   std::string firmware_name_;
 };

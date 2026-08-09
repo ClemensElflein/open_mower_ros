@@ -16,13 +16,15 @@ void MetaServiceInterface::OnServiceConnected(uint16_t service_id) {
   } else {
     ROS_WARN("Failed to get firmware version from MetaService");
   }
-
-  if (!firmware_name_.empty()) {
-    SetRobotFirmware();
-  }
 }
 
-bool MetaServiceInterface::SetRobotFirmware() {
+bool MetaServiceInterface::OnConfigurationRequested(uint16_t service_id) {
+  (void)service_id;
+
+  if (firmware_name_.empty()) {
+    return false;  // No firmware name configured — skip config
+  }
+
   uint16_t major_version = 0;
   if (!CallGetMajorVersion(major_version)) {
     ROS_WARN("Failed to get major version from MetaService - skipping firmware configuration");
@@ -34,6 +36,10 @@ bool MetaServiceInterface::SetRobotFirmware() {
                                                                             "Stage-2 wait loop");
     return false;
   }
-  ROS_INFO_STREAM("Setting robot firmware: " << firmware_name_);
-  return SetRegisterRobotFirmware(firmware_name_.c_str(), firmware_name_.size());
+
+  ROS_INFO_STREAM("Configuring robot firmware: " << firmware_name_);
+  StartTransaction(true);
+  SetRegisterRobotFirmware(firmware_name_.c_str(), firmware_name_.size());
+  CommitTransaction();
+  return true;
 }
