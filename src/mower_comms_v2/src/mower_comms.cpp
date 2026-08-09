@@ -150,7 +150,7 @@ int main(int argc, char** argv) {
     std::string board;
     paramNh.getParam("board", board);
     if (board.empty()) {
-      ROS_WARN("No ll/board set - Stage-2 robots will not auto-configure");
+      ROS_WARN("No ll/board set. Stage-2 robots will not auto-configure!");
     }
     meta_service = std::make_unique<MetaServiceInterface>(xbot::service_ids::META, ctx, board);
     meta_service->Start();
