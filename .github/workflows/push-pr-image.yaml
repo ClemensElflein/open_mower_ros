@@ -73,13 +73,31 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # pr-<PR>-<arch> stays a human-pullable tag, but the merge job below
+      # combines by digest (captured here), not by re-reading this tag --
+      # it's mutable (overwritten on every new push to the PR), and without
+      # this repo's own concurrency control two overlapping runs racing on
+      # the same PR could otherwise let merge combine one run's amd64 push
+      # with a DIFFERENT run's arm64 push into a manifest that matches
+      # neither commit's client_payload[sha].
       - name: Load and push
         if: steps.pr.outputs.skip != 'true'
         run: |
           docker load < image.tar
           TAG="ghcr.io/${{ env.REPOSITORY_LC }}:pr-${{ steps.pr.outputs.number }}-${{ matrix.arch }}${{ matrix.tag_suffix }}"
           docker tag "open_mower-pr:${{ matrix.variant }}" "$TAG"
-          docker push "$TAG"
+          DIGEST=$(docker push "$TAG" | grep -oP 'digest: \Ksha256:[0-9a-f]+')
+          mkdir -p /tmp/digests
+          touch "/tmp/digests/${DIGEST#sha256:}"
+
+      - name: Upload digest
+        if: steps.pr.outputs.skip != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ matrix.arch }}-${{ matrix.variant }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
 
   merge:
     needs: push
@@ -117,6 +135,14 @@ jobs:
           fi
           echo "number=${PR_NUMBER}" >> $GITHUB_OUTPUT
 
+      - name: Download digests
+        if: steps.pr.outputs.skip != 'true'
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digests-*-${{ matrix.variant }}
+          merge-multiple: true
+
       - name: Set up Docker Buildx
         if: steps.pr.outputs.skip != 'true'
         uses: docker/setup-buildx-action@v3
@@ -129,13 +155,55 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # Combine by digest (downloaded above), not by re-reading the
+      # pr-<PR>-<arch> tags -- see the "Load and push" step in the push
+      # job for why those aren't safe to treat as the source of truth here.
       - name: Create manifest
         if: steps.pr.outputs.skip != 'true'
+        id: manifest
+        working-directory: /tmp/digests
         run: |
+          echo "Found digest files:" && ls -la || true
+          if [ "$(ls -1 | wc -l)" -eq 0 ]; then
+            echo "No digests found, skipping manifest creation for ${{ matrix.variant }}"
+            exit 0
+          fi
           REPO="ghcr.io/${{ env.REPOSITORY_LC }}"
           PR="${{ steps.pr.outputs.number }}"
           SUFFIX="${{ matrix.tag_suffix }}"
-          docker buildx imagetools create \
+          # --metadata-file captures the manifest list's own content-addressed
+          # digest -- the OS build dispatch below needs THAT (immutable),
+          # not the pr-<number> tag it's also published under (mutable:
+          # replaced on every new push to the PR, so a queued/delayed OS
+          # build could otherwise pull content that no longer matches
+          # client_payload[sha]).
+          docker buildx imagetools create --metadata-file /tmp/manifest-metadata.json \
             -t "${REPO}:pr-${PR}${SUFFIX}" \
-            "${REPO}:pr-${PR}-amd64${SUFFIX}" \
-            "${REPO}:pr-${PR}-arm64${SUFFIX}"
+            $(printf "${REPO}@sha256:%s " *)
+          echo "digest=$(jq -r '."containerimage.descriptor".digest' /tmp/manifest-metadata.json)" >> "$GITHUB_OUTPUT"
+
+      # Only the default variant is ever vendored into the OS/RAUC build
+      # (see the matching guard in build-image.yaml's merge job) -- the
+      # image is public as soon as the manifest above exists, so the OS
+      # build repo can pull it with no auth/artifact transfer needed.
+      - name: Trigger OS build
+        if: steps.pr.outputs.skip != 'true' && matrix.variant == 'default'
+        env:
+          GH_TOKEN: ${{ secrets.REPO_DISPATCH_TOKEN }}
+          PR: ${{ steps.pr.outputs.number }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+          DIGEST: ${{ steps.manifest.outputs.digest }}
+        run: |
+          if [ -z "$DIGEST" ]; then
+            echo "No manifest digest (manifest step found no digests to combine) -- nothing to dispatch"
+            exit 0
+          fi
+          IMAGE="ghcr.io/${REPOSITORY_LC}@${DIGEST}"
+          gh api --method POST /repos/ClemensElflein/OpenMower/dispatches \
+            -f event_type=os-build \
+            -f "client_payload[event]=PR" \
+            -f "client_payload[ref]=$PR" \
+            -f "client_payload[sha]=$SHA" \
+            -f "client_payload[image]=$IMAGE" \
+            -F "client_payload[is_release]=false" \
+            -f "client_payload[tag_name]="

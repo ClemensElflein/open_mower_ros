@@ -261,6 +261,7 @@ jobs:
 
       - name: Create manifest list and push
         if: github.event_name != 'workflow_dispatch' || inputs.variant == 'all' || inputs.variant == matrix.variant
+        id: manifest
         working-directory: /tmp/digests
         run: |
           echo "Found digest files:" && ls -la || true
@@ -270,10 +271,64 @@ jobs:
           fi
           TAG_ARGS=$(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON")
           echo "Creating manifest with tags: $TAG_ARGS"
-          docker buildx imagetools create ${TAG_ARGS} \
+          # --metadata-file captures the manifest list's own content-addressed
+          # digest -- the OS build dispatch below needs THAT (immutable),
+          # not one of the tags above (mutable: a short-sha tag could in
+          # principle be replaced by a later rebuild, and the receiver has
+          # no way to tell it happened).
+          docker buildx imagetools create --metadata-file /tmp/manifest-metadata.json ${TAG_ARGS} \
             $(printf 'ghcr.io/${{ env.REPOSITORY_LC }}@sha256:%s ' *)
+          echo "digest=$(jq -r '."containerimage.descriptor".digest' /tmp/manifest-metadata.json)" >> "$GITHUB_OUTPUT"
 
       - name: Inspect image
         if: github.event_name != 'workflow_dispatch' || inputs.variant == 'all' || inputs.variant == matrix.variant
         run: |
           docker buildx imagetools inspect $(jq -r '.tags[0]' <<< "$DOCKER_METADATA_OUTPUT_JSON")
+
+      # Trigger the OS/RAUC build in ClemensElflein/OpenMower now that a
+      # public image exists for it to pull. Only the default variant is
+      # ever vendored into the OS image (systemd-based, current -- the
+      # legacy variant has no OS build equivalent), and only once per push
+      # (not once per matrix entry), hence the variant guard here rather
+      # than a separate job. is_release/tag_name come straight from this
+      # push's own ref (github.ref_type/ref_name), not a re-derived git-tag
+      # lookup -- unlike a workflow_run-triggered workflow, this job runs
+      # directly off the push event, so that context is already
+      # trustworthy without an extra checkout.
+      - name: Trigger OS build
+        # A workflow_dispatch filtered to a single arch (inputs.arch !=
+        # 'all') pushes a single-platform manifest -- OpenMower always
+        # pulls --platform linux/arm64, so dispatching from an amd64-only
+        # manual run would hand it an image with no arm64 to pull at all.
+        if: matrix.variant == 'default' && (github.event_name != 'workflow_dispatch' || (inputs.variant == 'all' || inputs.variant == matrix.variant) && inputs.arch == 'all')
+        env:
+          GH_TOKEN: ${{ secrets.REPO_DISPATCH_TOKEN }}
+          # api.openmower.de has exactly three modes (PR/BRANCH/TAG) --
+          # ref_type is 'tag' for any tag push (this workflow only ever
+          # triggers on 'v*' tags, see the top-level `on:` block), 'branch'
+          # otherwise. is_release is a separate concern: whether to also
+          # cut a GitHub Release, not what mode this build is in.
+          EVENT: ${{ github.ref_type == 'tag' && 'TAG' || 'BRANCH' }}
+          REF: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
+          IS_RELEASE: ${{ github.ref_type == 'tag' && startsWith(github.ref_name, 'v') }}
+          DIGEST: ${{ steps.manifest.outputs.digest }}
+        run: |
+          if [ -z "$DIGEST" ]; then
+            echo "No manifest digest (manifest step skipped, e.g. a filtered workflow_dispatch run) -- nothing to dispatch"
+            exit 0
+          fi
+          # By digest, not one of the tags above -- tags are mutable
+          # (mode=default's own docker meta writes several onto the same
+          # manifest, and a short-sha tag could in principle be reused by
+          # a later rebuild), so this is the only reference guaranteed to
+          # still match client_payload[sha] by the time OpenMower pulls it.
+          IMAGE="ghcr.io/${REPOSITORY_LC}@${DIGEST}"
+          gh api --method POST /repos/ClemensElflein/OpenMower/dispatches \
+            -f event_type=os-build \
+            -f "client_payload[event]=$EVENT" \
+            -f "client_payload[ref]=$REF" \
+            -f "client_payload[sha]=$SHA" \
+            -f "client_payload[image]=$IMAGE" \
+            -F "client_payload[is_release]=$IS_RELEASE" \
+            -f "client_payload[tag_name]=$([ "$IS_RELEASE" = "true" ] && echo "$REF" || echo "")"
