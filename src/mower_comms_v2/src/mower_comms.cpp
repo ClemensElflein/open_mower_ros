@@ -143,6 +143,19 @@ int main(int argc, char** argv) {
   xbot::serviceif::SetShutdownCallback([] { ros::requestShutdown(); });
   ctx = xbot::serviceif::Start(true, bind_ip);
 
+  // Start MetaService as early as possible, so the FW can exit its Stage-2
+  // wait loop even if a later service fails to configure.
+  // Reads ll/board param; pushes it as RobotFirmware on every connect (if MajorVersion == 1).
+  {
+    std::string board;
+    paramNh.getParam("board", board);
+    if (board.empty()) {
+      ROS_WARN("No ll/board set - Stage-2 robots will not auto-configure");
+    }
+    meta_service = std::make_unique<MetaServiceInterface>(xbot::service_ids::META, ctx, board);
+    meta_service->Start();
+  }
+
   // Emergency service
   emergency_pub = n.advertise<mower_msgs::Emergency>("ll/emergency", 1);
   emergency_service = std::make_unique<EmergencyServiceInterface>(xbot::service_ids::EMERGENCY, ctx, emergency_pub);
@@ -287,19 +300,6 @@ int main(int argc, char** argv) {
   // HighLevel service
   high_level_service = std::make_unique<HighLevelServiceInterface>(xbot::service_ids::HIGH_LEVEL, ctx);
   high_level_service->Start();
-
-  // MetaService — must be started early so the FW can exit Stage 2 wait.
-  // Read ll/board param; the interface will push it as RobotFirmware on every
-  // connect if MajorVersion == 1
-  {
-    std::string board;
-    paramNh.getParam("board", board);
-    if (board.empty()) {
-      ROS_WARN("No ll/board set - Stage-2 robots will not auto-configure");
-    }
-    meta_service = std::make_unique<MetaServiceInterface>(xbot::service_ids::META, ctx, board);
-    meta_service->Start();
-  }
 
   // All subscriptions, timers and service servers are registered after all service interfaces are
   // fully constructed, so callbacks can never fire on null pointers.
