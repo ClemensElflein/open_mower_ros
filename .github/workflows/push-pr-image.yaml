@@ -193,6 +193,9 @@ jobs:
           PR: ${{ steps.pr.outputs.number }}
           SHA: ${{ github.event.workflow_run.head_sha }}
           DIGEST: ${{ steps.manifest.outputs.digest }}
+          # This repo, not OpenMower's own -- see build-image.yaml's matching
+          # Trigger OS build step for why.
+          SOURCE_REPO: ${{ github.repository }}
         run: |
           if [ -z "$DIGEST" ]; then
             echo "No manifest digest (manifest step found no digests to combine) -- nothing to dispatch"
@@ -206,4 +209,5 @@ jobs:
             -f "client_payload[sha]=$SHA" \
             -f "client_payload[image]=$IMAGE" \
             -F "client_payload[is_release]=false" \
-            -f "client_payload[tag_name]="
+            -f "client_payload[tag_name]=" \
+            -f "client_payload[source_repo]=$SOURCE_REPO"

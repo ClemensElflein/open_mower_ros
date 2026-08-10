@@ -313,6 +313,11 @@ jobs:
           SHA: ${{ github.sha }}
           IS_RELEASE: ${{ github.ref_type == 'tag' && startsWith(github.ref_name, 'v') }}
           DIGEST: ${{ steps.manifest.outputs.digest }}
+          # This repo, not OpenMower's own -- client_payload[sha] is a commit
+          # here, and OpenMower only knows that because it's the one pulling
+          # the image; without this it has no way to link back to the
+          # open_mower_ros commit that produced it.
+          SOURCE_REPO: ${{ github.repository }}
         run: |
           if [ -z "$DIGEST" ]; then
             echo "No manifest digest (manifest step skipped, e.g. a filtered workflow_dispatch run) -- nothing to dispatch"
@@ -331,4 +336,5 @@ jobs:
             -f "client_payload[sha]=$SHA" \
             -f "client_payload[image]=$IMAGE" \
             -F "client_payload[is_release]=$IS_RELEASE" \
-            -f "client_payload[tag_name]=$([ "$IS_RELEASE" = "true" ] && echo "$REF" || echo "")"
+            -f "client_payload[tag_name]=$([ "$IS_RELEASE" = "true" ] && echo "$REF" || echo "")" \
+            -f "client_payload[source_repo]=$SOURCE_REPO"
