@@ -14,9 +14,6 @@ class MetaServiceInterface : public MetaServiceInterfaceBase {
       : MetaServiceInterfaceBase(service_id, ctx), firmware_name_(firmware_name) {
   }
 
- protected:
-  bool OnConfigurationRequested(uint16_t service_id) override;
-
  private:
   void OnServiceConnected(uint16_t service_id) override;
 

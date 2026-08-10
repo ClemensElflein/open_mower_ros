@@ -9,6 +9,7 @@
 void MetaServiceInterface::OnServiceConnected(uint16_t service_id) {
   (void)service_id;
 
+  // Log firmware version for diagnostics.
   char fw_version[50] = {};
   uint16_t result_length = sizeof(fw_version);
   if (CallGetFirmwareVersion(fw_version, result_length)) {
@@ -16,30 +17,31 @@ void MetaServiceInterface::OnServiceConnected(uint16_t service_id) {
   } else {
     ROS_WARN("Failed to get firmware version from MetaService");
   }
-}
 
-bool MetaServiceInterface::OnConfigurationRequested(uint16_t service_id) {
-  (void)service_id;
-
+  // If no ll/board is set, we are most likely on a Stage-1 only robot (Sabo/xBot).
+  // The FW starts without configuration (all registers are optional), so there is
+  // nothing to configure.
   if (firmware_name_.empty()) {
-    return false;  // No firmware name configured — skip config
+    ROS_INFO("No ll/board set, skipping Stage-2 firmware configuration");
+    return;
   }
 
+  // Stage-2 robot: validate major version before pushing the robot name.
   uint16_t major_version = 0;
   if (!CallGetMajorVersion(major_version)) {
-    ROS_WARN("Failed to get major version from MetaService - skipping firmware configuration");
-    return false;
+    ROS_WARN("Failed to get major version from MetaService! Skipping firmware configuration");
+    return;
   }
   if (major_version != 1) {
     ROS_ERROR_STREAM("Firmware major version mismatch: expected 1, got " << major_version
-                                                                         << " - refusing to configure, FW stays in "
+                                                                         << ", refusing to configure, FW stays in "
                                                                             "Stage-2 wait loop");
-    return false;
+    return;
   }
 
+  // Push RobotFirmware register via configuration transaction.
   ROS_INFO_STREAM("Configuring robot firmware: " << firmware_name_);
   StartTransaction(true);
   SetRegisterRobotFirmware(firmware_name_.c_str(), firmware_name_.size());
   CommitTransaction();
-  return true;
 }
