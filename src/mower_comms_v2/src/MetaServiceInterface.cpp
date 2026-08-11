@@ -49,6 +49,9 @@ bool MetaServiceInterface::OnConfigurationRequested(uint16_t service_id) {
   // nothing to configure.
   if (firmware_name_.empty()) {
     ROS_INFO("No ll/board set, skipping Stage-2 firmware configuration");
+    // Send empty config to let MetaService start");
+    StartTransaction(true);  // true = configuration transaction
+    CommitTransaction();     // Empty transaktion
     return true;
   }
 
