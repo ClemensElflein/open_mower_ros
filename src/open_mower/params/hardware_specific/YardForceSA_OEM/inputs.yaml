@@ -1,28 +1,28 @@
 gpio:
-  - name: Left bumper
-    line: GPIO10
-    active: low
-    emergency:
-      reason: collision
-      delay: 500
-
   - name: Front left wheel lift
-    line: GPIO5
-    active: low
+    line: GPIO11
+    active: high
     emergency:
       reason: lift
       delay: 2500
 
   - name: Front right wheel lift
-    line: GPIO11
-    active: low
+    line: GPIO5
+    active: high
     emergency:
       reason: lift
       delay: 2500
 
+  - name: Left bumper
+    line: GPIO10
+    active: high
+    emergency:
+      reason: collision
+      delay: 500
+
   - name: Right bumper
     line: GPIO1
-    active: low
+    active: high
     emergency:
       reason: collision
       delay: 500
@@ -36,6 +36,13 @@ gpio:
 
   - name: Top stop button 2
     line: GPIO13
+    active: high
+    emergency:
+      reason: stop
+      delay: 10
+
+  - name: Rear stop buttons
+    line: GPIO6
     active: high
     emergency:
       reason: stop
