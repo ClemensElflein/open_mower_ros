@@ -16,6 +16,7 @@ class MetaServiceInterface : public MetaServiceInterfaceBase {
 
  private:
   void OnServiceConnected(uint16_t service_id) override;
+  bool OnConfigurationRequested(uint16_t service_id) override;
 
   std::string firmware_name_;
 };
