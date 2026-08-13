@@ -143,16 +143,15 @@ int main(int argc, char** argv) {
   xbot::serviceif::SetShutdownCallback([] { ros::requestShutdown(); });
   ctx = xbot::serviceif::Start(true, bind_ip);
 
-  // Start MetaService as early as possible, so the FW can exit its Stage-2
-  // wait loop even if a later service fails to configure.
-  // Reads ll/board param; pushes it as RobotFirmware on every connect (if MajorVersion == 1).
+  // Start MetaService as early as possible, so the FW can exit its Stage-2 wait loop
+  // Reads ll/board param; pushes it as RobotFirmware on every connect
   {
     std::string board;
     paramNh.getParam("board", board);
     if (board.empty()) {
-      ROS_WARN("No ll/board set. Stage-2 robots will not auto-configure!");
+      ROS_WARN("No ll/board set. Stage-2 robots (other than Sabo or xBot) will not auto-configure!");
     }
-    meta_service = std::make_unique<MetaServiceInterface>(xbot::service_ids::META, ctx, board);
+    meta_service = std::make_unique<MetaServiceInterface>(xbot::service_ids::META, ctx, n, board);
     meta_service->Start();
   }
 
