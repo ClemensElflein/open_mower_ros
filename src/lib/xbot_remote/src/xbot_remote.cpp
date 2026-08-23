@@ -61,7 +61,22 @@ void* server_thread(void* arg) {
         echo_server.set_reuse_addr(true);
 
         // Listen on port 9002
-        echo_server.listen(9002);
+        // create error message var so we can handle errors gracefully
+        websocketpp::lib::error_code ec;
+        auto port = 9002;
+        echo_server.listen(port, ec);
+
+        if (ec) { //oh no, error
+            ROS_INFO_STREAM("Default WebSocket listen failed (" << ec.message() << "). Falling back to IPv4.");
+            ec.clear();
+            // Assume it's because IPv6 is missing, explicitly request IPv4
+            echo_server.listen(websocketpp::lib::asio::ip::tcp::v4(), port, ec);
+            // If it STILL fails, something else is wrong (e.g., port in use)
+            if (ec) {
+                ROS_FATAL_STREAM("Failed to start WebSocket server on IPv4 as well: " << ec.message());
+                throw websocketpp::exception(ec);
+            }
+        }
 
         // Start the server accept loop
         echo_server.start_accept();
