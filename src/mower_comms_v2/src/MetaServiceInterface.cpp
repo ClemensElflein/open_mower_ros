@@ -4,8 +4,6 @@
 
 #include "MetaServiceInterface.h"
 
-#include <ros/console.h>
-
 bool MetaServiceInterface::OnConfigurationRequested(uint16_t service_id) {
   (void)service_id;
 
@@ -13,35 +11,34 @@ bool MetaServiceInterface::OnConfigurationRequested(uint16_t service_id) {
   SetRegisterRobotFirmware(firmware_name_.c_str(), firmware_name_.size());
   CommitTransaction();
 
-  // Re-arm the one-shot timer on every configuration request, so the firmware
-  // info is logged again after a firmware update (service reboot/reconnect).
-  post_config_timer_.start();
+  // (Re-)start polling the firmware version.
+  // Runs until StopFirmwareCheck() is called or the service disconnects.
+  firmware_check_timer_.start();
 
   return true;
 }
 
 void MetaServiceInterface::OnServiceDisconnected(uint16_t service_id) {
   (void)service_id;
-  post_config_timer_.stop();
+  firmware_check_timer_.stop();
+  // The firmware is gone (offline or rebooting for an update).
+  // Report an unknown version (major == 0) so motion stays gated off.
+  version_callback_(FirmwareInfo{});
 }
 
-void MetaServiceInterface::OnPostConfigurationTimer(const ros::TimerEvent&) {
-  LogFirmwareInfo();
-}
+void MetaServiceInterface::CheckFirmwareVersion() {
+  FirmwareInfo info;
 
-void MetaServiceInterface::LogFirmwareInfo() {
   uint16_t major_version = 0;
   if (CallGetMajorVersion(major_version)) {
-    ROS_INFO_STREAM("Firmware major version: " << major_version);
-  } else {
-    ROS_WARN("Failed to get major version from MetaService");
+    info.major = major_version;
+
+    char fw_version[50] = {};
+    uint16_t result_length = sizeof(fw_version);
+    if (CallGetFirmwareVersion(fw_version, result_length)) {
+      info.version = fw_version;
+    }
   }
 
-  char fw_version[50] = {};
-  uint16_t result_length = sizeof(fw_version);
-  if (CallGetFirmwareVersion(fw_version, result_length)) {
-    ROS_INFO_STREAM("Firmware version: " << fw_version);
-  } else {
-    ROS_WARN("Failed to get firmware version from MetaService");
-  }
+  version_callback_(info);
 }

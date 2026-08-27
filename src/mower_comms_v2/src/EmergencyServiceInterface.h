@@ -12,6 +12,7 @@ class EmergencyServiceInterface : public EmergencyServiceInterfaceBase {
   }
 
   bool SetHighLevelEmergency(uint16_t reason);
+  void SetFirmwareIncompatibleEmergency(bool incompatible);
   void Heartbeat();
 
  protected:
