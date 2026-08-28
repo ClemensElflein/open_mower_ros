@@ -11,8 +11,7 @@ bool MetaServiceInterface::OnConfigurationRequested(uint16_t service_id) {
   SetRegisterRobotFirmware(firmware_name_.c_str(), firmware_name_.size());
   CommitTransaction();
 
-  // (Re-)start polling the firmware version.
-  // Runs until StopFirmwareCheck() is called or the service disconnects.
+  configured_ = true;  // MetaService connected/configured => start reading the firmware version via RPC
   firmware_check_timer_.start();
 
   return true;
@@ -20,23 +19,31 @@ bool MetaServiceInterface::OnConfigurationRequested(uint16_t service_id) {
 
 void MetaServiceInterface::OnServiceDisconnected(uint16_t service_id) {
   (void)service_id;
-  firmware_check_timer_.stop();
-  // The firmware is gone (offline or rebooting for an update).
-  // Report an unknown version (major == 0) so motion stays gated off.
+
+  configured_ = false;
+
+  // The firmware is gone (offline or rebooting for an update). Report an unknown
+  // version (major == 0) so motion stays gated off
   version_callback_(FirmwareInfo{});
+  // Keep timer running so we recover automatically once the service reconnects.
+  // Also important to log an old non-unified FW (without MetaService)
+  firmware_check_timer_.start();
 }
 
 void MetaServiceInterface::CheckFirmwareVersion() {
   FirmwareInfo info;
+  info.connected = configured_.load();
 
-  uint16_t major_version = 0;
-  if (CallGetMajorVersion(major_version)) {
-    info.major = major_version;
+  if (info.connected) {
+    uint16_t major_version = 0;
+    if (CallGetMajorVersion(major_version)) {
+      info.major = major_version;
 
-    char fw_version[50] = {};
-    uint16_t result_length = sizeof(fw_version);
-    if (CallGetFirmwareVersion(fw_version, result_length)) {
-      info.version = fw_version;
+      char fw_version[50] = {};
+      uint16_t result_length = sizeof(fw_version);
+      if (CallGetFirmwareVersion(fw_version, result_length)) {
+        info.version = fw_version;
+      }
     }
   }
 

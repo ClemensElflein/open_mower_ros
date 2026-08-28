@@ -140,7 +140,11 @@ void OnFirmwareInfoChanged(const FirmwareInfo& info) {
   if (emergency_service) emergency_service->SetFirmwareIncompatibleEmergency(true);
 
   // Not compatible: keep polling and keep logging so the state can't be missed.
-  if (info.major == 0) {
+  if (!info.connected) {
+    ROS_WARN_STREAM(
+        "Firmware version unknown: MetaService not connected. If this persists, the firmware is "
+        "likely outdated. Please do an `openmower update-firmware`. Motors disabled.");
+  } else if (info.major == 0) {
     ROS_WARN_STREAM("Waiting for firmware major version. Motors disabled.");
   } else {
     ROS_WARN_STREAM("Firmware major version " << info.major << " is incompatible (expected 1). Motors disabled.");

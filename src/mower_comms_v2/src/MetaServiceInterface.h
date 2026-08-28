@@ -8,13 +8,15 @@
 #include <ros/ros.h>
 
 #include <MetaServiceInterfaceBase.hpp>
+#include <atomic>
 #include <functional>
 #include <string>
 
 /// Result of a firmware version query.
 struct FirmwareInfo {
-  uint16_t major = 0;   // 0 = Unknown/RPC-failure/Disconnect
-  std::string version;  // full version string (empty if unknown)
+  uint16_t major = 0;      // 0 = Unknown/RPC-failure/Disconnect
+  std::string version;     // full version string (empty if unknown)
+  bool connected = false;  // true while the MetaService is connected (configured)
 };
 
 class MetaServiceInterface : public MetaServiceInterfaceBase {
@@ -28,7 +30,7 @@ class MetaServiceInterface : public MetaServiceInterfaceBase {
     // Periodic timer that polls the firmware version. Runs on the ROS (separate
     // spinner) thread until StopFirmwareCheck() is called or the service disconnects.
     firmware_check_timer_ = nh_.createTimer(
-        ros::Duration(1.0), [this](const ros::TimerEvent&) { CheckFirmwareVersion(); }, false, false);
+        ros::Duration(1.0), [this](const ros::TimerEvent&) { CheckFirmwareVersion(); }, false, true);
   }
 
   /// Stops the periodic firmware version polling.
@@ -49,6 +51,8 @@ class MetaServiceInterface : public MetaServiceInterfaceBase {
   ros::Timer firmware_check_timer_;
   std::string firmware_name_;
   std::function<void(const FirmwareInfo&)> version_callback_;
+  // True once the firmware's MetaService has connected and requested configuration.
+  std::atomic<bool> configured_{false};
 };
 
 #endif  // METASERVICEINTERFACE_H
