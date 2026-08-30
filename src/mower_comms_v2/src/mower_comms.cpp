@@ -27,6 +27,8 @@
 #include <spdlog/spdlog.h>
 #include <std_msgs/String.h>
 
+#include <atomic>
+
 #include "../../../services/service_ids.h"
 #include "BmsServiceInterface.h"
 #include "DiffDriveServiceInterface.h"
@@ -35,6 +37,7 @@
 #include "HighLevelServiceInterface.h"
 #include "ImuServiceInterface.h"
 #include "InputServiceInterface.h"
+#include "MetaServiceInterface.h"
 #include "MowerServiceInterface.h"
 #include "PowerServiceInterface.h"
 
@@ -62,6 +65,11 @@ std::unique_ptr<BmsServiceInterface> bms_service = nullptr;
 std::unique_ptr<GpsServiceInterface> gps_service = nullptr;
 std::unique_ptr<InputServiceInterface> input_service = nullptr;
 std::unique_ptr<HighLevelServiceInterface> high_level_service = nullptr;
+std::unique_ptr<MetaServiceInterface> meta_service = nullptr;
+
+// Motion and mower is gated off until the firmware major version has been confirmed compatible (== 1).
+// Set by OnFirmwareInfoChanged().
+std::atomic<bool> is_firmware_compatible{false};
 
 xbot::serviceif::Context ctx{};
 
@@ -71,6 +79,9 @@ bool setEmergencyStop(mower_msgs::EmergencyStopSrvRequest& req, mower_msgs::Emer
 }
 
 void velReceived(const geometry_msgs::Twist::ConstPtr& msg) {
+  if (!is_firmware_compatible.load()) {
+    return;
+  }
   diff_drive_service->SendTwist(msg);
 }
 
@@ -101,9 +112,43 @@ void sendMowerEnabledTimerTask(const ros::TimerEvent& e) {
 
 bool setMowEnabled(mower_msgs::MowerControlSrvRequest& req, mower_msgs::MowerControlSrvResponse& res) {
   // enable + direction -> signed speed: +1 forward, -1 reverse, 0 off.
-  const float speed = req.mow_enabled ? (req.mow_direction ? 1.0f : -1.0f) : 0.0f;
+  float speed = req.mow_enabled ? (req.mow_direction ? 1.0f : -1.0f) : 0.0f;
+  if (!is_firmware_compatible.load()) {
+    // Firmware not confirmed compatible: refuse to enable the mower motor.
+    speed = 0.0f;
+  }
   mower_service->SetMowerSpeed(speed);
   return true;
+}
+
+void OnFirmwareInfoChanged(const FirmwareInfo& info) {
+  const bool compatible = (info.major == 1);
+  const bool was_compatible = is_firmware_compatible.exchange(compatible);
+
+  if (compatible) {
+    // Only act/log on the transition, then stop polling.
+    if (!was_compatible) {
+      ROS_INFO_STREAM("Firmware compatible (version " << info.version << "). Motors enabled.");
+      if (emergency_service) emergency_service->SetFirmwareIncompatibleEmergency(false);
+      if (meta_service) meta_service->StopFirmwareCheck();
+    }
+    return;
+  }
+
+  // Firmware not compatible: latch the emergency reason (idempotent)
+  // so mower_logic and the UI know why motion is blocked.
+  if (emergency_service) emergency_service->SetFirmwareIncompatibleEmergency(true);
+
+  // Not compatible: keep polling and keep logging so the state can't be missed.
+  if (!info.connected) {
+    ROS_WARN_STREAM(
+        "Firmware version unknown: MetaService not connected. If this persists, the firmware is "
+        "likely outdated. Please do an `openmower update-firmware`. Motors disabled.");
+  } else if (info.major == 0) {
+    ROS_WARN_STREAM("Waiting for firmware major version. Motors disabled.");
+  } else {
+    ROS_WARN_STREAM("Firmware major version " << info.major << " is incompatible (expected 1). Motors disabled.");
+  }
 }
 
 static void spdlog_cb(const spdlog::details::log_msg& msg) {
@@ -140,6 +185,19 @@ int main(int argc, char** argv) {
   ROS_INFO_STREAM("Bind IP (Robot Internal): " << bind_ip);
   xbot::serviceif::SetShutdownCallback([] { ros::requestShutdown(); });
   ctx = xbot::serviceif::Start(true, bind_ip);
+
+  // Start MetaService as early as possible, so the FW can exit its Stage-2 wait loop
+  // Reads ll/board param; pushes it as RobotFirmware on every connect
+  {
+    std::string board;
+    paramNh.getParam("board", board);
+    if (board.empty()) {
+      ROS_WARN("No ll/board set. Stage-2 robots (other than Sabo or xBot) will not auto-configure!");
+    }
+    meta_service =
+        std::make_unique<MetaServiceInterface>(xbot::service_ids::META, ctx, n, board, OnFirmwareInfoChanged);
+    meta_service->Start();
+  }
 
   // Emergency service
   emergency_pub = n.advertise<mower_msgs::Emergency>("ll/emergency", 1);

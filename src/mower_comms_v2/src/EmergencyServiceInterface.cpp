@@ -20,6 +20,14 @@ bool EmergencyServiceInterface::SetHighLevelEmergency(uint16_t reason) {
   return true;
 }
 
+void EmergencyServiceInterface::SetFirmwareIncompatibleEmergency(bool incompatible) {
+  if (incompatible) {
+    SendHighLevelEmergencyHelper(EmergencyReason::FIRMWARE_INCOMPATIBLE);
+  } else {
+    SendHighLevelEmergencyHelper(0, EmergencyReason::FIRMWARE_INCOMPATIBLE);
+  }
+}
+
 void EmergencyServiceInterface::Heartbeat() {
   SendHighLevelEmergencyHelper(high_level_emergency_reason_, EmergencyReason::HIGH_LEVEL);
 }
@@ -61,6 +69,7 @@ static std::string ReasonToString(uint16_t reason) {
   CHECK_REASON(SERVICE_NOT_READY)
   CHECK_REASON(MOWER_RPM_TIMEOUT)
   CHECK_REASON(MOWER_RPM_LIMIT)
+  CHECK_REASON(FIRMWARE_INCOMPATIBLE)
   return str.str();
 }
 
