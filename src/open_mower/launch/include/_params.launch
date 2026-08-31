@@ -15,6 +15,7 @@
         <group unless="$(eval env('MOWER')=='CUSTOM')">
             <!-- v1 comms parameters for v1 platform (serial ports etc), we don't need it for v2 -->
 	    <group if="$(eval env('HARDWARE_PLATFORM') == '1')">
+	        <rosparam file="$(find open_mower)/params/openmower_defaults_v1.yaml"/>
 	        <rosparam ns="ll"
                   file="$(find open_mower)/params/hardware_specific/$(env MOWER)/comms_general_params.yaml"/>
 	        <rosparam ns="ll/services/diff_drive"
@@ -33,6 +34,7 @@
 
     <group if="$(optenv OM_LEGACY_CONFIG_MODE False)">
         <!-- V1 hardware with v1 OS (params are stored as environment variables) -->
+        <rosparam file="$(find open_mower)/params/openmower_defaults_v1.yaml"/>
         <!-- mower_comms -->
         <rosparam unless="$(eval env('MOWER')=='CUSTOM')"
                   ns="ll"
