@@ -60,6 +60,14 @@ RUN --mount=type=bind,source=src,target=src \
 
 ####################################################################################################
 
+# Build the soundctl Go binary
+FROM golang:1.23 AS gobuild
+WORKDIR /src
+COPY utils/soundctl/go.mod utils/soundctl/go.sum ./
+RUN go mod download
+COPY utils/soundctl/ ./
+RUN CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o /out/openmower-soundctl ./cmd/soundctl
+
 # Assemble final image (without nginx/mosquitto)
 FROM base AS assemble
 
@@ -76,6 +84,7 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 COPY --link ./ /opt/open_mower_ros
+COPY --link --from=gobuild /out/openmower-soundctl /usr/local/bin/openmower-soundctl
 
 # delete prebuilt libs (so that they won't shadow the preinstalled ones)
 RUN rm -rf /opt/open_mower_ros/src/lib/slic3r_coverage_planner /apt-install_list

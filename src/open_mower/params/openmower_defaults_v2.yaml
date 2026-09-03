@@ -3,8 +3,9 @@ ll:
 
   services:
     sound:
-      language: "en"
-      volume: -1
+      language: "en" # HW v1 only; ignored by the HW v2 sound upload path
+      volume: -1 # Master Volume: -1 = keep LL stored volume, 0-100 = override on HL start
+      config_file: "/opt/open_mower_ros/src/open_mower/params/sounds_en.yaml"
     gps:
       baud_rate: 921600
       protocol: "UBX"

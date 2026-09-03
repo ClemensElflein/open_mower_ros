@@ -1,0 +1,28 @@
+# sounds_en.yaml — Sound-Overrides for the HW v2 sound system.
+#
+# The low-level ROM defaults (TONE/SEQUENCE) stay untouched in the firmware
+# (fw: src/drivers/sound/sound_definition.hpp).
+#
+# This file only lists the sounds that shall REPLACE a ROM default.
+#
+# sound_path: high-level directory holding the local MP3 source files (used
+#             for the 16 kHz/mono check and as the upload source). It is NOT
+#             transmitted to the LL. The LL path is a fixed contract:
+#             /sounds/<file> (hardcoded in the firmware and the upload tool).
+#
+# MP3 file naming convention (see sounds/README.md):
+#   <lang>_<name>.mp3   text announcements (en_, de_, ...)
+#   zz_<name>.mp3       background sounds (sort last)
+#
+# MP3 files MUST be 16 kHz mono — the firmware does NOT resample!
+
+version: 1
+sound_path: /opt/open_mower_ros/sounds
+
+# Only the sounds listed here replace the LL ROM default; everything else
+# falls back to the firmware default.
+sounds:
+  boot_complete:
+    type: mp3
+    volume: 100 # pre-mastered; the master volume scales on top
+    file: en_hi-i-am-steve.mp3
