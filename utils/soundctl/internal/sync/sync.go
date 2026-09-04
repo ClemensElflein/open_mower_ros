@@ -42,12 +42,6 @@ func Sync(ctx context.Context, opts Options) error {
 		return fmt.Errorf("invalid config: %d error(s)", len(errs))
 	}
 
-	files := cfg.Files()
-	if len(files) == 0 {
-		slog.Info("no MP3 files in definition, nothing to upload")
-		return nil
-	}
-
 	slog.Info("connecting to FileService", "bind", opts.BindIP)
 	fs, err := xbot.NewFileService(ctx, opts.BindIP, opts.Heartbeat, opts.RPCTimeout)
 	if err != nil {
@@ -56,14 +50,24 @@ func Sync(ctx context.Context, opts Options) error {
 	defer fs.Close()
 	slog.Info("FileService connected")
 
-	for _, file := range files {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-		if err := uploadFile(ctx, fs, filepath.Join(cfg.SoundPath, file), file); err != nil {
-			return err
+	files := cfg.Files()
+	if len(files) == 0 {
+		slog.Info("no MP3 files in definition")
+	} else {
+		for _, file := range files {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			if err := uploadFile(ctx, fs, filepath.Join(cfg.SoundPath, file), file); err != nil {
+				return err
+			}
 		}
 	}
+
+	if err := cleanup(fs, cfg); err != nil {
+		return err
+	}
+	slog.Info("sync complete")
 	return nil
 }
 
@@ -115,4 +119,64 @@ func uploadFile(ctx context.Context, fs *xbot.FileService, localPath, remoteName
 	}
 	slog.Info("uploaded", "file", remoteName)
 	return nil
+}
+
+// cleanup removes any /sounds/ file that is no longer referenced by the
+// definition (an orphan), so the firmware never keeps stale MP3s. It also logs
+// what it finds so the sync run is easy to follow.
+func cleanup(fs *xbot.FileService, cfg *Config) error {
+	// Files the definition currently references.
+	referenced := make(map[string]bool)
+	for _, f := range cfg.Files() {
+		referenced["/sounds/"+f] = true
+	}
+
+	existing, err := listAllFiles(fs)
+	if err != nil {
+		return fmt.Errorf("FileList: %w", err)
+	}
+	slog.Info("found files in /sounds/", "count", len(existing))
+
+	var orphans []xbot.FileEntry
+	for _, e := range existing {
+		if !referenced[e.Path] {
+			orphans = append(orphans, e)
+		}
+	}
+	if len(orphans) == 0 {
+		slog.Info("no orphaned files")
+		return nil
+	}
+
+	slog.Info("orphaned files", "count", len(orphans))
+	for _, o := range orphans {
+		ok, err := fs.FileRemove(o.Path)
+		if err != nil {
+			return fmt.Errorf("FileRemove(%s): %w", o.Path, err)
+		}
+		if ok {
+			slog.Info("removed orphan", "path", o.Path)
+		} else {
+			slog.Warn("failed to remove orphan", "path", o.Path)
+		}
+	}
+	return nil
+}
+
+// listAllFiles pages through FileList until every /sounds/ entry is collected.
+func listAllFiles(fs *xbot.FileService) ([]xbot.FileEntry, error) {
+	var all []xbot.FileEntry
+	var offset uint32
+	for {
+		total, entries, err := fs.FileList("/sounds/", offset)
+		if err != nil {
+			return nil, err
+		}
+		all = append(all, entries...)
+		offset += uint32(len(entries))
+		if len(entries) == 0 || offset >= total {
+			break
+		}
+	}
+	return all, nil
 }

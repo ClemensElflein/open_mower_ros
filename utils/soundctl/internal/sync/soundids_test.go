@@ -22,6 +22,7 @@ func TestLoadSoundIDsFromSharedDefinition(t *testing.T) {
 	want := []string{
 		"boot_ping", "boot_complete", "success", "warning", "error",
 		"emergency", "low_battery", "charging_start", "charging_done",
+		"gps_rtk_fix", "gps_rtk_lost",
 	}
 	if got := ids.Names(); len(got) != len(want) {
 		t.Fatalf("names = %v, want %v", got, want)
