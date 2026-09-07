@@ -22,11 +22,14 @@ struct FirmwareInfo {
 class MetaServiceInterface : public MetaServiceInterfaceBase {
  public:
   MetaServiceInterface(uint16_t service_id, const xbot::serviceif::Context& ctx, const ros::NodeHandle& nh,
-                       const std::string& firmware_name, std::function<void(const FirmwareInfo&)> version_callback)
+                       const ros::NodeHandle& param_nh, std::function<void(const FirmwareInfo&)> version_callback)
       : MetaServiceInterfaceBase(service_id, ctx),
         nh_(nh),
-        firmware_name_(firmware_name),
+        firmware_name_(param_nh.param<std::string>("board", "")),
         version_callback_(std::move(version_callback)) {
+    if (firmware_name_.empty()) {
+      ROS_WARN("No ll/board set. Stage-2 robots (other than Sabo or xBot) will not auto-configure!");
+    }
     // Periodic timer that polls the firmware version. Runs on the ROS (separate
     // spinner) thread until StopFirmwareCheck() is called or the service disconnects.
     firmware_check_timer_ = nh_.createTimer(

@@ -189,13 +189,8 @@ int main(int argc, char** argv) {
   // Start MetaService as early as possible, so the FW can exit its Stage-2 wait loop
   // Reads ll/board param; pushes it as RobotFirmware on every connect
   {
-    std::string board;
-    paramNh.getParam("board", board);
-    if (board.empty()) {
-      ROS_WARN("No ll/board set. Stage-2 robots (other than Sabo or xBot) will not auto-configure!");
-    }
     meta_service =
-        std::make_unique<MetaServiceInterface>(xbot::service_ids::META, ctx, n, board, OnFirmwareInfoChanged);
+        std::make_unique<MetaServiceInterface>(xbot::service_ids::META, ctx, n, paramNh, OnFirmwareInfoChanged);
     meta_service->Start();
   }
 
