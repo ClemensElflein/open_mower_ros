@@ -868,6 +868,13 @@ bool MowingBehavior::restore_checkpoint() {
     currentMowingPathIndex = 0;
     currentMowingAngleIncrementSum = 0;
     return false;
+  } catch (rosbag::BagFormatException& e) {
+    // Bag file has invalid format, reset state
+    currentMowingArea = 0;
+    currentMowingPath = 0;
+    currentMowingPathIndex = 0;
+    currentMowingAngleIncrementSum = 0;
+    return false;
   }
   return found;
 }
