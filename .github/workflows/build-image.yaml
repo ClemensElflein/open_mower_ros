@@ -85,6 +85,7 @@ jobs:
           submodules: 'recursive'
           # Full history + tags so `git describe` can resolve the real version below.
           fetch-depth: 0
+          persist-credentials: false
 
       # Compute the software version here (git is available in the runner, but the
       # Docker build context excludes .git/, so the container can't compute it itself).
