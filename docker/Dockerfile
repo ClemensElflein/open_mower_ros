@@ -84,7 +84,11 @@ WORKDIR /opt/open_mower_ros
 
 RUN bash -c "source /opt/ros/$ROS_DISTRO/setup.bash && cd /opt/open_mower_ros/src && catkin_init_workspace && cd .. && source /opt/prebuilt/slic3r_coverage_planner/setup.bash && source /opt/prebuilt/rosserial/setup.bash --extend && catkin_make -DCATKIN_BLACKLIST_PACKAGES=slic3r_coverage_planner"
 
-RUN echo "export OM_SOFTWARE_VERSION=$(git describe --tags || git describe --always || echo \"v0.0.0\")" > version_info.env
+# Version is passed as a build-arg from CI (the build context excludes .git/, so an
+# in-container `git describe` can't resolve it). Fall back to git describe for local
+# builds that include .git/, then to v0.0.0.
+ARG OM_SOFTWARE_VERSION=""
+RUN echo "export OM_SOFTWARE_VERSION=${OM_SOFTWARE_VERSION:-$(git describe --tags 2>/dev/null || git describe --always 2>/dev/null || echo v0.0.0)}" > version_info.env
 
 RUN mkdir -p /config
 COPY ./docker/assets/rosconsole.config /config/rosconsole.config
