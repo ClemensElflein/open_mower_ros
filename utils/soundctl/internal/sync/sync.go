@@ -19,6 +19,7 @@ type Options struct {
 	BindIP       string
 	Heartbeat    time.Duration
 	RPCTimeout   time.Duration
+	Volume       int // master volume 0..100; < 0 leaves the firmware value unchanged
 }
 
 // Sync uploads the MP3 files referenced by the definition that are missing
@@ -67,7 +68,49 @@ func Sync(ctx context.Context, opts Options) error {
 	if err := cleanup(fs, cfg); err != nil {
 		return err
 	}
+
+	if err := applyDefinitions(ctx, cfg, opts); err != nil {
+		return err
+	}
 	slog.Info("sync complete")
+	return nil
+}
+
+// applyDefinitions sends the sound-definitions blob (heatshrink-compressed) to
+// the SoundService and, optionally, the master volume.
+func applyDefinitions(ctx context.Context, cfg *Config, opts Options) error {
+	blob, err := cfg.Blob()
+	if err != nil {
+		return fmt.Errorf("marshal definitions: %w", err)
+	}
+	encoded := xbot.HeatshrinkEncode(blob)
+	slog.Info("sound definitions", "sounds", len(cfg.Sounds), "json_bytes", len(blob), "compressed_bytes", len(encoded))
+
+	slog.Info("connecting to SoundService", "bind", opts.BindIP)
+	ss, err := xbot.NewSoundService(ctx, opts.BindIP, opts.Heartbeat)
+	if err != nil {
+		return fmt.Errorf("SoundService: %w", err)
+	}
+	defer ss.Close()
+	slog.Info("SoundService connected")
+
+	if err := ss.SetDefinitions(encoded); err != nil {
+		return fmt.Errorf("SetDefinitions: %w", err)
+	}
+	slog.Info("sound definitions sent")
+
+	if opts.Volume >= 0 {
+		if opts.Volume > 100 {
+			return fmt.Errorf("volume must be 0..100 (got %d)", opts.Volume)
+		}
+		// A definitions update reconfigures (restarts) the service; wait a
+		// moment so the running-only Volume input is accepted.
+		time.Sleep(500 * time.Millisecond)
+		if err := ss.SetVolume(uint8(opts.Volume)); err != nil {
+			return fmt.Errorf("SetVolume: %w", err)
+		}
+		slog.Info("master volume sent", "volume", opts.Volume)
+	}
 	return nil
 }
 

@@ -1,4 +1,4 @@
-// Package cli contains the openmower-soundctl command-line interface.
+// Package cli contains the soundctl command-line interface.
 package cli
 
 import "github.com/spf13/cobra"
@@ -20,7 +20,7 @@ func Execute() error {
 
 func newRootCmd() *cobra.Command {
 	root := &cobra.Command{
-		Use:           "openmower-soundctl",
+		Use:           "soundctl",
 		Short:         "Manage the OpenMower HW v2 sound definitions and MP3 files",
 		SilenceUsage:  true,
 		SilenceErrors: true,

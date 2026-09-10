@@ -9,7 +9,7 @@ import (
 func newVersionCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "version",
-		Short: "Print the openmower-soundctl version",
+		Short: "Print the soundctl version",
 		Run: func(cmd *cobra.Command, args []string) {
 			fmt.Fprintln(cmd.OutOrStdout(), version)
 		},

@@ -1,8 +1,9 @@
 // Package xbot implements a minimal client for the xbot service protocol
 // (the UDP wire protocol used by the OpenMower low-level services).
 //
-// Only the subset needed to talk to the FileService (service id 12) is
-// implemented: multicast discovery, CLAIM, HEARTBEAT and RPC calls.
+// Implemented: multicast discovery, CLAIM, HEARTBEAT, RPC calls (FileService,
+// service id 12) and register/input updates (SoundService, service id 13), plus
+// a heatshrink encoder for blob registers.
 package xbot
 
 import (
@@ -49,7 +50,8 @@ const (
 
 // Service IDs (see services/service_ids.h).
 const (
-	ServiceFile = 12
+	ServiceFile  = 12
+	ServiceSound = 13
 )
 
 // Header is the 24-byte packed xbot protocol header.
