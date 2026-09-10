@@ -36,3 +36,7 @@ The `sounds_<lang>.yaml` override file references them by bare filename via
      uploaded MP3s actually play;
   4. optionally sets the master volume (`--volume 0..100`; omitted = leave the
      firmware value unchanged).
+- On boards **without** sound hardware the LL never starts the SoundService
+  (SID 13); `soundctl sync` detects this via multicast discovery and exits
+  without uploading anything. The probe timeout is `--sound-check-timeout`
+  (default 3s). The FileService (SID 12) is always present.

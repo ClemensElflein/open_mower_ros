@@ -14,13 +14,14 @@ import (
 
 func newSyncCmd() *cobra.Command {
 	var (
-		config    string
-		soundIDs  string
-		bind      string
-		wait      time.Duration
-		heartbeat time.Duration
-		timeout   time.Duration
-		volume    int
+		config     string
+		soundIDs   string
+		bind       string
+		wait       time.Duration
+		heartbeat  time.Duration
+		timeout    time.Duration
+		volume     int
+		soundCheck time.Duration
 	)
 	cmd := &cobra.Command{
 		Use:   "sync",
@@ -32,12 +33,13 @@ func newSyncCmd() *cobra.Command {
 			defer cancel()
 
 			return sync.Sync(ctx, sync.Options{
-				ConfigPath:   config,
-				SoundIDsPath: soundIDs,
-				BindIP:       bind,
-				Heartbeat:    heartbeat,
-				RPCTimeout:   timeout,
-				Volume:       volume,
+				ConfigPath:        config,
+				SoundIDsPath:      soundIDs,
+				BindIP:            bind,
+				Heartbeat:         heartbeat,
+				RPCTimeout:        timeout,
+				Volume:            volume,
+				SoundCheckTimeout: soundCheck,
 			})
 		},
 	}
@@ -48,5 +50,6 @@ func newSyncCmd() *cobra.Command {
 	cmd.Flags().DurationVar(&heartbeat, "heartbeat", 10*time.Second, "heartbeat interval (bump for slow flash writes)")
 	cmd.Flags().DurationVar(&timeout, "timeout", 8*time.Second, "per-RPC timeout")
 	cmd.Flags().IntVar(&volume, "volume", -1, "master volume 0..100 to set (default: leave firmware value unchanged)")
+	cmd.Flags().DurationVar(&soundCheck, "sound-check-timeout", 3*time.Second, "how long to probe for the SoundService (soundless boards skip)")
 	return cmd
 }

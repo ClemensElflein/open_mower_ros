@@ -69,6 +69,15 @@ func discover(ctx context.Context, bindIP string, serviceID uint16) (string, int
 	}
 }
 
+// IsServiceAvailable reports whether a service with the given ID is currently
+// advertised on the multicast group. A context deadline (i.e. no advertisement
+// seen in time) means the service is simply not present — that is the "no such
+// service" case, so this returns false rather than an error.
+func IsServiceAvailable(ctx context.Context, bindIP string, serviceID uint16) bool {
+	_, _, err := discover(ctx, bindIP, serviceID)
+	return err == nil
+}
+
 // interfaceByIP returns the interface that owns the given IPv4 address, or nil.
 func interfaceByIP(ipStr string) *net.Interface {
 	ip := net.ParseIP(ipStr)

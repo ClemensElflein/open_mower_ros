@@ -20,7 +20,16 @@ type Options struct {
 	Heartbeat    time.Duration
 	RPCTimeout   time.Duration
 	Volume       int // master volume 0..100; < 0 leaves the firmware value unchanged
+
+	// SoundCheckTimeout bounds the "does this board have sound hardware?" probe
+	// (i.e. is the SoundService advertised). Zero uses defaultSoundCheckTimeout.
+	SoundCheckTimeout time.Duration
 }
+
+// defaultSoundCheckTimeout bounds the SoundService probe when not overridden.
+// It must be short: soundless robots never start the SoundService, so we want to
+// give up quickly rather than burn the long FileService timeout.
+const defaultSoundCheckTimeout = 3 * time.Second
 
 // Sync uploads the MP3 files referenced by the definition that are missing
 // on the firmware or whose content hash differs.
@@ -43,6 +52,33 @@ func Sync(ctx context.Context, opts Options) error {
 		return fmt.Errorf("invalid config: %d error(s)", len(errs))
 	}
 
+	// Gate 1: the FileService is always present, so its advertisement doubles as
+	// the "LL is up" gate (this waits out the boot/update window via --wait).
+	// Discovery only (no claim), so a soundless robot is left completely
+	// untouched.
+	if !xbot.IsServiceAvailable(ctx, opts.BindIP, xbot.ServiceFile) {
+		return fmt.Errorf("FileService not advertised — is the LL running?")
+	}
+	slog.Info("FileService available")
+
+	// Gate 2: the SoundService is only started when the board actually has sound
+	// hardware. Probe it with a short, dedicated timeout (a context deadline
+	// means "no SoundService" = soundless board, not an error) so we skip
+	// quickly and never upload MP3s to a robot without sound.
+	soundTimeout := opts.SoundCheckTimeout
+	if soundTimeout <= 0 {
+		soundTimeout = defaultSoundCheckTimeout
+	}
+	soundCtx, cancel := context.WithTimeout(ctx, soundTimeout)
+	hasSound := xbot.IsServiceAvailable(soundCtx, opts.BindIP, xbot.ServiceSound)
+	cancel()
+	if !hasSound {
+		slog.Info("LL has no sound hardware (no SoundService) — nothing to sync")
+		return nil
+	}
+	slog.Info("SoundService available")
+
+	// Both services are present: connect to the FileService and do the work.
 	slog.Info("connecting to FileService", "bind", opts.BindIP)
 	fs, err := xbot.NewFileService(ctx, opts.BindIP, opts.Heartbeat, opts.RPCTimeout)
 	if err != nil {
