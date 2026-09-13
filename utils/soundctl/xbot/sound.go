@@ -98,14 +98,15 @@ func (s *SoundService) PlayTone(freq, durationMs uint16, volume uint8, preempt b
 
 // PlaySequence plays a compact note sequence, e.g. "250:60 0:40 375:80".
 // attackMs/decayMs are the per-note envelope (0 = instant onset / hold the note),
-// see the firmware synth.
+// repeatMs repeats the sequence every n ms until another sound plays (0 = once);
+// see the firmware synth and player.
 func (s *SoundService) PlaySequence(sequence string, waveform, volume, unison uint8, detuneHz uint16, attackMs, decayMs uint8,
-	preempt bool) error {
+	repeatMs uint16, preempt bool) error {
 	if len(sequence) > maxSequenceLen {
 		return fmt.Errorf("sequence too long (%d chars, max %d)", len(sequence), maxSequenceLen)
 	}
 	return s.c.SendRPC(soundFunctionPlaySequence,
-		packPlaySequence(sequence, waveform, volume, unison, detuneHz, attackMs, decayMs, preempt))
+		packPlaySequence(sequence, waveform, volume, unison, detuneHz, attackMs, decayMs, repeatMs, preempt))
 }
 
 // PlayMp3 plays an MP3 file stored on the firmware (16 kHz mono).
@@ -157,10 +158,12 @@ func packPlayTone(freq, durationMs uint16, volume uint8, preempt bool) []Param {
 }
 
 // packPlaySequence builds the PlaySequence parameters (sequence, waveform, volume,
-// unison, detune in Hz, attack/decay envelope in ms, preempt).
-func packPlaySequence(sequence string, waveform, volume, unison uint8, detuneHz uint16, attackMs, decayMs uint8, preempt bool) []Param {
+// unison, detune in Hz, attack/decay envelope in ms, preempt, repeat in ms).
+func packPlaySequence(sequence string, waveform, volume, unison uint8, detuneHz uint16, attackMs, decayMs uint8, repeatMs uint16, preempt bool) []Param {
 	detune := make([]byte, 2)
 	binary.LittleEndian.PutUint16(detune, detuneHz)
+	repeat := make([]byte, 2)
+	binary.LittleEndian.PutUint16(repeat, repeatMs)
 	return []Param{
 		{ID: 0, Data: []byte(sequence)},
 		{ID: 1, Data: []byte{waveform}},
@@ -170,5 +173,6 @@ func packPlaySequence(sequence string, waveform, volume, unison uint8, detuneHz 
 		{ID: 5, Data: []byte{attackMs}},
 		{ID: 6, Data: []byte{decayMs}},
 		{ID: 7, Data: boolByte(preempt)},
+		{ID: 8, Data: repeat},
 	}
 }

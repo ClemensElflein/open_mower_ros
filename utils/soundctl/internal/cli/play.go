@@ -86,7 +86,7 @@ func newPlayCmd() *cobra.Command {
 	var volume int
 	var wave string
 	var unison, detune int
-	var attack, decay int
+	var attack, decay, repeat int
 	var preempt bool
 
 	tone := &cobra.Command{
@@ -127,10 +127,15 @@ func newPlayCmd() *cobra.Command {
 			"\n" +
 			"--attack/--decay shape every note (0..255 ms): a linear fade-in and an\n" +
 			"exponential fade to about -60 dB. A single note with a decay is a \"ping\"\n" +
-			"instead of a hard-gated rectangle.",
+			"instead of a hard-gated rectangle.\n" +
+			"\n" +
+			"--repeat makes the firmware repeat the sound every n ms until another sound\n" +
+			"plays (0 = once). The player repeats it itself, so the request queue stays\n" +
+			"empty — the same mechanism the firmware uses for its boot ping.",
 		Example: "  soundctl play sequence \"250:60 0:40 375:80\" --wave sine --volume 45\n" +
 			"  soundctl play sequence \"880:150:20:30\" --wave saw --unison 3 --detune 12\n" +
-			"  soundctl play sequence \"554:360\" --wave saw --attack 4 --decay 200",
+			"  soundctl play sequence \"554:360\" --wave saw --attack 4 --decay 200\n" +
+			"  soundctl play sequence \"554:360\" --wave sine --attack 4 --decay 220 --repeat 2000",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts := f.options()
@@ -143,6 +148,7 @@ func newPlayCmd() *cobra.Command {
 				DetuneHz: detune,
 				AttackMs: attack,
 				DecayMs:  decay,
+				RepeatMs: repeat,
 			}
 			return f.run(opts)
 		},
@@ -153,6 +159,7 @@ func newPlayCmd() *cobra.Command {
 	sequence.Flags().IntVar(&detune, "detune", 0, "frequency spread between unison voices in Hz")
 	sequence.Flags().IntVar(&attack, "attack", 0, "per-note attack ramp in ms (0..255, 0 = instant)")
 	sequence.Flags().IntVar(&decay, "decay", 0, "per-note fade to ~-60 dB in ms (0..255, 0 = hold the note)")
+	sequence.Flags().IntVar(&repeat, "repeat", 0, "repeat the sound every n ms until another sound plays (0 = once)")
 	sequence.Flags().BoolVar(&preempt, "preempt", false, "stop a running sound, clear the queue and play now")
 
 	sound := &cobra.Command{

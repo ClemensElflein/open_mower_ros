@@ -33,13 +33,13 @@ func TestPackPlayTone(t *testing.T) {
 
 // TestPackPlaySequence pins the parameter order of PlaySequence: it must match
 // the "functions" entry in services/sound_service.json
-// (Sequence, Wave, Volume, Unison, DetuneHz, AttackMs, DecayMs, Preempt).
+// (Sequence, Wave, Volume, Unison, DetuneHz, AttackMs, DecayMs, Preempt, RepeatMs).
 func TestPackPlaySequence(t *testing.T) {
-	params := packPlaySequence("250:60 0:40 375:80", 3, 45, 1, 20, 5, 200, true)
-	if len(params) != 8 {
-		t.Fatalf("params = %d, want 8", len(params))
+	params := packPlaySequence("250:60 0:40 375:80", 3, 45, 1, 20, 5, 200, 2000, true)
+	if len(params) != 9 {
+		t.Fatalf("params = %d, want 9", len(params))
 	}
-	for i, want := range []uint16{0, 1, 2, 3, 4, 5, 6, 7} {
+	for i, want := range []uint16{0, 1, 2, 3, 4, 5, 6, 7, 8} {
 		if params[i].ID != want {
 			t.Errorf("param %d id = %d, want %d", i, params[i].ID, want)
 		}
@@ -67,5 +67,8 @@ func TestPackPlaySequence(t *testing.T) {
 	}
 	if params[7].Data[0] != 1 {
 		t.Errorf("preempt = %d, want 1", params[7].Data[0])
+	}
+	if len(params[8].Data) != 2 || binary.LittleEndian.Uint16(params[8].Data) != 2000 {
+		t.Errorf("repeat = %v, want 2000 (u16)", params[8].Data)
 	}
 }

@@ -117,6 +117,8 @@ func validateHeader(name string, def SoundDef, ids *SoundIDs) []string {
 	// The firmware stores the envelope in a byte each (sound_definition.hpp).
 	errs = append(errs, validateRange(name, "attack_ms", def.AttackMs, 255)...)
 	errs = append(errs, validateRange(name, "decay_ms", def.DecayMs, 255)...)
+	// repeat_ms is a uint16 in the definition (0 = play once).
+	errs = append(errs, validateRange(name, "repeat_ms", def.RepeatMs, 0xFFFF)...)
 
 	return errs
 }

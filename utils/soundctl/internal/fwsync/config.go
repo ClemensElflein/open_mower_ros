@@ -39,8 +39,12 @@ type SoundDef struct {
 	// AttackMs/DecayMs are the per-note envelope of a sequence: a fade-in at the
 	// start of every note and a fade-out that turns a note into a "ping" instead of
 	// a hard-gated rectangle. Both are 0..255 ms; 0 = instant onset / hold the note.
-	AttackMs int    `yaml:"attack_ms,omitempty" json:"attack_ms,omitempty"`
-	DecayMs  int    `yaml:"decay_ms,omitempty" json:"decay_ms,omitempty"`
+	AttackMs int `yaml:"attack_ms,omitempty" json:"attack_ms,omitempty"`
+	DecayMs  int `yaml:"decay_ms,omitempty" json:"decay_ms,omitempty"`
+	// RepeatMs repeats the sound every n ms until another sound plays (0 = play once).
+	// The firmware player restarts the sound itself, so a repeating sound cannot fill
+	// its request queue (see the repeat note in the firmware's sound_player.cpp).
+	RepeatMs int    `yaml:"repeat_ms,omitempty" json:"repeat_ms,omitempty"`
 	Tone     *Tone  `yaml:"tone,omitempty" json:"tone,omitempty"`
 	Sequence []Note `yaml:"sequence,omitempty" json:"sequence,omitempty"`
 	File     string `yaml:"file,omitempty" json:"file,omitempty"`

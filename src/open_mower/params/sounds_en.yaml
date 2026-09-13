@@ -18,6 +18,10 @@
 #              The fade is exponential and reaches about -60 dB after that time,
 #              so a single note with a decay is a "ping" that rings out instead
 #              of a hard-gated rectangle.
+#   repeat_ms  repeat the sound every n ms until another sound plays, 0..65535
+#              (0 = play once). The firmware player repeats it itself, so the
+#              request queue is not involved; the ROM default uses it for
+#              BOOT_PING (every 2 s while Stage 2 waits for ROS).
 #   preempt    true = alert: the firmware stops a running sound, drops the
 #              pending queue and plays this one immediately. The ROM default
 #              sets it for EMERGENCY, so an alert is never delayed behind an
