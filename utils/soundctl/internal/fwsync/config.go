@@ -35,7 +35,12 @@ type SoundDef struct {
 	DetuneHz int    `yaml:"detune_hz,omitempty" json:"detune_hz,omitempty"`
 	// Preempt marks alerts: the firmware stops a running sound, drops the pending
 	// queue and plays it immediately (the ROM default sets it for EMERGENCY).
-	Preempt  bool   `yaml:"preempt,omitempty" json:"preempt,omitempty"`
+	Preempt bool `yaml:"preempt,omitempty" json:"preempt,omitempty"`
+	// AttackMs/DecayMs are the per-note envelope of a sequence: a fade-in at the
+	// start of every note and a fade-out that turns a note into a "ping" instead of
+	// a hard-gated rectangle. Both are 0..255 ms; 0 = instant onset / hold the note.
+	AttackMs int    `yaml:"attack_ms,omitempty" json:"attack_ms,omitempty"`
+	DecayMs  int    `yaml:"decay_ms,omitempty" json:"decay_ms,omitempty"`
 	Tone     *Tone  `yaml:"tone,omitempty" json:"tone,omitempty"`
 	Sequence []Note `yaml:"sequence,omitempty" json:"sequence,omitempty"`
 	File     string `yaml:"file,omitempty" json:"file,omitempty"`

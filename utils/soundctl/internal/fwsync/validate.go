@@ -114,6 +114,9 @@ func validateHeader(name string, def SoundDef, ids *SoundIDs) []string {
 	if def.DetuneHz < 0 || def.DetuneHz > 0xFFFF {
 		errs = append(errs, fmt.Sprintf("%s: 'detune_hz' must be 0..65535 (got %d)", name, def.DetuneHz))
 	}
+	// The firmware stores the envelope in a byte each (sound_definition.hpp).
+	errs = append(errs, validateRange(name, "attack_ms", def.AttackMs, 255)...)
+	errs = append(errs, validateRange(name, "decay_ms", def.DecayMs, 255)...)
 
 	return errs
 }

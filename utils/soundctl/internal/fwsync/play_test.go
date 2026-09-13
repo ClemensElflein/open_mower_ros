@@ -30,6 +30,8 @@ func TestRuntimeSpecsUseYAMLRules(t *testing.T) {
 		{"tone at the uint16 limit", (&ToneSpec{Freq: 65535, DurationMs: 65535, Volume: 0}).toSoundDef()},
 		{"sequence", (&SequenceSpec{Notes: "250:60 0:40", Waveform: "sine", Volume: 45}).toSoundDef()},
 		{"sequence upper case waveform", (&SequenceSpec{Notes: "250:60", Waveform: "Saw", Volume: 100, Unison: 7, DetuneHz: 40}).toSoundDef()},
+		{"sequence with an envelope", (&SequenceSpec{Notes: "554:360", Waveform: "saw", Volume: 70, AttackMs: 4, DecayMs: 200}).toSoundDef()},
+		{"sequence envelope at the limit", (&SequenceSpec{Notes: "554:360", Waveform: "saw", Volume: 70, AttackMs: 255, DecayMs: 255}).toSoundDef()},
 	}
 	for _, c := range valid {
 		if err := validateOne(c.name, c.def, ids); err != nil {
@@ -47,6 +49,8 @@ func TestRuntimeSpecsUseYAMLRules(t *testing.T) {
 		{"sequence waveform", (&SequenceSpec{Notes: "250:60", Waveform: "noise", Volume: 45}).toSoundDef()},
 		{"sequence unison", (&SequenceSpec{Notes: "250:60", Waveform: "sine", Volume: 45, Unison: 2}).toSoundDef()},
 		{"sequence detune", (&SequenceSpec{Notes: "250:60", Waveform: "sine", Volume: 45, DetuneHz: -5}).toSoundDef()},
+		{"sequence attack", (&SequenceSpec{Notes: "554:360", Waveform: "saw", Volume: 70, AttackMs: 256}).toSoundDef()},
+		{"sequence decay", (&SequenceSpec{Notes: "554:360", Waveform: "saw", Volume: 70, DecayMs: -1}).toSoundDef()},
 	}
 	for _, c := range invalid {
 		if err := validateOne(c.name, c.def, ids); err == nil {

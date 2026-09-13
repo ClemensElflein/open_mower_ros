@@ -22,13 +22,16 @@ type ToneSpec struct {
 
 // SequenceSpec is a runtime note sequence ("freq:dur[:lfoHzx10[:depth]] ...").
 // Notes is the compact text the firmware parses on its own; Waveform is a name
-// from the shared definition (sine/square/triangle/saw).
+// from the shared definition (sine/square/triangle/saw). AttackMs/DecayMs are the
+// per-note envelope (0..255 ms, 0 = instant onset / hold the note).
 type SequenceSpec struct {
 	Notes    string
 	Waveform string
 	Volume   int
 	Unison   int
 	DetuneHz int
+	AttackMs int
+	DecayMs  int
 }
 
 // toSoundDef expresses both specs in the Config/SoundDef representation, i.e. in
@@ -39,7 +42,8 @@ func (t *ToneSpec) toSoundDef() SoundDef {
 }
 
 func (s *SequenceSpec) toSoundDef() SoundDef {
-	return SoundDef{Type: "sequence", Waveform: s.Waveform, Volume: s.Volume, Unison: s.Unison, DetuneHz: s.DetuneHz}
+	return SoundDef{Type: "sequence", Waveform: s.Waveform, Volume: s.Volume, Unison: s.Unison,
+		DetuneHz: s.DetuneHz, AttackMs: s.AttackMs, DecayMs: s.DecayMs}
 }
 
 // PlayOptions configures a playback run: exactly one of Stop/Tone/Sequence/
@@ -198,9 +202,10 @@ func dispatchPlay(svc *xbot.SoundService, opts PlayOptions, ids *SoundIDs) error
 		waveform, _ := ids.Waveform(opts.Sequence.Waveform) // validated by validatePlay
 		slog.Info("playing sequence", "notes", opts.Sequence.Notes, "waveform", opts.Sequence.Waveform,
 			"volume", opts.Sequence.Volume, "unison", opts.Sequence.Unison, "detune_hz", opts.Sequence.DetuneHz,
-			"preempt", opts.Preempt)
+			"attack_ms", opts.Sequence.AttackMs, "decay_ms", opts.Sequence.DecayMs, "preempt", opts.Preempt)
 		return svc.PlaySequence(opts.Sequence.Notes, waveform, uint8(opts.Sequence.Volume),
-			uint8(opts.Sequence.Unison), uint16(opts.Sequence.DetuneHz), opts.Preempt)
+			uint8(opts.Sequence.Unison), uint16(opts.Sequence.DetuneHz), uint8(opts.Sequence.AttackMs),
+			uint8(opts.Sequence.DecayMs), opts.Preempt)
 
 	case opts.Mp3Path != "":
 		slog.Info("playing mp3", "path", opts.Mp3Path, "preempt", opts.Preempt)

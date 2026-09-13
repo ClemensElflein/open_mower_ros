@@ -33,13 +33,13 @@ func TestPackPlayTone(t *testing.T) {
 
 // TestPackPlaySequence pins the parameter order of PlaySequence: it must match
 // the "functions" entry in services/sound_service.json
-// (Sequence, Wave, Volume, Unison, DetuneHz, Preempt).
+// (Sequence, Wave, Volume, Unison, DetuneHz, AttackMs, DecayMs, Preempt).
 func TestPackPlaySequence(t *testing.T) {
-	params := packPlaySequence("250:60 0:40 375:80", 3, 45, 1, 20, true)
-	if len(params) != 6 {
-		t.Fatalf("params = %d, want 6", len(params))
+	params := packPlaySequence("250:60 0:40 375:80", 3, 45, 1, 20, 5, 200, true)
+	if len(params) != 8 {
+		t.Fatalf("params = %d, want 8", len(params))
 	}
-	for i, want := range []uint16{0, 1, 2, 3, 4, 5} {
+	for i, want := range []uint16{0, 1, 2, 3, 4, 5, 6, 7} {
 		if params[i].ID != want {
 			t.Errorf("param %d id = %d, want %d", i, params[i].ID, want)
 		}
@@ -59,7 +59,13 @@ func TestPackPlaySequence(t *testing.T) {
 	if got := binary.LittleEndian.Uint16(params[4].Data); got != 20 {
 		t.Errorf("detune = %d, want 20", got)
 	}
-	if params[5].Data[0] != 1 {
-		t.Errorf("preempt = %d, want 1", params[5].Data[0])
+	if len(params[5].Data) != 1 || params[5].Data[0] != 5 {
+		t.Errorf("attack = %v, want 5 (u8)", params[5].Data)
+	}
+	if len(params[6].Data) != 1 || params[6].Data[0] != 200 {
+		t.Errorf("decay = %v, want 200 (u8)", params[6].Data)
+	}
+	if params[7].Data[0] != 1 {
+		t.Errorf("preempt = %d, want 1", params[7].Data[0])
 	}
 }

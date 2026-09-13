@@ -86,6 +86,7 @@ func newPlayCmd() *cobra.Command {
 	var volume int
 	var wave string
 	var unison, detune int
+	var attack, decay int
 	var preempt bool
 
 	tone := &cobra.Command{
@@ -122,9 +123,14 @@ func newPlayCmd() *cobra.Command {
 			"\n" +
 			"with freq in Hz (0 = pause), dur in ms and an optional vibrato (rate in 0.1 Hz\n" +
 			"steps, then its depth in Hz). Space, comma, semicolon and tab separate notes;\n" +
-			"up to 8 notes fit into 160 characters.",
+			"up to 8 notes fit into 160 characters.\n" +
+			"\n" +
+			"--attack/--decay shape every note (0..255 ms): a linear fade-in and an\n" +
+			"exponential fade to about -60 dB. A single note with a decay is a \"ping\"\n" +
+			"instead of a hard-gated rectangle.",
 		Example: "  soundctl play sequence \"250:60 0:40 375:80\" --wave sine --volume 45\n" +
-			"  soundctl play sequence \"880:150:20:30\" --wave saw --unison 3 --detune 12",
+			"  soundctl play sequence \"880:150:20:30\" --wave saw --unison 3 --detune 12\n" +
+			"  soundctl play sequence \"554:360\" --wave saw --attack 4 --decay 200",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts := f.options()
@@ -135,6 +141,8 @@ func newPlayCmd() *cobra.Command {
 				Volume:   volume,
 				Unison:   unison,
 				DetuneHz: detune,
+				AttackMs: attack,
+				DecayMs:  decay,
 			}
 			return f.run(opts)
 		},
@@ -143,6 +151,8 @@ func newPlayCmd() *cobra.Command {
 	sequence.Flags().StringVar(&wave, "wave", "sine", "oscillator waveform: sine|square|triangle|saw")
 	sequence.Flags().IntVar(&unison, "unison", 1, "detuned voices (1 = single, odd: 3/5/7)")
 	sequence.Flags().IntVar(&detune, "detune", 0, "frequency spread between unison voices in Hz")
+	sequence.Flags().IntVar(&attack, "attack", 0, "per-note attack ramp in ms (0..255, 0 = instant)")
+	sequence.Flags().IntVar(&decay, "decay", 0, "per-note fade to ~-60 dB in ms (0..255, 0 = hold the note)")
 	sequence.Flags().BoolVar(&preempt, "preempt", false, "stop a running sound, clear the queue and play now")
 
 	sound := &cobra.Command{

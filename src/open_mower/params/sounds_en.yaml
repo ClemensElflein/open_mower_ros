@@ -11,6 +11,13 @@
 #   waveform   sine | square | triangle | saw   (tone/sequence)
 #   unison     detuned voices, 1/3/5/7         (thickens the sound)
 #   detune_hz  frequency spread between them
+#   attack_ms  sequence: fade-in at the start of every note, 0..255 ms
+#              (0 = instant onset, ~5 ms removes the click of a hard start)
+#   decay_ms   sequence: fade-out of every note, 0..255 ms
+#              (0 = hold the note at full level until its duration is over).
+#              The fade is exponential and reaches about -60 dB after that time,
+#              so a single note with a decay is a "ping" that rings out instead
+#              of a hard-gated rectangle.
 #   preempt    true = alert: the firmware stops a running sound, drops the
 #              pending queue and plays this one immediately. The ROM default
 #              sets it for EMERGENCY, so an alert is never delayed behind an
@@ -32,6 +39,18 @@ sound_path: /opt/open_mower_ros/sounds
 
 # Only the sounds listed here replace the LL ROM default; everything else
 # falls back to the firmware default.
+#
+# The firmware default for SUCCESS is already a decaying ping (sine, 554 Hz,
+# 360 ms, attack 4 ms, decay 220 ms, volume 70) — the equivalent override, in
+# case you want to tune it here:
+#   success:
+#     type: sequence
+#     volume: 70
+#     waveform: sine
+#     attack_ms: 4
+#     decay_ms: 220
+#     sequence:
+#       - {freq: 554, duration_ms: 360}
 sounds:
   boot_complete:
     type: mp3
