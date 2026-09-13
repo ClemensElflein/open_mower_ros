@@ -42,11 +42,10 @@ std::string ShellQuote(const std::string& value) {
 }
 
 std::string BuildCommand() {
-  std::string command = std::string(kCommand) + " sync --config " + ShellQuote(settings.config_file) + " --wait 60";
+  std::string command = std::string(kCommand) + " sync --config " + ShellQuote(settings.config_file) + " --wait 10s";
   if (settings.volume >= 0) {
     command += " --volume " + std::to_string(settings.volume);
   }
-  command += " 2>&1";  // keep stderr in the same stream, so the log stays in order
   return command;
 }
 
@@ -55,7 +54,7 @@ bool RunOnce() {
   const std::string command = BuildCommand();
   ROS_INFO_STREAM("Sound sync: " << command);
 
-  FILE* pipe = popen(command.c_str(), "r");
+  FILE* pipe = popen((command + " 2>&1").c_str(), "r");
   if (pipe == nullptr) {
     ROS_WARN_STREAM("Sound sync: cannot run '" << kCommand << "' (missing in the image?)");
     return false;
