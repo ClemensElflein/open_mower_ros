@@ -17,17 +17,33 @@ class DiffDriveServiceInterface : public DiffDriveServiceInterfaceBase {
   DiffDriveServiceInterface(uint16_t service_id, const xbot::serviceif::Context& ctx,
                             const ros::Publisher& actual_twist_publisher,
                             const ros::Publisher& left_esc_status_publisher,
-                            const ros::Publisher& right_esc_status_publisher, double ticks_per_meter,
-                            double wheel_distance)
+                            const ros::Publisher& right_esc_status_publisher, const ros::NodeHandle& param_nh)
       : DiffDriveServiceInterfaceBase(service_id, ctx),
         actual_twist_publisher_(actual_twist_publisher),
         left_esc_status_publisher_(left_esc_status_publisher),
-        right_esc_status_publisher_(right_esc_status_publisher),
-        wheel_distance_(wheel_distance),
-        ticks_per_meter_(ticks_per_meter) {
+        right_esc_status_publisher_(right_esc_status_publisher) {
+    if (!param_nh.getParam("services/diff_drive/ticks_per_m", ticks_per_meter_)) {
+      ROS_ERROR("Need to provide param services/diff_drive/ticks_per_m");
+      param_error_ = 1;
+      return;
+    }
+    if (!param_nh.getParam("services/diff_drive/wheel_distance_m", wheel_distance_)) {
+      ROS_ERROR("Need to provide param services/diff_drive/wheel_distance_m");
+      param_error_ = 1;
+      return;
+    }
+    ROS_INFO_STREAM("Wheel ticks [1/m]: " << ticks_per_meter_);
+    ROS_INFO_STREAM("Wheel distance [m]: " << wheel_distance_);
   }
 
   bool OnConfigurationRequested(uint16_t service_id) override;
+
+  /**
+   * Exit code for missing required parameters (0 = parameters valid).
+   */
+  int GetParamError() const {
+    return param_error_;
+  }
 
   /**
    * Convenience function to transmit the twist from a ROS message
@@ -64,8 +80,9 @@ class DiffDriveServiceInterface : public DiffDriveServiceInterfaceBase {
   const ros::Publisher& actual_twist_publisher_;
   const ros::Publisher& left_esc_status_publisher_;
   const ros::Publisher& right_esc_status_publisher_;
-  double wheel_distance_;
-  double ticks_per_meter_;
+  double wheel_distance_ = 0.0;
+  double ticks_per_meter_ = 0.0;
+  int param_error_ = 0;
 
   // Store the latest ESC state
   mower_msgs::ESCStatus left_esc_state_{};

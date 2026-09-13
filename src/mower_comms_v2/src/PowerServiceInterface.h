@@ -12,7 +12,7 @@
 #define POWERSERVICEINTERFACE_H
 
 #include <mower_msgs/Power.h>
-#include <ros/publisher.h>
+#include <ros/ros.h>
 
 #include <PowerServiceInterfaceBase.hpp>
 #include <array>
@@ -21,23 +21,49 @@
 class PowerServiceInterface : public PowerServiceInterfaceBase {
  public:
   PowerServiceInterface(uint16_t service_id, const xbot::serviceif::Context& ctx,
-                        const ros::Publisher& status_publisher, float battery_full_voltage, float battery_empty_voltage,
-                        float battery_critical_voltage, float battery_critical_high_voltage, float charge_voltage,
-                        float charge_current, float charge_termination_current, float charge_precharge_current,
-                        int charge_recharge_voltage, float system_current, bool override_hardware_charge_current_limit)
-      : PowerServiceInterfaceBase(service_id, ctx),
-        status_publisher_(status_publisher),
-        battery_full_voltage_(battery_full_voltage),
-        battery_empty_voltage_(battery_empty_voltage),
-        battery_critical_voltage_(battery_critical_voltage),
-        battery_critical_high_voltage_(battery_critical_high_voltage),
-        charge_voltage_(charge_voltage),
-        charge_current_(charge_current),
-        charge_termination_current_(charge_termination_current),
-        charge_precharge_current_(charge_precharge_current),
-        charge_recharge_voltage_(charge_recharge_voltage),
-        system_current_(system_current),
-        override_hardware_charge_current_limit_(override_hardware_charge_current_limit) {
+                        const ros::Publisher& status_publisher, const ros::NodeHandle& param_nh)
+      : PowerServiceInterfaceBase(service_id, ctx), status_publisher_(status_publisher) {
+    // Mainly for monitoring and informational purposes
+    if (!param_nh.getParam("services/power/battery_full_voltage", battery_full_voltage_)) {
+      ROS_ERROR("Need to set param: services/power/battery_full_voltage");
+      param_error_ = 1;
+      return;
+    }
+    if (!param_nh.getParam("services/power/battery_empty_voltage", battery_empty_voltage_)) {
+      ROS_ERROR("Need to set param: services/power/battery_empty_voltage");
+      param_error_ = 1;
+      return;
+    }
+    if (!param_nh.getParam("services/power/battery_critical_voltage", battery_critical_voltage_)) {
+      ROS_ERROR("Need to set param: services/power/battery_critical_voltage");
+      param_error_ = 1;
+      return;
+    }
+    if (!param_nh.getParam("services/power/battery_critical_high_voltage", battery_critical_high_voltage_)) {
+      ROS_ERROR("Need to set param: services/power/battery_critical_high_voltage");
+      param_error_ = 1;
+      return;
+    }
+
+    // Optional charger configuration
+    param_nh.getParam("services/power/charge_voltage", charge_voltage_);
+    param_nh.getParam("services/power/charge_current", charge_current_);
+    param_nh.getParam("services/power/charge_termination_current", charge_termination_current_);
+    param_nh.getParam("services/power/charge_pre_charge_current", charge_precharge_current_);
+    param_nh.getParam("services/power/charge_re_charge_voltage", charge_recharge_voltage_);
+
+    // Optional settings also required for charger DPM (dynamic power management)
+    param_nh.getParam("services/power/system_current", system_current_);
+    param_nh.getParam("services/power/dangerously_override_hardware_charge_current_limit",
+                      override_hardware_charge_current_limit_);
+    param_nh.getParam("services/power/log_debug", log_debug_);
+  }
+
+  /**
+   * Exit code for missing required parameters (0 = parameters valid).
+   */
+  int GetParamError() const {
+    return param_error_;
   }
 
  protected:
@@ -60,17 +86,19 @@ class PowerServiceInterface : public PowerServiceInterfaceBase {
   mower_msgs::Power power_msg_{};
   const ros::Publisher& status_publisher_;
 
-  float battery_full_voltage_;
-  float battery_empty_voltage_;
-  float battery_critical_voltage_;
-  float battery_critical_high_voltage_;
-  float charge_voltage_;
-  float charge_current_;
-  float charge_termination_current_;
-  float charge_precharge_current_;
-  int charge_recharge_voltage_;
-  float system_current_;
-  bool override_hardware_charge_current_limit_;
+  float battery_full_voltage_ = 0.0f;
+  float battery_empty_voltage_ = 0.0f;
+  float battery_critical_voltage_ = 0.0f;
+  float battery_critical_high_voltage_ = 0.0f;
+  float charge_voltage_ = -1.0f;
+  float charge_current_ = -1.0f;
+  float charge_termination_current_ = -1.0f;
+  float charge_precharge_current_ = -1.0f;
+  int charge_recharge_voltage_ = -1;
+  float system_current_ = -1.0f;  // Max. current allowed to be drawn from wall AC/DC
+  bool override_hardware_charge_current_limit_ = false;
+  bool log_debug_ = false;
+  int param_error_ = 0;
 };
 
 #endif  // POWERSERVICEINTERFACE_H

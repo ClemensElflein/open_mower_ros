@@ -10,12 +10,12 @@ using json = nlohmann::ordered_json;
 
 class InputServiceInterface : public InputServiceInterfaceBase {
  public:
-  InputServiceInterface(uint16_t service_id, const xbot::serviceif::Context& ctx, std::string config_file,
-                        int lift_multiple_delay, int collision_multiple_delay, ros::Publisher action_pub)
+  InputServiceInterface(uint16_t service_id, const xbot::serviceif::Context& ctx, const ros::NodeHandle& param_nh,
+                        ros::Publisher action_pub)
       : InputServiceInterfaceBase(service_id, ctx),
-        config_file_(config_file),
-        lift_multiple_delay_(lift_multiple_delay),
-        collision_multiple_delay_(collision_multiple_delay),
+        config_file_(param_nh.param<std::string>("services/input/config_file", "")),
+        lift_multiple_delay_(param_nh.param("services/input/lift_multiple_delay", -1)),
+        collision_multiple_delay_(param_nh.param("services/input/collision_multiple_delay", -1)),
         action_pub_(action_pub),
         current_context_("idle") {
     ros::NodeHandle nh;

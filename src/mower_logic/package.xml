@@ -15,6 +15,7 @@
   <build_depend>mower_map</build_depend>
   <build_depend>mower_msgs</build_depend>
   <build_depend>nav_msgs</build_depend>
+  <build_depend>rosbag</build_depend>
   <build_depend>roscpp</build_depend>
   <build_depend>slic3r_coverage_planner</build_depend>
   <build_depend>tf2</build_depend>
@@ -33,6 +34,7 @@
   <build_export_depend>mower_map</build_export_depend>
   <build_export_depend>mower_msgs</build_export_depend>
   <build_export_depend>nav_msgs</build_export_depend>
+  <build_export_depend>rosbag</build_export_depend>
   <build_export_depend>roscpp</build_export_depend>
   <build_export_depend>slic3r_coverage_planner</build_export_depend>
   <build_export_depend>tf2</build_export_depend>
@@ -46,6 +48,7 @@
   <exec_depend>mower_map</exec_depend>
   <exec_depend>mower_msgs</exec_depend>
   <exec_depend>nav_msgs</exec_depend>
+  <exec_depend>rosbag</exec_depend>
   <exec_depend>roscpp</exec_depend>
   <exec_depend>slic3r_coverage_planner</exec_depend>
   <exec_depend>tf2</exec_depend>
