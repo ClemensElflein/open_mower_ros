@@ -1,4 +1,4 @@
-# sounds_en.yaml — Sound-Overrides for the HW v2 sound system.
+# sounds_de.yaml — Sound-Overrides for the HW v2 sound system.
 #
 # The low-level ROM defaults (TONE/SEQUENCE) stay untouched in the firmware
 # (fw: src/drivers/sound/sound_definition.hpp).
@@ -64,7 +64,7 @@ sounds:
   boot_complete:
     type: mp3
     volume: 100
-    file: en_hi-i-am-steve.mp3
+    file: de_hallo-ich-bin-steve.mp3
   emergency:
     type: mp3
     volume: 90
