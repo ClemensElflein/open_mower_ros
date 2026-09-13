@@ -1,12 +1,14 @@
-package sync
+package fwsync
 
 import (
 	"context"
 	"fmt"
 	"hash/crc32"
 	"log/slog"
+	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/ClemensElflein/open_mower_ros/utils/soundctl/xbot"
@@ -26,16 +28,14 @@ type Options struct {
 	SoundCheckTimeout time.Duration
 }
 
-// defaultSoundCheckTimeout bounds the SoundService probe when not overridden.
-// It must be short: soundless robots never start the SoundService, so we want to
-// give up quickly rather than burn the long FileService timeout.
-const defaultSoundCheckTimeout = 3 * time.Second
+// defaultSoundCheckTimeout bounds the SoundService probe when not overridden. It
+// must cover the advertisement interval (a claimed service advertises slowly), but
+// should not be so long that a soundless robot wastes the whole --wait window.
+const defaultSoundCheckTimeout = 10 * time.Second
 
-// Sync uploads the MP3 files referenced by the definition that are missing
-// on the firmware or whose content hash differs.
-//
-// TODO: once the FileService exposes a FileList RPC, also remove firmware
-// files that are no longer referenced by the definition.
+// Sync uploads the MP3 files the definition references but the firmware is
+// missing (or whose content hash differs), removes /sounds/ files that are no
+// longer referenced, and pushes the sound definitions to the SoundService.
 func Sync(ctx context.Context, opts Options) error {
 	cfg, err := LoadConfig(opts.ConfigPath)
 	if err != nil {
@@ -52,39 +52,35 @@ func Sync(ctx context.Context, opts Options) error {
 		return fmt.Errorf("invalid config: %d error(s)", len(errs))
 	}
 
-	// Gate 1: the FileService is always present, so its advertisement doubles as
-	// the "LL is up" gate (this waits out the boot/update window via --wait).
-	// Discovery only (no claim), so a soundless robot is left completely
-	// untouched.
-	if !xbot.IsServiceAvailable(ctx, opts.BindIP, xbot.ServiceFile) {
-		return fmt.Errorf("FileService not advertised — is the LL running?")
-	}
-	slog.Info("FileService available")
-
-	// Gate 2: the SoundService is only started when the board actually has sound
-	// hardware. Probe it with a short, dedicated timeout (a context deadline
-	// means "no SoundService" = soundless board, not an error) so we skip
-	// quickly and never upload MP3s to a robot without sound.
+	// The SoundService only runs when the board has sound hardware, so probe it
+	// first: a soundless robot is left completely untouched. It is never claimed,
+	// because the high-level system owns it — pushing definitions and the volume
+	// are one-way messages.
 	soundTimeout := opts.SoundCheckTimeout
 	if soundTimeout <= 0 {
 		soundTimeout = defaultSoundCheckTimeout
 	}
 	soundCtx, cancel := context.WithTimeout(ctx, soundTimeout)
-	hasSound := xbot.IsServiceAvailable(soundCtx, opts.BindIP, xbot.ServiceSound)
+	ss, err := xbot.NewSoundServiceNoClaim(soundCtx, opts.BindIP)
 	cancel()
-	if !hasSound {
-		slog.Info("LL has no sound hardware (no SoundService) — nothing to sync")
+	if err != nil {
+		slog.Info("no SoundService reachable — nothing to configure", "timeout", soundTimeout, "error", err)
 		return nil
 	}
-	slog.Info("SoundService available")
+	defer func() { _ = ss.Close() }()
+	ip, port := ss.Endpoint()
+	slog.Info("SoundService available", "addr", net.JoinHostPort(ip, strconv.Itoa(port)),
+		"hint", "pass it to \"soundctl play --addr\" for instant playback")
 
-	// Both services are present: connect to the FileService and do the work.
+	// The FileService is always present, so connecting to it doubles as the "LL is
+	// up" gate: its discovery waits out the boot/update window (--wait). Connecting
+	// claims it, which is fine — that is also how the MP3 upload gets its replies.
 	slog.Info("connecting to FileService", "bind", opts.BindIP)
 	fs, err := xbot.NewFileService(ctx, opts.BindIP, opts.Heartbeat, opts.RPCTimeout)
 	if err != nil {
-		return fmt.Errorf("FileService: %w", err)
+		return fmt.Errorf("FileService not advertised — is the LL running? (%w)", err)
 	}
-	defer fs.Close()
+	defer func() { _ = fs.Close() }()
 	slog.Info("FileService connected")
 
 	files := cfg.Files()
@@ -95,7 +91,7 @@ func Sync(ctx context.Context, opts Options) error {
 			if err := ctx.Err(); err != nil {
 				return err
 			}
-			if err := uploadFile(ctx, fs, filepath.Join(cfg.SoundPath, file), file); err != nil {
+			if err := uploadFile(fs, filepath.Join(cfg.SoundPath, file), file); err != nil {
 				return err
 			}
 		}
@@ -105,7 +101,7 @@ func Sync(ctx context.Context, opts Options) error {
 		return err
 	}
 
-	if err := applyDefinitions(ctx, cfg, opts); err != nil {
+	if err := applyDefinitions(ctx, cfg, opts, ss); err != nil {
 		return err
 	}
 	slog.Info("sync complete")
@@ -114,7 +110,13 @@ func Sync(ctx context.Context, opts Options) error {
 
 // applyDefinitions sends the sound-definitions blob (heatshrink-compressed) to
 // the SoundService and, optionally, the master volume.
-func applyDefinitions(ctx context.Context, cfg *Config, opts Options) error {
+//
+// The update is a configuration transaction, and the firmware restarts the service
+// for it (Service::HandleConfigurationTransaction does Stop() followed by Start()).
+// That is why the volume is sent over a fresh connection: the one used for the blob
+// is stale afterwards. A failure there is only a warning — the definitions, which
+// matter most, are already applied.
+func applyDefinitions(ctx context.Context, cfg *Config, opts Options, ss *xbot.SoundService) error {
 	blob, err := cfg.Blob()
 	if err != nil {
 		return fmt.Errorf("marshal definitions: %w", err)
@@ -122,36 +124,34 @@ func applyDefinitions(ctx context.Context, cfg *Config, opts Options) error {
 	encoded := xbot.HeatshrinkEncode(blob)
 	slog.Info("sound definitions", "sounds", len(cfg.Sounds), "json_bytes", len(blob), "compressed_bytes", len(encoded))
 
-	slog.Info("connecting to SoundService", "bind", opts.BindIP)
-	ss, err := xbot.NewSoundService(ctx, opts.BindIP, opts.Heartbeat)
-	if err != nil {
-		return fmt.Errorf("SoundService: %w", err)
-	}
-	defer ss.Close()
-	slog.Info("SoundService connected")
-
 	if err := ss.SetDefinitions(encoded); err != nil {
 		return fmt.Errorf("SetDefinitions: %w", err)
 	}
 	slog.Info("sound definitions sent")
 
-	if opts.Volume >= 0 {
-		if opts.Volume > 100 {
-			return fmt.Errorf("volume must be 0..100 (got %d)", opts.Volume)
-		}
-		// A definitions update reconfigures (restarts) the service; wait a
-		// moment so the running-only Volume input is accepted.
-		time.Sleep(500 * time.Millisecond)
-		if err := ss.SetVolume(uint8(opts.Volume)); err != nil {
-			return fmt.Errorf("SetVolume: %w", err)
-		}
-		slog.Info("master volume sent", "volume", opts.Volume)
+	if opts.Volume < 0 {
+		return nil
 	}
+	if err := validateVolume(opts.Volume); err != nil {
+		return err
+	}
+
+	ss, err = xbot.NewSoundServiceNoClaim(ctx, opts.BindIP)
+	if err != nil {
+		slog.Warn("could not reconnect after the restart — master volume not sent", "error", err)
+		return nil
+	}
+	defer func() { _ = ss.Close() }()
+
+	if err := ss.SetVolume(uint8(opts.Volume)); err != nil {
+		slog.Warn("could not send the master volume", "error", err)
+		return nil
+	}
+	slog.Info("master volume sent", "volume", opts.Volume)
 	return nil
 }
 
-func uploadFile(ctx context.Context, fs *xbot.FileService, localPath, remoteName string) error {
-	_ = ctx
+func uploadFile(fs *xbot.FileService, localPath, remoteName string) error {
 	data, err := os.ReadFile(localPath)
 	if err != nil {
 		return fmt.Errorf("read %s: %w", localPath, err)

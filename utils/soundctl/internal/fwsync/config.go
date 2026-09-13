@@ -1,6 +1,7 @@
-// Package sync parses sounds_*.yaml and synchronises the MP3 files with the
-// firmware's FileService.
-package sync
+// Package fwsync parses sounds_*.yaml, validates it against the shared
+// SoundService definition and synchronises the MP3 files with the firmware's
+// FileService. It is the domain layer behind the soundctl commands.
+package fwsync
 
 import (
 	"encoding/json"
@@ -32,6 +33,9 @@ type SoundDef struct {
 	Waveform string `yaml:"waveform,omitempty" json:"waveform,omitempty"`
 	Unison   int    `yaml:"unison,omitempty" json:"unison,omitempty"`
 	DetuneHz int    `yaml:"detune_hz,omitempty" json:"detune_hz,omitempty"`
+	// Preempt marks alerts: the firmware stops a running sound, drops the pending
+	// queue and plays it immediately (the ROM default sets it for EMERGENCY).
+	Preempt  bool   `yaml:"preempt,omitempty" json:"preempt,omitempty"`
 	Tone     *Tone  `yaml:"tone,omitempty" json:"tone,omitempty"`
 	Sequence []Note `yaml:"sequence,omitempty" json:"sequence,omitempty"`
 	File     string `yaml:"file,omitempty" json:"file,omitempty"`

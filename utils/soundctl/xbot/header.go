@@ -13,7 +13,8 @@ import (
 	"time"
 )
 
-// Message types (see xbot/datatypes/XbotHeader.hpp).
+// Message types (see xbot/datatypes/XbotHeader.hpp). Not all of them are used by
+// this client yet — the list documents the wire protocol.
 const (
 	MsgUnknown              byte = 0x00
 	MsgData                 byte = 0x01

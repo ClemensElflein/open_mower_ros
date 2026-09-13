@@ -36,6 +36,9 @@ The `sounds_<lang>.yaml` override file references them by bare filename via
      uploaded MP3s actually play;
   4. optionally sets the master volume (`--volume 0..100`; omitted = leave the
      firmware value unchanged).
+- Per-sound fields (including `preempt`, which marks an alert that interrupts a
+  running sound and clears the queue) are documented in the header of
+  `src/open_mower/params/sounds_en.yaml`.
 - On boards **without** sound hardware the LL never starts the SoundService
   (SID 13); `soundctl sync` detects this via multicast discovery and exits
   without uploading anything. The probe timeout is `--sound-check-timeout`

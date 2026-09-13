@@ -1,4 +1,4 @@
-package sync
+package fwsync
 
 import (
 	"encoding/json"
@@ -13,6 +13,8 @@ func TestConfigBlob(t *testing.T) {
 			"boot_complete": {Type: "mp3", Volume: 100, File: "en_hi.mp3"},
 			"warning": {Type: "sequence", Volume: 80, Waveform: "saw",
 				Sequence: []Note{{Freq: 880, DurationMs: 150}, {Freq: 0, DurationMs: 80}}},
+			"emergency": {Type: "sequence", Volume: 90, Preempt: true,
+				Sequence: []Note{{Freq: 950, DurationMs: 8000, LfoHzX10: 20, LfoDepth: 220}}},
 		},
 	}
 	blob, err := cfg.Blob()
@@ -39,6 +41,7 @@ func TestConfigBlob(t *testing.T) {
 	var sounds struct {
 		BootComplete SoundDef `json:"boot_complete"`
 		Warning      SoundDef `json:"warning"`
+		Emergency    SoundDef `json:"emergency"`
 	}
 	if err := json.Unmarshal(doc["sounds"], &sounds); err != nil {
 		t.Fatal(err)
@@ -54,5 +57,12 @@ func TestConfigBlob(t *testing.T) {
 	}
 	if sounds.Warning.Tone != nil {
 		t.Fatalf("warning.tone should be omitted, got %+v", sounds.Warning.Tone)
+	}
+	// preempt is per sound: it must survive the blob and stay off for normal sounds.
+	if !sounds.Emergency.Preempt {
+		t.Fatalf("emergency.preempt must be set, got %+v", sounds.Emergency)
+	}
+	if sounds.Warning.Preempt || sounds.BootComplete.Preempt {
+		t.Fatalf("preempt must not leak into other sounds: %+v / %+v", sounds.Warning, sounds.BootComplete)
 	}
 }

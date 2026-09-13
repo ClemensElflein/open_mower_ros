@@ -5,6 +5,17 @@
 #
 # This file only lists the sounds that shall REPLACE a ROM default.
 #
+# Per-sound fields (all optional except type/volume):
+#   type       tone | sequence | mp3
+#   volume     0..100 (the master volume scales on top)
+#   waveform   sine | square | triangle | saw   (tone/sequence)
+#   unison     detuned voices, 1/3/5/7         (thickens the sound)
+#   detune_hz  frequency spread between them
+#   preempt    true = alert: the firmware stops a running sound, drops the
+#              pending queue and plays this one immediately. The ROM default
+#              sets it for EMERGENCY, so an alert is never delayed behind an
+#              announcement. Everything else is queued in order.
+#
 # sound_path: high-level directory holding the local MP3 source files (used
 #             for the 16 kHz/mono check and as the upload source). It is NOT
 #             transmitted to the LL. The LL path is a fixed contract:
@@ -24,5 +35,5 @@ sound_path: /opt/open_mower_ros/sounds
 sounds:
   boot_complete:
     type: mp3
-    volume: 100 # pre-mastered; the master volume scales on top
+    volume: 100
     file: en_hi-i-am-steve.mp3

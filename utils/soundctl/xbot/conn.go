@@ -34,24 +34,19 @@ func Dial(ctx context.Context, serviceID uint16, bindIP string, heartbeat time.D
 		heartbeat = DefaultHeartbeatMicros * time.Microsecond
 	}
 
-	udp, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.ParseIP(bindIP), Port: 0})
+	udp, err := listenUDP(bindIP)
 	if err != nil {
-		return nil, fmt.Errorf("udp bind: %w", err)
+		return nil, err
 	}
 
 	ip, port, err := discover(ctx, bindIP, serviceID)
 	if err != nil {
-		udp.Close()
+		_ = udp.Close()
 		return nil, err
 	}
 
-	c := &Conn{
-		udp:             udp,
-		svcIP:           ip,
-		svcPort:         port,
-		serviceID:       serviceID,
-		heartbeatMicros: uint32(heartbeat / time.Microsecond),
-	}
+	c := newServiceConn(udp, ip, port, serviceID)
+	c.heartbeatMicros = uint32(heartbeat / time.Microsecond)
 
 	localIP := bindIP
 	if localIP == "" || localIP == "0.0.0.0" {
@@ -59,10 +54,30 @@ func Dial(ctx context.Context, serviceID uint16, bindIP string, heartbeat time.D
 	}
 
 	if err := c.claim(ctx, localIP); err != nil {
-		udp.Close()
+		_ = udp.Close()
 		return nil, err
 	}
 	return c, nil
+}
+
+// listenUDP opens a UDP socket bound to bindIP ("" or "0.0.0.0" = any interface).
+func listenUDP(bindIP string) (*net.UDPConn, error) {
+	udp, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.ParseIP(bindIP), Port: 0})
+	if err != nil {
+		return nil, fmt.Errorf("udp bind: %w", err)
+	}
+	return udp, nil
+}
+
+// newServiceConn wraps an open socket for a known service endpoint.
+func newServiceConn(udp *net.UDPConn, ip string, port int, serviceID uint16) *Conn {
+	return &Conn{
+		udp:             udp,
+		svcIP:           ip,
+		svcPort:         port,
+		serviceID:       serviceID,
+		heartbeatMicros: DefaultHeartbeatMicros,
+	}
 }
 
 // Close closes the underlying UDP socket.
@@ -93,18 +108,29 @@ func (c *Conn) claim(ctx context.Context, localIP string) error {
 	}
 }
 
-// Call performs a synchronous RPC call and returns the response status and
-// raw return payload.
-func (c *Conn) Call(functionID uint8, params []Param, timeout time.Duration) (uint8, []byte, error) {
-	callID := uint16(c.callID.Add(1) & 0xFFFF)
-
+// buildRPCPayload serialises an RPC body: one 8-byte descriptor per parameter,
+// each followed by that parameter's raw bytes.
+func buildRPCPayload(params []Param) []byte {
 	var body []byte
 	for _, p := range params {
 		body = append(body, PackDescriptor(p.ID, uint32(len(p.Data)))...)
 		body = append(body, p.Data...)
 	}
+	return body
+}
 
-	if err := c.send(MsgRPCCall, functionID, callID, body); err != nil {
+// startCall sends an RPC and returns the call id used, without waiting for a
+// response.
+func (c *Conn) startCall(functionID uint8, params []Param) (uint16, error) {
+	callID := uint16(c.callID.Add(1) & 0xFFFF)
+	return callID, c.send(MsgRPCCall, functionID, callID, buildRPCPayload(params))
+}
+
+// Call performs a synchronous RPC call and returns the response status and
+// raw return payload.
+func (c *Conn) Call(functionID uint8, params []Param, timeout time.Duration) (uint8, []byte, error) {
+	callID, err := c.startCall(functionID, params)
+	if err != nil {
 		return 0, nil, err
 	}
 
@@ -122,6 +148,50 @@ func (c *Conn) Call(functionID uint8, params []Param, timeout time.Duration) (ui
 		}
 		// Ignore heartbeats and other unrelated packets.
 	}
+}
+
+// SendRPC sends an RPC call without waiting for the response ("fire and forget").
+//
+// Needed when the service is claimed by someone else (on the robot: the
+// high-level system). The firmware still processes the call as long as the
+// service is running — only the response goes to the claimed owner.
+func (c *Conn) SendRPC(functionID uint8, params []Param) error {
+	_, err := c.startCall(functionID, params)
+	return err
+}
+
+// DialNoClaimTo connects to a known service endpoint: no discovery, no claim.
+// Use it to skip the advertisement-driven discovery on repeat calls (the LL only
+// advertises slowly once claimed) — see `soundctl play --addr`.
+func DialNoClaimTo(ip string, port int, serviceID uint16) (*Conn, error) {
+	udp, err := listenUDP("")
+	if err != nil {
+		return nil, err
+	}
+	return newServiceConn(udp, ip, port, serviceID), nil
+}
+
+// Endpoint returns the unicast address of the connected service.
+func (c *Conn) Endpoint() (string, int) { return c.svcIP, c.svcPort }
+
+// DialNoClaim discovers and connects to a service without claiming it.
+//
+// A claim would stop a running service and re-target its responses (see
+// Service::HandleClaimMessage in the firmware), so clients that only want to
+// push data or RPCs to a service owned by someone else must not claim.
+func DialNoClaim(ctx context.Context, serviceID uint16, bindIP string) (*Conn, error) {
+	udp, err := listenUDP(bindIP)
+	if err != nil {
+		return nil, err
+	}
+
+	ip, port, err := discover(ctx, bindIP, serviceID)
+	if err != nil {
+		_ = udp.Close()
+		return nil, err
+	}
+
+	return newServiceConn(udp, ip, port, serviceID), nil
 }
 
 // send writes a single header+payload packet to the service.
