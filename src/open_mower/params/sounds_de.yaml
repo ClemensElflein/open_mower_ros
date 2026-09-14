@@ -70,3 +70,11 @@ sounds:
     volume: 90
     preempt: true
     file: zz_minion-fire-alarm.mp3
+  ros_connected:
+    type: mp3
+    volume: 100
+    file: de_ros-connected.mp3
+  ros_disconnected:
+    type: mp3
+    volume: 100
+    file: de_ros-disconnected.mp3
