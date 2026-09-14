@@ -2,6 +2,7 @@ package fwsync
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"hash/crc32"
 	"log/slog"
@@ -52,6 +53,14 @@ func Sync(ctx context.Context, opts Options) error {
 		return fmt.Errorf("invalid config: %d error(s)", len(errs))
 	}
 
+	// Validate the requested master volume up front: an out-of-range value must
+	// fail the run before uploads, cleanup or SetDefinitions change the robot.
+	if opts.Volume >= 0 {
+		if err := validateVolume(opts.Volume); err != nil {
+			return err
+		}
+	}
+
 	// The SoundService only runs when the board has sound hardware, so probe it
 	// first: a soundless robot is left completely untouched. It is never claimed,
 	// because the high-level system owns it — pushing definitions and the volume
@@ -64,7 +73,17 @@ func Sync(ctx context.Context, opts Options) error {
 	ss, err := xbot.NewSoundServiceNoClaim(soundCtx, opts.BindIP)
 	cancel()
 	if err != nil {
-		slog.Info("no SoundService reachable — nothing to configure", "timeout", soundTimeout, "error", err)
+		// A cancelled/deadline-exceeded parent context is an abort, not "no sound
+		// hardware": propagate it so shutdowns and --wait expiries fail the run.
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return ctxErr
+		}
+		// Only the probe's own timeout means "this board has no SoundService";
+		// anything else (bind or multicast-listen failure) is a real error.
+		if !errors.Is(err, context.DeadlineExceeded) {
+			return fmt.Errorf("SoundService probe: %w", err)
+		}
+		slog.Info("no SoundService reachable — nothing to configure", "timeout", soundTimeout)
 		return nil
 	}
 	defer func() { _ = ss.Close() }()
@@ -97,11 +116,14 @@ func Sync(ctx context.Context, opts Options) error {
 		}
 	}
 
-	if err := cleanup(fs, cfg); err != nil {
+	// Apply the new definitions before removing orphaned files: if SetDefinitions
+	// fails, the firmware still runs the previous definitions, which must not
+	// reference files that cleanup is about to delete.
+	if err := applyDefinitions(ctx, cfg, opts, ss); err != nil {
 		return err
 	}
 
-	if err := applyDefinitions(ctx, cfg, opts, ss); err != nil {
+	if err := cleanup(fs, cfg); err != nil {
 		return err
 	}
 	slog.Info("sync complete")
@@ -131,9 +153,6 @@ func applyDefinitions(ctx context.Context, cfg *Config, opts Options, ss *xbot.S
 
 	if opts.Volume < 0 {
 		return nil
-	}
-	if err := validateVolume(opts.Volume); err != nil {
-		return err
 	}
 
 	ss, err = xbot.NewSoundServiceNoClaim(ctx, opts.BindIP)
@@ -236,7 +255,7 @@ func cleanup(fs *xbot.FileService, cfg *Config) error {
 		if ok {
 			slog.Info("removed orphan", "path", o.Path)
 		} else {
-			slog.Warn("failed to remove orphan", "path", o.Path)
+			return fmt.Errorf("FileRemove(%s): firmware reported failure", o.Path)
 		}
 	}
 	return nil

@@ -87,7 +87,11 @@ func (c *Conn) Close() error {
 
 // claim sends CLAIM and waits for the CLAIM ack, retrying until ctx is done.
 func (c *Conn) claim(ctx context.Context, localIP string) error {
-	ipInt := binary.BigEndian.Uint32(net.ParseIP(localIP).To4())
+	ip := net.ParseIP(localIP).To4()
+	if ip == nil {
+		return fmt.Errorf("invalid IPv4 bind address %q", localIP)
+	}
+	ipInt := binary.BigEndian.Uint32(ip)
 	localPort := c.udp.LocalAddr().(*net.UDPAddr).Port
 	payload := PackClaimPayload(ipInt, uint16(localPort), c.heartbeatMicros)
 
