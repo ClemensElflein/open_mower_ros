@@ -3,8 +3,12 @@ ll:
 
   services:
     sound:
-      language: "en"
+      # Set to true on boards with a sound amplifier/speaker, will call `soundctl sync` on startup
+      enabled: false
+      # Master Volume: -1 = keep LL stored volume, 0-100 = override on HL start
       volume: -1
+      language: "en" # HW v1 only
+      config_file: "/opt/open_mower_ros/src/open_mower/params/sounds_en.yaml" # HW v2 only
     gps:
       baud_rate: 921600
       protocol: "UBX"
