@@ -78,6 +78,9 @@ struct MapArea {
   std::string name;
   std::string type;
   bool active;
+  // false: a mowing area that's still drivable but left out when mowing, like a navigation area (an inactive area
+  // is gone for navigation too)
+  bool mowable = true;
   Polygon outline;
   double angle = std::numeric_limits<double>::quiet_NaN();
   int outline_count = -1;
@@ -122,6 +125,7 @@ void to_json(json& j, const MapArea& data) {
   if (!data.name.empty()) properties["name"] = data.name;
   properties["type"] = data.type;
   if (!data.active) properties["active"] = data.active;
+  if (!data.mowable) properties["mowable"] = data.mowable;
   if (!std::isnan(data.angle)) properties["angle"] = data.angle;
   if (data.outline_count >= 0) properties["outline_count"] = data.outline_count;
   if (data.outline_overlap_count >= 0) properties["outline_overlap_count"] = data.outline_overlap_count;
@@ -136,6 +140,7 @@ void from_json(const json& j, MapArea& data) {
   data.name = properties.value("name", "");
   data.type = properties.value("type", "draft");
   data.active = properties.value("active", true);
+  data.mowable = properties.value("mowable", true);
   data.angle = properties.value("angle", std::numeric_limits<double>::quiet_NaN());
   data.outline_count = properties.value("outline_count", -1);
   data.outline_overlap_count = properties.value("outline_overlap_count", -1);
@@ -279,7 +284,8 @@ mower_map::MapArea internalMapAreaToMower(const MapArea& area) {
   mower_map::MapArea result;
   result.id = area.id;
   result.name = area.name;
-  result.active = area.active;
+  // mower_logic leaves out areas that aren't active, the navigation map still has it
+  result.active = area.active && area.mowable;
   result.angle = area.angle;
   result.outline_count = area.outline_count;
   result.outline_overlap_count = area.outline_overlap_count;
