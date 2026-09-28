@@ -64,6 +64,23 @@ std::string MowingBehavior::state_name() {
 Behavior* MowingBehavior::execute() {
   shared_state->active_semiautomatic_task = true;
 
+  // A checkpoint from before a map change can point to an area that isn't there anymore (fewer mowing areas now).
+  // Planning it would fail and end the job right away, so start over instead.
+  if (currentMowingPaths.empty() && currentMowingArea > 0 && mapClient.exists()) {
+    mower_map::GetMowingAreaSrv mapSrv;
+    mapSrv.request.index = currentMowingArea;
+    if (!mapClient.call(mapSrv)) {
+      ROS_WARN_STREAM("MowingBehavior: Area " << currentMowingArea
+                                              << " from the checkpoint doesn't exist anymore, starting over");
+      currentMowingArea = 0;
+      currentMowingPath = 0;
+      currentMowingPathIndex = 0;
+      currentMowingPlanDigest = "";
+      // otherwise a restart before the next regular checkpoint would find the same stale area again
+      checkpoint();
+    }
+  }
+
   while (ros::ok() && !aborted) {
     if (currentMowingPaths.empty() && !create_mowing_plan(currentMowingArea)) {
       ROS_INFO_STREAM("MowingBehavior: Could not create mowing plan, docking");
@@ -825,6 +842,24 @@ void MowingBehavior::checkpoint() {
   bag.write("checkpoint", ros::Time::now(), cp);
   bag.close();
   last_checkpoint = ros::Time::now();
+}
+
+bool MowingBehavior::has_unfinished_job() {
+  return currentMowingArea > 0 || currentMowingPath > 0 || currentMowingPathIndex > 0;
+}
+
+void MowingBehavior::reset_job() {
+  ROS_INFO_STREAM("MowingBehavior: Dropping the progress of the interrupted job");
+  currentMowingPaths.clear();
+  currentMowingArea = 0;
+  currentMowingPath = 0;
+  currentMowingPathIndex = 0;
+  currentMowingPlanDigest = "";
+  // not finished, so unlike reset() the angle increment isn't added. The event still carries the id of the
+  // dropped job, the checkpoint is written without it so a restart doesn't pick it up again
+  publishMowerEvent("JOB_RESET");
+  current_job_id = "";
+  checkpoint();
 }
 
 bool MowingBehavior::restore_checkpoint() {

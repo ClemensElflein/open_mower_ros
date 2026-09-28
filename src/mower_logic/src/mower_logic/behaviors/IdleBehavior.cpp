@@ -133,6 +133,13 @@ Behavior* IdleBehavior::execute() {
       return &MowingBehavior::INSTANCE;
     }
 
+    if (reset_job_requested.exchange(false) && MowingBehavior::INSTANCE.has_unfinished_job()) {
+      MowingBehavior::INSTANCE.reset_job();
+      // otherwise semiautomatic mode would start the dropped task again right away
+      shared_state->active_semiautomatic_task = false;
+      update_actions();
+    }
+
     if (start_area_recorder) {
       return &AreaRecordingBehavior::INSTANCE;
     }
@@ -161,8 +168,13 @@ void IdleBehavior::enter() {
   // disable it, so that we don't start mowing immediately
   manual_start_mowing = false;
 
+  update_actions();
+}
+
+void IdleBehavior::update_actions() {
   for (auto& a : actions) {
-    a.enabled = true;
+    // resetting only makes sense when there's something to reset
+    a.enabled = a.action_id != "reset_job" || MowingBehavior::INSTANCE.has_unfinished_job();
   }
   registerActions("mower_logic:idle", actions);
 }
@@ -230,9 +242,15 @@ IdleBehavior::IdleBehavior(bool stayDocked) {
   start_area_recording_action.enabled = false;
   start_area_recording_action.action_name = "Start Area Recording";
 
+  xbot_msgs::ActionInfo reset_job_action;
+  reset_job_action.action_id = "reset_job";
+  reset_job_action.enabled = false;
+  reset_job_action.action_name = "Reset Job";
+
   actions.clear();
   actions.push_back(start_mowing_action);
   actions.push_back(start_area_recording_action);
+  actions.push_back(reset_job_action);
 }
 
 void IdleBehavior::handle_action(std::string action) {
@@ -242,5 +260,8 @@ void IdleBehavior::handle_action(std::string action) {
   } else if (action == "mower_logic:idle/start_area_recording") {
     ROS_INFO_STREAM("Got start_area_recording command");
     command_s1();
+  } else if (action == "mower_logic:idle/reset_job") {
+    ROS_INFO_STREAM("Got reset_job command");
+    reset_job_requested = true;
   }
 }
