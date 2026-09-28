@@ -53,9 +53,11 @@
 #include "mower_msgs/HighLevelStatus.h"
 #include "mower_msgs/MowerControlSrv.h"
 #include "mower_msgs/Status.h"
+#include "ros/callback_queue.h"
 #include "ros/ros.h"
 #include "slic3r_coverage_planner/PlanPath.h"
 #include "std_msgs/String.h"
+#include "xbot_mqtt/provider.h"
 #include "xbot_mqtt/publish.h"
 #include "xbot_msgs/AbsolutePose.h"
 #include "xbot_msgs/RegisterActionsSrv.h"
@@ -635,6 +637,147 @@ void checkSafety(const ros::TimerEvent& timer_event) {
   }
 }
 
+// The planner puts a pose every few cm, also along straight lines. Drops the ones within tolerance of the line
+// through their neighbours (Ramer-Douglas-Peucker), like the position history does for the track.
+std::vector<bool> simplifyPath(const std::vector<geometry_msgs::PoseStamped>& poses, double tolerance) {
+  std::vector<bool> keep(poses.size(), poses.size() <= 2);
+  if (poses.size() <= 2) return keep;
+  keep.front() = keep.back() = true;
+  std::vector<std::pair<size_t, size_t>> todo{{0, poses.size() - 1}};
+  while (!todo.empty()) {
+    const auto [first, last] = todo.back();
+    todo.pop_back();
+    const auto& a = poses[first].pose.position;
+    const auto& b = poses[last].pose.position;
+    const double dx = b.x - a.x, dy = b.y - a.y, len = std::hypot(dx, dy);
+    double max_dist = 0;
+    size_t max_i = first;
+    for (size_t i = first + 1; i < last; i++) {
+      const auto& p = poses[i].pose.position;
+      const double d = len > 0 ? std::abs(dy * (p.x - a.x) - dx * (p.y - a.y)) / len : std::hypot(p.x - a.x, p.y - a.y);
+      if (d > max_dist) {
+        max_dist = d;
+        max_i = i;
+      }
+    }
+    if (max_dist > tolerance) {
+      keep[max_i] = true;
+      todo.push_back({first, max_i});
+      todo.push_back({max_i, last});
+    }
+  }
+  return keep;
+}
+
+[[noreturn]] void invalidParam(const std::string& message) {
+  throw xbot_mqtt::RpcException(xbot_mqtt::RpcError::ERROR_INVALID_PARAMS, message);
+}
+
+// A list of {"x", "y"} points like in map.json, raising an RPC error for the app if it's anything else.
+geometry_msgs::Polygon requirePolygon(const nlohmann::json& points, const std::string& key) {
+  if (!points.is_array()) invalidParam("parameter is not a list of points: " + key);
+  geometry_msgs::Polygon poly;
+  for (const auto& p : points) {
+    if (!p.is_object() || !p.contains("x") || !p.contains("y") || !p["x"].is_number() || !p["y"].is_number()) {
+      invalidParam("point without numeric x and y in parameter: " + key);
+    }
+    geometry_msgs::Point32 pt;
+    pt.x = p["x"].get<double>();
+    pt.y = p["y"].get<double>();
+    poly.points.push_back(pt);
+  }
+  return poly;
+}
+
+// Plans an area the way mowing would, without starting anything. The area is either a mowing area of the map
+// ("area_id") or given directly ("outline", "obstacles"), both in the map.json format. The settings of the
+// area can be overridden with "angle", "outline_count", "outline_overlap_count" and "outline_offset" (same meaning as
+// in map.json), mow_angle_offset and the angle increment are applied like when mowing.
+nlohmann::json planArea(const nlohmann::json& params) {
+  if (!params.is_object()) invalidParam("parameters must be an object");
+  const auto number = [&](const char* key) {
+    if (!params[key].is_number()) invalidParam(std::string("non-numeric parameter: ") + key);
+    return params[key].get<double>();
+  };
+  // the planner takes these as uint8
+  const auto count = [&](const char* key) {
+    if (!params[key].is_number_integer() || params[key].get<int>() < 0 || params[key].get<int>() > 255) {
+      invalidParam(std::string("parameter is not a whole number from 0 to 255: ") + key);
+    }
+    return params[key].get<int>();
+  };
+
+  mower_map::MapArea area;
+  area.active = true;
+  area.angle = NAN;
+  area.outline_count = -1;
+  area.outline_overlap_count = -1;
+  area.outline_offset = NAN;
+
+  ros::NodeHandle n;
+  if (params.contains("area_id")) {
+    if (!params["area_id"].is_string()) invalidParam("non-string parameter: area_id");
+    const auto id = params["area_id"].get<std::string>();
+    auto client = n.serviceClient<mower_map::GetMowingAreaSrv>("mower_map_service/get_mowing_area");
+    mower_map::GetMowingAreaSrv srv;
+    bool found = false;
+    for (srv.request.index = 0; client.call(srv); srv.request.index++) {
+      if (srv.response.area.id == id) {
+        found = true;
+        break;
+      }
+    }
+    if (!found) invalidParam("no mowing area with id: " + id);
+    area = srv.response.area;
+  }
+
+  if (params.contains("outline")) area.area = requirePolygon(params["outline"], "outline");
+  if (params.contains("obstacles")) {
+    if (!params["obstacles"].is_array()) invalidParam("parameter is not a list of polygons: obstacles");
+    area.obstacles.clear();
+    for (const auto& o : params["obstacles"]) area.obstacles.push_back(requirePolygon(o, "obstacles"));
+  }
+  if (params.contains("angle")) area.angle = number("angle");
+  if (params.contains("outline_count")) area.outline_count = count("outline_count");
+  if (params.contains("outline_overlap_count")) area.outline_overlap_count = count("outline_overlap_count");
+  if (params.contains("outline_offset")) area.outline_offset = number("outline_offset");
+  if (area.area.points.size() < 3) invalidParam("the area needs at least 3 outline points (area_id or outline)");
+
+  // own client, mowing may use pathClient at the same time
+  auto planner = n.serviceClient<slic3r_coverage_planner::PlanPath>("slic3r_coverage_planner/plan_path");
+  std::vector<slic3r_coverage_planner::Path> paths;
+  double angle;
+  if (!MowingBehavior::INSTANCE.plan_area(area, getConfig(), planner, paths, angle)) {
+    throw xbot_mqtt::RpcException(xbot_mqtt::RpcError::ERROR_INTERNAL, "coverage planning failed");
+  }
+
+  // 1 cm off the planned line and mm precision are plenty, and keep the answer small (a big lawn has 100k poses)
+  const auto mm = [](double v) { return std::round(v * 1000.0) / 1000.0; };
+  nlohmann::json result = {{"area_id", area.id}, {"angle", angle}, {"paths", nlohmann::json::array()}};
+  for (const auto& path : paths) {
+    // pose_index is the index of each point in the full path, like current_path_index in the robot state, so apps
+    // can tell how far the mower got
+    nlohmann::json points = nlohmann::json::array();
+    nlohmann::json pose_index = nlohmann::json::array();
+    const auto keep = simplifyPath(path.path.poses, 0.01);
+    for (size_t i = 0; i < keep.size(); i++) {
+      if (!keep[i]) continue;
+      points.push_back({mm(path.path.poses[i].pose.position.x), mm(path.path.poses[i].pose.position.y)});
+      pose_index.push_back(i);
+    }
+    result["paths"].push_back({{"is_outline", path.is_outline != 0}, {"points", points}, {"pose_index", pose_index}});
+  }
+  return result;
+}
+
+// clang-format off
+xbot_mqtt::RpcProvider rpc_provider("mower_logic", {{
+  RPC_METHOD("mowing.plan", {
+    return planArea(params);
+  }),
+}});
+// clang-format on
+
 void reconfigureCB(mower_logic::MowerLogicConfig& c, uint32_t level) {
   ROS_INFO_STREAM("om_mower_logic: Setting mower_logic config");
   last_config = c;
@@ -777,6 +920,15 @@ int main(int argc, char** argv) {
 
   ros::AsyncSpinner asyncSpinner(1);
   asyncSpinner.start();
+
+  // RPCs on their own queue and thread, planning a big area takes a moment and shouldn't hold up the timers.
+  // After the main spinner, registering the methods can wait a while for xbot_monitoring
+  ros::CallbackQueue rpc_queue;
+  ros::NodeHandle rpc_nh;
+  rpc_nh.setCallbackQueue(&rpc_queue);
+  ros::AsyncSpinner rpc_spinner(1, &rpc_queue);
+  rpc_spinner.start();
+  rpc_provider.init(rpc_nh);
 
   ros::Rate r(1.0);
 
