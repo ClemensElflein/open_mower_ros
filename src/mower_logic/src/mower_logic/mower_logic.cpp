@@ -576,7 +576,9 @@ void checkSafety(const ros::TimerEvent& timer_event) {
 
   std::stringstream dockingReason(std::ios_base::ate | std::ios_base::in | std::ios_base::out);
 
-  if (last_config.manual_pause_mowing) {
+  // a manual pause (home while mowing) only holds the mowing job, not the area recorder. Otherwise
+  // recording can't be started until the next start_mowing or a restart, since nothing else clears it
+  if (last_config.manual_pause_mowing && currentBehavior != &AreaRecordingBehavior::INSTANCE) {
     dockingReason << "Manual pause";
     dockingNeeded = true;
   }
