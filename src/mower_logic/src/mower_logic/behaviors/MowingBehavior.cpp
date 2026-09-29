@@ -66,19 +66,27 @@ Behavior* MowingBehavior::execute() {
 
   // A checkpoint from before a map change can point to an area that isn't there anymore (fewer mowing areas now).
   // Planning it would fail and end the job right away, so start over instead.
-  if (currentMowingPaths.empty() && currentMowingArea > 0 && mapClient.exists()) {
-    mower_map::GetMowingAreaSrv mapSrv;
-    mapSrv.request.index = currentMowingArea;
-    if (!mapClient.call(mapSrv)) {
-      ROS_WARN_STREAM("MowingBehavior: Area " << currentMowingArea
-                                              << " from the checkpoint doesn't exist anymore, starting over");
-      currentMowingArea = 0;
-      currentMowingPath = 0;
-      currentMowingPathIndex = 0;
-      currentMowingPlanDigest = "";
-      // otherwise a restart before the next regular checkpoint would find the same stale area again
-      checkpoint();
+  // The service answers false for a missing area, but a failed call looks the same. So it only counts as missing
+  // when it fails twice while the service is there, a hiccup shouldn't throw the progress away.
+  const auto area_missing = [this]() {
+    for (int attempt = 0; attempt < 2; attempt++) {
+      if (attempt) ros::Duration(1.0).sleep();
+      if (!mapClient.exists()) return false;
+      mower_map::GetMowingAreaSrv mapSrv;
+      mapSrv.request.index = currentMowingArea;
+      if (mapClient.call(mapSrv)) return false;
     }
+    return true;
+  };
+  if (currentMowingPaths.empty() && currentMowingArea > 0 && area_missing()) {
+    ROS_WARN_STREAM("MowingBehavior: Area " << currentMowingArea
+                                            << " from the checkpoint doesn't exist anymore, starting over");
+    currentMowingArea = 0;
+    currentMowingPath = 0;
+    currentMowingPathIndex = 0;
+    currentMowingPlanDigest = "";
+    // otherwise a restart before the next regular checkpoint would find the same stale area again
+    checkpoint();
   }
 
   while (ros::ok() && !aborted) {
@@ -845,7 +853,8 @@ void MowingBehavior::checkpoint() {
 }
 
 bool MowingBehavior::has_unfinished_job() {
-  return currentMowingArea > 0 || currentMowingPath > 0 || currentMowingPathIndex > 0;
+  // a plan without progress yet counts too, e.g. when it was stopped on the way to the first point
+  return currentMowingArea > 0 || currentMowingPath > 0 || currentMowingPathIndex > 0 || !currentMowingPaths.empty();
 }
 
 void MowingBehavior::reset_job() {

@@ -75,6 +75,15 @@ Behavior* IdleBehavior::execute() {
   while (ros::ok()) {
     stopMoving();
     stopBlade();
+
+    // before deciding whether to start, a start requested right after the reset has to begin with the first area
+    if (reset_job_requested.exchange(false) && MowingBehavior::INSTANCE.has_unfinished_job()) {
+      MowingBehavior::INSTANCE.reset_job();
+      // otherwise semiautomatic mode would start the dropped task again right away
+      shared_state->active_semiautomatic_task = false;
+      update_actions();
+    }
+
     const auto last_config = getConfig();
     const auto last_power_config = getPowerConfig();
     const auto last_status = getStatus();
@@ -131,13 +140,6 @@ Behavior* IdleBehavior::execute() {
       // Not docked, so just mow
       setGPS(true);
       return &MowingBehavior::INSTANCE;
-    }
-
-    if (reset_job_requested.exchange(false) && MowingBehavior::INSTANCE.has_unfinished_job()) {
-      MowingBehavior::INSTANCE.reset_job();
-      // otherwise semiautomatic mode would start the dropped task again right away
-      shared_state->active_semiautomatic_task = false;
-      update_actions();
     }
 
     if (start_area_recorder) {
