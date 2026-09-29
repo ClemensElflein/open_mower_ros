@@ -183,7 +183,7 @@ bool MowingBehavior::plan_area(const mower_map::MapArea& area, const mower_logic
   }
 
   // add mowing angle offset increment and return into the <-180, 180> range
-  double mow_angle_offset = std::fmod(getConfig().mow_angle_offset + currentMowingAngleIncrementSum + 180, 360);
+  double mow_angle_offset = std::fmod(cfg.mow_angle_offset + currentMowingAngleIncrementSum + 180, 360);
   if (mow_angle_offset < 0) mow_angle_offset += 360;
   mow_angle_offset -= 180;
   ROS_INFO_STREAM("MowingBehavior: mowing angle offset (deg): " << mow_angle_offset);

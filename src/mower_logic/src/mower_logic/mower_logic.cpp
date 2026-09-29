@@ -27,6 +27,8 @@
 #include <EmergencyServiceInterfaceBase.hpp>
 #include <algorithm>
 #include <atomic>
+#include <cfloat>
+#include <cmath>
 #include <ios>
 #include <mutex>
 #include <random>
@@ -143,8 +145,12 @@ ll::PowerConfig getPowerConfig() {
 }
 
 void setConfig(mower_logic::MowerLogicConfig c) {
-  std::lock_guard<std::recursive_mutex> lk{mower_logic_mutex};
-  last_config = c;
+  {
+    std::lock_guard<std::recursive_mutex> lk{mower_logic_mutex};
+    last_config = c;
+  }
+  // outside of mower_logic_mutex: reconfigureCB takes it while dynamic_reconfigure holds its own lock, holding
+  // both here the other way round could deadlock
   reconfigServer->updateConfig(c);
 }
 
@@ -681,9 +687,15 @@ geometry_msgs::Polygon requirePolygon(const nlohmann::json& points, const std::s
     if (!p.is_object() || !p.contains("x") || !p.contains("y") || !p["x"].is_number() || !p["y"].is_number()) {
       invalidParam("point without numeric x and y in parameter: " + key);
     }
+    // the message holds float32, anything that doesn't fit would become infinity
+    const double x = p["x"].get<double>();
+    const double y = p["y"].get<double>();
+    if (!std::isfinite(x) || !std::isfinite(y) || std::abs(x) > FLT_MAX || std::abs(y) > FLT_MAX) {
+      invalidParam("point out of range in parameter: " + key);
+    }
     geometry_msgs::Point32 pt;
-    pt.x = p["x"].get<double>();
-    pt.y = p["y"].get<double>();
+    pt.x = x;
+    pt.y = y;
     poly.points.push_back(pt);
   }
   return poly;
@@ -696,12 +708,15 @@ geometry_msgs::Polygon requirePolygon(const nlohmann::json& points, const std::s
 nlohmann::json planArea(const nlohmann::json& params) {
   if (!params.is_object()) invalidParam("parameters must be an object");
   const auto number = [&](const char* key) {
-    if (!params[key].is_number()) invalidParam(std::string("non-numeric parameter: ") + key);
+    if (!params[key].is_number() || !std::isfinite(params[key].get<double>())) {
+      invalidParam(std::string("non-numeric parameter: ") + key);
+    }
     return params[key].get<double>();
   };
   // the planner takes these as uint8
   const auto count = [&](const char* key) {
-    if (!params[key].is_number_integer() || params[key].get<int>() < 0 || params[key].get<int>() > 255) {
+    // compared as double, get<int>() would wrap a huge number around into the range
+    if (!params[key].is_number_integer() || params[key].get<double>() < 0 || params[key].get<double>() > 255) {
       invalidParam(std::string("parameter is not a whole number from 0 to 255: ") + key);
     }
     return params[key].get<int>();
@@ -780,6 +795,8 @@ xbot_mqtt::RpcProvider rpc_provider("mower_logic", {{
 
 void reconfigureCB(mower_logic::MowerLogicConfig& c, uint32_t level) {
   ROS_INFO_STREAM("om_mower_logic: Setting mower_logic config");
+  // the mowing.plan rpc reads it from its own thread
+  std::lock_guard<std::recursive_mutex> lk{mower_logic_mutex};
   last_config = c;
 }
 
