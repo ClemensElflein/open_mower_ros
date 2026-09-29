@@ -64,11 +64,18 @@ class LogBuffer {
     std::string msg;
   };
 
-  // A log line may carry a login, e.g. an NTRIP or MQTT url with user and password. Those are blanked.
+  // A log line may carry a login, e.g. an NTRIP or MQTT url with user and password, or a token in a header or in
+  // json. Those are blanked.
   static std::string redact(const std::string& msg) {
-    static const std::regex url_login(R"((://)[^/\s:@]+:[^@\s/]+@)");
-    static const std::regex secret(R"(\b(password|passwd|token|secret)(\s*[=:]\s*)\S+)", std::regex::icase);
-    return std::regex_replace(std::regex_replace(msg, url_login, "$1***@"), secret, "$1$2***");
+    // everything up to the last @ before the host, a password may contain @ itself
+    static const std::regex url_login(R"((://)[^\s/]*@)");
+    static const std::regex bearer(R"(\b(Bearer|Basic)\s+\S+)", std::regex::icase);
+    // key = value, key: value, "key": "value"
+    static const std::regex secret(R"(\b(password|passwd|pwd|token|secret|api_?key|authorization)("?\s*[=:]\s*"?)[^\s",}]+)",
+                                   std::regex::icase);
+    std::string out = std::regex_replace(msg, url_login, "$1***@");
+    out = std::regex_replace(out, bearer, "$1 ***");
+    return std::regex_replace(out, secret, "$1$2***");
   }
 
   const size_t capacity_;
