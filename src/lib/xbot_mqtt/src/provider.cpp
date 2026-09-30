@@ -5,7 +5,10 @@
 namespace xbot_mqtt {
 
 void RpcProvider::init() {
-  ros::NodeHandle n;
+  init(ros::NodeHandle());
+}
+
+void RpcProvider::init(ros::NodeHandle n) {
   request_sub =
       n.subscribe(TOPIC_REQUEST, 100, &RpcProvider::handleRequest, this, ros::TransportHints().tcpNoDelay(true));
   response_pub = n.advertise<xbot_mqtt::RpcResponse>(TOPIC_RESPONSE, 100);
