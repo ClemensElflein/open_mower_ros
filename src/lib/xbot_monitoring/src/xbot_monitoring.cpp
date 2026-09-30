@@ -765,7 +765,34 @@ void rpc_publish_error(const int16_t code, const std::string &message, const nlo
     try_publish("rpc/response", err_resp.dump(2));
 }
 
+// deepest nesting of [ and { in a json text, strings skipped. only exact for valid json, anything else doesn't get
+// past the parser anyway
+size_t json_nesting(const std::string &text) {
+    size_t depth = 0, deepest = 0;
+    bool in_string = false;
+    for (size_t i = 0; i < text.size(); i++) {
+        const char c = text[i];
+        if (in_string) {
+            if (c == '\\') i++;
+            else if (c == '"') in_string = false;
+        } else if (c == '"') {
+            in_string = true;
+        } else if (c == '[' || c == '{') {
+            deepest = std::max(deepest, ++depth);
+        } else if ((c == ']' || c == '}') && depth > 0) {
+            depth--;
+        }
+    }
+    return deepest;
+}
+
 void rpc_request_callback(const std::string &payload) {
+    // a request nested some 100k levels deep overflowed the stack when it was copied or written again, no rpc needs
+    // more than a few
+    if (json_nesting(payload) > 100) {
+        return rpc_publish_error(xbot_mqtt::RpcError::ERROR_INVALID_REQUEST, "Request is nested too deep");
+    }
+
     // Parse
     json req;
     try {
