@@ -17,6 +17,7 @@
 #include "capabilities.h"
 #include "geometry_msgs/Twist.h"
 #include "ros/ros.h"
+#include "std_msgs/Empty.h"
 #include "std_msgs/String.h"
 #include "xbot_mqtt/RegisterMethodsSrv.h"
 #include "xbot_mqtt/RpcError.h"
@@ -403,6 +404,10 @@ json xmlrpc_to_json(XmlRpc::XmlRpcValue value) {
     return nullptr;
 }
 #pragma GCC diagnostic pop
+
+void params_changed_callback(const std_msgs::Empty::ConstPtr &) {
+    publish_params();
+}
 
 void publish_params() {
     std::vector<std::string> param_names;
@@ -889,6 +894,8 @@ int main(int argc, char **argv) {
         n->createTimer(ros::Duration(POSITION_HISTORY_FLUSH_INTERVAL), position_history_flush_timer_callback);
     ros::Subscriber mqttPublishSubscriber = n->subscribe("/xbot_monitoring/mqtt_publish", 50, mqtt_publish_callback);
     ros::Subscriber rosoutSubscriber = n->subscribe("/rosout_agg", 100, rosout_callback);
+    // a node changed params (mower_logic's params.set), publish them again
+    ros::Subscriber paramsChangedSubscriber = n->subscribe("xbot_monitoring/params_changed", 10, params_changed_callback);
 
     cmd_vel_pub = n->advertise<geometry_msgs::Twist>("xbot_monitoring/remote_cmd_vel", 1);
     action_pub = n->advertise<std_msgs::String>("xbot/action", 1);

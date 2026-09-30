@@ -29,6 +29,11 @@
 #include <atomic>
 #include <cfloat>
 #include <cmath>
+#include <filesystem>
+#include <fstream>
+#include <functional>
+#include <map>
+#include <type_traits>
 #include <ios>
 #include <mutex>
 #include <random>
@@ -58,6 +63,7 @@
 #include "ros/callback_queue.h"
 #include "ros/ros.h"
 #include "slic3r_coverage_planner/PlanPath.h"
+#include "std_msgs/Empty.h"
 #include "std_msgs/String.h"
 #include "xbot_mqtt/provider.h"
 #include "xbot_mqtt/publish.h"
@@ -787,10 +793,131 @@ nlohmann::json planArea(const nlohmann::json& params) {
   return result;
 }
 
+// mower_logic settings apps may change with params.set. applied right away and kept in mower_logic_params.json
+// (next to map.json), which goes on top of the yaml at the next start, so a change survives a restart
+const char* PARAMS_FILE = "mower_logic_params.json";
+ros::Publisher params_changed_pub;
+
+template <typename T>
+void setParam(T& field, const nlohmann::json& v, T min, T max, const std::string& name) {
+  if constexpr (std::is_same_v<T, bool>) {
+    if (!v.is_boolean()) invalidParam("not true or false: " + name);
+  } else if constexpr (std::is_integral_v<T>) {
+    if (!v.is_number_integer()) invalidParam("not a whole number: " + name);
+  } else {
+    if (!v.is_number() || !std::isfinite(v.get<double>())) invalidParam("not a number: " + name);
+  }
+  if constexpr (!std::is_same_v<T, bool>) {
+    // compared as double, get<int>() would wrap a huge number around into the range
+    if (v.get<double>() < min || v.get<double>() > max) {
+      invalidParam(name + " must be from " + std::to_string(min) + " to " + std::to_string(max));
+    }
+  }
+  field = v.get<T>();
+}
+
+struct SettableParam {
+  std::function<void(mower_logic::MowerLogicConfig&, const nlohmann::json&)> set;
+  std::function<nlohmann::json(const mower_logic::MowerLogicConfig&)> get;
+};
+
+#define SETTABLE(field)                                                                        \
+  {                                                                                            \
+    #field, {                                                                                  \
+      [](mower_logic::MowerLogicConfig& c, const nlohmann::json& v) {                          \
+        setParam(c.field, v, mower_logic::MowerLogicConfig::__getMin__().field,                \
+                 mower_logic::MowerLogicConfig::__getMax__().field, #field);                   \
+      },                                                                                       \
+          [](const mower_logic::MowerLogicConfig& c) { return nlohmann::json(c.field); }       \
+    }                                                                                          \
+  }
+
+// what's about how and when it mows, nothing about the hardware, docking or safety
+const std::map<std::string, SettableParam> SETTABLE_PARAMS = {
+    SETTABLE(automatic_mode),     SETTABLE(outline_count),     SETTABLE(outline_overlap_count),
+    SETTABLE(outline_offset),     SETTABLE(mow_angle_offset),  SETTABLE(mow_angle_offset_is_absolute),
+    SETTABLE(mow_angle_increment), SETTABLE(rain_mode),        SETTABLE(rain_delay_minutes),
+};
+
+// the settable params with their value, range and default
+nlohmann::json settableParams() {
+  const auto c = getConfig();
+  const auto min = mower_logic::MowerLogicConfig::__getMin__();
+  const auto max = mower_logic::MowerLogicConfig::__getMax__();
+  const auto def = mower_logic::MowerLogicConfig::__getDefault__();
+  nlohmann::json result = nlohmann::json::object();
+  for (const auto& [name, p] : SETTABLE_PARAMS) {
+    result[name] = {{"value", p.get(c)}, {"min", p.get(min)}, {"max", p.get(max)}, {"default", p.get(def)}};
+  }
+  return result;
+}
+
+nlohmann::json readStoredParams() {
+  std::ifstream f(PARAMS_FILE);
+  if (!f.good()) return nlohmann::json::object();
+  try {
+    auto j = nlohmann::json::parse(f);
+    if (j.is_object()) return j;
+  } catch (const std::exception& e) {
+    ROS_ERROR_STREAM("can't read " << PARAMS_FILE << ": " << e.what());
+  }
+  return nlohmann::json::object();
+}
+
+// Changes some mower_logic params ({"name": value, ...}), all or none. Returns the settable params like
+// params.settable.
+nlohmann::json setParams(const nlohmann::json& params) {
+  if (!params.is_object() || params.empty()) invalidParam("parameters must be an object of name: value");
+  auto config = getConfig();
+  for (const auto& [name, value] : params.items()) {
+    const auto it = SETTABLE_PARAMS.find(name);
+    if (it == SETTABLE_PARAMS.end()) invalidParam("not a settable param: " + name);
+    it->second.set(config, value);
+  }
+  auto stored = readStoredParams();
+  for (const auto& [name, value] : params.items()) stored[name] = value;
+  const std::string tmp = std::string(PARAMS_FILE) + ".tmp";
+  {
+    std::ofstream f(tmp);
+    f << stored.dump(2);
+    if (!f.good()) throw std::runtime_error("can't write the params");
+  }
+  std::filesystem::rename(tmp, PARAMS_FILE);
+  setConfig(config);
+  // xbot_monitoring publishes params/json again
+  params_changed_pub.publish(std_msgs::Empty());
+  ROS_INFO_STREAM("params.set: " << params.dump());
+  return settableParams();
+}
+
+// the stored params at startup, on top of the yaml. ones that don't fit anymore are left out
+void applyStoredParams() {
+  const auto stored = readStoredParams();
+  if (stored.empty()) return;
+  auto config = getConfig();
+  for (const auto& [name, value] : stored.items()) {
+    const auto it = SETTABLE_PARAMS.find(name);
+    try {
+      if (it == SETTABLE_PARAMS.end()) invalidParam("not a settable param: " + name);
+      it->second.set(config, value);
+    } catch (const std::exception& e) {
+      ROS_WARN_STREAM("ignoring " << name << " from " << PARAMS_FILE << ": " << e.what());
+    }
+  }
+  setConfig(config);
+  ROS_INFO_STREAM("applied " << PARAMS_FILE << ": " << stored.dump());
+}
+
 // clang-format off
 xbot_mqtt::RpcProvider rpc_provider("mower_logic", {{
   RPC_METHOD("mowing.plan", {
     return planArea(params);
+  }),
+  RPC_METHOD("params.settable", {
+    return settableParams();
+  }),
+  RPC_METHOD("params.set", {
+    return setParams(params);
   }),
 }});
 // clang-format on
@@ -892,6 +1019,8 @@ int main(int argc, char** argv) {
 
   reconfigServer = new dynamic_reconfigure::Server<mower_logic::MowerLogicConfig>(mutex, *paramNh);
   reconfigServer->setCallback(reconfigureCB);
+  params_changed_pub = n->advertise<std_msgs::Empty>("xbot_monitoring/params_changed", 1);
+  applyStoredParams();
 
   last_power_config = ll::PowerConfig::__getDefault__();
   last_power_config.__fromServer__(powerNodeHandle);
