@@ -64,15 +64,21 @@ class LogBuffer {
     std::string msg;
   };
 
+  // std::regex recurses per character, a line of some 50k characters overflows the stack and takes xbot_monitoring
+  // down, so longer ones are cut first
+  static constexpr size_t MAX_LENGTH = 2000;
+
   // A log line may carry a login, e.g. an NTRIP or MQTT url with user and password, or a token in a header or in
   // json. Those are blanked.
-  static std::string redact(const std::string& msg) {
+  static std::string redact(const std::string& full) {
+    const std::string msg = full.size() > MAX_LENGTH ? full.substr(0, MAX_LENGTH) + "..." : full;
     // everything up to the last @ before the host, a password may contain @ itself
     static const std::regex url_login(R"((://)[^\s/]*@)");
     static const std::regex bearer(R"(\b(Bearer|Basic)\s+\S+)", std::regex::icase);
     // key = value, key: value, "key": "value"
-    static const std::regex secret(R"(\b(password|passwd|pwd|token|secret|api_?key|authorization)("?\s*[=:]\s*"?)[^\s",}]+)",
-                                   std::regex::icase);
+    static const std::regex secret(
+        R"(\b([a-z_]*(?:password|passwd|pwd|token|secret|api_?key|authorization))("?\s*[=:]\s*"?)[^\s",}]+)",
+        std::regex::icase);
     std::string out = std::regex_replace(msg, url_login, "$1***@");
     out = std::regex_replace(out, bearer, "$1 ***");
     return std::regex_replace(out, secret, "$1$2***");
