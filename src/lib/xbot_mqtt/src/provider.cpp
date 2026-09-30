@@ -69,7 +69,8 @@ void RpcProvider::publishResponse(const xbot_mqtt::RpcRequest::ConstPtr& request
     return;
   }
   xbot_mqtt::RpcResponse response_msg;
-  response_msg.result = response.dump();
+  // invalid UTF-8 (e.g. a node that logged raw bytes) becomes U+FFFD instead of failing the whole answer
+  response_msg.result = response.dump(-1, ' ', false, nlohmann::basic_json<>::error_handler_t::replace);
   response_msg.id = request->id;
   response_pub.publish(response_msg);
 }

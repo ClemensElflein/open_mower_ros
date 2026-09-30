@@ -65,15 +65,25 @@ class LogBuffer {
   };
 
   // std::regex recurses per character, a line of some 50k characters overflows the stack and takes xbot_monitoring
-  // down, so longer ones are cut first
+  // down, so longer ones are cut first. At a character boundary: half an umlaut isn't valid UTF-8 and the json
+  // answer couldn't be written anymore
   static constexpr size_t MAX_LENGTH = 2000;
+
+  static std::string cut(const std::string& full) {
+    if (full.size() <= MAX_LENGTH) return full;
+    size_t end = MAX_LENGTH;
+    // back to the first byte of a character that doesn't fit completely (continuation bytes are 10xxxxxx)
+    while (end > 0 && (static_cast<unsigned char>(full[end]) & 0xC0) == 0x80) end--;
+    return full.substr(0, end) + "...";
+  }
 
   // A log line may carry a login, e.g. an NTRIP or MQTT url with user and password, or a token in a header or in
   // json. Those are blanked.
   static std::string redact(const std::string& full) {
-    const std::string msg = full.size() > MAX_LENGTH ? full.substr(0, MAX_LENGTH) + "..." : full;
-    // everything up to the last @ before the host, a password may contain @ itself
-    static const std::regex url_login(R"((://)[^\s/]*@)");
+    const std::string msg = cut(full);
+    // everything up to the last @ before the next space, a password may contain @ and / itself. a url with an @
+    // in its path gets blanked a bit too much, but never too little
+    static const std::regex url_login(R"((://)\S*@)");
     static const std::regex bearer(R"(\b(Bearer|Basic)\s+\S+)", std::regex::icase);
     // key = value, key: value, "key": "value"
     static const std::regex secret(
