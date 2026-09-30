@@ -72,6 +72,12 @@ class MowingBehavior : public Behavior {
 
   void reset() override;
 
+  // whether the checkpoint has a job that got interrupted part way
+  bool has_unfinished_job();
+
+  // drops the progress of an interrupted job, the next start mows from the beginning. only while not mowing
+  void reset_job();
+
   bool needs_gps() override;
 
   bool mower_enabled() override;
