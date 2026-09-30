@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "EventHistory.h"
+#include "LogBuffer.h"
 #include "PositionHistory.h"
 #include "capabilities.h"
 #include "geometry_msgs/Twist.h"
@@ -154,6 +155,7 @@ bool has_map_overlay = false;
 
 EventHistory event_history;
 PositionHistory position_history;
+LogBuffer log_buffer(1000);
 
 // clang-format off
 xbot_mqtt::RpcProvider rpc_provider("xbot_monitoring", {{
@@ -187,6 +189,17 @@ xbot_mqtt::RpcProvider rpc_provider("xbot_monitoring", {{
         } else {
             return event_history.deleteHistory(std::nullopt);
         }
+    }),
+    RPC_METHOD("logs.recent", {
+        double since = 0;
+        uint8_t level = rosgraph_msgs::Log::WARN;
+        size_t limit = 200;
+        if (params.is_object()) {
+            if (params.contains("since") && params["since"].is_number()) since = params["since"].get<double>();
+            if (params.contains("level") && params["level"].is_string()) level = LogBuffer::levelFromName(params["level"].get<std::string>());
+            if (params.contains("limit") && params["limit"].is_number_unsigned()) limit = params["limit"].get<size_t>();
+        }
+        return log_buffer.get(since, level, limit);
     }),
     RPC_METHOD("position.history", {
         if (params.is_object() && params.contains("job_id")) {
@@ -825,6 +838,10 @@ bool register_methods(xbot_mqtt::RegisterMethodsSrvRequest &req, xbot_mqtt::Regi
     return true;
 }
 
+void rosout_callback(const rosgraph_msgs::Log::ConstPtr &msg) {
+    log_buffer.add(*msg);
+}
+
 int main(int argc, char **argv) {
     ros::init(argc, argv, "xbot_monitoring");
     has_map = false;
@@ -871,6 +888,7 @@ int main(int argc, char **argv) {
     ros::Timer positionHistoryFlushTimer =
         n->createTimer(ros::Duration(POSITION_HISTORY_FLUSH_INTERVAL), position_history_flush_timer_callback);
     ros::Subscriber mqttPublishSubscriber = n->subscribe("/xbot_monitoring/mqtt_publish", 50, mqtt_publish_callback);
+    ros::Subscriber rosoutSubscriber = n->subscribe("/rosout_agg", 100, rosout_callback);
 
     cmd_vel_pub = n->advertise<geometry_msgs::Twist>("xbot_monitoring/remote_cmd_vel", 1);
     action_pub = n->advertise<std_msgs::String>("xbot/action", 1);
