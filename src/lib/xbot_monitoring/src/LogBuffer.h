@@ -74,7 +74,11 @@ class LogBuffer {
     size_t end = MAX_LENGTH;
     // back to the first byte of a character that doesn't fit completely (continuation bytes are 10xxxxxx)
     while (end > 0 && (static_cast<unsigned char>(full[end]) & 0xC0) == 0x80) end--;
-    return full.substr(0, end) + "...";
+    std::string msg = full.substr(0, end);
+    // a url that runs into the cut may have lost the @ ending its login, the password would show. so all of it goes
+    const size_t url = msg.rfind("://");
+    if (url != std::string::npos && msg.find_first_of(" \t\n\v\f\r", url) == std::string::npos) msg.erase(url + 3);
+    return msg + "...";
   }
 
   // A log line may carry a login, e.g. an NTRIP or MQTT url with user and password, or a token in a header or in
