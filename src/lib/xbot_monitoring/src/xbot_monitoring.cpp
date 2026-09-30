@@ -112,6 +112,11 @@ public:
     }
     void message_arrived(mqtt::const_message_ptr ptr) override {
         if(ptr->get_topic() == this->mqtt_topic_prefix + "teleop") {
+            // only vx and vz, some 30 bytes. a large nested document overflowed the stack while decoding
+            if (ptr->get_payload().size() > 1024) {
+                ROS_ERROR_STREAM("Ignoring teleop bson of " << ptr->get_payload().size() << " bytes");
+                return;
+            }
             try {
                 json json = json::from_bson(ptr->get_payload().begin(), ptr->get_payload().end());
                 geometry_msgs::Twist t;
