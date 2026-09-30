@@ -770,7 +770,8 @@ void rpc_request_callback(const std::string &payload) {
     json req;
     try {
       req = json::parse(payload);
-    } catch (const json::parse_error &e) {
+    } catch (const json::exception &e) {
+      // not only parse_error, e.g. a number too large for a double (1e400) is an out_of_range and would end the node
       return rpc_publish_error(xbot_mqtt::RpcError::ERROR_INVALID_JSON, "Could not parse request JSON");
     }
 
@@ -819,7 +820,7 @@ void rpc_response_callback(const xbot_mqtt::RpcResponse::ConstPtr &msg) {
     json result;
     try {
         result = json::parse(msg->result);
-    } catch (const json::parse_error &e) {
+    } catch (const json::exception &e) {
         return rpc_publish_error(xbot_mqtt::RpcError::ERROR_INTERNAL, "Internal error while parsing result JSON: " + std::string(e.what()), msg->id);
     }
 
