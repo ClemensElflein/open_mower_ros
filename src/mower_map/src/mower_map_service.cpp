@@ -86,6 +86,8 @@ struct MapArea {
   int outline_count = -1;
   int outline_overlap_count = -1;
   double outline_offset = std::numeric_limits<double>::quiet_NaN();
+  double angle_min = std::numeric_limits<double>::quiet_NaN();
+  double angle_max = std::numeric_limits<double>::quiet_NaN();
 };
 
 struct DockingStation {
@@ -130,6 +132,8 @@ void to_json(json& j, const MapArea& data) {
   if (data.outline_count >= 0) properties["outline_count"] = data.outline_count;
   if (data.outline_overlap_count >= 0) properties["outline_overlap_count"] = data.outline_overlap_count;
   if (!std::isnan(data.outline_offset)) properties["outline_offset"] = data.outline_offset;
+  if (!std::isnan(data.angle_min)) properties["angle_min"] = data.angle_min;
+  if (!std::isnan(data.angle_max)) properties["angle_max"] = data.angle_max;
   j["properties"] = properties;
   j["outline"] = data.outline;
 }
@@ -145,6 +149,8 @@ void from_json(const json& j, MapArea& data) {
   data.outline_count = properties.value("outline_count", -1);
   data.outline_overlap_count = properties.value("outline_overlap_count", -1);
   data.outline_offset = properties.value("outline_offset", std::numeric_limits<double>::quiet_NaN());
+  data.angle_min = properties.value("angle_min", std::numeric_limits<double>::quiet_NaN());
+  data.angle_max = properties.value("angle_max", std::numeric_limits<double>::quiet_NaN());
   j.at("outline").get_to(data.outline);
 }
 
@@ -273,6 +279,8 @@ MapArea mowerMapAreaToInternal(const mower_map::MapArea& area, const std::string
   result.outline_count = area.outline_count;
   result.outline_overlap_count = area.outline_overlap_count;
   result.outline_offset = area.outline_offset;
+  result.angle_min = area.angle_min;
+  result.angle_max = area.angle_max;
   result.outline = geometryPolygonToInternal(area.area);
   return result;
 }
@@ -290,6 +298,8 @@ mower_map::MapArea internalMapAreaToMower(const MapArea& area) {
   result.outline_count = area.outline_count;
   result.outline_overlap_count = area.outline_overlap_count;
   result.outline_offset = area.outline_offset;
+  result.angle_min = area.angle_min;
+  result.angle_max = area.angle_max;
   result.area = internalPolygonToGeometry(area.outline);
   return result;
 }
