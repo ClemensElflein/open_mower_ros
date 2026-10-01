@@ -258,6 +258,8 @@ IdleBehavior::IdleBehavior(bool stayDocked) {
 void IdleBehavior::handle_action(std::string action) {
   if (action == "mower_logic:idle/start_mowing") {
     ROS_INFO_STREAM("Got start_mowing command");
+    // a plain start carries on an interrupted job with its area list, a new one mows all areas
+    if (!MowingBehavior::INSTANCE.has_unfinished_job()) MowingBehavior::INSTANCE.set_job_areas({});
     command_start();
   } else if (action == "mower_logic:idle/start_area_recording") {
     ROS_INFO_STREAM("Got start_area_recording command");
