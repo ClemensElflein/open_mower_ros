@@ -56,12 +56,14 @@ class MowingBehavior : public Behavior {
   // atomic: the mowing.plan rpc reads it from its own thread
   std::atomic<double> currentMowingAngleIncrementSum{0};
   // the areas this job mows (ids) in that order, empty for all of them in map order. jobStep is the one it's at.
-  // set from the rpc thread, kept in job.json so it holds through restarts
+  // set from the rpc thread, kept in job.json so it holds through restarts. jobStep is atomic, has_unfinished_job
+  // reads it without the lock
   std::vector<std::string> jobAreas;
-  size_t jobStep = 0;
+  std::atomic<size_t> jobStep{0};
   mutable std::mutex jobAreasMutex;
   void save_job_areas();
-  void load_job_areas();
+  // the list of the job with this id from job.json, a list left from another job doesn't count
+  void load_job_areas(const std::string& job_id);
   // points currentMowingArea at the area of jobStep, passing areas that aren't in the map anymore. false when
   // the list is through
   bool go_to_job_area();

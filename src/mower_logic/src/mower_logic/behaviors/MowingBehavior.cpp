@@ -870,8 +870,10 @@ void MowingBehavior::checkpoint() {
 }
 
 bool MowingBehavior::has_unfinished_job() {
-  // a plan without progress yet counts too, e.g. when it was stopped on the way to the first point
-  return currentMowingArea > 0 || currentMowingPath > 0 || currentMowingPathIndex > 0 || !currentMowingPaths.empty();
+  // a plan without progress yet counts too, e.g. when it was stopped on the way to the first point. so does a list
+  // that's past its first area: its next one may be the first area of the map, not begun yet
+  return currentMowingArea > 0 || currentMowingPath > 0 || currentMowingPathIndex > 0 || !currentMowingPaths.empty() ||
+         jobStep > 0;
 }
 
 void MowingBehavior::reset_job() {
@@ -892,6 +894,15 @@ void MowingBehavior::reset_job() {
 namespace {
 const char* JOB_FILE = "job.json";
 
+// the id of the mowing area at that index, empty when there's none. own client, it's called from the rpc thread too
+std::string area_id_at(int index) {
+  ros::NodeHandle n;
+  auto client = n.serviceClient<mower_map::GetMowingAreaSrv>("mower_map_service/get_mowing_area");
+  mower_map::GetMowingAreaSrv srv;
+  srv.request.index = index;
+  return client.call(srv) ? srv.response.area.id : "";
+}
+
 // the index of a mowing area in the map, -1 when it isn't there
 int area_index(const std::string& id) {
   mower_map::GetMowingAreaSrv srv;
@@ -904,11 +915,15 @@ int area_index(const std::string& id) {
 
 void MowingBehavior::set_job_areas(const std::vector<std::string>& ids) {
   std::lock_guard<std::mutex> lk{jobAreasMutex};
+  // an interrupted job carries on in its area when the list has it. after a restart only its index is known (the
+  // checkpoint has no id), the map service tells which area that is
+  const bool unfinished = has_unfinished_job();
+  std::string current = currentMowingAreaId;
+  if (unfinished && current.empty()) current = area_id_at(currentMowingArea);
   jobAreas = ids;
   jobStep = 0;
-  // an interrupted job carries on in its area when the list has it
-  if (has_unfinished_job() && !currentMowingAreaId.empty()) {
-    const auto it = std::find(jobAreas.begin(), jobAreas.end(), currentMowingAreaId);
+  if (unfinished && !current.empty()) {
+    const auto it = std::find(jobAreas.begin(), jobAreas.end(), current);
     if (it != jobAreas.end()) jobStep = it - jobAreas.begin();
   }
   save_job_areas();
@@ -916,7 +931,7 @@ void MowingBehavior::set_job_areas(const std::vector<std::string>& ids) {
 
 nlohmann::json MowingBehavior::get_job() const {
   std::lock_guard<std::mutex> lk{jobAreasMutex};
-  return {{"areas", jobAreas}, {"step", jobStep}};
+  return {{"areas", jobAreas}, {"step", jobStep.load()}};
 }
 
 void MowingBehavior::save_job_areas() {
@@ -924,11 +939,20 @@ void MowingBehavior::save_job_areas() {
     std::remove(JOB_FILE);
     return;
   }
-  std::ofstream f(JOB_FILE);
-  f << nlohmann::json{{"job_id", current_job_id}, {"areas", jobAreas}, {"step", jobStep}}.dump();
+  // written next to it and renamed, a power cut while writing leaves the old one
+  const std::string tmp = std::string(JOB_FILE) + ".tmp";
+  {
+    std::ofstream f(tmp);
+    f << nlohmann::json{{"job_id", current_job_id}, {"areas", jobAreas}, {"step", jobStep.load()}}.dump();
+    if (!f.good()) {
+      ROS_ERROR_STREAM("MowingBehavior: can't write " << JOB_FILE);
+      return;
+    }
+  }
+  std::rename(tmp.c_str(), JOB_FILE);
 }
 
-void MowingBehavior::load_job_areas() {
+void MowingBehavior::load_job_areas(const std::string& job_id) {
   std::lock_guard<std::mutex> lk{jobAreasMutex};
   jobAreas.clear();
   jobStep = 0;
@@ -937,9 +961,12 @@ void MowingBehavior::load_job_areas() {
   try {
     const auto j = nlohmann::json::parse(f);
     // only for the job of the checkpoint, a list left over from another one doesn't count
-    if (j.value("job_id", "") != current_job_id || current_job_id.empty()) return;
+    if (job_id.empty() || j.value("job_id", "") != job_id) return;
     jobAreas = j.at("areas").get<std::vector<std::string>>();
-    jobStep = j.value("step", 0);
+    jobStep = j.value("step", size_t{0});
+    // a list that got somewhere carries the job on with its id, even when the checkpoint itself has no progress (its
+    // next area is the first of the map and not begun)
+    if (jobStep > 0) current_job_id = job_id;
   } catch (const std::exception& e) {
     ROS_WARN_STREAM("MowingBehavior: can't read " << JOB_FILE << ", mowing all areas: " << e.what());
     jobAreas.clear();
@@ -996,7 +1023,7 @@ bool MowingBehavior::restore_checkpoint() {
           currentMowingPlanDigest = cp->currentMowingPlanDigest;
           currentMowingAngleIncrementSum = cp->currentMowingAngleIncrementSum;
           // the area list of this job, if it has one
-          load_job_areas();
+          load_job_areas(cp->job_id);
           found = true;
           break;
         }
