@@ -34,6 +34,7 @@
 #include "services/emergency_service/emergency_service.hpp"
 #include "services/gps_service/gps_service.hpp"
 #include "services/imu_service/imu_service.hpp"
+#include "services/meta_service/meta_service.hpp"
 #include "services/mower_service/mower_service.hpp"
 #include "services/power_service/power_service.hpp"
 
@@ -102,6 +103,7 @@ int main(int argc, char** argv) {
     ROS_WARN("No docking point configured after waiting 20s, robot will start at the origin.");
   }
 
+  MetaService meta_service{xbot::service_ids::META};
   EmergencyService emergency_service{xbot::service_ids::EMERGENCY, robot};
   DiffDriveService diff_drive_service{xbot::service_ids::DIFF_DRIVE, robot};
   MowerService mower_service{xbot::service_ids::MOWER, robot};
@@ -109,6 +111,7 @@ int main(int argc, char** argv) {
   PowerService power_service{xbot::service_ids::POWER, robot};
   GpsService gps_service{xbot::service_ids::GPS, robot};
 
+  meta_service.start();
   emergency_service.start();
   diff_drive_service.start();
   mower_service.start();
