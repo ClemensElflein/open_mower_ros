@@ -6,6 +6,8 @@
 
 #include <algorithm>
 #include <boost/regex.hpp>
+#include <climits>
+#include <cmath>
 #include <filesystem>
 #include <memory>
 #include <nlohmann/json.hpp>
@@ -15,7 +17,12 @@
 #include "LogBuffer.h"
 #include "PositionHistory.h"
 #include "capabilities.h"
+#include "dynamic_reconfigure/Config.h"
+#include "dynamic_reconfigure/ConfigDescription.h"
+#include "dynamic_reconfigure/Reconfigure.h"
+#include "dynamic_reconfigure/config_tools.h"
 #include "geometry_msgs/Twist.h"
+#include "ros/callback_queue.h"
 #include "ros/ros.h"
 #include "std_msgs/String.h"
 #include "xbot_mqtt/RegisterMethodsSrv.h"
@@ -58,6 +65,10 @@ std::mutex registered_methods_mutex;
 
 std::map<std::string, xbot_msgs::SensorInfo> found_sensors;
 std::mutex found_sensors_mutex;
+
+// Parameter descriptions of the nodes with a dynamic_reconfigure server, by node namespace
+std::map<std::string, dynamic_reconfigure::ConfigDescription::ConstPtr> param_descriptions;
+std::mutex param_descriptions_mutex;
 
 ros::NodeHandle *n;
 
@@ -427,6 +438,117 @@ void publish_params() {
     }
     try_publish("params/json", params.dump(), true);
 }
+
+// The value of a param in a dynamic_reconfigure config. A python node puts it in the list of its python type, so all
+// of them are searched.
+json reconfigure_value(const dynamic_reconfigure::Config &config, const std::string &name) {
+    for (const auto &p : config.bools) {
+        if (p.name == name) return static_cast<bool>(p.value);
+    }
+    for (const auto &p : config.ints) {
+        if (p.name == name) return p.value;
+    }
+    for (const auto &p : config.doubles) {
+        if (p.name == name) return p.value;
+    }
+    for (const auto &p : config.strs) {
+        if (p.name == name) return p.value;
+    }
+    return nullptr;
+}
+
+// The node would ignore an unknown name or a value of the wrong type, it only logs an error and answers as if all went
+// well. Values out of range are left to the node, it clamps them.
+void add_reconfigure_value(dynamic_reconfigure::Config &config,
+                           const dynamic_reconfigure::ConfigDescription &description, const std::string &name,
+                           const nlohmann::basic_json<> &value) {
+    using dynamic_reconfigure::ConfigTools;
+
+    const std::string param_name = name.substr(name.rfind('/') + 1);
+    const dynamic_reconfigure::ParamDescription *param = nullptr;
+    for (const auto &group : description.groups) {
+        for (const auto &p : group.parameters) {
+            if (p.name == param_name) param = &p;
+        }
+    }
+    if (param == nullptr) {
+        throw xbot_mqtt::RpcException(xbot_mqtt::RpcError::ERROR_INVALID_PARAMS, "Unknown param " + name);
+    }
+
+    if (param->type == "bool" && value.is_boolean()) {
+        ConfigTools::appendParameter(config, param_name, value.get<bool>());
+    } else if (param->type == "int" && value.is_number() && std::floor(value.get<double>()) == value.get<double>() &&
+               value.get<double>() >= INT_MIN && value.get<double>() <= INT_MAX) {
+        ConfigTools::appendParameter(config, param_name, value.get<int>());
+    } else if (param->type == "double" && value.is_number()) {
+        ConfigTools::appendParameter(config, param_name, value.get<double>());
+    } else if (param->type == "str" && value.is_string()) {
+        ConfigTools::appendParameter(config, param_name, value.get<std::string>());
+    } else {
+        throw xbot_mqtt::RpcException(xbot_mqtt::RpcError::ERROR_INVALID_PARAMS,
+                                      name + " must be of type " + param->type);
+    }
+}
+
+// params.set: {"params": {"/mower_logic/rain_mode": 1, ...}}, full names like in params/json, for nodes with a
+// dynamic_reconfigure server. Nothing is sent unless all values fit, then each node gets one set_parameters call. Like
+// with dynparam, the values aren't stored anywhere. Returns what the nodes applied.
+json set_params(const nlohmann::basic_json<> &request) {
+    // no other options yet, one added later (like persisting) must not be ignored by this version
+    if (!request.is_object() || request.size() != 1 || !request.contains("params") || !request["params"].is_object() ||
+        request["params"].empty()) {
+        throw xbot_mqtt::RpcException(xbot_mqtt::RpcError::ERROR_INVALID_PARAMS,
+                                      "Expected {\"params\": {name: value, ...}}");
+    }
+    const auto &params = request["params"];
+
+    std::map<std::string, dynamic_reconfigure::Reconfigure> requests;
+    {
+        std::lock_guard<std::mutex> lk(param_descriptions_mutex);
+        for (const auto &item : params.items()) {
+            const std::string ns = item.key().substr(0, item.key().rfind('/'));
+            const auto it = param_descriptions.find(ns);
+            if (it == param_descriptions.end()) {
+                throw xbot_mqtt::RpcException(xbot_mqtt::RpcError::ERROR_INVALID_PARAMS,
+                                              "No dynamic_reconfigure server found for " + item.key());
+            }
+            add_reconfigure_value(requests[ns].request.config, *it->second, item.key(), item.value());
+        }
+    }
+
+    // a node that has gone away would only fail after the ones before it are set
+    for (const auto &[ns, _] : requests) {
+        if (!ros::service::exists(ns + "/set_parameters", false)) {
+            throw xbot_mqtt::RpcException(xbot_mqtt::RpcError::ERROR_INVALID_PARAMS,
+                                          "No dynamic_reconfigure server running for " + ns);
+        }
+    }
+
+    for (auto &[ns, srv] : requests) {
+        ROS_INFO_STREAM("Setting params of " << ns << " via RPC");
+        if (!ros::service::call(ns + "/set_parameters", srv)) {
+            throw xbot_mqtt::RpcException(xbot_mqtt::RpcError::ERROR_INTERNAL,
+                                          "Calling " + ns + "/set_parameters failed");
+        }
+    }
+
+    json result = json::object();
+    for (const auto &item : params.items()) {
+        const size_t slash = item.key().rfind('/');
+        const auto &applied = requests[item.key().substr(0, slash)].response.config;
+        result[item.key()] = reconfigure_value(applied, item.key().substr(slash + 1));
+    }
+    return result;
+}
+
+// Runs on its own queue and thread, see main()
+// clang-format off
+xbot_mqtt::RpcProvider params_rpc_provider("xbot_monitoring_params", {{
+    RPC_METHOD("params.set", {
+        return set_params(params);
+    }),
+}});
+// clang-format on
 
 void publish_sensor_metadata() {
     json sensor_info;
@@ -936,21 +1058,41 @@ int main(int argc, char **argv) {
 
     rpc_provider.init();
 
+    // params.set waits for the node to answer, and mower_logic may be calling xbot/register_actions (global queue)
+    // before it gets to the request. Its own queue avoids that, and a node that doesn't answer holds up nothing else.
+    ros::CallbackQueue params_rpc_queue;
+    ros::NodeHandle params_rpc_nh;
+    params_rpc_nh.setCallbackQueue(&params_rpc_queue);
+    ros::AsyncSpinner params_rpc_spinner(1, &params_rpc_queue);
+    params_rpc_spinner.start();
+    params_rpc_provider.init(params_rpc_nh);
+
     publish_event("BOOTED");
 
     ros::Rate sensor_check_rate(10.0);
 
     boost::regex topic_regex("/xbot_monitoring/sensors/.*/info");
 
-    // Maps a sensor info topic to its subscriber. Only touched by this thread.
+    // Maps a sensor info or dynamic_reconfigure topic to its subscriber. Only touched by this thread.
     std::map<std::string, ros::Subscriber> active_subscribers;
     std::vector<ros::Subscriber> sensor_data_subscribers;
 
     while (ros::ok()) {
-        // Read the topics in /xbot_monitoring/sensors/.*/info and subscribe to them.
+        // Read the topics in /xbot_monitoring/sensors/.*/info and the parameter descriptions of dynamic_reconfigure
+        // servers and subscribe to them.
         ros::master::V_TopicInfo topics;
         ros::master::getTopics(topics);
         std::for_each(topics.begin(), topics.end(), [&](const ros::master::TopicInfo &item) {
+            if (item.datatype == "dynamic_reconfigure/ConfigDescription" && active_subscribers.count(item.name) == 0) {
+                const std::string ns = item.name.substr(0, item.name.rfind('/'));
+                ROS_INFO_STREAM("Found dynamic_reconfigure server " << ns);
+                active_subscribers[item.name] = n->subscribe<dynamic_reconfigure::ConfigDescription>(
+                    item.name, 1, [ns](const dynamic_reconfigure::ConfigDescription::ConstPtr &msg) {
+                        std::lock_guard<std::mutex> lk(param_descriptions_mutex);
+                        param_descriptions[ns] = msg;
+                    });
+                return;
+            }
 
             if (!boost::regex_match(item.name, topic_regex) || active_subscribers.count(item.name) != 0)
                 return;
