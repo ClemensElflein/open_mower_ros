@@ -16,6 +16,10 @@
 #define SRC_MOWINGBEHAVIOR_H
 
 #include <atomic>
+#include <mutex>
+#include <nlohmann/json.hpp>
+#include <string>
+#include <vector>
 
 #include "Behavior.h"
 #include "UndockingBehavior.h"
@@ -51,6 +55,20 @@ class MowingBehavior : public Behavior {
   std::string currentMowingPlanDigest;
   // atomic: the mowing.plan rpc reads it from its own thread
   std::atomic<double> currentMowingAngleIncrementSum{0};
+  // the areas this job mows (ids) in that order, empty for all of them in map order. jobStep is the one it's at.
+  // set from the rpc thread, kept in job.json so it holds through restarts. jobStep is atomic, has_unfinished_job
+  // reads it without the lock
+  std::vector<std::string> jobAreas;
+  std::atomic<size_t> jobStep{0};
+  mutable std::mutex jobAreasMutex;
+  void save_job_areas();
+  // the list of the job with this id from job.json, a list left from another job doesn't count
+  void load_job_areas(const std::string& job_id);
+  // points currentMowingArea at the area of jobStep, passing areas that aren't in the map anymore. false when
+  // the list is through
+  bool go_to_job_area();
+  // on to the next area: the next one of the list, or the next one in the map
+  void next_area();
 
  public:
   MowingBehavior();
@@ -77,6 +95,15 @@ class MowingBehavior : public Behavior {
 
   // drops the progress of an interrupted job, the next start mows from the beginning. only while not mowing
   void reset_job();
+
+  // the job mows these mowing areas (ids) in this order, the others are left out. empty: all areas in map order. it
+  // holds through breaks for charging and restarts until the job is done or dropped (reset_job). a plain start
+  // carries an interrupted job on with its list. with a new list an interrupted job carries on in its current area
+  // if that's in the list, otherwise with the first one
+  void set_job_areas(const std::vector<std::string>& ids);
+
+  // the list and the position in it ({"areas": [...], "step": n}), areas empty when the job mows everything
+  nlohmann::json get_job() const;
 
   bool needs_gps() override;
 
