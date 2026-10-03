@@ -112,6 +112,11 @@ public:
     }
     void message_arrived(mqtt::const_message_ptr ptr) override {
         if(ptr->get_topic() == this->mqtt_topic_prefix + "teleop") {
+            // only vx and vz, some 30 bytes. a large nested document overflowed the stack while decoding
+            if (ptr->get_payload().size() > 1024) {
+                ROS_ERROR_STREAM("Ignoring teleop bson of " << ptr->get_payload().size() << " bytes");
+                return;
+            }
             try {
                 json json = json::from_bson(ptr->get_payload().begin(), ptr->get_payload().end());
                 geometry_msgs::Twist t;
@@ -765,12 +770,40 @@ void rpc_publish_error(const int16_t code, const std::string &message, const nlo
     try_publish("rpc/response", err_resp.dump(2));
 }
 
+// deepest nesting of [ and { in a json text, strings skipped. only exact for valid json, anything else doesn't get
+// past the parser anyway
+size_t json_nesting(const std::string &text) {
+    size_t depth = 0, deepest = 0;
+    bool in_string = false;
+    for (size_t i = 0; i < text.size(); i++) {
+        const char c = text[i];
+        if (in_string) {
+            if (c == '\\') i++;
+            else if (c == '"') in_string = false;
+        } else if (c == '"') {
+            in_string = true;
+        } else if (c == '[' || c == '{') {
+            deepest = std::max(deepest, ++depth);
+        } else if ((c == ']' || c == '}') && depth > 0) {
+            depth--;
+        }
+    }
+    return deepest;
+}
+
 void rpc_request_callback(const std::string &payload) {
+    // a request nested some 100k levels deep overflowed the stack when it was copied or written again, no rpc needs
+    // more than a few
+    if (json_nesting(payload) > 100) {
+        return rpc_publish_error(xbot_mqtt::RpcError::ERROR_INVALID_REQUEST, "Request is nested too deep");
+    }
+
     // Parse
     json req;
     try {
       req = json::parse(payload);
-    } catch (const json::parse_error &e) {
+    } catch (const json::exception &e) {
+      // not only parse_error, e.g. a number too large for a double (1e400) is an out_of_range and would end the node
       return rpc_publish_error(xbot_mqtt::RpcError::ERROR_INVALID_JSON, "Could not parse request JSON");
     }
 
@@ -819,7 +852,7 @@ void rpc_response_callback(const xbot_mqtt::RpcResponse::ConstPtr &msg) {
     json result;
     try {
         result = json::parse(msg->result);
-    } catch (const json::parse_error &e) {
+    } catch (const json::exception &e) {
         return rpc_publish_error(xbot_mqtt::RpcError::ERROR_INTERNAL, "Internal error while parsing result JSON: " + std::string(e.what()), msg->id);
     }
 
