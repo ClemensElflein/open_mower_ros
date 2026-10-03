@@ -705,8 +705,8 @@ geometry_msgs::Polygon requirePolygon(const nlohmann::json& points, const std::s
 
 // Plans an area the way mowing would, without starting anything. The area is either a mowing area of the map
 // ("area_id") or given directly ("outline", "obstacles"), both in the map.json format. The settings of the
-// area can be overridden with "angle", "outline_count", "outline_overlap_count" and "outline_offset" (same meaning as
-// in map.json), mow_angle_offset and the angle increment are applied like when mowing.
+// area can be overridden with "angle", "outline_count", "outline_overlap_count", "outline_offset", "angle_min" and
+// "angle_max" (same meaning as in map.json), mow_angle_offset and the angle increment are applied like when mowing.
 nlohmann::json planArea(const nlohmann::json& params) {
   if (!params.is_object()) invalidParam("parameters must be an object");
   const auto number = [&](const char* key) {
@@ -730,6 +730,8 @@ nlohmann::json planArea(const nlohmann::json& params) {
   area.outline_count = -1;
   area.outline_overlap_count = -1;
   area.outline_offset = NAN;
+  area.angle_min = NAN;
+  area.angle_max = NAN;
 
   ros::NodeHandle n;
   if (params.contains("area_id")) {
@@ -758,6 +760,11 @@ nlohmann::json planArea(const nlohmann::json& params) {
   if (params.contains("outline_count")) area.outline_count = count("outline_count");
   if (params.contains("outline_overlap_count")) area.outline_overlap_count = count("outline_overlap_count");
   if (params.contains("outline_offset")) area.outline_offset = number("outline_offset");
+  if (params.contains("angle_min")) area.angle_min = number("angle_min");
+  if (params.contains("angle_max")) area.angle_max = number("angle_max");
+  // mowing ignores a range with only one end, here it's better to say so
+  if (std::isnan(area.angle_min) != std::isnan(area.angle_max))
+    invalidParam("angle_min and angle_max only work together");
   if (area.area.points.size() < 3) invalidParam("the area needs at least 3 outline points (area_id or outline)");
 
   // own client, mowing may use pathClient at the same time
