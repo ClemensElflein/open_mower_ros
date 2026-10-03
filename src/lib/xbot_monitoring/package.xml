@@ -25,6 +25,7 @@
   <depend>grid_map_msgs</depend>
   <depend>xbot_mqtt</depend>
   <depend>mower_msgs</depend>
+  <depend>dynamic_reconfigure</depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>
