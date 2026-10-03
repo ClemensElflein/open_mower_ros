@@ -1,0 +1,80 @@
+# sounds_de.yaml — Sound-Overrides for the HW v2 sound system.
+#
+# The low-level ROM defaults (TONE/SEQUENCE) stay untouched in the firmware
+# (fw: src/drivers/sound/sound_definition.hpp).
+#
+# This file only lists the sounds that shall REPLACE a ROM default.
+#
+# Per-sound fields (all optional except type/volume):
+#   type       tone | sequence | mp3
+#   volume     0..100 (the master volume scales on top)
+#   waveform   sine | square | triangle | saw   (tone/sequence)
+#   unison     detuned voices, 1/3/5/7         (thickens the sound)
+#   detune_hz  frequency spread between them
+#   attack_ms  sequence: fade-in at the start of every note, 0..255 ms
+#              (0 = instant onset, ~5 ms removes the click of a hard start)
+#   decay_ms   sequence: fade-out of every note, 0..255 ms
+#              (0 = hold the note at full level until its duration is over).
+#              The fade is exponential and reaches about -60 dB after that time,
+#              so a single note with a decay is a "ping" that rings out instead
+#              of a hard-gated rectangle.
+#   repeat_ms  repeat the sound every n ms until another sound plays, 0..65535
+#              (0 = play once). The firmware player repeats it itself, so the
+#              request queue is not involved; the ROM default uses it for
+#              BOOT_PING (every 2 s while Stage 2 waits for ROS).
+#   preempt    true = alert: the firmware stops a running sound, drops the
+#              pending queue and plays this one immediately. The ROM default
+#              sets it for EMERGENCY, so an alert is never delayed behind an
+#              announcement. Everything else is queued in order.
+#
+# sound_path: high-level directory holding the local MP3 source files (used
+#             for the 16 kHz/mono check and as the upload source). It is NOT
+#             transmitted to the LL. The LL path is a fixed contract:
+#             /sounds/<file> (hardcoded in the firmware and the upload tool).
+#
+# MP3 file naming convention (see sounds/README.md):
+#   <lang>_<name>.mp3   text announcements (en_, de_, ...)
+#   zz_<name>.mp3       background sounds (sort last)
+#
+# MP3 files MUST be 16 kHz mono — the firmware does NOT resample!
+
+version: 1
+sound_path: /opt/open_mower_ros/sounds
+
+# Only the sounds listed here replace the LL ROM default; everything else
+# falls back to the firmware default.
+#
+# The firmware default for SUCCESS is already a decaying ping (sine, 554 Hz,
+# 360 ms, attack 4 ms, decay 220 ms, volume 70) — the equivalent override, in
+# case you want to tune it here:
+#   success:
+#     type: sequence
+#     volume: 70
+#     waveform: sine
+#     attack_ms: 4
+#     decay_ms: 220
+#     sequence:
+#       - {freq: 554, duration_ms: 360}
+sounds:
+  boot_ping:
+    type: mp3
+    volume: 80
+    repeat_ms: 2000
+    file: zz_ping.mp3
+  boot_complete:
+    type: mp3
+    volume: 100
+    file: de_hallo-ich-bin-steve.mp3
+  emergency:
+    type: mp3
+    volume: 90
+    preempt: true
+    file: zz_minion-fire-alarm.mp3
+  ros_connected:
+    type: mp3
+    volume: 100
+    file: de_ros-connected.mp3
+  ros_disconnected:
+    type: mp3
+    volume: 100
+    file: de_ros-disconnected.mp3

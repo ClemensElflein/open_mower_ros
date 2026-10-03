@@ -40,6 +40,7 @@
 #include "MetaServiceInterface.h"
 #include "MowerServiceInterface.h"
 #include "PowerServiceInterface.h"
+#include "SoundSync.h"
 
 ros::Publisher status_pub;
 ros::Publisher nmea_pub;
@@ -125,12 +126,17 @@ void OnFirmwareInfoChanged(const FirmwareInfo& info) {
   const bool compatible = (info.major == 1);
   const bool was_compatible = is_firmware_compatible.exchange(compatible);
 
+  // A compatible firmware means the robot finished booting (Stage 2 done, or a Stage-1 board like Sabo/xBot).
   if (compatible) {
     // Only act/log on the transition, then stop polling.
     if (!was_compatible) {
       ROS_INFO_STREAM("Firmware compatible (version " << info.version << "). Motors enabled.");
       if (emergency_service) emergency_service->SetFirmwareIncompatibleEmergency(false);
       if (meta_service) meta_service->StopFirmwareCheck();
+
+      // SoundService does not start before it received the sound definitions.
+      // Called again on every reconnect, which is idempotent (the CLI skips up-to-date files).
+      sound_sync::Trigger();
     }
     return;
   }
@@ -183,6 +189,9 @@ int main(int argc, char** argv) {
   std::string bind_ip = "0.0.0.0";
   paramNh.getParam("bind_ip", bind_ip);
   ROS_INFO_STREAM("Bind IP (Robot Internal): " << bind_ip);
+
+  // Sound definitions are pushed to the low level by `soundctl sync` (see SoundSync.h).
+  sound_sync::Init(paramNh);
   xbot::serviceif::SetShutdownCallback([] { ros::requestShutdown(); });
   ctx = xbot::serviceif::Start(true, bind_ip);
 
