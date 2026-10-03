@@ -5,6 +5,7 @@
 #include <mqtt/async_client.h>
 
 #include <algorithm>
+#include <atomic>
 #include <boost/regex.hpp>
 #include <climits>
 #include <cmath>
@@ -52,7 +53,7 @@ void publish_map();
 void publish_map_overlay();
 void publish_actions();
 void publish_version();
-void publish_params();
+void publish_params(bool only_if_changed = false);
 void rpc_request_callback(const std::string &payload);
 
 // Stores registered actions (prefix to vector<action>)
@@ -69,6 +70,12 @@ std::mutex found_sensors_mutex;
 // Parameter descriptions of the nodes with a dynamic_reconfigure server, by node namespace
 std::map<std::string, dynamic_reconfigure::ConfigDescription::ConstPtr> param_descriptions;
 std::mutex param_descriptions_mutex;
+// Set when one of them publishes new values
+std::atomic<bool> params_changed(false);
+
+// The last params/json, many parameter updates don't change anything
+std::string params_payload;
+std::mutex params_payload_mutex;
 
 ros::NodeHandle *n;
 
@@ -420,7 +427,10 @@ json xmlrpc_to_json(XmlRpc::XmlRpcValue value) {
 }
 #pragma GCC diagnostic pop
 
-void publish_params() {
+void publish_params(bool only_if_changed) {
+    // connected() calls this on the MQTT thread, held until published so an older one can't end up retained
+    std::lock_guard<std::mutex> lk(params_payload_mutex);
+
     std::vector<std::string> param_names;
     ros::param::getParamNames(param_names);
     std::sort(param_names.begin(), param_names.end());
@@ -436,7 +446,11 @@ void publish_params() {
             params[name] = xmlrpc_to_json(value);
         }
     }
-    try_publish("params/json", params.dump(), true);
+    const std::string payload = params.dump();
+    if (only_if_changed && payload == params_payload)
+        return;
+    params_payload = payload;
+    try_publish("params/json", payload, true);
 }
 
 // The value of a param in a dynamic_reconfigure config. A python node puts it in the list of its python type, so all
@@ -997,6 +1011,11 @@ void rosout_callback(const rosgraph_msgs::Log::ConstPtr &msg) {
     log_buffer.add(*msg);
 }
 
+void parameter_updates_callback(const dynamic_reconfigure::Config::ConstPtr &) {
+    // params/json takes a call to the master for every param, it's built in the main loop and not on the spinner
+    params_changed = true;
+}
+
 int main(int argc, char **argv) {
     ros::init(argc, argv, "xbot_monitoring");
     has_map = false;
@@ -1077,6 +1096,10 @@ int main(int argc, char **argv) {
     std::map<std::string, ros::Subscriber> active_subscribers;
     std::vector<ros::Subscriber> sensor_data_subscribers;
 
+    // When the last parameter update came in. params/json is published again once they stop for a second, after the
+    // start every node sends one.
+    ros::SteadyTime params_changed_at;
+
     while (ros::ok()) {
         // Read the topics in /xbot_monitoring/sensors/.*/info and the parameter descriptions of dynamic_reconfigure
         // servers and subscribe to them.
@@ -1091,6 +1114,8 @@ int main(int argc, char **argv) {
                         std::lock_guard<std::mutex> lk(param_descriptions_mutex);
                         param_descriptions[ns] = msg;
                     });
+                active_subscribers[ns + "/parameter_updates"] =
+                    n->subscribe(ns + "/parameter_updates", 1, parameter_updates_callback);
                 return;
             }
 
@@ -1127,6 +1152,13 @@ int main(int argc, char **argv) {
                 }
             );
         });
+
+        if (params_changed.exchange(false)) {
+            params_changed_at = ros::SteadyTime::now();
+        } else if (!params_changed_at.isZero() && ros::SteadyTime::now() - params_changed_at > ros::WallDuration(1.0)) {
+            params_changed_at = ros::SteadyTime();
+            publish_params(true);
+        }
         sensor_check_rate.sleep();
     }
     publish_event("SHUTDOWN");
