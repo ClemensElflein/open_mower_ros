@@ -140,9 +140,9 @@ include_directories(
         ${catkin_INCLUDE_DIRS}
         ${CRYPTOPP_INCLUDE_DIRS}
         ${xbot_mqtt_INCLUDE_DIRS}
-        ${CMAKE_BINARY_DIR}/mower_comms_v2/generated/include
-        ${CMAKE_SOURCE_DIR}/lib/xbot_framework/include
-        ${CMAKE_SOURCE_DIR}/lib/xbot_framework/libxbot-service-interface/include
+        ${CMAKE_CURRENT_BINARY_DIR}/../mower_comms_v2/generated/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../lib/xbot_framework/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../lib/xbot_framework/libxbot-service-interface/include
 )
 
 ## Declare a C++ library
