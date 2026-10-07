@@ -86,7 +86,13 @@ struct MapArea {
   int outline_count = -1;
   int outline_overlap_count = -1;
   double outline_offset = std::numeric_limits<double>::quiet_NaN();
+  // properties this version doesn't know (e.g. a planner's own settings), written back as they are
+  json other_properties = json::object();
 };
+
+// The area properties this version knows, the others go to other_properties
+const std::vector<std::string> AREA_PROPERTIES = {
+    "name", "type", "active", "mowable", "angle", "outline_count", "outline_overlap_count", "outline_offset"};
 
 struct DockingStation {
   std::string id;
@@ -130,6 +136,7 @@ void to_json(json& j, const MapArea& data) {
   if (data.outline_count >= 0) properties["outline_count"] = data.outline_count;
   if (data.outline_overlap_count >= 0) properties["outline_overlap_count"] = data.outline_overlap_count;
   if (!std::isnan(data.outline_offset)) properties["outline_offset"] = data.outline_offset;
+  properties.update(data.other_properties);
   j["properties"] = properties;
   j["outline"] = data.outline;
 }
@@ -145,6 +152,8 @@ void from_json(const json& j, MapArea& data) {
   data.outline_count = properties.value("outline_count", -1);
   data.outline_overlap_count = properties.value("outline_overlap_count", -1);
   data.outline_offset = properties.value("outline_offset", std::numeric_limits<double>::quiet_NaN());
+  data.other_properties = properties;
+  for (const auto& key : AREA_PROPERTIES) data.other_properties.erase(key);
   j.at("outline").get_to(data.outline);
 }
 
