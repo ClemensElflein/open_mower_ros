@@ -28,9 +28,11 @@ Then open (default ports, see [Settings](#settings) to change them):
 - `http://<host>:3000` - the OpenMowerApp web UI.
 - `http://<host>:8080` - the legacy OpenMowerApp web UI.
 
-Comes with a starter mowing area, docking point (`data/ros/map.json`), and mower config
-(`data/params/custom_params.yaml`) already checked in, so there's something to drive
-around immediately instead of an empty map.
+Comes with a starter mowing area, docking point (`seed/map.json`), and mower config
+(`seed/custom_params.yaml`), so there's something to drive around immediately instead
+of an empty map. They're copied to `data/ros/map.json` and `data/params/custom_params.yaml`
+on first start - `data/` is untracked, so edit those copies (or drop in your own map)
+freely.
 
 ## Settings
 
@@ -90,9 +92,9 @@ overwrite the one used for testing published versions.
   software rendering automatically if it's not usable.
 - **Resetting**: map/params/ROS home persist as plain files under `./data/` (bind
   mounts, not Docker volumes, so `docker compose down -v` doesn't touch them). To go
-  back to the checked-in starter map, `./sim.sh reset` (or `git checkout
-  data/ros/map.json data/params/custom_params.yaml`); `./sim.sh clean` (or `git clean
-  -fdx data/`) wipes everything else (logs, recordings, etc).
+  back to the starter map and params, `./sim.sh reset` (or delete them - they're
+  re-seeded on the next start); `./sim.sh clean` (or `rm -rf data/`) wipes everything
+  else too (logs, recordings, etc).
 - **Native VNC client**: if you'd rather use a VNC client than a browser, connect to
   `<host>:5900` (no password) instead of using noVNC.
 - **Wrapper script**: `./sim.sh help` lists shortcuts for the commands on this page

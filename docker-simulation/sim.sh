@@ -30,7 +30,7 @@ Commands:
   ps              Show container status (check mower_simulation_gui is
                    "healthy" if the stack seems stuck).
   shell           Open a bash shell in the open_mower_ros container.
-  reset           Discard local map/param edits, restoring the checked-in
+  reset           Discard local map/param edits, restoring the starter
                    starter map and config.
   clean           DESTRUCTIVE: wipe all simulation state (ROS home, logs,
                    recordings, map, params) back to an empty ./data/. Asks
@@ -177,12 +177,15 @@ case "$cmd" in
         docker compose exec -it open_mower_ros bash
         ;;
     reset)
-        git checkout -- data/ros/map.json data/params/custom_params.yaml
-        echo "Restored data/ros/map.json and data/params/custom_params.yaml to their checked-in state."
+        require_docker
+        rm -f data/ros/map.json data/params/custom_params.yaml
+        docker compose run --rm init_data_dirs >/dev/null
+        echo "Restored data/ros/map.json and data/params/custom_params.yaml from seed/."
+        echo "If the stack is running, restart it to load them: ./sim.sh restart"
         ;;
     clean)
         if confirm "This deletes everything under ./data/ (map, params, ROS home, recordings). Continue?"; then
-            git clean -fdx data/
+            rm -rf data/
             echo "./data/ wiped. Run './sim.sh up' to recreate it."
         else
             echo "Cancelled."

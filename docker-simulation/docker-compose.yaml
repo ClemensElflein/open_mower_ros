@@ -14,17 +14,27 @@ services:
       dockerfile: docker/Dockerfile
     image: local/open_mower_ros:local
 
-  # open_mower_ros runs as a non-root user (uid 1000) and needs to write into
-  # ./data/{ros,recordings,params} - which Docker otherwise creates root-owned on first
-  # run. This makes the directories writable regardless of the host user's uid, so
-  # `docker compose up` works with no manual chmod/sudo step.
+  # Prepares ./data/ before the stack starts:
+  # - Seeds the starter map and mower params from ./seed/ if they're missing, so local
+  #   edits (in the app or by hand) live in the untracked ./data/ and are never
+  #   overwritten. Delete a file (or `./sim.sh reset`) to get the starter version back.
+  # - open_mower_ros runs as a non-root user (uid 1000) and needs to write into
+  #   ./data/{ros,recordings,params} - which Docker otherwise creates root-owned on first
+  #   run. chmod dirs to 777 (so uid 1000 can create/write regardless of host uid) but
+  #   files to 666 - a blanket `chmod -R 777` would flag every data file executable.
   init_data_dirs:
     image: busybox
-    # chmod dirs to 777 (so uid 1000 can create/write regardless of host uid) but
-    # files to 666 - a blanket `chmod -R 777` would flag every data file executable
-    # on each startup, which churns git status and is wrong for plain data files.
-    command: sh -c "mkdir -p /data/ros /data/recordings /data/params && find /data/ros /data/recordings /data/params -type d -exec chmod 777 {} + && find /data/ros /data/recordings /data/params -type f -exec chmod 666 {} +"
+    command:
+      - sh
+      - -c
+      - |
+        mkdir -p /data/ros /data/recordings /data/params
+        [ -e /data/ros/map.json ] || cp /seed/map.json /data/ros/map.json
+        [ -e /data/params/custom_params.yaml ] || cp /seed/custom_params.yaml /data/params/custom_params.yaml
+        find /data/ros /data/recordings /data/params -type d -exec chmod 777 {} +
+        find /data/ros /data/recordings /data/params -type f -exec chmod 666 {} +
     volumes:
+      - ./seed:/seed:ro
       - ./data/ros:/data/ros
       - ./data/recordings:/data/recordings
       - ./data/params:/data/params
