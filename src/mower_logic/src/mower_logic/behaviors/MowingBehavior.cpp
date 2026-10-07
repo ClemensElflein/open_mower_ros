@@ -355,6 +355,12 @@ bool MowingBehavior::wait_for_mower_spinup() {
   if (config.mower_spinup_rpm <= 0) {
     return true;  // spinup check disabled
   }
+  if (!config.enable_mower) {
+    // The mow motor is hard-disabled (e.g. while validating a new mower), so it will never
+    // spin up. Mow without blades instead of going into emergency.
+    ROS_INFO_STREAM("MowingBehavior: (MOW) Mow motor disabled by enable_mower, skipping spinup check");
+    return true;
+  }
 
   ROS_INFO_STREAM("MowingBehavior: (MOW) Waiting for mower motor to reach " << config.mower_spinup_rpm
                                                                             << " RPM before driving");
