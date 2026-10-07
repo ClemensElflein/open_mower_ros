@@ -72,10 +72,11 @@ std::map<std::string, dynamic_reconfigure::ConfigDescription::ConstPtr> param_de
 std::mutex param_descriptions_mutex;
 // Set when one of them publishes new values
 std::atomic<bool> params_changed(false);
+// Set on an MQTT connect, params/json is published again then. Only the main loop publishes it
+std::atomic<bool> params_connected(false);
 
-// The last params/json, many parameter updates don't change anything
+// The last params/json, many parameter updates don't change anything. Only touched by the main loop
 std::string params_payload;
-std::mutex params_payload_mutex;
 
 ros::NodeHandle *n;
 
@@ -108,7 +109,7 @@ class MqttCallback : public mqtt::callback {
         publish_map_overlay();
         publish_actions();
         publish_version();
-        publish_params();
+        params_connected = true;
 
         // BEGIN: Deprecated code (1/2)
         // Earlier implementations subscribed to "/action" and "prefix//action" topics, we do it to not break stuff as well.
@@ -428,9 +429,6 @@ json xmlrpc_to_json(XmlRpc::XmlRpcValue value) {
 #pragma GCC diagnostic pop
 
 void publish_params(bool only_if_changed) {
-    // connected() calls this on the MQTT thread, held until published so an older one can't end up retained
-    std::lock_guard<std::mutex> lk(params_payload_mutex);
-
     std::vector<std::string> param_names;
     ros::param::getParamNames(param_names);
     std::sort(param_names.begin(), param_names.end());
@@ -447,8 +445,9 @@ void publish_params(bool only_if_changed) {
         }
     }
     const std::string payload = params.dump();
-    if (only_if_changed && payload == params_payload)
+    if (only_if_changed && payload == params_payload) {
         return;
+    }
     params_payload = payload;
     try_publish("params/json", payload, true);
 }
@@ -520,7 +519,12 @@ json set_params(const nlohmann::basic_json<> &request) {
     {
         std::lock_guard<std::mutex> lk(param_descriptions_mutex);
         for (const auto &item : params.items()) {
-            const std::string ns = item.key().substr(0, item.key().rfind('/'));
+            const size_t slash = item.key().rfind('/');
+            if (slash == std::string::npos || slash == 0) {
+                throw xbot_mqtt::RpcException(xbot_mqtt::RpcError::ERROR_INVALID_PARAMS,
+                                              "Expected a full name like /mower_logic/rain_mode: " + item.key());
+            }
+            const std::string ns = item.key().substr(0, slash);
             const auto it = param_descriptions.find(ns);
             if (it == param_descriptions.end()) {
                 throw xbot_mqtt::RpcException(xbot_mqtt::RpcError::ERROR_INVALID_PARAMS,
@@ -1155,6 +1159,10 @@ int main(int argc, char **argv) {
 
         if (params_changed.exchange(false)) {
             params_changed_at = ros::SteadyTime::now();
+        }
+        if (params_connected.exchange(false)) {
+            params_changed_at = ros::SteadyTime();
+            publish_params(false);
         } else if (!params_changed_at.isZero() && ros::SteadyTime::now() - params_changed_at > ros::WallDuration(1.0)) {
             params_changed_at = ros::SteadyTime();
             publish_params(true);
