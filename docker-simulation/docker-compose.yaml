@@ -1,3 +1,7 @@
+# Project name: containers, network and volumes are prefixed with it (openmower-sim-mosquitto-1, ...).
+# Override with COMPOSE_PROJECT_NAME to run several stacks side by side.
+name: openmower-sim
+
 services:
   # Optional: builds open_mower_ros from the local checked-out source (docker/Dockerfile)
   # instead of pulling a published release. Not run by default - opt in with:
