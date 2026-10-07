@@ -39,6 +39,10 @@ Commands:
                    (bind-mounted ./data/ is untouched either way).
   help            Show this message.
 
+Settings: everything has a default. To change one, copy .env.example to .env
+(untracked) and uncomment what you need - including development mode, which
+runs your locally compiled workspace instead of the image's build.
+
 Examples:
   ./sim.sh up                       # first run / normal start
   ./sim.sh logs open_mower_ros      # tail one service's logs
@@ -81,20 +85,28 @@ resolve_base_image() {
 
 # Pull the newest published images on every start. --ignore-buildable skips the two
 # services built locally from a Dockerfile (mower_simulation_gui, build_from_source) -
-# they have no registry image to pull. If open_mower_ros is a local build too
-# (BASE_IMAGE=local/open_mower_ros:local) it can't be pulled either, so warn that it is
-# NOT being rebuilt and pull only the remaining published services.
+# they have no registry image to pull. If open_mower_ros runs a local image too (any
+# BASE_IMAGE not from ghcr.io, e.g. local/open_mower_ros:local or a dev image) it can't
+# be pulled either, so warn that it is NOT being rebuilt and pull only the remaining
+# published services.
 pull_images() {
-    if [ "$(resolve_base_image)" = "local/open_mower_ros:local" ]; then
-        echo "open_mower_ros is a local build (BASE_IMAGE=local/open_mower_ros:local)."
-        echo "  It is NOT rebuilt on start and cannot be pulled - run './sim.sh rebuild'"
-        echo "  to pick up source changes. Pulling the other images only..."
-        # Everything except the two local builds (open_mower_ros + mower_simulation_gui).
-        docker compose pull --ignore-buildable init_data_dirs mosquitto openmower_app app
-    else
-        echo "Pulling latest images..."
-        docker compose pull --ignore-buildable
-    fi
+    local base_image
+    base_image="$(resolve_base_image)"
+    case "$base_image" in
+        ""|ghcr.io/*)
+            echo "Pulling latest images..."
+            docker compose pull --ignore-buildable
+            ;;
+        *)
+            echo "open_mower_ros is a local image (BASE_IMAGE=$base_image)."
+            echo "  It is NOT rebuilt on start and cannot be pulled. Pulling the other images only..."
+            if [ "$base_image" = "local/open_mower_ros:local" ]; then
+                echo "  Run './sim.sh rebuild' to pick up source changes."
+            fi
+            # Everything except the two local images (open_mower_ros + mower_simulation_gui).
+            docker compose pull --ignore-buildable init_data_dirs mosquitto openmower_app app
+            ;;
+    esac
 }
 
 cmd="${1:-help}"
@@ -134,11 +146,7 @@ case "$cmd" in
         ;;
     rebuild)
         require_docker
-        # Resolve BASE_IMAGE the same way compose does: process env wins, else .env, else default.
-        base_image="${BASE_IMAGE:-}"
-        if [ -z "$base_image" ] && [ -f .env ]; then
-            base_image="$(grep -E '^BASE_IMAGE=' .env | tail -n1 | cut -d= -f2-)"
-        fi
+        base_image="$(resolve_base_image)"
         echo "Rebuilding images from source (this can take a few minutes)..."
         # `docker compose build` skips profiled services, so open_mower_ros's local
         # build (build_from_source, gated behind the build-from-source profile) is only

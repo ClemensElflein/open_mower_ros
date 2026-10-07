@@ -9,8 +9,8 @@ mower, IMU, power, GPS) is simulated, by the `mower_simulation` node.
 ## Quick start
 
 ```bash
-# edit .env if you want to test a specific VERSION/APP_VERSION - the checked-in
-# defaults work as-is
+# optional: cp .env.example .env and edit it to test a specific VERSION/APP_VERSION -
+# the defaults work as-is
 ./sim.sh up
 # or, without the wrapper script:
 docker compose up -d
@@ -18,7 +18,7 @@ docker compose up -d
 
 `mower_simulation_gui` is always built locally (never pulled) on first run - this can
 take a few minutes. If you later change source/config that's baked into the image, or
-switch `VERSION`/`BASE_IMAGE` in `.env`, re-run with `./sim.sh rebuild` (or
+switch `VERSION`/`BASE_IMAGE`, re-run with `./sim.sh rebuild` (or
 `docker compose up -d --build`) to pick up the change - plain `up` reuses whatever was
 already built and won't rebuild on its own.
 
@@ -30,6 +30,37 @@ Then open:
 Comes with a starter mowing area, docking point (`data/ros/map.json`), and mower config
 (`data/params/custom_params.yaml`) already checked in, so there's something to drive
 around immediately instead of an empty map.
+
+## Settings
+
+Every setting has a default in `docker-compose.yaml`, so no `.env` is needed. To change
+one, `cp .env.example .env` and uncomment what you need. `.env` is gitignored, so local
+settings never show up as changes. Anything else you put there is passed straight through
+to `open_mower_ros`, like on a real deployment.
+
+## Developing against a local workspace
+
+Instead of baking the code into an image, you can bind-mount a catkin workspace you
+compile yourself over `/opt/open_mower_ros` in both `open_mower_ros` and
+`mower_simulation_gui`. A code change then only needs a compile and a restart:
+
+```bash
+# in .env
+COMPOSE_FILE=docker-compose.yaml:docker-compose.dev.yaml
+BASE_IMAGE=omdev          # the image you compile the workspace in
+#OM_SRC_DIR=/path/to/ws   # defaults to this checkout (..)
+```
+
+```bash
+./sim.sh rebuild                                  # once: builds the sim GUI on top of BASE_IMAGE
+# ... edit + compile (catkin_make in BASE_IMAGE) ...
+docker compose restart open_mower_ros             # add mower_simulation_gui if you changed the simulator
+```
+
+`BASE_IMAGE` has to be the image the workspace was compiled in, since `build/` and
+`devel/` link against its libraries, and it must provide `/openmower_entrypoint.sh`.
+The sim GUI image is tagged `local/open_mower_ros-sim:dev` in this mode, so it doesn't
+overwrite the one used for testing published versions.
 
 ## Notes
 

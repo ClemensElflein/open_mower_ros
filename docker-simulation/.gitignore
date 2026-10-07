@@ -5,6 +5,9 @@ data/ros/*
 
 data/recordings/
 
+# Local settings (see .env.example)
+.env
+
 # Editor swap files
 *.swp
 *.swo

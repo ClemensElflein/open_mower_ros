@@ -2,7 +2,7 @@ services:
   # Optional: builds open_mower_ros from the local checked-out source (docker/Dockerfile)
   # instead of pulling a published release. Not run by default - opt in with:
   #   docker compose --profile build-from-source build build_from_source
-  # then point BASE_IMAGE at local/open_mower_ros:local in .env before `docker compose up`.
+  # then set BASE_IMAGE=local/open_mower_ros:local in .env before `docker compose up`.
   build_from_source:
     profiles: ["build-from-source"]
     build:
@@ -40,8 +40,8 @@ services:
       context: ..
       dockerfile: docker/Dockerfile.sim
       args:
-        - BASE_IMAGE=${BASE_IMAGE:-ghcr.io/clemenselflein/open_mower_ros:${VERSION}}
-    image: local/open_mower_ros-sim:${VERSION}
+        - BASE_IMAGE=${BASE_IMAGE:-ghcr.io/clemenselflein/open_mower_ros:${VERSION:-edge}}
+    image: local/open_mower_ros-sim:${VERSION:-edge}
     # Never pull this - it only ever exists as a local build (see build: above), so
     # trying to pull it first just fails with a confusing "access denied" before
     # Compose falls back to building. This tag is a local build cache key, not a
@@ -54,7 +54,7 @@ services:
       - "${VNC_PORT:-5900}:5900"
     environment:
       - ROS_MASTER_URI=http://mower_simulation_gui:11311
-      - DISPLAY_RESOLUTION=${DISPLAY_RESOLUTION:-1280x800x24}
+      - DISPLAY_RESOLUTION=${DISPLAY_RESOLUTION:-1920x1080x24}
     # Mount the rviz config from source (read-write) so tweaks saved from the running
     # rviz land back in the checked-out file and can be committed, instead of being lost
     # inside the container image on the next rebuild.
@@ -84,7 +84,7 @@ services:
   # itself comes from: a published release (default, ghcr.io + VERSION) or a local build
   # from source (set BASE_IMAGE=local/open_mower_ros:local - see build_from_source above).
   open_mower_ros:
-    image: "${BASE_IMAGE:-ghcr.io/clemenselflein/open_mower_ros:${VERSION}}"
+    image: "${BASE_IMAGE:-ghcr.io/clemenselflein/open_mower_ros:${VERSION:-edge}}"
     container_name: open_mower_ros
     restart: on-failure
     # xbot_monitoring's app-facing MQTT client is hardcoded to 127.0.0.1 (not
@@ -97,11 +97,13 @@ services:
         condition: service_healthy
       init_data_dirs:
         condition: service_completed_successfully
-    # Passes through anything else you add to .env (e.g. DEBUG=True), same as a real
-    # deployment. Values below still win over env_file for the same key.
+    # Passes through anything else you add to .env (optional, see .env.example), same as
+    # a real deployment. Values below still win over env_file for the same key.
     env_file:
-      - .env
+      - path: .env
+        required: false
     environment:
+      - DEBUG=${DEBUG:-True}
       - ROS_MASTER_URI=http://mower_simulation_gui:11311
       - HARDWARE_PLATFORM=2
       - MOWER=${MOWER:-CUSTOM}
@@ -129,13 +131,13 @@ services:
       - ../docker/assets/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
 
   openmower_app:
-    image: ghcr.io/clemenselflein/openmowerapp:${LEGACY_APP_VERSION}
+    image: ghcr.io/clemenselflein/openmowerapp:${LEGACY_APP_VERSION:-latest}
     container_name: openmower_app
     restart: on-failure
     ports:
       - "8080:8080"
   app:
-    image: ghcr.io/xtech/openmower-app:${APP_VERSION}
+    image: ghcr.io/xtech/openmower-app:${APP_VERSION:-edge}
     container_name: app
     ports:
       - 3000:3000

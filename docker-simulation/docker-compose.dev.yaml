@@ -1,0 +1,25 @@
+# Development mode: runs your locally compiled catkin workspace (bind-mounted over
+# /opt/open_mower_ros) instead of the build baked into the image, so a code change only
+# needs a compile and a container restart instead of an image rebuild.
+#
+# Enable it in .env (see .env.example):
+#   COMPOSE_FILE=docker-compose.yaml:docker-compose.dev.yaml
+#   BASE_IMAGE=omdev
+#
+# BASE_IMAGE must be the image the workspace was compiled in (build/ and devel/ link
+# against its libraries), and it must provide /openmower_entrypoint.sh.
+services:
+  mower_simulation_gui:
+    # Separate tag, so the dev build doesn't overwrite the :${VERSION} one used without
+    # this file.
+    image: local/open_mower_ros-sim:dev
+    volumes:
+      - ${OM_SRC_DIR:-..}:/opt/open_mower_ros
+
+  open_mower_ros:
+    # Dev images don't necessarily set these, unlike the published one.
+    entrypoint: /openmower_entrypoint.sh
+    command: roslaunch open_mower open_mower.launch --screen
+    volumes:
+      - ${OM_SRC_DIR:-..}:/opt/open_mower_ros
+      - ../docker/assets/rosconsole.config:/config/rosconsole.config:ro
