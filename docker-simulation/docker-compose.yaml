@@ -16,7 +16,6 @@ services:
   # `docker compose up` works with no manual chmod/sudo step.
   init_data_dirs:
     image: busybox
-    container_name: init_data_dirs
     # chmod dirs to 777 (so uid 1000 can create/write regardless of host uid) but
     # files to 666 - a blanket `chmod -R 777` would flag every data file executable
     # on each startup, which churns git status and is wrong for plain data files.
@@ -47,7 +46,6 @@ services:
     # Compose falls back to building. This tag is a local build cache key, not a
     # published image.
     pull_policy: build
-    container_name: mower_simulation_gui
     restart: on-failure
     ports:
       - "${NOVNC_PORT:-6080}:6080"
@@ -85,7 +83,6 @@ services:
   # from source (set BASE_IMAGE=local/open_mower_ros:local - see build_from_source above).
   open_mower_ros:
     image: "${BASE_IMAGE:-ghcr.io/clemenselflein/open_mower_ros:${VERSION:-edge}}"
-    container_name: open_mower_ros
     restart: on-failure
     # xbot_monitoring's app-facing MQTT client is hardcoded to 127.0.0.1 (not
     # configurable) - so this shares mosquitto's network namespace rather than getting
@@ -118,27 +115,28 @@ services:
 
   mosquitto:
     image: eclipse-mosquitto:2
-    container_name: mosquitto
     restart: on-failure
     # 9002 is xbot_remote's teleop websocket server, in open_mower_ros - it has to be
     # published here since open_mower_ros shares this container's network namespace and
     # has no ports/network stack of its own to publish from.
     ports:
-      - "1883:1883"
-      - "9001:9001"
-      - "9002:9002"
+      - "${MQTT_PORT:-1883}:1883"
+      - "${MQTT_WS_PORT:-9001}:9001"
+      - "${TELEOP_PORT:-9002}:9002"
     volumes:
       - ../docker/assets/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
 
   openmower_app:
     image: ghcr.io/clemenselflein/openmowerapp:${LEGACY_APP_VERSION:-latest}
-    container_name: openmower_app
     restart: on-failure
     ports:
-      - "8080:8080"
+      - "${LEGACY_APP_PORT:-8080}:8080"
   app:
     image: ghcr.io/xtech/openmower-app:${APP_VERSION:-edge}
-    container_name: app
+    # Defaults to ws://<host the app was opened from>:9001 - only set MOWER_MQTT_WS_URL
+    # in .env if you changed MQTT_WS_PORT (or the browser reaches the broker elsewhere).
+    environment:
+      - MOWER_MQTT_WS_URL
     ports:
-      - 3000:3000
+      - "${APP_PORT:-3000}:3000"
     restart: on-failure

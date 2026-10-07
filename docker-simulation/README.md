@@ -22,10 +22,11 @@ switch `VERSION`/`BASE_IMAGE`, re-run with `./sim.sh rebuild` (or
 `docker compose up -d --build`) to pick up the change - plain `up` reuses whatever was
 already built and won't rebuild on its own.
 
-Then open:
+Then open (default ports, see [Settings](#settings) to change them):
 - `http://<host>:6080` - the simulation's RViz view, in your browser (noVNC, no password,
   no VNC client needed). Works from any OS.
-- `http://<host>:8080` - the OpenMowerApp web UI.
+- `http://<host>:3000` - the OpenMowerApp web UI.
+- `http://<host>:8080` - the legacy OpenMowerApp web UI.
 
 Comes with a starter mowing area, docking point (`data/ros/map.json`), and mower config
 (`data/params/custom_params.yaml`) already checked in, so there's something to drive
@@ -73,9 +74,13 @@ overwrite the one used for testing published versions.
   will usually time out and the robot starts at the map origin instead. This is
   cosmetic - reposition it from the app or RViz as needed.
 - **Networking**: the whole stack lives on its own Compose-managed bridge network -
-  nothing uses host networking, so it won't collide with anything running on your host
-  (an existing X display, a VNC server, ports already in use, etc). Only the ports you
-  actually need (noVNC/VNC, the app, MQTT) are published to the host.
+  nothing uses host networking, and there are no fixed container names, so it won't
+  collide with anything running on your host (an existing X display, a VNC server,
+  another `mosquitto` container, etc). Only the ports you actually need (noVNC/VNC, the
+  app, MQTT) are published to the host. If one of them is already taken, change it in
+  `.env` (see `.env.example`) - containers talk to each other on the internal ports, so
+  only access from the host is affected. When changing `MQTT_WS_PORT`, also set
+  `MOWER_MQTT_WS_URL` so the app finds the broker.
 - **Versions**: `VERSION` controls both the `open_mower_ros` image and the
   `mower_simulation_gui` image (built locally `FROM` that same tag), so the simulator's
   message/service definitions always match the version under test.

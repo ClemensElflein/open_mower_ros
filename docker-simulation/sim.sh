@@ -73,14 +73,18 @@ confirm() {
     esac
 }
 
-# Resolve BASE_IMAGE the way compose does: process env wins, else .env, else the
-# published default (empty here -> not a local build).
-resolve_base_image() {
-    local base_image="${BASE_IMAGE:-}"
-    if [ -z "$base_image" ] && [ -f .env ]; then
-        base_image="$(grep -E '^BASE_IMAGE=' .env | tail -n1 | cut -d= -f2-)"
+# Resolve a setting the way compose does: process env wins, else .env, else $2.
+resolve_var() {
+    local value="${!1:-}"
+    if [ -z "$value" ] && [ -f .env ]; then
+        value="$(grep -E "^$1=" .env | tail -n1 | cut -d= -f2-)"
     fi
-    printf '%s' "$base_image"
+    printf '%s' "${value:-${2:-}}"
+}
+
+# Empty if BASE_IMAGE isn't set (published default -> not a local build).
+resolve_base_image() {
+    resolve_var BASE_IMAGE
 }
 
 # Pull the newest published images on every start. --ignore-buildable skips the two
@@ -118,17 +122,12 @@ case "$cmd" in
         pull_images
         echo "Starting the simulation stack..."
         docker compose up -d "$@"
-        # Resolve NOVNC_PORT the same way compose does (process env wins, else .env,
-        # else default) so the printed URL matches the port actually bound.
-        novnc_port="${NOVNC_PORT:-}"
-        if [ -z "$novnc_port" ] && [ -f .env ]; then
-            novnc_port="$(grep -E '^NOVNC_PORT=' .env | tail -n1 | cut -d= -f2-)"
-        fi
         echo
         echo "Up. Give mower_simulation_gui a minute to report healthy (./sim.sh ps), then open:"
-        echo "  http://localhost:${novnc_port:-6080}  - simulation view (noVNC)"
-        echo "  http://localhost:3000                 - OpenMowerApp"
-        echo "  http://localhost:8080                 - OpenMowerApp (legacy)"
+        printf '  %-28s - %s\n' \
+            "http://localhost:$(resolve_var NOVNC_PORT 6080)" "simulation view (noVNC)" \
+            "http://localhost:$(resolve_var APP_PORT 3000)" "OpenMowerApp" \
+            "http://localhost:$(resolve_var LEGACY_APP_PORT 8080)" "OpenMowerApp (legacy)"
         ;;
     down)
         require_docker
