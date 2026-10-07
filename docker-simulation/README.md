@@ -57,8 +57,13 @@ BASE_IMAGE=omdev          # the image you compile the workspace in
 ```bash
 ./sim.sh rebuild                                  # once: builds the sim GUI on top of BASE_IMAGE
 # ... edit + compile (catkin_make in BASE_IMAGE) ...
-docker compose restart open_mower_ros             # add mower_simulation_gui if you changed the simulator
+./sim.sh reload                                   # restarts the simulator, then open_mower_ros
 ```
+
+Always restart both, in that order (which is what `reload` does): the ROS master runs in
+`mower_simulation_gui`, so restarting it alone cuts off `open_mower_ros`, and restarting
+`open_mower_ros` alone makes `xbot_monitoring` forget the simulator's RPC methods - the
+app's simulator controls then stop working.
 
 `BASE_IMAGE` has to be the image the workspace was compiled in, since `build/` and
 `devel/` link against its libraries, and it must provide `/openmower_entrypoint.sh`.

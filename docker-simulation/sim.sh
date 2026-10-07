@@ -16,6 +16,12 @@ Commands:
                    `rebuild` for that.)
   down            Stop the stack and remove its containers.
   restart         Shortcut for `down` followed by `up` (also pulls images).
+  reload          Restart the ROS side only: mower_simulation_gui, then
+                   open_mower_ros once it's healthy. Use this after compiling
+                   in development mode. Restarting just one of them breaks
+                   things: the ROS master lives in mower_simulation_gui, and
+                   xbot_monitoring forgets the simulator's RPC methods (the
+                   app's sim controls) when open_mower_ros restarts alone.
   rebuild         Force-rebuild mower_simulation_gui (and open_mower_ros, if
                    BASE_IMAGE points at a local build) from source, then start
                    the stack. Use this after editing code/config that's baked
@@ -47,6 +53,7 @@ Examples:
   ./sim.sh up                       # first run / normal start
   ./sim.sh logs open_mower_ros      # tail one service's logs
   ./sim.sh rebuild                  # picked up a code change, rebuild + restart
+  ./sim.sh reload                   # development mode: load a fresh compile
 EOF
 }
 
@@ -142,6 +149,16 @@ case "$cmd" in
         docker compose down
         pull_images
         docker compose up -d "$@"
+        ;;
+    reload)
+        require_docker
+        echo "Restarting mower_simulation_gui..."
+        docker compose restart mower_simulation_gui
+        # --wait blocks until it reports healthy again (the mower_simulation node is
+        # registered with the fresh ROS master) before open_mower_ros connects to it.
+        docker compose up -d --wait mower_simulation_gui
+        echo "Restarting open_mower_ros..."
+        docker compose restart open_mower_ros
         ;;
     rebuild)
         require_docker
