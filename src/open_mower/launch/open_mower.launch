@@ -11,7 +11,9 @@
     <node pkg="mower_map" type="mower_map_service" name="map_service" output="screen" respawn="true" respawn_delay="10"/>
     <node pkg="mower_logic" type="mower_logic" name="mower_logic" output="screen" respawn="true" respawn_delay="10">
     </node>
-    <node pkg="slic3r_coverage_planner" type="slic3r_coverage_planner" name="slic3r_coverage_planner" output="screen" respawn="true" respawn_delay="10"/>
+    <!-- any other OM_PLANNER: the coverage planner service comes from a node started elsewhere, e.g. another container -->
+    <node pkg="slic3r_coverage_planner" type="slic3r_coverage_planner" name="slic3r_coverage_planner" output="screen" respawn="true"
+          respawn_delay="10" if="$(eval optenv('OM_PLANNER', 'slic3r') == 'slic3r')"/>
 
     <node pkg="twist_mux" type="twist_mux" name="twist_mux" output="screen" respawn="true" respawn_delay="10">
         <remap from="cmd_vel_out" to="/ll/cmd_vel"/>
