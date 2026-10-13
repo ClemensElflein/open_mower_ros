@@ -35,6 +35,14 @@ ll:
       charge_critical_high_voltage: 34.0
       charge_critical_high_current: 3.0
 
+mower_simulation:
+  # Simulated battery: minutes from full to empty off the dock (0 = no discharge) and
+  # from empty to full on the dock (0 = instantly full). Both can also be changed at
+  # runtime with params.set (/mower_simulation/battery_drain_minutes, ...). Read when the
+  # simulator starts (sim.sh reload).
+  battery_drain_minutes: 20
+  battery_charge_minutes: 5
+
 xbot_positioning:
   # TODO: Set this to values for your mower
   antenna_offset_x: 0.3

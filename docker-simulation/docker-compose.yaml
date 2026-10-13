@@ -49,6 +49,10 @@ services:
     pull_policy: build
     container_name: mower_simulation_gui
     restart: on-failure
+    # Its launch file loads data/params/custom_params.yaml.
+    depends_on:
+      init_data_dirs:
+        condition: service_completed_successfully
     ports:
       - "${NOVNC_PORT:-6080}:6080"
       - "${VNC_PORT:-5900}:5900"
