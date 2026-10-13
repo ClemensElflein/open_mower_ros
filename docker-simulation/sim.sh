@@ -16,6 +16,12 @@ Commands:
                    `rebuild` for that.)
   down            Stop the stack and remove its containers.
   restart         Shortcut for `down` followed by `up` (also pulls images).
+  reload          Restart the ROS side only: mower_simulation_gui, then
+                   open_mower_ros once it's healthy. Use this after compiling
+                   in development mode. Restarting just one of them breaks
+                   things: the ROS master lives in mower_simulation_gui, and
+                   xbot_monitoring forgets the simulator's RPC methods (the
+                   app's sim controls) when open_mower_ros restarts alone.
   rebuild         Force-rebuild mower_simulation_gui (and open_mower_ros, if
                    BASE_IMAGE points at a local build) from source, then start
                    the stack. Use this after editing code/config that's baked
@@ -30,7 +36,7 @@ Commands:
   ps              Show container status (check mower_simulation_gui is
                    "healthy" if the stack seems stuck).
   shell           Open a bash shell in the open_mower_ros container.
-  reset           Discard local map/param edits, restoring the checked-in
+  reset           Discard local map/param edits, restoring the starter
                    starter map and config.
   clean           DESTRUCTIVE: wipe all simulation state (ROS home, logs,
                    recordings, map, params) back to an empty ./data/. Asks
@@ -39,10 +45,15 @@ Commands:
                    (bind-mounted ./data/ is untouched either way).
   help            Show this message.
 
+Settings: everything has a default. To change one, copy .env.example to .env
+(untracked) and uncomment what you need - including development mode, which
+runs your locally compiled workspace instead of the image's build.
+
 Examples:
   ./sim.sh up                       # first run / normal start
   ./sim.sh logs open_mower_ros      # tail one service's logs
   ./sim.sh rebuild                  # picked up a code change, rebuild + restart
+  ./sim.sh reload                   # development mode: load a fresh compile
 EOF
 }
 
@@ -69,32 +80,44 @@ confirm() {
     esac
 }
 
-# Resolve BASE_IMAGE the way compose does: process env wins, else .env, else the
-# published default (empty here -> not a local build).
-resolve_base_image() {
-    local base_image="${BASE_IMAGE:-}"
-    if [ -z "$base_image" ] && [ -f .env ]; then
-        base_image="$(grep -E '^BASE_IMAGE=' .env | tail -n1 | cut -d= -f2-)"
+# Resolve a setting the way compose does: process env wins, else .env, else $2.
+resolve_var() {
+    local value="${!1:-}"
+    if [ -z "$value" ] && [ -f .env ]; then
+        value="$(grep -E "^$1=" .env | tail -n1 | cut -d= -f2-)"
     fi
-    printf '%s' "$base_image"
+    printf '%s' "${value:-${2:-}}"
+}
+
+# Empty if BASE_IMAGE isn't set (published default -> not a local build).
+resolve_base_image() {
+    resolve_var BASE_IMAGE
 }
 
 # Pull the newest published images on every start. --ignore-buildable skips the two
 # services built locally from a Dockerfile (mower_simulation_gui, build_from_source) -
-# they have no registry image to pull. If open_mower_ros is a local build too
-# (BASE_IMAGE=local/open_mower_ros:local) it can't be pulled either, so warn that it is
-# NOT being rebuilt and pull only the remaining published services.
+# they have no registry image to pull. If open_mower_ros runs a local image too (any
+# BASE_IMAGE not from ghcr.io, e.g. local/open_mower_ros:local or a dev image) it can't
+# be pulled either, so warn that it is NOT being rebuilt and pull only the remaining
+# published services.
 pull_images() {
-    if [ "$(resolve_base_image)" = "local/open_mower_ros:local" ]; then
-        echo "open_mower_ros is a local build (BASE_IMAGE=local/open_mower_ros:local)."
-        echo "  It is NOT rebuilt on start and cannot be pulled - run './sim.sh rebuild'"
-        echo "  to pick up source changes. Pulling the other images only..."
-        # Everything except the two local builds (open_mower_ros + mower_simulation_gui).
-        docker compose pull --ignore-buildable init_data_dirs mosquitto openmower_app app
-    else
-        echo "Pulling latest images..."
-        docker compose pull --ignore-buildable
-    fi
+    local base_image
+    base_image="$(resolve_base_image)"
+    case "$base_image" in
+        ""|ghcr.io/*)
+            echo "Pulling latest images..."
+            docker compose pull --ignore-buildable
+            ;;
+        *)
+            echo "open_mower_ros is a local image (BASE_IMAGE=$base_image)."
+            echo "  It is NOT rebuilt on start and cannot be pulled. Pulling the other images only..."
+            if [ "$base_image" = "local/open_mower_ros:local" ]; then
+                echo "  Run './sim.sh rebuild' to pick up source changes."
+            fi
+            # Everything except the two local images (open_mower_ros + mower_simulation_gui).
+            docker compose pull --ignore-buildable init_data_dirs mosquitto openmower_app app
+            ;;
+    esac
 }
 
 cmd="${1:-help}"
@@ -106,17 +129,12 @@ case "$cmd" in
         pull_images
         echo "Starting the simulation stack..."
         docker compose up -d "$@"
-        # Resolve NOVNC_PORT the same way compose does (process env wins, else .env,
-        # else default) so the printed URL matches the port actually bound.
-        novnc_port="${NOVNC_PORT:-}"
-        if [ -z "$novnc_port" ] && [ -f .env ]; then
-            novnc_port="$(grep -E '^NOVNC_PORT=' .env | tail -n1 | cut -d= -f2-)"
-        fi
         echo
         echo "Up. Give mower_simulation_gui a minute to report healthy (./sim.sh ps), then open:"
-        echo "  http://localhost:${novnc_port:-6080}  - simulation view (noVNC)"
-        echo "  http://localhost:3000                 - OpenMowerApp"
-        echo "  http://localhost:8080                 - OpenMowerApp (legacy)"
+        printf '  %-28s - %s\n' \
+            "http://localhost:$(resolve_var NOVNC_PORT 6080)" "simulation view (noVNC)" \
+            "http://localhost:$(resolve_var APP_PORT 3000)" "OpenMowerApp" \
+            "http://localhost:$(resolve_var LEGACY_APP_PORT 8080)" "OpenMowerApp (legacy)"
         ;;
     down)
         require_docker
@@ -132,13 +150,19 @@ case "$cmd" in
         pull_images
         docker compose up -d "$@"
         ;;
+    reload)
+        require_docker
+        echo "Restarting mower_simulation_gui..."
+        docker compose restart mower_simulation_gui
+        # --wait blocks until it reports healthy again (the mower_simulation node is
+        # registered with the fresh ROS master) before open_mower_ros connects to it.
+        docker compose up -d --wait mower_simulation_gui
+        echo "Restarting open_mower_ros..."
+        docker compose restart open_mower_ros
+        ;;
     rebuild)
         require_docker
-        # Resolve BASE_IMAGE the same way compose does: process env wins, else .env, else default.
-        base_image="${BASE_IMAGE:-}"
-        if [ -z "$base_image" ] && [ -f .env ]; then
-            base_image="$(grep -E '^BASE_IMAGE=' .env | tail -n1 | cut -d= -f2-)"
-        fi
+        base_image="$(resolve_base_image)"
         echo "Rebuilding images from source (this can take a few minutes)..."
         # `docker compose build` skips profiled services, so open_mower_ros's local
         # build (build_from_source, gated behind the build-from-source profile) is only
@@ -170,12 +194,15 @@ case "$cmd" in
         docker compose exec -it open_mower_ros bash
         ;;
     reset)
-        git checkout -- data/ros/map.json data/params/custom_params.yaml
-        echo "Restored data/ros/map.json and data/params/custom_params.yaml to their checked-in state."
+        require_docker
+        rm -f data/ros/map.json data/params/custom_params.yaml
+        docker compose run --rm init_data_dirs >/dev/null
+        echo "Restored data/ros/map.json and data/params/custom_params.yaml from seed/."
+        echo "If the stack is running, restart it to load them: ./sim.sh restart"
         ;;
     clean)
         if confirm "This deletes everything under ./data/ (map, params, ROS home, recordings). Continue?"; then
-            git clean -fdx data/
+            rm -rf data/
             echo "./data/ wiped. Run './sim.sh up' to recreate it."
         else
             echo "Cancelled."

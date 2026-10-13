@@ -1,9 +1,9 @@
-# ROS_HOME clutter (logs, rospack cache, position/event history, checkpoints) - only
-# map.json (the starter mowing area + docking point) is worth keeping.
-data/ros/*
-!data/ros/map.json
+# Runtime state (map, params, ROS home, recordings). The starter map and params live in
+# seed/ and are copied into data/ on first start, so local edits never show up here.
+data/
 
-data/recordings/
+# Local settings (see .env.example)
+.env
 
 # Editor swap files
 *.swp
