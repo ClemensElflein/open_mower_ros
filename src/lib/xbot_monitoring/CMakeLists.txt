@@ -16,6 +16,7 @@ find_package(catkin REQUIRED COMPONENTS
         grid_map_msgs
         xbot_mqtt
         mower_msgs
+        dynamic_reconfigure
         )
 
 
