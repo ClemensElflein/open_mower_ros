@@ -11,6 +11,9 @@
 #include <tf2_ros/transform_broadcaster.h>
 #include <tf2_ros/transform_listener.h>
 
+#include <algorithm>
+#include <cmath>
+
 #include "SystemModel.hpp"
 #include "geometry_msgs/PoseWithCovarianceStamped.h"
 #include "geometry_msgs/TwistWithCovarianceStamped.h"
@@ -57,6 +60,24 @@ double min_speed = 0.0;
 // Max position accuracy to allow for GPS updates
 double max_gps_accuracy;
 
+// Process noise, as variance per second (see xbot_positioning_core::setProcessNoise)
+double q_xy, q_theta, q_vx, q_vr;
+
+// Measurement noise for the wheel-odometry speed / gyro rate update
+double r_vx, r_vr;
+
+// The GPS reports its own accuracy; these turn that into a measurement variance.
+// The reported value is scaled (receivers are habitually optimistic) and floored
+// (so one over-confident epoch cannot snap the state).
+double gps_accuracy_scale, gps_accuracy_floor;
+
+// Measurement noise on each component of the GPS motion vector, (m/s)^2
+double orientation_r;
+
+// Largest prediction step we will take. A dropout or a restart must not be
+// allowed to propagate the state by an arbitrary amount.
+double max_predict_dt;
+
 // True, if we should publish debug topics (expected motion vector and kalman state)
 bool publish_debug;
 
@@ -99,22 +120,49 @@ void onImu(const sensor_msgs::Imu::ConstPtr &msg) {
         } else {
             ROS_WARN("Skipped gyro calibration");
             has_gyro = true;
+            // Record this sample so the next callback has a sane dt. Without it
+            // last_imu.header.stamp is still zero and the first prediction step
+            // propagates the state by ~1.7e9 seconds.
+            last_imu = *msg;
             return;
         }
     }
 
-    core.predict(vx, msg->angular_velocity.z - gyro_offset, (msg->header.stamp - last_imu.header.stamp).toSec());
-    auto x = core.updateSpeed(vx, msg->angular_velocity.z - gyro_offset, 0.01);
+    const double dt = (msg->header.stamp - last_imu.header.stamp).toSec();
+    if (dt <= 0.0 || dt > max_predict_dt) {
+        ROS_WARN_STREAM_THROTTLE(1, "Skipping prediction, implausible dt of " << dt << "s");
+        last_imu = *msg;
+        return;
+    }
 
-    odometry.header.stamp = ros::Time::now();
+    core.predict(vx, msg->angular_velocity.z - gyro_offset, dt);
+    auto x = core.updateSpeed(vx, msg->angular_velocity.z - gyro_offset);
+
+    odometry.header.stamp = msg->header.stamp;
     odometry.header.seq++;
     odometry.header.frame_id = "map";
     odometry.child_frame_id = "base_link";
     odometry.pose.pose.position.x = x.x_pos();
     odometry.pose.pose.position.y = x.y_pos();
     odometry.pose.pose.position.z = 0;
-    tf2::Quaternion q(0.0, 0.0, x.theta());
+    tf2::Quaternion q;
+    q.setRPY(0.0, 0.0, x.theta());
     odometry.pose.pose.orientation = tf2::toMsg(q);
+
+    odometry.twist.twist.linear.x = x.vx();
+    odometry.twist.twist.angular.z = x.vr();
+
+    {
+        const auto &P = core.getCovariance();
+        // nav_msgs/Odometry covariance is row-major [x y z roll pitch yaw].
+        odometry.pose.covariance[0] = P(xbot::positioning::StateT::X, xbot::positioning::StateT::X);
+        odometry.pose.covariance[1] = P(xbot::positioning::StateT::X, xbot::positioning::StateT::Y);
+        odometry.pose.covariance[6] = P(xbot::positioning::StateT::Y, xbot::positioning::StateT::X);
+        odometry.pose.covariance[7] = P(xbot::positioning::StateT::Y, xbot::positioning::StateT::Y);
+        odometry.pose.covariance[35] = P(xbot::positioning::StateT::THETA, xbot::positioning::StateT::THETA);
+        odometry.twist.covariance[0] = P(xbot::positioning::StateT::VX, xbot::positioning::StateT::VX);
+        odometry.twist.covariance[35] = P(xbot::positioning::StateT::VR, xbot::positioning::StateT::VR);
+    }
 
     geometry_msgs::TransformStamped odom_trans;
     odom_trans.header = odometry.header;
@@ -129,11 +177,19 @@ void onImu(const sensor_msgs::Imu::ConstPtr &msg) {
 
     if (publish_debug) {
         auto state = core.getState();
+        const auto &P = core.getCovariance();
         state_msg.x = state.x();
         state_msg.y = state.y();
         state_msg.theta = state.theta();
         state_msg.vx = state.vx();
         state_msg.vr = state.vr();
+
+        state_msg.sigma_x = std::sqrt(P(xbot::positioning::StateT::X, xbot::positioning::StateT::X));
+        state_msg.sigma_y = std::sqrt(P(xbot::positioning::StateT::Y, xbot::positioning::StateT::Y));
+        state_msg.sigma_theta = std::sqrt(P(xbot::positioning::StateT::THETA, xbot::positioning::StateT::THETA));
+        state_msg.position_innovation_x = core.last_position_innovation_x;
+        state_msg.position_innovation_y = core.last_position_innovation_y;
+        state_msg.position_nis = core.last_position_nis;
 
         kalman_state.publish(state_msg);
     }
@@ -149,10 +205,19 @@ void onImu(const sensor_msgs::Imu::ConstPtr &msg) {
     xb_absolute_pose_msg.orientation_valid = true;
     // TODO: send motion vector
     xb_absolute_pose_msg.motion_vector_valid = false;
-    // TODO: set real value from kalman filter, not the one from the GPS.
-    if (has_gps) {
-        xb_absolute_pose_msg.position_accuracy = last_gps.position_accuracy;
-    } else {
+
+    // Report the filter's own uncertainty rather than passing the GPS accuracy
+    // through. mower_logic gates mowing on this, and a filter that has diverged
+    // while the GPS is still happy needs to say so.
+    {
+        const auto &P = core.getCovariance();
+        xb_absolute_pose_msg.position_accuracy = std::sqrt(
+            P(xbot::positioning::StateT::X, xbot::positioning::StateT::X) +
+            P(xbot::positioning::StateT::Y, xbot::positioning::StateT::Y));
+        xb_absolute_pose_msg.orientation_accuracy =
+            std::sqrt(P(xbot::positioning::StateT::THETA, xbot::positioning::StateT::THETA));
+    }
+    if (!has_gps) {
         xb_absolute_pose_msg.position_accuracy = 999;
     }
     if ((ros::Time::now() - last_gps_time).toSec() < 10.0) {
@@ -161,8 +226,6 @@ void onImu(const sensor_msgs::Imu::ConstPtr &msg) {
         // on GPS timeout, we set accuracy to 0.
         xb_absolute_pose_msg.position_accuracy = 999;
     }
-    // TODO: set real value
-    xb_absolute_pose_msg.orientation_accuracy = 0.01;
     xb_absolute_pose_msg.pose = odometry.pose;
     xb_absolute_pose_msg.vehicle_heading = x.theta();
     xb_absolute_pose_msg.motion_heading = x.theta();
@@ -180,6 +243,10 @@ void onWheelTicks(const xbot_msgs::WheelTick::ConstPtr &msg) {
         return;
     }
     double dt = (msg->stamp - last_ticks.stamp).toSec();
+    if (dt <= 0.0) {
+        last_ticks = *msg;
+        return;
+    }
 
     double d_wheel_l = (double) (msg->wheel_ticks_rl - last_ticks.wheel_ticks_rl) * (
                            1 / (double) msg->wheel_tick_factor);
@@ -276,8 +343,11 @@ void onPose(const xbot_msgs::AbsolutePose::ConstPtr &msg) {
 
             has_gps = true;
         } else if (has_gps) {
-            // gps was valid before, we apply the filter
-            core.updatePosition(msg->pose.pose.position.x, msg->pose.pose.position.y, 500.0);
+            // Derive the measurement variance from what the receiver actually
+            // reports, scaled (receivers are optimistic) and floored.
+            const double sigma = std::max(static_cast<double>(msg->position_accuracy), gps_accuracy_floor) *
+                                 gps_accuracy_scale;
+            core.updatePosition(msg->pose.pose.position.x, msg->pose.pose.position.y, sigma * sigma);
             if (publish_debug) {
                 auto m = core.om2.h(core.ekf.getState());
                 geometry_msgs::Vector3 dbg;
@@ -285,8 +355,13 @@ void onPose(const xbot_msgs::AbsolutePose::ConstPtr &msg) {
                 dbg.y = m.vy();
                 dbg_expected_motion_vector.publish(dbg);
             }
-            if (std::sqrt(std::pow(msg->motion_vector.x, 2) + std::pow(msg->motion_vector.y, 2)) >= min_speed) {
-                core.updateOrientation2(msg->motion_vector.x, msg->motion_vector.y, 10000.0);
+            // Only fuse the motion vector when the receiver says it is fresh.
+            // Course over ground arrives less often than the position fix, and
+            // re-fusing the same one drags heading toward where the robot was
+            // pointing an epoch ago - worst exactly when turning.
+            if (msg->motion_vector_valid &&
+                std::sqrt(std::pow(msg->motion_vector.x, 2) + std::pow(msg->motion_vector.y, 2)) >= min_speed) {
+                core.updateOrientation2(msg->motion_vector.x, msg->motion_vector.y, orientation_r);
             }
         }
     } else {
@@ -330,12 +405,29 @@ int main(int argc, char **argv) {
 
     paramNh.param("skip_gyro_calibration", skip_gyro_calibration, false);
     paramNh.param("gyro_offset", gyro_offset, 0.0);
-    paramNh.param("min_speed", min_speed, 0.01);
+    // Course over ground is meaningless below a walking pace; 0.01 m/s fused
+    // pure noise into the heading.
+    paramNh.param("min_speed", min_speed, 0.15);
     paramNh.param("max_gps_accuracy", max_gps_accuracy, 0.1);
     paramNh.param("debug", publish_debug, false);
     paramNh.param("antenna_offset_x", antenna_offset_x, 0.0);
     paramNh.param("antenna_offset_y", antenna_offset_y, 0.0);
 
+    // Process noise, variance per second.
+    paramNh.param("q_xy", q_xy, 1e-4);
+    paramNh.param("q_theta", q_theta, 1e-4);
+    paramNh.param("q_vx", q_vx, 1e-2);
+    paramNh.param("q_vr", q_vr, 1e-2);
+    // Measurement noise.
+    paramNh.param("r_vx", r_vx, 1e-3);
+    paramNh.param("r_vr", r_vr, 4e-4);
+    paramNh.param("gps_accuracy_scale", gps_accuracy_scale, 1.5);
+    paramNh.param("gps_accuracy_floor", gps_accuracy_floor, 0.02);
+    paramNh.param("orientation_r", orientation_r, 1e-2);
+    paramNh.param("max_predict_dt", max_predict_dt, 0.5);
+
+    core.setProcessNoise(q_xy, q_theta, q_vx, q_vr);
+    core.setSpeedNoise(r_vx, r_vr);
     core.setAntennaOffset(antenna_offset_x, antenna_offset_y);
 
     ROS_INFO_STREAM("Antenna offset: " << antenna_offset_x << ", " << antenna_offset_y);

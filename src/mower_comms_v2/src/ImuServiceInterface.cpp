@@ -4,11 +4,58 @@
 
 #include "ImuServiceInterface.h"
 
+#include <algorithm>
+#include <cmath>
+
+namespace {
+// Gyro rates arrive quantised to 1 deg/s, so quantisation dominates the noise:
+// (1 deg/s)^2 / 12 = 2.54e-5 (rad/s)^2.
+constexpr double kAngularVelocityVariance = 2.54e-5;
+// Nothing currently consumes the accelerometer; this is a deliberately
+// conservative placeholder rather than a measured figure.
+constexpr double kLinearAccelerationVariance = 1e-2;
+}  // namespace
+
+void ImuServiceInterface::OnTransactionStart(uint64_t timestamp) {
+  transaction_timestamp_ = timestamp;
+}
+
+ros::Time ImuServiceInterface::stampFromFirmware(uint64_t fw_micros) {
+  const double now = ros::Time::now().toSec();
+  if (fw_micros == 0) {
+    return ros::Time(now);
+  }
+  const double fw_s = static_cast<double>(fw_micros) * 1e-6;
+  const double observed = now - fw_s;
+
+  // The offset between the firmware clock and ROS time is the transit delay we
+  // cannot see. The *smallest* offset observed belongs to the packet that was
+  // delayed least, so it is the best estimate of the true difference; tracking
+  // the minimum rejects scheduling jitter instead of baking it into every stamp.
+  if (!have_offset_ || std::abs(observed - fw_to_ros_offset_) > 5.0) {
+    // First packet, or the firmware rebooted and its clock restarted.
+    fw_to_ros_offset_ = observed;
+    have_offset_ = true;
+  } else {
+    // Leak upward slowly (~100 ppm) so the estimate can follow crystal drift
+    // rather than latching onto one unusually early packet forever.
+    constexpr double kLeakPerSample = 2e-6;
+    fw_to_ros_offset_ = std::min(observed, fw_to_ros_offset_ + kLeakPerSample);
+  }
+
+  // Never hand out a stamp from the future - consumers differentiate these.
+  return ros::Time(std::min(fw_s + fw_to_ros_offset_, now));
+}
+
 void ImuServiceInterface::OnAxesChanged(const double* new_value, uint32_t length) {
   if (length < 6) {
     return;
   }
-  imu_msg.header.stamp = ros::Time::now();
+  // Stamp from the firmware clock, not from arrival time. The IMU runs at a
+  // steady 50 Hz but packets arrive 10-32 ms apart, and consumers differentiate
+  // these stamps - stamping on arrival feeds that jitter straight into any
+  // integrated heading.
+  imu_msg.header.stamp = stampFromFirmware(transaction_timestamp_);
   imu_msg.header.seq++;
   imu_msg.header.frame_id = "base_link";
   imu_msg.linear_acceleration.x = new_value[0];
@@ -17,6 +64,20 @@ void ImuServiceInterface::OnAxesChanged(const double* new_value, uint32_t length
   imu_msg.angular_velocity.x = new_value[3];
   imu_msg.angular_velocity.y = new_value[4];
   imu_msg.angular_velocity.z = new_value[5];
+
+  // The MCU does report a fused yaw/roll/pitch in axes 6-8, but in raw
+  // uncharacterised units, so we cannot build a trustworthy quaternion from it.
+  // Mark orientation unavailable rather than publish a wrong one; -1 in the
+  // first covariance element is the sensor_msgs convention for "no estimate".
+  imu_msg.orientation_covariance[0] = -1.0;
+
+  imu_msg.angular_velocity_covariance[0] = kAngularVelocityVariance;
+  imu_msg.angular_velocity_covariance[4] = kAngularVelocityVariance;
+  imu_msg.angular_velocity_covariance[8] = kAngularVelocityVariance;
+  imu_msg.linear_acceleration_covariance[0] = kLinearAccelerationVariance;
+  imu_msg.linear_acceleration_covariance[4] = kLinearAccelerationVariance;
+  imu_msg.linear_acceleration_covariance[8] = kLinearAccelerationVariance;
+
   imu_publisher_.publish(imu_msg);
 }
 
