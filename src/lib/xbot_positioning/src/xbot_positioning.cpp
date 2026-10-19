@@ -160,6 +160,16 @@ void onImu(const sensor_msgs::Imu::ConstPtr &msg) {
         odometry.pose.covariance[6] = P(xbot::positioning::StateT::Y, xbot::positioning::StateT::X);
         odometry.pose.covariance[7] = P(xbot::positioning::StateT::Y, xbot::positioning::StateT::Y);
         odometry.pose.covariance[35] = P(xbot::positioning::StateT::THETA, xbot::positioning::StateT::THETA);
+        // Position and heading errors are strongly correlated while driving (the
+        // motion model propagates position along theta), so publish the cross
+        // terms rather than leaving them at zero and claiming independence.
+        // Nothing in this repo reads them today - odom_out has no in-tree
+        // subscriber - but a half-filled covariance is indistinguishable from a
+        // genuinely uncorrelated one for anything that picks the topic up later.
+        odometry.pose.covariance[5] = P(xbot::positioning::StateT::X, xbot::positioning::StateT::THETA);
+        odometry.pose.covariance[11] = P(xbot::positioning::StateT::Y, xbot::positioning::StateT::THETA);
+        odometry.pose.covariance[30] = P(xbot::positioning::StateT::THETA, xbot::positioning::StateT::X);
+        odometry.pose.covariance[31] = P(xbot::positioning::StateT::THETA, xbot::positioning::StateT::Y);
         odometry.twist.covariance[0] = P(xbot::positioning::StateT::VX, xbot::positioning::StateT::VX);
         odometry.twist.covariance[35] = P(xbot::positioning::StateT::VR, xbot::positioning::StateT::VR);
     }
