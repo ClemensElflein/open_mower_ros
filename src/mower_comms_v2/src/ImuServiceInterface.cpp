@@ -28,7 +28,7 @@ ros::Time ImuServiceInterface::stampFromFirmware(uint64_t fw_micros) {
   const double fw_s = static_cast<double>(fw_micros) * 1e-6;
   const double observed = now - fw_s;
 
-  // The offset between the firmware clock and ROS time is the transit delay we cannot see. 
+  // The offset between the firmware clock and ROS time is the transit delay we cannot see.
   // Tracking the minimum rejects scheduling jitter instead of baking it into every stamp.
   if (!have_offset_ || std::abs(observed - fw_to_ros_offset_) > 5.0) {
     // First packet, or the firmware rebooted and its clock restarted.
@@ -49,7 +49,7 @@ void ImuServiceInterface::OnAxesChanged(const double* new_value, uint32_t length
   if (length < 6) {
     return;
   }
-  // Stamp from the firmware clock, not from arrival time. 
+  // Stamp from the firmware clock, not from arrival time.
   // Stamping on arrival feeds that jitter straight into any integrated heading.
   imu_msg.header.stamp = stampFromFirmware(transaction_timestamp_);
   imu_msg.header.seq++;
@@ -60,7 +60,7 @@ void ImuServiceInterface::OnAxesChanged(const double* new_value, uint32_t length
   imu_msg.angular_velocity.x = new_value[3];
   imu_msg.angular_velocity.y = new_value[4];
   imu_msg.angular_velocity.z = new_value[5];
-  
+
   // -1 in the first covariance element is the sensor_msgs convention for "no estimate".
   imu_msg.orientation_covariance[0] = -1.0;
 
