@@ -93,6 +93,30 @@ public:
         return measurement;
     }
 
+    /**
+     * @brief Jacobian of h() with respect to the state, evaluated at x
+     *
+     * Exposed so that callers can form the innovation covariance
+     * S = H*P*H' + R themselves (e.g. for NIS) without duplicating the
+     * linearization.
+     *
+     * @param [in] x The system state to linearize around
+     */
+    Kalman::Jacobian<M, S> jacobian(const S& x) const
+    {
+        Kalman::Jacobian<M, S> h;
+        h.setIdentity();
+
+        // The antenna sits at a fixed offset in the robot frame, so turning the
+        // robot moves the measured point even when (x, y) does not change.
+        // Without these terms the filter thinks heading error cannot explain a
+        // position innovation, and over-corrects the position instead.
+        h(M::X, S::THETA) = -std::sin(x.theta()) * antenna_offset_x - std::cos(x.theta()) * antenna_offset_y;
+        h(M::Y, S::THETA) = std::cos(x.theta()) * antenna_offset_x - std::sin(x.theta()) * antenna_offset_y;
+
+        return h;
+    }
+
     double antenna_offset_x = 0;
     double antenna_offset_y = 0;
 
@@ -115,7 +139,7 @@ protected:
      */
     void updateJacobians( const S& x )
     {
-      this->H.setIdentity();
+      this->H = jacobian(x);
     }
 };
 
