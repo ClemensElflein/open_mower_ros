@@ -28,10 +28,8 @@ ros::Time ImuServiceInterface::stampFromFirmware(uint64_t fw_micros) {
   const double fw_s = static_cast<double>(fw_micros) * 1e-6;
   const double observed = now - fw_s;
 
-  // The offset between the firmware clock and ROS time is the transit delay we
-  // cannot see. The *smallest* offset observed belongs to the packet that was
-  // delayed least, so it is the best estimate of the true difference; tracking
-  // the minimum rejects scheduling jitter instead of baking it into every stamp.
+  // The offset between the firmware clock and ROS time is the transit delay we cannot see. 
+  // Tracking the minimum rejects scheduling jitter instead of baking it into every stamp.
   if (!have_offset_ || std::abs(observed - fw_to_ros_offset_) > 5.0) {
     // First packet, or the firmware rebooted and its clock restarted.
     fw_to_ros_offset_ = observed;
@@ -51,10 +49,8 @@ void ImuServiceInterface::OnAxesChanged(const double* new_value, uint32_t length
   if (length < 6) {
     return;
   }
-  // Stamp from the firmware clock, not from arrival time. The IMU runs at a
-  // steady 50 Hz but packets arrive 10-32 ms apart, and consumers differentiate
-  // these stamps - stamping on arrival feeds that jitter straight into any
-  // integrated heading.
+  // Stamp from the firmware clock, not from arrival time. 
+  // Stamping on arrival feeds that jitter straight into any integrated heading.
   imu_msg.header.stamp = stampFromFirmware(transaction_timestamp_);
   imu_msg.header.seq++;
   imu_msg.header.frame_id = "base_link";
@@ -64,11 +60,8 @@ void ImuServiceInterface::OnAxesChanged(const double* new_value, uint32_t length
   imu_msg.angular_velocity.x = new_value[3];
   imu_msg.angular_velocity.y = new_value[4];
   imu_msg.angular_velocity.z = new_value[5];
-
-  // The MCU does report a fused yaw/roll/pitch in axes 6-8, but in raw
-  // uncharacterised units, so we cannot build a trustworthy quaternion from it.
-  // Mark orientation unavailable rather than publish a wrong one; -1 in the
-  // first covariance element is the sensor_msgs convention for "no estimate".
+  
+  // -1 in the first covariance element is the sensor_msgs convention for "no estimate".
   imu_msg.orientation_covariance[0] = -1.0;
 
   imu_msg.angular_velocity_covariance[0] = kAngularVelocityVariance;
