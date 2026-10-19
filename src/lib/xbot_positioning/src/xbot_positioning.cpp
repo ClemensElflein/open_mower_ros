@@ -299,7 +299,7 @@ void onPose(const xbot_msgs::AbsolutePose::ConstPtr &msg) {
         return;
     }
 
-    if (msg->position_accuracy > max_gps_accuracy) {
+    if (!std::isfinite(msg->position_accuracy) || msg->position_accuracy > max_gps_accuracy) {
         ROS_INFO_STREAM_THROTTLE(
             1, "Dropped GPS update, since it's not accurate enough. Accuracy was: " << msg->position_accuracy <<
             ", limit is:" << max_gps_accuracy);
