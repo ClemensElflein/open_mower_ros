@@ -62,11 +62,14 @@ const xbot::positioning::StateT &xbot::positioning::xbot_positioning_core::updat
     const double innov_y = y - expected.y_pos();
     last_position_innovation_x = innov_x;
     last_position_innovation_y = innov_y;
-    // H is identity for this model, so S = P_xy + R.
-    const auto &P = ekf.getCovariance();
-    const double s_xx = P(StateT::X, StateT::X) + covariance;
-    const double s_yy = P(StateT::Y, StateT::Y) + covariance;
-    const double s_xy = P(StateT::X, StateT::Y);
+    // S = H*P*H' + R. H is only identity when the antenna sits on the rotation
+    // centre; with an offset the heading uncertainty contributes too, and
+    // ignoring it inflates NIS.
+    const auto H = pm.jacobian(ekf.getState());
+    const Kalman::Covariance<PositionMeasurementT> S = H * ekf.getCovariance() * H.transpose() + c;
+    const double s_xx = S(PositionMeasurementT::X, PositionMeasurementT::X);
+    const double s_yy = S(PositionMeasurementT::Y, PositionMeasurementT::Y);
+    const double s_xy = S(PositionMeasurementT::X, PositionMeasurementT::Y);
     const double det = s_xx * s_yy - s_xy * s_xy;
     if (det > 1e-12) {
         last_position_nis = (innov_x * (s_yy * innov_x - s_xy * innov_y) +
