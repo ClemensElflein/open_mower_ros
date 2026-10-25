@@ -22,6 +22,8 @@ func newSyncCmd() *cobra.Command {
 		timeout    time.Duration
 		volume     int
 		soundCheck time.Duration
+		soundsDir  string
+		soundPath  string
 	)
 	cmd := &cobra.Command{
 		Use:   "sync",
@@ -51,6 +53,8 @@ func newSyncCmd() *cobra.Command {
 				RPCTimeout:        timeout,
 				Volume:            volume,
 				SoundCheckTimeout: soundCheck,
+				SoundsDir:         soundsDir,
+				SoundPath:         soundPath,
 			})
 		},
 	}
@@ -62,5 +66,7 @@ func newSyncCmd() *cobra.Command {
 	cmd.Flags().DurationVar(&timeout, "timeout", 8*time.Second, "per-RPC timeout")
 	cmd.Flags().IntVar(&volume, "volume", -1, "master volume 0..100 to set (default: leave firmware value unchanged)")
 	cmd.Flags().DurationVar(&soundCheck, "sound-check-timeout", 10*time.Second, "how long to wait for the SoundService (soundless boards skip)")
+	cmd.Flags().StringVar(&soundsDir, "sounds-dir", defaultSoundsDir(), "writable overlay with customised/rendered MP3s (wins over sound_path)")
+	layoutFlag(cmd, &soundPath)
 	return cmd
 }

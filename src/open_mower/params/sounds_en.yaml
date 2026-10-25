@@ -26,11 +26,44 @@
 #              pending queue and plays this one immediately. The ROM default
 #              sets it for EMERGENCY, so an alert is never delayed behind an
 #              announcement. Everything else is queued in order.
+#   file       mp3: the name the file is played as (/sounds/<file>). It has to
+#              be a plain name (no path) ending in .mp3, at most 55 chars. With
+#              a tts: text it is only the name the render is stored under and
+#              defaults to <sound id>.mp3.
+#   tts        mp3: text to speak. soundctl renders it (sherpa-onnx + the
+#              Supertonic 3 voice) into 16 kHz mono CBR MP3 instead of shipping
+#              a recording. The render lands in sounds/<language>/ and is
+#              re-rendered only when the text or the voice changes (a .json
+#              sidecar next to the MP3 is the cache and staleness marker).
+#              A sound may have a tts text, a file or both.
+#   sid        tts: speaker id of the voice (0..9, default from the tts block)
+#   speed      tts: speaking rate (0.7..1.5, default from the tts block)
 #
 # sound_path: high-level directory holding the local MP3 source files (used
 #             for the 16 kHz/mono check and as the upload source). It is NOT
 #             transmitted to the LL. The LL path is a fixed contract:
 #             /sounds/<file> (hardcoded in the firmware and the upload tool).
+#             Files that are customised on the robot live in the writable
+#             overlay (/data/sounds, or --sounds-dir) and take precedence over
+#             the ones shipped here — nothing is copied back and forth. A file
+#             is looked up in <overlay>/<language>, <sound_path>/<language>,
+#             <overlay>, <sound_path> — in that order. Outside the image that
+#             path does not exist, so a run from a checkout passes
+#             `--sound-path sounds` (or sets OPENMOWER_SOUNDS_DIR for the
+#             writable overlay).
+#
+# language: subdirectory of sound_path/the overlay that holds the renders of
+#           this language (sounds/<language>/). Its texts are in this language.
+#
+# tts:      defaults for every sound with a tts: text. Changing any of them
+#           re-renders all announcements (it is part of the cache key).
+#   engine     supertonic (the only supported engine)
+#   model      model directory below <tts-dir>/models
+#   sid        speaker id 0..9
+#   speed      speaking rate 0.7..1.5
+#   bitrate    MP3 bitrate, e.g. 32k/48k/64k (CBR, 16 kHz mono, keep it small)
+#   loudnorm   normalise to -16 LUFS so all announcements are equally loud
+#   threads    ONNX threads (0 = engine default)
 #
 # MP3 file naming convention (see sounds/README.md):
 #   <lang>_<name>.mp3   text announcements (en_, de_, ...)
@@ -39,7 +72,17 @@
 # MP3 files MUST be 16 kHz mono — the firmware does NOT resample!
 
 version: 1
+language: en
 sound_path: /opt/open_mower_ros/sounds
+
+# Defaults for every sound with a tts: text (see the file header).
+tts:
+  engine: supertonic
+  # model: sherpa-onnx-supertonic-3-tts-int8-2026-05-11  # the default
+  sid: 5 # Speaker ID
+  speed: 1.0
+  bitrate: 32k # same as the hand-made announcements
+  loudnorm: true
 
 # Only the sounds listed here replace the LL ROM default; everything else
 # falls back to the firmware default.
@@ -59,12 +102,13 @@ sounds:
   boot_ping:
     type: mp3
     volume: 80
-    repeat_ms: 2000
+    repeat_ms: 4000
     file: zz_ping.mp3
   boot_complete:
     type: mp3
+    tts: "Hi, I am Steve, your open mower green care is my profession"
     volume: 100
-    file: en_hi-i-am-steve.mp3
+    file: en_boot_complete.mp3
   emergency:
     type: mp3
     volume: 90
@@ -72,9 +116,11 @@ sounds:
     file: zz_minion-fire-alarm.mp3
   ros_connected:
     type: mp3
+    tts: "Robot operating system start up successful"
     volume: 100
-    file: en_ros-connected.mp3
+    file: en_ros_connected.mp3
   ros_disconnected:
     type: mp3
+    tts: "Robot operating system stopped"
     volume: 100
-    file: en_ros-disconnected.mp3
+    file: en_ros_disconnected.mp3

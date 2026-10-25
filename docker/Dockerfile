@@ -80,11 +80,14 @@ COPY --link --from=slic3r /opt/prebuilt/slic3r_coverage_planner /opt/prebuilt/sl
 # Fetch the list of packages
 COPY --link --from=dependencies /apt-install_list /apt-install_list
 RUN apt-get update && \
-    apt-get install --no-install-recommends --yes $(cat /apt-install_list) libasio-dev && \
+    apt-get install --no-install-recommends --yes $(cat /apt-install_list) libasio-dev ffmpeg && \
     rm -rf /var/lib/apt/lists/*
 
 COPY --link ./ /opt/open_mower_ros
 COPY --link --from=gobuild /out/soundctl /usr/local/bin/soundctl
+
+# TTS engine + model for the `tts:` texts of the sound definitions
+RUN soundctl tts install --dir /opt/open_mower_ros/tts --arch "$(dpkg --print-architecture)"
 
 # delete prebuilt libs (so that they won't shadow the preinstalled ones)
 RUN rm -rf /opt/open_mower_ros/src/lib/slic3r_coverage_planner /apt-install_list

@@ -42,7 +42,13 @@ std::string ShellQuote(const std::string& value) {
 }
 
 std::string BuildCommand() {
-  std::string command = std::string(kCommand) + " sync --config " + ShellQuote(settings.config_file) + " --wait 10s";
+  const std::string config = ShellQuote(settings.config_file);
+  // Render the `tts:` texts first; with up-to-date sidecars this is a no-op that only stats a few files.
+  // The two steps are chained with ';' on purpose: a failed render must not skip the sync,
+  // because then the sync's own stale/missing check reports exactly which file is broken,
+  // and sounds that are already rendered still play.
+  std::string command = std::string(kCommand) + " tts --config " + config + "; " + std::string(kCommand) +
+                        " sync --config " + config + " --wait 10s";
   if (settings.volume >= 0) {
     command += " --volume " + std::to_string(settings.volume);
   }

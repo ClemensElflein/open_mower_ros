@@ -183,7 +183,7 @@ func newPlayCmd() *cobra.Command {
 		Long: "Play an MP3 by its path on the firmware (usually /sounds/<file>, at most 128\n" +
 			"characters). Files are uploaded or updated with \"soundctl sync\", which also\n" +
 			"verifies that they are 16 kHz mono.",
-		Example: "  soundctl play mp3 /sounds/en_hi-i-am-steve.mp3",
+		Example: "  soundctl play mp3 /sounds/de_hallo-ich-bin-steve.mp3",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts := f.options()

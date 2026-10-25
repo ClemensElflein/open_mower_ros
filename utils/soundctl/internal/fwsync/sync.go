@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"net"
 	"os"
-	"path/filepath"
 	"strconv"
 	"time"
 
@@ -23,6 +22,16 @@ type Options struct {
 	Heartbeat    time.Duration
 	RPCTimeout   time.Duration
 	Volume       int // master volume 0..100; < 0 leaves the firmware value unchanged
+
+	// SoundsDir is the writable overlay that holds customised / re-rendered
+	// files (on the mower /data/sounds). It takes precedence over sound_path,
+	// which stays read-only. Empty means "read everything from sound_path".
+	SoundsDir string
+
+	// SoundPath overrides the definition's sound_path when not empty. Only the
+	// CLI --sound-path flag sets it (host runs from a checkout, where the
+	// absolute image path of the YAML does not exist).
+	SoundPath string
 
 	// SoundCheckTimeout bounds the "does this board have sound hardware?" probe
 	// (i.e. is the SoundService advertised). Zero uses defaultSoundCheckTimeout.
@@ -51,6 +60,17 @@ func Sync(ctx context.Context, opts Options) error {
 			slog.Error("invalid config", "error", e)
 		}
 		return fmt.Errorf("invalid config: %d error(s)", len(errs))
+	}
+
+	// Resolve where the MP3s live: the writable overlay first, the shipped
+	// image second (see Layout). Doing this before touching the robot means a
+	// missing or stale file fails the run without side effects.
+	layout := NewLayout(cfg, opts.SoundsDir)
+	if opts.SoundPath != "" {
+		layout.SoundPath = opts.SoundPath
+	}
+	if err := verifyRenders(layout, cfg); err != nil {
+		return err
 	}
 
 	// Validate the requested master volume up front: an out-of-range value must
@@ -110,7 +130,11 @@ func Sync(ctx context.Context, opts Options) error {
 			if err := ctx.Err(); err != nil {
 				return err
 			}
-			if err := uploadFile(fs, filepath.Join(cfg.SoundPath, file), file); err != nil {
+			local, err := layout.Find(file)
+			if err != nil {
+				return err
+			}
+			if err := uploadFile(fs, local, file); err != nil {
 				return err
 			}
 		}
@@ -170,11 +194,49 @@ func applyDefinitions(ctx context.Context, cfg *Config, opts Options, ss *xbot.S
 	return nil
 }
 
+// verifyRenders makes sure every tts sound on disk was rendered from the text
+// the definition currently contains. A mismatch means the YAML was edited
+// without running soundctl synth, and uploading the old audio would be silently
+// wrong, so this fails the sync instead of guessing.
+func verifyRenders(layout Layout, cfg *Config) error {
+	for _, name := range cfg.TTSSounds() {
+		id, ok := cfg.Identity(name)
+		if !ok {
+			continue
+		}
+		file := cfg.FileName(name)
+		path, err := layout.Find(file)
+		if err != nil {
+			return fmt.Errorf("%s: %w (run \"soundctl synth\")", name, err)
+		}
+		sc, err := ReadSidecar(path)
+		if err != nil {
+			return fmt.Errorf("%s: no render metadata next to %s (%v) — run \"soundctl synth\"", name, path, err)
+		}
+		if !sc.Matches(id) {
+			return fmt.Errorf("%s: %s is stale (rendered as %s, expected %s) — run \"soundctl synth\"",
+				name, path, sc.Fingerprint, id.Fingerprint())
+		}
+		slog.Info("render up to date", "sound", name, "file", path, "fingerprint", sc.Fingerprint)
+	}
+	return nil
+}
+
 func uploadFile(fs *xbot.FileService, localPath, remoteName string) error {
 	data, err := os.ReadFile(localPath)
 	if err != nil {
 		return fmt.Errorf("read %s: %w", localPath, err)
 	}
+
+	// The firmware does not resample, so a file in the wrong format plays at the
+	// wrong speed. A hand-made file may be intentional, so this only warns — but
+	// loudly, because it is almost always a mistake.
+	if info, err := ParseMP3(data); err != nil {
+		slog.Warn("not a parsable MP3", "file", remoteName, "error", err)
+	} else if !info.Is16kMono() {
+		slog.Warn("MP3 is not 16 kHz mono — the firmware does not resample", "file", remoteName, "format", info.String())
+	}
+
 	crc := crc32.ChecksumIEEE(data)
 	remote := "/sounds/" + remoteName
 
