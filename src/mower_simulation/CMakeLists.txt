@@ -170,6 +170,7 @@ add_executable(mower_simulation
                 src/services/diff_drive_service/diff_drive_service.cpp
         src/services/mower_service/mower_service.cpp
         src/services/gps_service/gps_service.cpp
+        src/services/meta_service/meta_service.cpp
 )
 add_dependencies(mower_simulation ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
 target_link_libraries(mower_simulation PUBLIC ${catkin_LIBRARIES} spdlog::spdlog)
@@ -180,6 +181,7 @@ target_add_service(mower_simulation EmergencyService ${CMAKE_CURRENT_SOURCE_DIR}
 target_add_service(mower_simulation DiffDriveService ${CMAKE_CURRENT_SOURCE_DIR}/../../services/diff_drive_service.json)
 target_add_service(mower_simulation MowerService ${CMAKE_CURRENT_SOURCE_DIR}/../../services/mower_service.json)
 target_add_service(mower_simulation GpsService ${CMAKE_CURRENT_SOURCE_DIR}/../../services/gps_service.json)
+target_add_service(mower_simulation MetaService ${CMAKE_CURRENT_SOURCE_DIR}/../../services/meta_service.json)
 
 
 #############

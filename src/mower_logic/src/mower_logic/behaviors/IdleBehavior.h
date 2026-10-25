@@ -18,6 +18,8 @@
 #include <dynamic_reconfigure/server.h>
 #include <mower_map/GetDockingPointSrv.h>
 
+#include <atomic>
+
 #include "AreaRecordingBehavior.h"
 #include "Behavior.h"
 #include "UndockingBehavior.h"
@@ -29,6 +31,9 @@ class IdleBehavior : public Behavior {
   bool stay_docked = false;
   bool manual_start_mowing = false;
   bool start_area_recorder = false;
+  // set from the action callback, done in execute() so the job state is only touched from the main thread
+  std::atomic<bool> reset_job_requested{false};
+  void update_actions();
   std::vector<xbot_msgs::ActionInfo> actions;
 
  public:

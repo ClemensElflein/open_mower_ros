@@ -140,9 +140,9 @@ include_directories(
         ${catkin_INCLUDE_DIRS}
         ${CRYPTOPP_INCLUDE_DIRS}
         ${xbot_mqtt_INCLUDE_DIRS}
-        ${CMAKE_BINARY_DIR}/mower_comms_v2/generated/include
-        ${CMAKE_SOURCE_DIR}/lib/xbot_framework/include
-        ${CMAKE_SOURCE_DIR}/lib/xbot_framework/libxbot-service-interface/include
+        ${CMAKE_CURRENT_BINARY_DIR}/../mower_comms_v2/generated/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../lib/xbot_framework/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../lib/xbot_framework/libxbot-service-interface/include
 )
 
 ## Declare a C++ library
@@ -193,6 +193,8 @@ add_executable(mower_logic
 )
 add_dependencies(mower_logic ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})
 target_link_libraries(mower_logic ${catkin_LIBRARIES} ${CRYPTOPP_LIBRARIES} nlohmann_json::nlohmann_json)
+# xbot_mqtt headers need C++17 (like mower_map)
+target_compile_features(mower_logic PRIVATE cxx_std_17)
 
 add_executable(monitoring src/monitoring/monitoring.cpp)
 add_dependencies(monitoring ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS})

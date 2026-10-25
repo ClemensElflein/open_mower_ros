@@ -5,7 +5,10 @@
 namespace xbot_mqtt {
 
 void RpcProvider::init() {
-  ros::NodeHandle n;
+  init(ros::NodeHandle());
+}
+
+void RpcProvider::init(ros::NodeHandle n) {
   request_sub =
       n.subscribe(TOPIC_REQUEST, 100, &RpcProvider::handleRequest, this, ros::TransportHints().tcpNoDelay(true));
   response_pub = n.advertise<xbot_mqtt::RpcResponse>(TOPIC_RESPONSE, 100);
@@ -66,7 +69,8 @@ void RpcProvider::publishResponse(const xbot_mqtt::RpcRequest::ConstPtr& request
     return;
   }
   xbot_mqtt::RpcResponse response_msg;
-  response_msg.result = response.dump();
+  // invalid UTF-8 (e.g. a node that logged raw bytes) becomes U+FFFD instead of failing the whole answer
+  response_msg.result = response.dump(-1, ' ', false, nlohmann::basic_json<>::error_handler_t::replace);
   response_msg.id = request->id;
   response_pub.publish(response_msg);
 }

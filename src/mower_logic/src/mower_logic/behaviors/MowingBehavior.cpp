@@ -64,6 +64,31 @@ std::string MowingBehavior::state_name() {
 Behavior* MowingBehavior::execute() {
   shared_state->active_semiautomatic_task = true;
 
+  // A checkpoint from before a map change can point to an area that isn't there anymore (fewer mowing areas now).
+  // Planning it would fail and end the job right away, so start over instead.
+  // The service answers false for a missing area, but a failed call looks the same. So it only counts as missing
+  // when it fails twice while the service is there, a hiccup shouldn't throw the progress away.
+  const auto area_missing = [this]() {
+    for (int attempt = 0; attempt < 2; attempt++) {
+      if (attempt) ros::Duration(1.0).sleep();
+      if (!mapClient.exists()) return false;
+      mower_map::GetMowingAreaSrv mapSrv;
+      mapSrv.request.index = currentMowingArea;
+      if (mapClient.call(mapSrv)) return false;
+    }
+    return true;
+  };
+  if (currentMowingPaths.empty() && currentMowingArea > 0 && area_missing()) {
+    ROS_WARN_STREAM("MowingBehavior: Area " << currentMowingArea
+                                            << " from the checkpoint doesn't exist anymore, starting over");
+    currentMowingArea = 0;
+    currentMowingPath = 0;
+    currentMowingPathIndex = 0;
+    currentMowingPlanDigest = "";
+    // otherwise a restart before the next regular checkpoint would find the same stale area again
+    checkpoint();
+  }
+
   while (ros::ok() && !aborted) {
     if (currentMowingPaths.empty() && !create_mowing_plan(currentMowingArea)) {
       ROS_INFO_STREAM("MowingBehavior: Could not create mowing plan, docking");
@@ -157,6 +182,67 @@ void MowingBehavior::update_actions() {
   registerActions("mower_logic:mowing", actions);
 }
 
+bool MowingBehavior::plan_area(const mower_map::MapArea& area, const mower_logic::MowerLogicConfig& cfg,
+                               ros::ServiceClient& planner, std::vector<slic3r_coverage_planner::Path>& paths,
+                               double& angle) {
+  // Area orientation is the same as the first point, unless explicitly specified in the area attributes
+  angle = 0;
+  if (!std::isnan(area.angle)) {
+    angle = area.angle;
+    ROS_INFO_STREAM("MowingBehavior: Using explicitly specified mow angle: " << angle);
+  } else {
+    auto points = area.area.points;
+    if (points.size() >= 2) {
+      tf2::Vector3 first(points[0].x, points[0].y, 0);
+      for (auto point : points) {
+        tf2::Vector3 second(point.x, point.y, 0);
+        auto diff = second - first;
+        if (diff.length() > 2.0) {
+          // we have found a point that has a distance of > 2 m, calculate the angle
+          angle = atan2(diff.y(), diff.x());
+          ROS_INFO_STREAM("MowingBehavior: Detected mow angle: " << angle);
+          break;
+        }
+      }
+    }
+  }
+
+  // add mowing angle offset increment and return into the <-180, 180> range
+  double mow_angle_offset = std::fmod(cfg.mow_angle_offset + currentMowingAngleIncrementSum + 180, 360);
+  if (mow_angle_offset < 0) mow_angle_offset += 360;
+  mow_angle_offset -= 180;
+  ROS_INFO_STREAM("MowingBehavior: mowing angle offset (deg): " << mow_angle_offset);
+  if (cfg.mow_angle_offset_is_absolute) {
+    angle = mow_angle_offset * (M_PI / 180.0);
+    ROS_INFO_STREAM("MowingBehavior: Custom mowing angle: " << angle);
+  } else {
+    angle = angle + mow_angle_offset * (M_PI / 180.0);
+    ROS_INFO_STREAM("MowingBehavior: Auto-detected mowing angle + mowing angle offset: " << angle);
+  }
+
+  // calculate coverage
+  auto overrideOrGlobal = [](auto override, auto global, auto sentinel) {
+    return (override != sentinel) ? override : global;
+  };
+
+  slic3r_coverage_planner::PlanPath pathSrv;
+  pathSrv.request.angle = angle;
+  pathSrv.request.outline_count = overrideOrGlobal(area.outline_count, cfg.outline_count, -1);
+  pathSrv.request.outline_overlap_count = overrideOrGlobal(area.outline_overlap_count, cfg.outline_overlap_count, -1);
+  pathSrv.request.outline = area.area;
+  pathSrv.request.holes = area.obstacles;
+  pathSrv.request.fill_type = slic3r_coverage_planner::PlanPathRequest::FILL_LINEAR;
+  pathSrv.request.outer_offset = std::isnan(area.outline_offset) ? cfg.outline_offset : area.outline_offset;
+  pathSrv.request.distance = cfg.tool_width;
+  if (!planner.call(pathSrv)) {
+    ROS_ERROR_STREAM("MowingBehavior: Error during coverage planning");
+    return false;
+  }
+
+  paths = pathSrv.response.paths;
+  return true;
+}
+
 bool MowingBehavior::create_mowing_plan(int area_index) {
   ROS_INFO_STREAM("MowingBehavior: Creating mowing plan for area: " << area_index);
   // Delete old plan and progress.
@@ -178,63 +264,10 @@ bool MowingBehavior::create_mowing_plan(int area_index) {
     return true;
   }
 
-  // Area orientation is the same as the first point, unless explicitly specified in the area attributes
-  double angle = 0;
-  if (!std::isnan(mapSrv.response.area.angle)) {
-    angle = mapSrv.response.area.angle;
-    ROS_INFO_STREAM("MowingBehavior: Using explicitly specified mow angle: " << angle);
-  } else {
-    auto points = mapSrv.response.area.area.points;
-    if (points.size() >= 2) {
-      tf2::Vector3 first(points[0].x, points[0].y, 0);
-      for (auto point : points) {
-        tf2::Vector3 second(point.x, point.y, 0);
-        auto diff = second - first;
-        if (diff.length() > 2.0) {
-          // we have found a point that has a distance of > 2 m, calculate the angle
-          angle = atan2(diff.y(), diff.x());
-          ROS_INFO_STREAM("MowingBehavior: Detected mow angle: " << angle);
-          break;
-        }
-      }
-    }
-  }
-
-  // add mowing angle offset increment and return into the <-180, 180> range
-  double mow_angle_offset = std::fmod(getConfig().mow_angle_offset + currentMowingAngleIncrementSum + 180, 360);
-  if (mow_angle_offset < 0) mow_angle_offset += 360;
-  mow_angle_offset -= 180;
-  ROS_INFO_STREAM("MowingBehavior: mowing angle offset (deg): " << mow_angle_offset);
-  if (config.mow_angle_offset_is_absolute) {
-    angle = mow_angle_offset * (M_PI / 180.0);
-    ROS_INFO_STREAM("MowingBehavior: Custom mowing angle: " << angle);
-  } else {
-    angle = angle + mow_angle_offset * (M_PI / 180.0);
-    ROS_INFO_STREAM("MowingBehavior: Auto-detected mowing angle + mowing angle offset: " << angle);
-  }
-
-  // calculate coverage
-  const auto& area = mapSrv.response.area;
-  auto overrideOrGlobal = [](auto override, auto global, auto sentinel) {
-    return (override != sentinel) ? override : global;
-  };
-
-  slic3r_coverage_planner::PlanPath pathSrv;
-  pathSrv.request.angle = angle;
-  pathSrv.request.outline_count = overrideOrGlobal(area.outline_count, config.outline_count, -1);
-  pathSrv.request.outline_overlap_count =
-      overrideOrGlobal(area.outline_overlap_count, config.outline_overlap_count, -1);
-  pathSrv.request.outline = area.area;
-  pathSrv.request.holes = area.obstacles;
-  pathSrv.request.fill_type = slic3r_coverage_planner::PlanPathRequest::FILL_LINEAR;
-  pathSrv.request.outer_offset = std::isnan(area.outline_offset) ? config.outline_offset : area.outline_offset;
-  pathSrv.request.distance = config.tool_width;
-  if (!pathClient.call(pathSrv)) {
-    ROS_ERROR_STREAM("MowingBehavior: Error during coverage planning");
+  double angle;
+  if (!plan_area(mapSrv.response.area, config, pathClient, currentMowingPaths, angle)) {
     return false;
   }
-
-  currentMowingPaths = pathSrv.response.paths;
 
   // Calculate mowing plan digest from the poses
   // TODO: move to slic3r_coverage_planner
@@ -825,6 +858,25 @@ void MowingBehavior::checkpoint() {
   bag.write("checkpoint", ros::Time::now(), cp);
   bag.close();
   last_checkpoint = ros::Time::now();
+}
+
+bool MowingBehavior::has_unfinished_job() {
+  // a plan without progress yet counts too, e.g. when it was stopped on the way to the first point
+  return currentMowingArea > 0 || currentMowingPath > 0 || currentMowingPathIndex > 0 || !currentMowingPaths.empty();
+}
+
+void MowingBehavior::reset_job() {
+  ROS_INFO_STREAM("MowingBehavior: Dropping the progress of the interrupted job");
+  currentMowingPaths.clear();
+  currentMowingArea = 0;
+  currentMowingPath = 0;
+  currentMowingPathIndex = 0;
+  currentMowingPlanDigest = "";
+  // not finished, so unlike reset() the angle increment isn't added. The event still carries the id of the
+  // dropped job, the checkpoint is written without it so a restart doesn't pick it up again
+  publishMowerEvent("JOB_RESET");
+  current_job_id = "";
+  checkpoint();
 }
 
 bool MowingBehavior::restore_checkpoint() {

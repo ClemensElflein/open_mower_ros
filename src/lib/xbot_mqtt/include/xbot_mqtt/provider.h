@@ -47,6 +47,8 @@ class RpcProvider {
   RpcProvider(const std::string& node_id, const std::map<std::string, callback_t>& methods = {}) : node_id(node_id), methods(methods) {}
 
   void init();
+  // n decides the callback queue, a node can answer RPCs on its own spinner that way
+  void init(ros::NodeHandle n);
 
   void addMethod(const std::string& id, callback_t callback) {
     methods.emplace(id, callback);

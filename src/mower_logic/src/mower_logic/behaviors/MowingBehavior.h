@@ -15,9 +15,12 @@
 #ifndef SRC_MOWINGBEHAVIOR_H
 #define SRC_MOWINGBEHAVIOR_H
 
+#include <atomic>
+
 #include "Behavior.h"
 #include "UndockingBehavior.h"
 #include "ftc_local_planner/PlannerGetProgress.h"
+#include "mower_map/MapArea.h"
 #include "slic3r_coverage_planner/Path.h"
 #include "slic3r_coverage_planner/PlanPath.h"
 #include "xbot_msgs/ActionInfo.h"
@@ -46,12 +49,18 @@ class MowingBehavior : public Behavior {
   std::string currentMowingAreaId;
   std::string currentMowingAreaName;
   std::string currentMowingPlanDigest;
-  double currentMowingAngleIncrementSum;
+  // atomic: the mowing.plan rpc reads it from its own thread
+  std::atomic<double> currentMowingAngleIncrementSum{0};
 
  public:
   MowingBehavior();
 
   static MowingBehavior INSTANCE;
+
+  // Plans an area with the angle and settings mowing would use (offset, increment, overrides). Also used by the
+  // mowing.plan RPC, so it must not touch the state of a running job.
+  bool plan_area(const mower_map::MapArea& area, const mower_logic::MowerLogicConfig& cfg, ros::ServiceClient& planner,
+                 std::vector<slic3r_coverage_planner::Path>& paths, double& angle);
 
   std::string state_name() override;
 
@@ -62,6 +71,12 @@ class MowingBehavior : public Behavior {
   void exit() override;
 
   void reset() override;
+
+  // whether the checkpoint has a job that got interrupted part way
+  bool has_unfinished_job();
+
+  // drops the progress of an interrupted job, the next start mows from the beginning. only while not mowing
+  void reset_job();
 
   bool needs_gps() override;
 
