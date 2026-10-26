@@ -76,6 +76,18 @@ func upToDate(mp3 string, id fwsync.TTSIdentity) bool {
 	return sc.MatchesFile(data)
 }
 
+// ensureWritableDir creates the output directory of a render. The hint matters:
+// on the mower the renders belong in the writable overlay (/data/sounds, a mount
+// of the data partition) while sound_path is the read-only image, so a missing
+// mount shows up as a permission error on a /opt/... path.
+func ensureWritableDir(dir string) error {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("create %s: %w (the renders need a writable sound overlay: mount "+
+			"/data/sounds on the mower, or pass --sounds-dir)", dir, err)
+	}
+	return nil
+}
+
 // Render synthesises and encodes every "tts:" sound of the config into the
 // overlay's language directory and writes the sidecar cache next to each file.
 // Sounds whose sidecar already matches are skipped (unless opts.Force).
@@ -90,8 +102,8 @@ func Render(cfg *fwsync.Config, layout fwsync.Layout, eng Sherpa, enc Encoder, o
 		outDir = layout.OutDir()
 	}
 	if !opts.Check {
-		if err := os.MkdirAll(outDir, 0o755); err != nil {
-			return nil, fmt.Errorf("create %s: %w", outDir, err)
+		if err := ensureWritableDir(outDir); err != nil {
+			return nil, err
 		}
 	}
 

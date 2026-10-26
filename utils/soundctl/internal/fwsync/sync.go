@@ -36,6 +36,14 @@ type Options struct {
 	// SoundCheckTimeout bounds the "does this board have sound hardware?" probe
 	// (i.e. is the SoundService advertised). Zero uses defaultSoundCheckTimeout.
 	SoundCheckTimeout time.Duration
+
+	// Wait bounds the FileService discovery. It is deliberately separate from
+	// the SoundService probe and starts when the wait for the FileService starts:
+	// a service advertises only every xbot.SlowAdvertisementInterval (10 s) once
+	// the low level has been up for a minute, so a shorter window can miss a
+	// perfectly healthy LL — and a budget shared with the probe makes it worse.
+	// Zero waits as long as the caller's context allows.
+	Wait time.Duration
 }
 
 // defaultSoundCheckTimeout bounds the SoundService probe when not overridden. It
@@ -114,10 +122,21 @@ func Sync(ctx context.Context, opts Options) error {
 	// The FileService is always present, so connecting to it doubles as the "LL is
 	// up" gate: its discovery waits out the boot/update window (--wait). Connecting
 	// claims it, which is fine — that is also how the MP3 upload gets its replies.
-	slog.Info("connecting to FileService", "bind", opts.BindIP)
-	fs, err := xbot.NewFileService(ctx, opts.BindIP, opts.Heartbeat, opts.RPCTimeout)
+	// The window starts here (not at process start), so the probe above cannot eat
+	// into it, and it must cover xbot's slow (10 s) advertisement interval.
+	fsCtx := ctx
+	if opts.Wait > 0 {
+		var cancel context.CancelFunc
+		fsCtx, cancel = context.WithTimeout(ctx, opts.Wait)
+		defer cancel()
+	}
+	slog.Info("connecting to FileService", "bind", opts.BindIP, "wait", opts.Wait)
+	fs, err := xbot.NewFileService(fsCtx, opts.BindIP, opts.Heartbeat, opts.RPCTimeout)
 	if err != nil {
-		return fmt.Errorf("FileService not advertised — is the LL running? (%w)", err)
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return ctxErr
+		}
+		return fmt.Errorf("FileService not reachable (run \"soundctl discover\" to see what the LL advertises): %w", err)
 	}
 	defer func() { _ = fs.Close() }()
 	slog.Info("FileService connected")
@@ -196,7 +215,7 @@ func applyDefinitions(ctx context.Context, cfg *Config, opts Options, ss *xbot.S
 
 // verifyRenders makes sure every tts sound on disk was rendered from the text
 // the definition currently contains. A mismatch means the YAML was edited
-// without running soundctl synth, and uploading the old audio would be silently
+// without re-rendering them, and uploading the old audio would be silently
 // wrong, so this fails the sync instead of guessing.
 func verifyRenders(layout Layout, cfg *Config) error {
 	for _, name := range cfg.TTSSounds() {
@@ -207,14 +226,14 @@ func verifyRenders(layout Layout, cfg *Config) error {
 		file := cfg.FileName(name)
 		path, err := layout.Find(file)
 		if err != nil {
-			return fmt.Errorf("%s: %w (run \"soundctl synth\")", name, err)
+			return fmt.Errorf("%s: %w (run \"soundctl tts\")", name, err)
 		}
 		sc, err := ReadSidecar(path)
 		if err != nil {
-			return fmt.Errorf("%s: no render metadata next to %s (%v) — run \"soundctl synth\"", name, path, err)
+			return fmt.Errorf("%s: no render metadata next to %s (%v) — run \"soundctl tts\"", name, path, err)
 		}
 		if !sc.Matches(id) {
-			return fmt.Errorf("%s: %s is stale (rendered as %s, expected %s) — run \"soundctl synth\"",
+			return fmt.Errorf("%s: %s is stale (rendered as %s, expected %s) — run \"soundctl tts\"",
 				name, path, sc.Fingerprint, id.Fingerprint())
 		}
 		slog.Info("render up to date", "sound", name, "file", path, "fingerprint", sc.Fingerprint)

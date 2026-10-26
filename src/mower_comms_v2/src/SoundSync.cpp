@@ -47,8 +47,13 @@ std::string BuildCommand() {
   // The two steps are chained with ';' on purpose: a failed render must not skip the sync,
   // because then the sync's own stale/missing check reports exactly which file is broken,
   // and sounds that are already rendered still play.
+  //
+  // --wait 30s: an xbot service advertises itself every second only while it is unclaimed and
+  // younger than 60 s; afterwards (and once claimed) only every 10 s (xbot/config.hpp). The sync
+  // spends a few seconds probing the SoundService before it starts waiting for the FileService,
+  // so a 10 s window could miss the LL forever - 30 s covers three full advertisement periods.
   std::string command = std::string(kCommand) + " tts --config " + config + "; " + std::string(kCommand) +
-                        " sync --config " + config + " --wait 10s";
+                        " sync --config " + config + " --wait 30s";
   if (settings.volume >= 0) {
     command += " --volume " + std::to_string(settings.volume);
   }

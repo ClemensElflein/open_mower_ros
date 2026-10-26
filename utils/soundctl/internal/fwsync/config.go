@@ -215,9 +215,14 @@ func (c *Config) TTSSettings() TTSSettings {
 	return s
 }
 
-// TTSIdentity is everything that determines the rendered audio of one sound.
-// Two renders with the same identity are byte-identical, which is what makes
-// the sidecar cache (and the build reproducibility) work.
+// TTSIdentity is everything that determines *which audio* a sound should have:
+// the text, the voice and the encoder settings. It is the cache key of a render.
+//
+// Two renders with the same identity produce the same audio on the same
+// toolchain (engine binary + ffmpeg build); across ffmpeg versions the files can
+// differ by a byte or two of container metadata, which is why the sidecar stores
+// the identity (inputs) and the file's CRC32 separately instead of comparing
+// audio between machines.
 type TTSIdentity struct {
 	Engine   string
 	Model    string

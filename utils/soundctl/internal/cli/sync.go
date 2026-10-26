@@ -33,17 +33,23 @@ func newSyncCmd() *cobra.Command {
 			"sound definitions to the SoundService.\n" +
 			"\n" +
 			"This runs once per ROS start, so it is not tuned for latency: it waits for the\n" +
-			"services (--wait, covering the boot/update window) and claims the FileService.\n" +
+			"services and claims the FileService. An xbot service advertises every second\n" +
+			"only while it is unclaimed and younger than a minute, afterwards every 10 s,\n" +
+			"so --wait must span a few advertisement periods (that is what the 30 s default\n" +
+			"and the 30 s of the startup sync are for).\n" +
 			"\n" +
 			"The SoundService is probed first (--sound-check-timeout) and never claimed; on a\n" +
 			"board without an amplifier the sync stops there. Its address is logged, so it can\n" +
-			"be reused for instant \"soundctl play --addr\" calls.",
+			"be reused for instant \"soundctl play --addr\" calls. When the FileService cannot\n" +
+			"be found, the error lists the service IDs that were advertised — run\n" +
+			"\"soundctl discover\" to see the full list.",
 		Example: "  soundctl sync --volume 80",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Signals only: the wait budget is applied by the domain layer, so that
+			// the FileService window starts when the wait starts and not when the
+			// process does (a render or the sound probe must not eat into it).
 			ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 			defer stop()
-			ctx, cancel := context.WithTimeout(ctx, wait)
-			defer cancel()
 
 			return fwsync.Sync(ctx, fwsync.Options{
 				ConfigPath:        config,
@@ -55,13 +61,14 @@ func newSyncCmd() *cobra.Command {
 				SoundCheckTimeout: soundCheck,
 				SoundsDir:         soundsDir,
 				SoundPath:         soundPath,
+				Wait:              wait,
 			})
 		},
 	}
 	cmd.Flags().StringVar(&config, "config", defaultConfigPath, "path to sounds_*.yaml")
 	cmd.Flags().StringVar(&soundIDs, "sound-ids", defaultSoundIDsPath, "path to the shared definition (sound_service.json)")
 	cmd.Flags().StringVar(&bind, "bind", "0.0.0.0", "local IP to bind for discovery")
-	cmd.Flags().DurationVar(&wait, "wait", 60*time.Second, "how long to wait for the FileService/SoundService")
+	cmd.Flags().DurationVar(&wait, "wait", 30*time.Second, "how long to wait for the FileService (a service advertises only every 10 s once the LL has been up for a minute)")
 	cmd.Flags().DurationVar(&heartbeat, "heartbeat", 10*time.Second, "heartbeat interval (bump for slow flash writes)")
 	cmd.Flags().DurationVar(&timeout, "timeout", 8*time.Second, "per-RPC timeout")
 	cmd.Flags().IntVar(&volume, "volume", -1, "master volume 0..100 to set (default: leave firmware value unchanged)")

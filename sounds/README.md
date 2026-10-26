@@ -65,7 +65,15 @@ persona in German).
 - On boards **without** sound hardware the LL never starts the SoundService
   (SID 13); `soundctl sync` detects this via multicast discovery and exits
   without uploading anything. The probe timeout is `--sound-check-timeout`
-  (default 3s). The FileService (SID 12) is always present.
+  (default 10s). The FileService (SID 12) is always present.
+- **Discovery timing:** an xbot service advertises itself every second, but only
+  while it is unclaimed *and* younger than 60 s (`xbot/config.hpp`). Afterwards
+  (and once claimed) it advertises every **10 s**. `soundctl sync` therefore
+  waits up to `--wait` (30 s, three advertisement periods) for the FileService,
+  and the window starts after the SoundService probe, not at process start.
+  If a sync reports `FileService not reachable`, run `soundctl discover --wait 25s`
+  inside the container: if SID 12 is listed, the LL is fine (retry / check the
+  network); if the list is empty, the LL is not up or not on this interface.
 
 ## Local use
 
