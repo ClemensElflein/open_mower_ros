@@ -10,10 +10,11 @@ const (
 	defaultSoundIDsPath = "/opt/open_mower_ros/services/sound_service.json"
 )
 
+// version is what `soundctl version` prints and what `soundctl tts` writes into
+// the sidecar's "generator" field. The image build injects the OpenMower version
+// with -ldflags "-X .../internal/cli.version=…" (see docker/Dockerfile), so a
+// render on the mower can be traced back to an image.
 var version = "dev"
-
-// SetVersion sets the version string (intended for -ldflags injection).
-func SetVersion(v string) { version = v }
 
 // Execute runs the root command.
 func Execute() error {

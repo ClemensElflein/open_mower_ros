@@ -16,13 +16,13 @@ import (
 )
 
 // TTS defaults. They are part of the render cache key (see TTSIdentity), so
-// changing one of them re-renders every announcement on the next synth run.
+// changing one of them re-renders every announcement on the next tts run.
 const (
 	DefaultTTSEngine  = "supertonic"
 	DefaultTTSModel   = "sherpa-onnx-supertonic-3-tts-int8-2026-05-11"
 	DefaultTTSSid     = 5
 	DefaultTTSSpeed   = 1.0
-	DefaultTTSBitrate = "64k"
+	DefaultTTSBitrate = "32k"
 
 	// MaxMP3NameLen is the firmware limit for a file name in /sounds/
 	// (sound_definition.hpp stores it in a fixed-size buffer).
@@ -66,7 +66,7 @@ type SoundDef struct {
 	Sequence []Note `yaml:"sequence,omitempty" json:"sequence,omitempty"`
 	File     string `yaml:"file,omitempty" json:"file,omitempty"`
 
-	// TTS is the text to speak. soundctl synth renders it into File; the field
+	// TTS is the text to speak. `soundctl tts` renders it into File; the field
 	// is host-only (json:"-") because the firmware never sees the text, only the
 	// MP3 it was rendered into.
 	TTS string `yaml:"tts,omitempty" json:"-"`

@@ -50,7 +50,7 @@ func dataSoundsDir(data string, isDir func(string) bool) string {
 
 func defaultTTSDir() string { return envOr("OPENMOWER_TTS_DIR", tts.DefaultDir) }
 
-// ttsFlags are the flags shared by the tts/synth command.
+// ttsFlags are the flags of the tts command.
 type ttsFlags struct {
 	config      string
 	soundIDs    string
@@ -180,9 +180,8 @@ func (f *ttsFlags) run(cmd *cobra.Command) error {
 func newTTSCmd() *cobra.Command {
 	f := &ttsFlags{}
 	cmd := &cobra.Command{
-		Use:     "tts",
-		Aliases: []string{"synth"},
-		Short:   "Render the tts: texts of sounds_*.yaml into the firmware MP3s",
+		Use:   "tts",
+		Short: "Render the tts: texts of sounds_*.yaml into the firmware MP3s",
 		Long: "Synthesise every sound that has a 'tts:' text and write it as a 16 kHz mono\n" +
 			"CBR MP3 into the sound overlay (sounds/<language>/). Each file gets a\n" +
 			"\".json\" sidecar with the render fingerprint, so a re-run only touches what\n" +

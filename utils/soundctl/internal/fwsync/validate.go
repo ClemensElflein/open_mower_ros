@@ -190,7 +190,7 @@ func validateSound(name string, def SoundDef, ids *SoundIDs) []string {
 }
 
 // validateMP3 validates an MP3 definition. It always needs a source: either a
-// tts: text (rendered by soundctl synth) or a file name. Both may be given —
+// tts: text (rendered by `soundctl tts`) or a file name. Both may be given —
 // the file name is then just the name the render is stored under.
 func validateMP3(name string, def SoundDef) []string {
 	var errs []string

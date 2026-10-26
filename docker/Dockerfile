@@ -60,13 +60,16 @@ RUN --mount=type=bind,source=src,target=src \
 
 ####################################################################################################
 
-# Build the soundctl Go binary
+# Build the soundctl Go binary. OM_SOFTWARE_VERSION is injected so that
+# `soundctl version` and the "generator" field of the tts sidecars name the image
+# they came from (the assemble stage declares the same build arg, CI passes it once).
 FROM golang:1.23 AS gobuild
+ARG OM_SOFTWARE_VERSION=dev
 WORKDIR /src
 COPY utils/soundctl/go.mod utils/soundctl/go.sum ./
 RUN go mod download
 COPY utils/soundctl/ ./
-RUN CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o /out/soundctl ./cmd/soundctl
+RUN CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X github.com/ClemensElflein/open_mower_ros/utils/soundctl/internal/cli.version=${OM_SOFTWARE_VERSION}" -o /out/soundctl ./cmd/soundctl
 
 # Assemble final image (without nginx/mosquitto)
 FROM base AS assemble

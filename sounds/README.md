@@ -23,6 +23,25 @@ that caches the text/voice and marks the file as up to date). A recording only
 exists for the few announcements that need a specific voice (e.g. the "Steve"
 persona in German).
 
+## Why Supertonic 3 (and not the alternatives)
+
+The announcements have to be rendered **on the mower, without internet**, in
+several languages, from a ~200 MB footprint that fits next to ROS on a CM4. The
+engines that were compared for this (offline and cloud, A/B-listened at equal
+loudness):
+
+| engine | verdict |
+|---|---|
+| **Supertonic 3** (sherpa-onnx, int8 ONNX) | chosen — offline, **English and German**, 10 speakers, ~5-8 s per announcement on the CM4 |
+| Piper (`en_US-libritts_r`) | English only: sherpa-onnx v2.0.0 dropped espeak-ng and ships no German lexicon |
+| Kokoro v0.19 | English only |
+| Google Translate TTS / Azure "edge" voices | keyless cloud endpoints — unsuitable for a robot (needs internet, unstable, no licence to ship) |
+
+The engine and its model are baked into the image (`soundctl tts install`,
+~220 MB at `/opt/open_mower_ros/tts`); the announcements are rendered into
+`/data/sounds/<language>/` on the first start, so no network is needed at
+runtime and the renders survive an image update.
+
 ## Requirements
 
 - MP3 only, **16 kHz mono** — the firmware decodes at 16 kHz and does NOT

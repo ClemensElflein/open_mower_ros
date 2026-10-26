@@ -149,7 +149,7 @@ func renderOne(name string, id fwsync.TTSIdentity, dst string, eng Sherpa, enc E
 		return res, err
 	}
 
-	tmpDir, err := os.MkdirTemp("", "soundctl-synth-")
+	tmpDir, err := os.MkdirTemp("", "soundctl-tts-")
 	if err != nil {
 		return res, fmt.Errorf("create temp dir: %w", err)
 	}
