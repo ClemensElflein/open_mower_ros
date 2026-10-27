@@ -61,3 +61,11 @@ cmake-build-debug/
 .vscode
 .venv
 src/cmake-build-debug-ros
+
+# TTS voice models are downloaded, never committed
+utils/soundctl/*.onnx
+utils/soundctl/*.onnx.json
+
+# Pre-rendered TTS announcements: rendered by CI (or `soundctl tts`) into the
+# image, never committed - the YAML with its text is the source of truth.
+sounds/*/

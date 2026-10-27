@@ -11,20 +11,21 @@ services:
     image: local/open_mower_ros:local
 
   # open_mower_ros runs as a non-root user (uid 1000) and needs to write into
-  # ./data/{ros,recordings,params} - which Docker otherwise creates root-owned on first
-  # run. This makes the directories writable regardless of the host user's uid, so
-  # `docker compose up` works with no manual chmod/sudo step.
+  # ./data/{ros,recordings,params,sounds} - which Docker otherwise creates root-owned
+  # on first run. This makes the directories writable regardless of the host user's
+  # uid, so `docker compose up` works with no manual chmod/sudo step.
   init_data_dirs:
     image: busybox
     container_name: init_data_dirs
     # chmod dirs to 777 (so uid 1000 can create/write regardless of host uid) but
     # files to 666 - a blanket `chmod -R 777` would flag every data file executable
     # on each startup, which churns git status and is wrong for plain data files.
-    command: sh -c "mkdir -p /data/ros /data/recordings /data/params && find /data/ros /data/recordings /data/params -type d -exec chmod 777 {} + && find /data/ros /data/recordings /data/params -type f -exec chmod 666 {} +"
+    command: sh -c "mkdir -p /data/ros /data/recordings /data/params /data/sounds && find /data/ros /data/recordings /data/params /data/sounds -type d -exec chmod 777 {} + && find /data/ros /data/recordings /data/params /data/sounds -type f -exec chmod 666 {} +"
     volumes:
       - ./data/ros:/data/ros
       - ./data/recordings:/data/recordings
       - ./data/params:/data/params
+      - ./data/sounds:/data/sounds
 
   # Emulates the low-level board (drive, mower, IMU, power, GPS) over the same
   # xbot-service protocol real hardware uses, plus rviz for visualization. Starts
@@ -113,6 +114,10 @@ services:
       - ./data/ros:/data/ros
       - ./data/recordings:/data/recordings
       - ./data/params:/data/params
+      # Writable sound overlay: holds the TTS renders and customised MP3s. Without
+      # it `soundctl` may only read the image, and the announcement renders fail on
+      # the read-only /opt/open_mower_ros/sounds.
+      - ./data/sounds:/data/sounds
 
   mosquitto:
     image: eclipse-mosquitto:2

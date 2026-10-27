@@ -5,22 +5,22 @@ on:
   workflow_dispatch:
     inputs:
       clean_build:
-        description: 'Clean build without cache'
+        description: "Clean build without cache"
         default: false
         type: boolean
       variant:
-        description: 'Which variant to build (default/legacy or all)'
+        description: "Which variant to build (default/legacy or all)"
         required: true
-        default: 'all'
+        default: "all"
         type: choice
         options:
           - all
           - default
           - legacy
       arch:
-        description: 'Which architecture to build (amd64/arm64 or all)'
+        description: "Which architecture to build (amd64/arm64 or all)"
         required: true
-        default: 'all'
+        default: "all"
         type: choice
         options:
           - all
@@ -28,14 +28,14 @@ on:
           - arm64
   push:
     branches:
-      - 'main'
-      - 'releases/**'
-      - 'v2'
+      - "main"
+      - "releases/**"
+      - "v2"
     tags:
-      - 'v*'
+      - "v*"
   pull_request:
     branches:
-      - 'main'
+      - "main"
 
 # Allow stopping obsolete workflows
 concurrency:
@@ -71,7 +71,7 @@ jobs:
     steps:
       - name: Prepare
         env:
-          REPOSITORY: '${{ github.repository }}'
+          REPOSITORY: "${{ github.repository }}"
         run: |
           build_arch=${{ matrix.docker_build_arch }}
           echo "BUILD_ARCH=${build_arch//\//-}" >> ${GITHUB_ENV}
@@ -80,9 +80,9 @@ jobs:
 
       # Get the repository's code
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
-          submodules: 'recursive'
+          submodules: "recursive"
           # Full history + tags so `git describe` can resolve the real version below.
           fetch-depth: 0
           persist-credentials: false
@@ -96,11 +96,59 @@ jobs:
           echo "version=${version}" >> ${GITHUB_OUTPUT}
           echo "Software version: ${version}"
 
+      # Render the TTS announcements into the build context, for every language.
+      # The image can't do this itself (the engines don't run under buildx
+      # emulation), and pre-rendered files mean a mower only has to upload them
+      # instead of rendering ~60 s on its first start. The engines are cached
+      # between runs, the render itself takes a few seconds.
+      - name: Set up Go (renders the announcements below)
+        if: matrix.variant == 'default'
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: utils/soundctl/go.mod
+          cache-dependency-path: utils/soundctl/go.sum
+
+      - name: Cache the TTS engines
+        if: matrix.variant == 'default'
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/openmower-tts
+          # Arch in the key: the arm64 and amd64 legs must not share a cache,
+          # the engines are platform specific.
+          key: tts-engines-${{ matrix.docker_build_arch }}-${{ hashFiles('utils/soundctl/internal/tts/install.go') }}
+
+      # The render encodes the announcements (EBU R128 + MP3) with ffmpeg, which
+      # the image has but the runner does not.
+      - name: Install ffmpeg (for the announcement render)
+        if: matrix.variant == 'default'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg
+          ffmpeg -version | head -1
+
+      - name: Render the TTS announcements (all languages)
+        if: matrix.variant == 'default'
+        working-directory: utils/soundctl
+        run: |
+          set -euo pipefail
+          tts_dir="${HOME}/.cache/openmower-tts"
+          go build -o "${RUNNER_TEMP}/soundctl" ./cmd/soundctl
+          "${RUNNER_TEMP}/soundctl" tts install --dir "${tts_dir}"
+          "${RUNNER_TEMP}/soundctl" tts install --engine piper --dir "${tts_dir}"
+          for lang in en de; do
+            "${RUNNER_TEMP}/soundctl" tts \
+              --config "../../src/open_mower/params/sounds_${lang}.yaml" \
+              --sound-ids ../../services/sound_service.json \
+              --sound-path ../../sounds \
+              --sounds-dir ../../sounds \
+              --tts-dir "${tts_dir}"
+          done
+
       # Setup Python 3
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3'
+          python-version: "3"
 
       - uses: pre-commit/action@v3.0.1
 
@@ -216,7 +264,7 @@ jobs:
     steps:
       - name: Prepare
         env:
-          REPOSITORY: '${{ github.repository }}'
+          REPOSITORY: "${{ github.repository }}"
         run: |
           echo "REPOSITORY_LC=${REPOSITORY,,}" >> ${GITHUB_ENV}
 
