@@ -21,7 +21,7 @@ func TestShippedFingerprints(t *testing.T) {
 			"ros_disconnected": "8f3fb044",
 		},
 		"sounds_de.yaml": {
-			"boot_complete":    "6755db87",
+			"boot_complete":    "5318c29d",
 			"ros_connected":    "0f8dd3bd",
 			"ros_disconnected": "09281a55",
 		},
