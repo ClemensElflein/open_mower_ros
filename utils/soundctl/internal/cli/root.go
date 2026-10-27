@@ -28,9 +28,10 @@ func newRootCmd() *cobra.Command {
 		Long: "Manage the sound definitions and MP3 files of an OpenMower HW v2 robot.\n" +
 			"\n" +
 			"\"sync\" and \"validate\" work on the sounds_*.yaml definition, \"tts\" renders its\n" +
-			"tts: texts, \"play\" and \"stop\" trigger sounds on a running robot, and\n" +
-			"\"discover\" lists the services the low level advertises (the first thing to\n" +
-			"look at when a sync cannot reach it).\n" +
+			"tts: texts, \"say\" renders a single text locally and plays it, \"play\" and\n" +
+			"\"stop\" trigger sounds on a running robot, and \"discover\" lists the services\n" +
+			"the low level advertises (the first thing to look at when a sync cannot\n" +
+			"reach it).\n" +
 			"\n" +
 			"Sound names, types and waveforms come from the shared SoundService definition\n" +
 			"(sound_service.json, a git submodule of this repo); override its location with\n" +
@@ -38,6 +39,6 @@ func newRootCmd() *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
-	root.AddCommand(newSyncCmd(), newValidateCmd(), newTTSCmd(), newVersionCmd(), newPlayCmd(), newStopCmd(), newDiscoverCmd())
+	root.AddCommand(newSyncCmd(), newValidateCmd(), newTTSCmd(), newVersionCmd(), newPlayCmd(), newStopCmd(), newDiscoverCmd(), newSayCmd())
 	return root
 }

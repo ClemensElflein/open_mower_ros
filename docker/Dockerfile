@@ -92,6 +92,16 @@ COPY --link --from=gobuild /out/soundctl /usr/local/bin/soundctl
 # TTS engine + model for the `tts:` texts of the sound definitions
 RUN soundctl tts install --dir /opt/open_mower_ros/tts --arch "$(dpkg --print-architecture)"
 
+# Gate the shipped definitions here rather than on the mower: ids/types/ranges
+# against services/sound_service.json and 16 kHz mono for every referenced MP3.
+# Announcements that only a `tts:` text produces are reported as "pending" (they
+# are rendered on the robot), so this needs no engine run and no ffmpeg.
+RUN for lang in en de; do \
+        soundctl validate \
+            --config "/opt/open_mower_ros/src/open_mower/params/sounds_${lang}.yaml" \
+            --check-mp3; \
+    done
+
 # delete prebuilt libs (so that they won't shadow the preinstalled ones)
 RUN rm -rf /opt/open_mower_ros/src/lib/slic3r_coverage_planner /apt-install_list
 

@@ -9,19 +9,21 @@ alphabetical grouping in a directory listing:
 
 | Prefix | Kind | Example |
 |---|---|---|
-| `<lang>_` | recording (checked in, hand-made) | `de_ros-connected.mp3` |
+| `<lang>_` | recording (checked in, hand-made; optional) | `de_meine-ansage.mp3` |
 | `tone_` | tone / beep effect | `tone_warning.mp3` |
 | `zz_` | background sound (sorts last) | `zz_minion-fire-alarm.mp3` |
 
 The `sounds_<lang>.yaml` definition references them by bare filename via
-`file: de_ros-connected.mp3`; its top-level `sound_path` points here.
+`file: zz_ping.mp3`; its top-level `sound_path` points here.
 
 Text announcements are normally **not** checked in: a sound with a `tts:` text is
 rendered by `soundctl tts` into `sounds/<language>/<file>` (e.g.
 `sounds/en/en_boot_complete.mp3`, a 16 kHz mono CBR MP3 plus a `.json` sidecar
-that caches the text/voice and marks the file as up to date). A recording only
-exists for the few announcements that need a specific voice (e.g. the "Steve"
-persona in German).
+that caches the text/voice and marks the file as up to date). Both shipped
+languages speak their announcements that way; a hand-made recording is still
+possible — give a sound a `file:` and no `tts:` text. (The German recordings that
+used to ship here were removed in favour of the TTS voice; `git log` has them if
+one is ever wanted back.)
 
 ## Why Supertonic 3 (and not the alternatives)
 
@@ -94,9 +96,32 @@ runtime and the renders survive an image update.
   inside the container: if SID 12 is listed, the LL is fine (retry / check the
   network); if the list is empty, the LL is not up or not on this interface.
 
+## Measured on the reference mower (CM4)
+
+First start after an image update, i.e. the worst case (nothing rendered yet):
+
+| step | time |
+|---|---|
+| render `boot_complete` / `ros_connected` / `ros_disconnected` | 7.6 s / 6.0 s / 4.8 s (x86 host: 2.1 s / 1.7 s / 1.4 s) |
+| SoundService probe (multicast) | 3–10 s |
+| FileService discovery (10 s advertisement period) | ≤ 10 s typical, 30 s window |
+| upload, per MP3 (256-byte RPC chunks + flash commit) | 3–5 s (19 kB) |
+| whole startup sync | ~30 s |
+
+A second start is `0 rendered, 3 up to date` + `up to date` for every file, i.e.
+only the discovery time. `boot_ping` with `repeat_ms: 4000` repeats with a
+measured period of **3.8 s** start-to-start, so `repeat_ms` is the period, not a
+gap after the file.
+
 ## Local use
 
 ```bash
+# audition a text with the mower's chain (engine + loudnorm + 16 kHz mono CBR)
+# straight from the speakers; no YAML, no cache. On a dev machine point --tts-dir
+# ($OPENMOWER_TTS_DIR) at an engine fetched with "soundctl tts install".
+soundctl say "Hallo, ich bin Steve" --lang de
+soundctl say "Der Akku ist fast leer" --lang de --speed 1.1 --out /tmp/akku.mp3 --play=false
+
 # check the definitions (paths, 16 kHz/mono, tts texts) without a mower.
 # --sound-path is needed outside the image, where the absolute
 # /opt/open_mower_ros/sounds of the YAML does not exist. An MP3 that only a

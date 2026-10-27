@@ -1,10 +1,12 @@
 package tts
 
 import (
+	"errors"
 	"fmt"
 	"hash/crc32"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/ClemensElflein/open_mower_ros/utils/soundctl/internal/fwsync"
@@ -140,9 +142,21 @@ func Render(cfg *fwsync.Config, layout fwsync.Layout, eng Sherpa, enc Encoder, o
 	return results, nil
 }
 
-// renderOne renders, verifies and installs a single sound.
-func renderOne(name string, id fwsync.TTSIdentity, dst string, eng Sherpa, enc Encoder, opts Options) (Result, error) {
-	res := Result{Name: name, File: filepath.Base(dst), Path: dst}
+// encodeResult is the outcome of one synthesis + encode pass.
+type encodeResult struct {
+	Info     fwsync.MP3Info
+	Data     []byte
+	RenderMs int64
+}
+
+// encode synthesises id.Text and encodes it into dst in the firmware format
+// (16 kHz mono CBR), verifies the result and only then installs it with a rename
+// — a partial or mis-encoded file never appears under the final name. It is the
+// shared core of `soundctl tts` (YAML definitions, cached via a sidecar) and
+// `soundctl say` (ad-hoc text, no cache), so a local test hears exactly what the
+// mower would play. label only shapes the log lines.
+func encode(label string, id fwsync.TTSIdentity, dst string, eng Sherpa, enc Encoder, logf Logf) (encodeResult, error) {
+	var res encodeResult
 
 	kbps, err := fwsync.ParseBitrate(id.Bitrate)
 	if err != nil {
@@ -160,7 +174,7 @@ func renderOne(name string, id fwsync.TTSIdentity, dst string, eng Sherpa, enc E
 	if err != nil {
 		return res, err
 	}
-	opts.logf("  %-24s synthesised in %s (%s)", name, synthTime.Round(time.Millisecond), id)
+	logf("  %-24s synthesised in %s (%s)", label, synthTime.Round(time.Millisecond), id)
 
 	// Encode next to the destination (not into the temp dir), so the final move
 	// is a same-filesystem rename and never leaves a partial file behind.
@@ -172,7 +186,7 @@ func renderOne(name string, id fwsync.TTSIdentity, dst string, eng Sherpa, enc E
 		return res, err
 	}
 	for _, w := range warnings {
-		opts.logf("  %-24s warning: %s", name, w)
+		logf("  %-24s warning: %s", label, w)
 	}
 
 	// Never install a file the firmware cannot play: the render is the only
@@ -197,14 +211,50 @@ func renderOne(name string, id fwsync.TTSIdentity, dst string, eng Sherpa, enc E
 		return res, err
 	}
 
-	sc := fwsync.NewSidecar(id, info, int64(len(data)), crc32.ChecksumIEEE(data))
-	sc.Stamped(opts.Generator, time.Since(start).Milliseconds()+synthTime.Milliseconds(), time.Now())
+	res.Info = info
+	res.Data = data
+	res.RenderMs = time.Since(start).Milliseconds() + synthTime.Milliseconds()
+	return res, nil
+}
+
+// RenderText synthesises one ad-hoc text into dst and returns the result. It uses
+// the same engine call, loudness normalisation, encoder and format checks as
+// `soundctl tts`, but without a YAML definition and without a sidecar cache (an
+// ad-hoc text has no definition to cache against).
+func RenderText(text string, id fwsync.TTSIdentity, dst string, eng Sherpa, enc Encoder, logf Logf) (Result, error) {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return Result{}, errors.New("no text to speak")
+	}
+	id.Text = text
+	res := Result{Name: "say", File: filepath.Base(dst), Path: dst}
+	r, err := encode("say", id, dst, eng, enc, logf)
+	if err != nil {
+		return res, err
+	}
+	res.Info = r.Info
+	res.Bytes = int64(len(r.Data))
+	res.RenderMs = r.RenderMs
+	return res, nil
+}
+
+// renderOne renders, verifies, installs and caches a single YAML sound.
+func renderOne(name string, id fwsync.TTSIdentity, dst string, eng Sherpa, enc Encoder, opts Options) (Result, error) {
+	res := Result{Name: name, File: filepath.Base(dst), Path: dst}
+
+	r, err := encode(name, id, dst, eng, enc, opts.logf)
+	if err != nil {
+		return res, err
+	}
+
+	sc := fwsync.NewSidecar(id, r.Info, int64(len(r.Data)), crc32.ChecksumIEEE(r.Data))
+	sc.Stamped(opts.Generator, r.RenderMs, time.Now())
 	if err := fwsync.WriteSidecar(dst, sc); err != nil {
 		return res, fmt.Errorf("write sidecar: %w", err)
 	}
 
-	res.Info = info
-	res.Bytes = int64(len(data))
+	res.Info = r.Info
+	res.Bytes = int64(len(r.Data))
 	res.RenderMs = sc.RenderMs
 	return res, nil
 }

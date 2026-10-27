@@ -33,7 +33,7 @@ func (c *Config) Validate(ids *SoundIDs) []string {
 	// pure tone/sequence definition must not be forced to carry them.
 	if len(c.TTSSounds()) > 0 {
 		errs = append(errs, validateLanguage(c.Language)...)
-		errs = append(errs, c.validateTTS()...)
+		errs = append(errs, ValidateTTSSettings(c.TTSSettings())...)
 	}
 
 	for name, def := range c.Sounds {
@@ -48,11 +48,11 @@ func (c *Config) Validate(ids *SoundIDs) []string {
 	return errs
 }
 
-// validateTTS checks the top-level tts block. Its resolved values are the
-// defaults for every tts: text (and part of the render cache key), so a bad one
-// would break every announcement.
-func (c *Config) validateTTS() []string {
-	set := c.TTSSettings()
+// ValidateTTSSettings checks a resolved tts block: engine, model, bitrate, sid,
+// speed and threads. It is the rule set shared by the YAML definitions and the
+// ad-hoc `soundctl say` path, so a quick local test can never use a value that
+// sounds_*.yaml would reject (and vice versa).
+func ValidateTTSSettings(set TTSSettings) []string {
 	var errs []string
 
 	if set.Engine != "supertonic" {
@@ -71,6 +71,10 @@ func (c *Config) validateTTS() []string {
 	}
 	return errs
 }
+
+// ValidateLanguage exposes the language rule (it becomes the sounds/<lang>/
+// directory) to the ad-hoc `soundctl say` path.
+func ValidateLanguage(lang string) []string { return validateLanguage(lang) }
 
 // validateLanguage checks the language, which becomes the sounds/<lang>/
 // sub directory and therefore has to be a safe path component.

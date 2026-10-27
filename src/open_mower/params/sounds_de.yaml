@@ -75,9 +75,8 @@ version: 1
 language: de
 sound_path: /opt/open_mower_ros/sounds
 
-# Defaults for every sound with a tts: text (see the file header). Unused here
-# as long as the announcements below ship as recordings; add a tts: text to one
-# of them to have it spoken by the German voice instead.
+# Defaults for every sound with a tts: text (see the file header). Changing any
+# of them re-renders all German announcements on the next start.
 tts:
   engine: supertonic
   # model: sherpa-onnx-supertonic-3-tts-int8-2026-05-11  # the default
@@ -108,8 +107,9 @@ sounds:
     file: zz_ping.mp3
   boot_complete:
     type: mp3
+    tts: "Hallo, ich bin Steve, dein intelligenter Rasenmäher von OpenMowea. Rasenpflege ist mein Beruf."
     volume: 100
-    file: de_hallo-ich-bin-steve.mp3
+    file: de_boot_complete.mp3
   emergency:
     type: mp3
     volume: 90
@@ -117,9 +117,11 @@ sounds:
     file: zz_minion-fire-alarm.mp3
   ros_connected:
     type: mp3
+    tts: "Das Roboter-Betriebssystem ist gestartet."
     volume: 100
-    file: de_ros-connected.mp3
+    file: de_ros_connected.mp3
   ros_disconnected:
     type: mp3
+    tts: "Das Roboter-Betriebssystem wurde gestoppt."
     volume: 100
-    file: de_ros-disconnected.mp3
+    file: de_ros_disconnected.mp3

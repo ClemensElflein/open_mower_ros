@@ -13,10 +13,29 @@ The user-facing story (sound files, overlays, startup behaviour) is documented i
 |---|---|
 | `validate` | check `sounds_*.yaml` against `services/sound_service.json` (ids, types, ranges) and the MP3s (16 kHz mono) |
 | `tts` | render the `tts:` texts into 16 kHz mono CBR MP3s (sherpa-onnx + ffmpeg), with a `.json` sidecar as cache; `--check` reports missing/stale renders |
+| `say` | render **one** ad-hoc text with the same chain and play it on this machine — no YAML, no cache. The way to audition a text before it goes into a definition |
 | `tts install` / `tts verify` | fetch / check the pinned engine + model (~220 MB, `$OPENMOWER_TTS_DIR`, default `/opt/open_mower_ros/tts`) |
 | `sync` | upload changed MP3s, push the definitions blob, remove orphans, optionally set the volume |
 | `play` / `stop` | trigger a tone, sequence, MP3 or configured sound on a running robot |
 | `discover` | list the services the low level advertises (first thing to check when `sync` cannot reach it) |
+
+## Auditioning a text on a dev machine
+
+```bash
+cd utils/soundctl
+go run ./cmd/soundctl tts install --dir ~/.cache/openmower-tts   # once, ~220 MB
+export OPENMOWER_TTS_DIR=~/.cache/openmower-tts
+
+go run ./cmd/soundctl say "Hallo, ich bin Steve" --lang de       # speaks now
+go run ./cmd/soundctl say "Der Akku ist fast leer" --lang de --speed 1.1
+go run ./cmd/soundctl say "Hello" --sid 3 --out /tmp/hello.mp3 --play=false
+go run ./cmd/soundctl say "Test" --player "mpg123 -q"            # own player
+```
+
+`say` uses the identical engine call, loudness normalisation, encoder and format
+check as `soundctl tts`, so what you hear is what the mower will play. Playback is
+`ffplay -nodisp -autoexit` (comes with the ffmpeg the encoder needs anyway);
+`--player` accepts any command that takes the file as last argument.
 
 ## Layout
 

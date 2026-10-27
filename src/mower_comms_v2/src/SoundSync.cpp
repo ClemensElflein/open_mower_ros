@@ -52,8 +52,12 @@ std::string BuildCommand() {
   // younger than 60 s; afterwards (and once claimed) only every 10 s (xbot/config.hpp). The sync
   // spends a few seconds probing the SoundService before it starts waiting for the FileService,
   // so a 10 s window could miss the LL forever - 30 s covers three full advertisement periods.
-  std::string command = std::string(kCommand) + " tts --config " + config + "; " + std::string(kCommand) +
-                        " sync --config " + config + " --wait 30s";
+  //
+  // `timeout 300` bounds the whole chain: if a child ever hangs, the read loop would block
+  // forever and RunWithRetries could never clear the running flag (no sync for the rest of the
+  // uptime). A fresh install needs ~40 s on a CM4, so 300 s is generous.
+  std::string command = "timeout 300 " + std::string(kCommand) + " tts --config " + config + "; timeout 300 " +
+                        std::string(kCommand) + " sync --config " + config + " --wait 30s";
   if (settings.volume >= 0) {
     command += " --volume " + std::to_string(settings.volume);
   }

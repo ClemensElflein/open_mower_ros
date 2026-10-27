@@ -106,7 +106,7 @@ sounds:
     file: zz_ping.mp3
   boot_complete:
     type: mp3
-    tts: "Hi, I am Steve, your open mower green care is my profession"
+    tts: "Hi, I am Steve, your intelligent lawn mower from OpenMower. Lawn care is my profession."
     volume: 100
     file: en_boot_complete.mp3
   emergency:
@@ -116,11 +116,11 @@ sounds:
     file: zz_minion-fire-alarm.mp3
   ros_connected:
     type: mp3
-    tts: "Robot operating system start up successful"
+    tts: "The robot operating system has started."
     volume: 100
     file: en_ros_connected.mp3
   ros_disconnected:
     type: mp3
-    tts: "Robot operating system stopped"
+    tts: "The robot operating system has stopped."
     volume: 100
     file: en_ros_disconnected.mp3

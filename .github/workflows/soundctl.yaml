@@ -1,0 +1,86 @@
+name: soundctl
+
+# Build, vet and test the soundctl module (utils/soundctl) and validate the
+# shipped sound definitions. The module is pure Go with no robot/network
+# dependency, so all of this runs in well under a minute and catches the cheap
+# mistakes (unformatted code, a YAML the firmware would reject, a missing MP3)
+# before an image build or a deploy.
+on:
+  push:
+    branches:
+      - 'main'
+      - 'releases/**'
+      - 'v2'
+    paths:
+      - 'utils/soundctl/**'
+      - 'services/**'
+      - 'sounds/**'
+      - 'src/open_mower/params/sounds_*.yaml'
+      - '.github/workflows/soundctl.yaml'
+  pull_request:
+    branches:
+      - 'main'
+    paths:
+      - 'utils/soundctl/**'
+      - 'services/**'
+      - 'sounds/**'
+      - 'src/open_mower/params/sounds_*.yaml'
+      - '.github/workflows/soundctl.yaml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: utils/soundctl
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # services/sound_service.json (the shared definition) is a submodule.
+          submodules: 'recursive'
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: utils/soundctl/go.mod
+          cache-dependency-path: utils/soundctl/go.sum
+
+      - name: gofmt
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "${unformatted}" ]; then
+            echo "gofmt would change:"
+            echo "${unformatted}"
+            exit 1
+          fi
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: go test
+        run: go test ./... -count=1
+
+      # The image is arm64; a cross-compile check catches anything that sneaks a
+      # platform dependency (cgo, a syscall package) into the module.
+      - name: cross-compile for the mower (linux/arm64)
+        run: CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build ./...
+
+      # Gate the shipped definitions: ids/types/ranges against the shared
+      # sound_service.json, and 16 kHz mono for every referenced MP3. The
+      # announcements that only a `tts:` text produces are reported as "pending"
+      # (they are rendered on the mower), so no ffmpeg/engine is needed here.
+      - name: validate the shipped sound definitions
+        run: |
+          for lang in en de; do
+            go run ./cmd/soundctl validate \
+              --config "../../src/open_mower/params/sounds_${lang}.yaml" \
+              --sound-ids ../../services/sound_service.json \
+              --sound-path ../../sounds \
+              --check-mp3
+          done

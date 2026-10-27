@@ -84,9 +84,8 @@ func (f *ttsFlags) register(cmd *cobra.Command) {
 	fl.BoolVar(&f.check, "check", false, "render nothing, only report missing/stale renders (exit 1 if any)")
 }
 
-// engine assembles the Sherpa engine from the flags and the config defaults.
-func (f *ttsFlags) engine(cfg *fwsync.Config) tts.Sherpa {
-	set := cfg.TTSSettings()
+// engine assembles the Sherpa engine from the flags and the resolved tts block.
+func (f *ttsFlags) engine(set fwsync.TTSSettings) tts.Sherpa {
 	bin, lib, modelDir := f.ttsBin, f.ttsLibDir, f.ttsModelDir
 	if bin == "" {
 		bin = filepath.Join(f.ttsDir, "bin", "sherpa-onnx-offline-tts")
@@ -144,7 +143,7 @@ func (f *ttsFlags) run(cmd *cobra.Command) error {
 		return nil
 	}
 
-	eng := f.engine(cfg)
+	eng := f.engine(cfg.TTSSettings())
 	if err := eng.Available(); err != nil {
 		return fmt.Errorf("%w (run \"soundctl tts install\" or set --tts-dir)", err)
 	}
