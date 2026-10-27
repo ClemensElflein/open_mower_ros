@@ -26,12 +26,18 @@ const defaultPlayer = "ffplay -nodisp -autoexit -loglevel error"
 type sayFlags struct {
 	ttsFlags
 
+	engine   string
 	lang     string
 	model    string
 	sid      int
 	speed    float64
 	bitrate  string
 	loudNorm bool
+
+	// piper (--engine piper) only
+	voice           string
+	piperBin        string
+	sentenceSilence float64
 
 	out    string
 	play   bool
@@ -42,13 +48,15 @@ type sayFlags struct {
 // and logged exactly like the YAML one.
 func (f *sayFlags) settings() fwsync.TTSSettings {
 	return fwsync.TTSSettings{
-		Engine:   fwsync.DefaultTTSEngine,
-		Model:    f.model,
-		Sid:      f.sid,
-		Speed:    f.speed,
-		Bitrate:  f.bitrate,
-		LoudNorm: f.loudNorm,
-		Threads:  f.threads,
+		Engine:          f.engine,
+		Model:           f.model,
+		Sid:             f.sid,
+		Speed:           f.speed,
+		Bitrate:         f.bitrate,
+		LoudNorm:        f.loudNorm,
+		Threads:         f.threads,
+		Voice:           f.voice,
+		SentenceSilence: f.sentenceSilence,
 	}
 }
 
@@ -107,9 +115,14 @@ func newSayCmd() *cobra.Command {
 		Use:   "say <text>",
 		Short: "Render a text with the mower's TTS chain and play it here",
 		Long: "Synthesise one text on this machine and play it through the local speakers.\n" +
-			"It is the same chain as the announcements on the mower - same engine call,\n" +
-			"EBU R128 loudness normalisation, 16 kHz mono CBR MP3 and the same format\n" +
-			"check - so a text can be auditioned before it goes into sounds_*.yaml.\n" +
+			"It is the same chain as the announcements on the mower - same encoder, EBU\n" +
+			"R128 loudness normalisation, 16 kHz mono CBR MP3 and the same format check -\n" +
+			"so a text can be auditioned before it goes into sounds_*.yaml.\n" +
+			"\n" +
+			"Two engines are available: \"supertonic\" (the one the shipped definitions\n" +
+			"use, --tts-dir) and \"piper\" (OHF-Voice/piper1-gpl: a VITS voice with\n" +
+			"espeak-ng embedded, --voice/--piper-dir/--piper-bin). Piper is for\n" +
+			"auditioning only - `soundctl tts` still renders with Supertonic.\n" +
 			"\n" +
 			"No YAML and no cache: every call renders (~2 s on a PC, ~5-8 s on the CM4).\n" +
 			"For the definitions use \"soundctl tts\", which caches via .json sidecars.\n" +
@@ -123,7 +136,8 @@ func newSayCmd() *cobra.Command {
 			"to read it from stdin.",
 		Example: "  soundctl say \"Hallo, ich bin Steve\" --lang de\n" +
 			"  soundctl say \"Der Akku ist fast leer\" --lang de --speed 1.1\n" +
-			"  soundctl say \"Hello\" --sid 3 --out /tmp/hello.mp3 --play=false\n" +
+			"  soundctl say \"Hallo\" --engine piper --voice de_DE-thorsten-high --voice-dir ~/.local/share/piper\n" +
+			"  soundctl say \"Hello\" --engine piper --voice en_GB-alba-medium --out /tmp/hello.mp3 --play=false\n" +
 			"  soundctl say \"Test\" --lang de --player \"mpg123 -q\"",
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -135,20 +149,37 @@ func newSayCmd() *cobra.Command {
 			}
 
 			set := f.settings()
+			if set.Engine == "piper" && !cmd.Flags().Changed("sid") {
+				// A piper voice is single-speaker unless a sid is asked for.
+				set.Sid = 0
+			}
 			if errs := fwsync.ValidateTTSSettings(set); len(errs) > 0 {
 				return errors.New(strings.Join(errs, "; "))
 			}
-			if errs := fwsync.ValidateLanguage(f.lang); len(errs) > 0 {
-				return errors.New(strings.Join(errs, "; "))
+			if set.Engine == "supertonic" {
+				if errs := fwsync.ValidateLanguage(f.lang); len(errs) > 0 {
+					return errors.New(strings.Join(errs, "; "))
+				}
+			} else if lang := tts.VoiceLanguage(set.Voice); lang != "" {
+				// Piper brings its own phonemisation (espeak-ng): the voice decides
+				// the language, --lang is not passed to the engine.
+				f.lang = lang
 			}
+
+			eng, err := f.ttsFlags.engineFor(set)
+			if err != nil {
+				return err
+			}
+
 			// Normalise the bitrate so the log line matches the YAML spelling.
 			if kbps, err := fwsync.ParseBitrate(set.Bitrate); err == nil {
 				set.Bitrate = fwsync.FormatBitrate(kbps)
 			}
-
-			eng := f.ttsFlags.engine(set)
 			if err := eng.Available(); err != nil {
-				return fmt.Errorf("%w (run \"soundctl tts install\" or set --tts-dir)", err)
+				if set.Engine == "supertonic" {
+					return fmt.Errorf("%w (run \"soundctl tts install\" or set --tts-dir)", err)
+				}
+				return err
 			}
 			enc := tts.Encoder{FFmpeg: f.ffmpeg}
 			if err := enc.Available(); err != nil {
@@ -166,7 +197,7 @@ func newSayCmd() *cobra.Command {
 			}
 
 			id := fwsync.TTSIdentity{
-				Engine:   set.Engine,
+				Engine:   f.engine,
 				Model:    set.Model,
 				Language: f.lang,
 				Bitrate:  set.Bitrate,
@@ -190,7 +221,8 @@ func newSayCmd() *cobra.Command {
 	}
 
 	fl := cmd.Flags()
-	fl.StringVar(&f.lang, "lang", "en", "language of the text (the model's --lang: en, de, ...)")
+	fl.StringVar(&f.engine, "engine", "supertonic", "TTS engine: supertonic (the shipped one) or piper")
+	fl.StringVar(&f.lang, "lang", "en", "language of the text (the model's --lang: en, de, ...); piper derives it from the voice")
 	fl.StringVar(&f.model, "model", fwsync.DefaultTTSModel, "model directory below <tts-dir>/models")
 	fl.IntVar(&f.sid, "sid", fwsync.DefaultTTSSid, "speaker id 0..9")
 	fl.Float64Var(&f.speed, "speed", fwsync.DefaultTTSSpeed, "speaking rate 0.7..1.5")
@@ -206,5 +238,11 @@ func newSayCmd() *cobra.Command {
 	fl.StringVar(&f.out, "out", "", "keep the rendered MP3 here (default: temp file, removed after playback)")
 	fl.BoolVar(&f.play, "play", true, "play the result (--play=false renders only)")
 	fl.StringVar(&f.player, "player", defaultPlayer, "playback command; the file is appended as last argument")
+
+	// --engine piper only
+	fl.StringVar(&f.voice, "voice", "", "piper voice: a name below --piper-dir (en_US-bryce-medium) or a path to a .onnx")
+	fl.StringVar(&f.piperDir, "piper-dir", "", "voices dir; default: $OPENMOWER_PIPER_DIR, <tts-dir>/piper/voices")
+	fl.StringVar(&f.piperBin, "piper-bin", "", "piper executable; default: $OPENMOWER_PIPER_BIN, <tts-dir>/piper/piper, PATH")
+	fl.Float64Var(&f.sentenceSilence, "sentence-silence", 0, "piper: seconds of silence after each sentence")
 	return cmd
 }

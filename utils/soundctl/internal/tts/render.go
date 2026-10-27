@@ -93,7 +93,7 @@ func ensureWritableDir(dir string) error {
 // Render synthesises and encodes every "tts:" sound of the config into the
 // overlay's language directory and writes the sidecar cache next to each file.
 // Sounds whose sidecar already matches are skipped (unless opts.Force).
-func Render(cfg *fwsync.Config, layout fwsync.Layout, eng Sherpa, enc Encoder, opts Options) ([]Result, error) {
+func Render(cfg *fwsync.Config, layout fwsync.Layout, eng Engine, enc Encoder, opts Options) ([]Result, error) {
 	names := cfg.TTSSounds()
 	if len(names) == 0 {
 		return nil, nil
@@ -155,7 +155,7 @@ type encodeResult struct {
 // shared core of `soundctl tts` (YAML definitions, cached via a sidecar) and
 // `soundctl say` (ad-hoc text, no cache), so a local test hears exactly what the
 // mower would play. label only shapes the log lines.
-func encode(label string, id fwsync.TTSIdentity, dst string, eng Sherpa, enc Encoder, logf Logf) (encodeResult, error) {
+func encode(label string, id fwsync.TTSIdentity, dst string, eng Engine, enc Encoder, logf Logf) (encodeResult, error) {
 	var res encodeResult
 
 	kbps, err := fwsync.ParseBitrate(id.Bitrate)
@@ -174,7 +174,7 @@ func encode(label string, id fwsync.TTSIdentity, dst string, eng Sherpa, enc Enc
 	if err != nil {
 		return res, err
 	}
-	logf("  %-24s synthesised in %s (%s)", label, synthTime.Round(time.Millisecond), id)
+	logf("  %-24s synthesised in %s (%s)", label, synthTime.Round(time.Millisecond), eng.Describe(id))
 
 	// Encode next to the destination (not into the temp dir), so the final move
 	// is a same-filesystem rename and never leaves a partial file behind.
@@ -221,7 +221,7 @@ func encode(label string, id fwsync.TTSIdentity, dst string, eng Sherpa, enc Enc
 // the same engine call, loudness normalisation, encoder and format checks as
 // `soundctl tts`, but without a YAML definition and without a sidecar cache (an
 // ad-hoc text has no definition to cache against).
-func RenderText(text string, id fwsync.TTSIdentity, dst string, eng Sherpa, enc Encoder, logf Logf) (Result, error) {
+func RenderText(text string, id fwsync.TTSIdentity, dst string, eng Engine, enc Encoder, logf Logf) (Result, error) {
 	text = strings.TrimSpace(text)
 	if text == "" {
 		return Result{}, errors.New("no text to speak")
@@ -239,7 +239,7 @@ func RenderText(text string, id fwsync.TTSIdentity, dst string, eng Sherpa, enc 
 }
 
 // renderOne renders, verifies, installs and caches a single YAML sound.
-func renderOne(name string, id fwsync.TTSIdentity, dst string, eng Sherpa, enc Encoder, opts Options) (Result, error) {
+func renderOne(name string, id fwsync.TTSIdentity, dst string, eng Engine, enc Encoder, opts Options) (Result, error) {
 	res := Result{Name: name, File: filepath.Base(dst), Path: dst}
 
 	r, err := encode(name, id, dst, eng, enc, opts.logf)

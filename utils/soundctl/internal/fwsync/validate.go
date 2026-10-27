@@ -35,39 +35,63 @@ func (c *Config) Validate(ids *SoundIDs) []string {
 		errs = append(errs, validateLanguage(c.Language)...)
 		errs = append(errs, ValidateTTSSettings(c.TTSSettings())...)
 	}
+	// Catch an old file early: the flat tts fields were replaced by the
+	// per-engine blocks, and silently ignoring them would change the voice.
+	if c.TTS.LegacyModel != "" {
+		errs = append(errs, "tts.model is no longer supported, use tts.supertonic.model")
+	}
+	if c.TTS.LegacySid != nil {
+		errs = append(errs, "tts.sid is no longer supported, use tts.supertonic.sid")
+	}
+	if c.TTS.LegacyThreads != nil {
+		errs = append(errs, "tts.threads is no longer supported, use tts.supertonic.threads")
+	}
 
+	engine := c.TTSSettings().Engine
 	for name, def := range c.Sounds {
 		if !ids.Has(name) {
 			errs = append(errs, fmt.Sprintf("unknown sound id %q (valid: %v)", name, ids.Names()))
 			continue
 		}
-		errs = append(errs, validateSound(name, def, ids)...)
+		errs = append(errs, validateSound(name, def, ids, engine)...)
 	}
 
 	errs = append(errs, c.validateFiles()...)
 	return errs
 }
 
-// ValidateTTSSettings checks a resolved tts block: engine, model, bitrate, sid,
-// speed and threads. It is the rule set shared by the YAML definitions and the
-// ad-hoc `soundctl say` path, so a quick local test can never use a value that
-// sounds_*.yaml would reject (and vice versa).
+// ValidateTTSSettings checks a resolved tts block. It is the rule set shared by
+// the YAML definitions and the ad-hoc `soundctl say` path, so a quick local test
+// can never use a value that sounds_*.yaml would reject (and vice versa).
+//
+// Which value matters depends on the engine: supertonic needs a model and a
+// speaker id, piper a voice.
 func ValidateTTSSettings(set TTSSettings) []string {
 	var errs []string
 
-	if set.Engine != "supertonic" {
-		errs = append(errs, fmt.Sprintf("tts.engine %q is not supported (use \"supertonic\")", set.Engine))
-	}
-	if strings.TrimSpace(set.Model) == "" {
-		errs = append(errs, "tts.model must not be empty")
-	}
 	if _, err := ParseBitrate(set.Bitrate); err != nil {
 		errs = append(errs, "tts."+err.Error())
 	}
-	errs = append(errs, validateSid("tts", set.Sid)...)
 	errs = append(errs, validateSpeed("tts", set.Speed)...)
-	if set.Threads < 0 || set.Threads > 64 {
-		errs = append(errs, fmt.Sprintf("tts.threads must be 0..64 (got %d)", set.Threads))
+
+	switch set.Engine {
+	case "supertonic":
+		if strings.TrimSpace(set.Model) == "" {
+			errs = append(errs, "tts.model must not be empty")
+		}
+		errs = append(errs, validateSid("tts", set.Sid)...)
+		if set.Threads < 0 || set.Threads > 64 {
+			errs = append(errs, fmt.Sprintf("tts.threads must be 0..64 (got %d)", set.Threads))
+		}
+	case "piper":
+		if strings.TrimSpace(set.Voice) == "" {
+			errs = append(errs, "tts.piper.voice must not be empty (e.g. \"en_US-bryce-medium\")")
+		}
+		if set.SentenceSilence < 0 || set.SentenceSilence > 5 {
+			errs = append(errs, fmt.Sprintf("tts.piper.sentence_silence must be 0..5 s (got %g)", set.SentenceSilence))
+		}
+	default:
+		errs = append(errs, fmt.Sprintf("tts.engine %q is not supported (use \"supertonic\" or \"piper\")", set.Engine))
 	}
 	return errs
 }
@@ -75,6 +99,10 @@ func ValidateTTSSettings(set TTSSettings) []string {
 // ValidateLanguage exposes the language rule (it becomes the sounds/<lang>/
 // directory) to the ad-hoc `soundctl say` path.
 func ValidateLanguage(lang string) []string { return validateLanguage(lang) }
+
+// ValidateSpeed exposes the speaking-rate rule to the ad-hoc `soundctl say` path
+// (where no full tts block exists, e.g. for an engine without a model name).
+func ValidateSpeed(name string, speed float64) []string { return validateSpeed(name, speed) }
 
 // validateLanguage checks the language, which becomes the sounds/<lang>/
 // sub directory and therefore has to be a safe path component.
@@ -157,8 +185,9 @@ func validateVolume(v int) error {
 }
 
 // validateSound validates one complete YAML definition: the shared header rules
-// plus the payload of the selected type.
-func validateSound(name string, def SoundDef, ids *SoundIDs) []string {
+// plus the payload of the selected type. engine decides how far a per-sound
+// speaker id may go (Supertonic ships 10 speakers, a piper voice may have many).
+func validateSound(name string, def SoundDef, ids *SoundIDs, engine string) []string {
 	errs := validateHeader(name, def, ids)
 
 	if def.TTS != "" && def.Type != "mp3" {
@@ -187,7 +216,7 @@ func validateSound(name string, def SoundDef, ids *SoundIDs) []string {
 			errs = append(errs, validateRange(name, prefix+"lfo_depth", n.LfoDepth, 0xFFFF)...)
 		}
 	case "mp3":
-		errs = append(errs, validateMP3(name, def)...)
+		errs = append(errs, validateMP3(name, def, engine)...)
 	}
 
 	return errs
@@ -196,7 +225,7 @@ func validateSound(name string, def SoundDef, ids *SoundIDs) []string {
 // validateMP3 validates an MP3 definition. It always needs a source: either a
 // tts: text (rendered by `soundctl tts`) or a file name. Both may be given —
 // the file name is then just the name the render is stored under.
-func validateMP3(name string, def SoundDef) []string {
+func validateMP3(name string, def SoundDef, engine string) []string {
 	var errs []string
 	file := def.File
 	if file == "" && def.TTS != "" {
@@ -223,7 +252,15 @@ func validateMP3(name string, def SoundDef) []string {
 		}
 	}
 	if def.Sid != nil {
-		errs = append(errs, validateSid(name, *def.Sid)...)
+		if engine == "piper" {
+			// A multi-speaker piper voice (LibriTTS: 904 speakers) selects its
+			// speaker with -s; single-speaker voices ignore the value.
+			if *def.Sid < 0 || *def.Sid > 0xFFFF {
+				errs = append(errs, fmt.Sprintf("%s: 'sid' must be 0..65535 for a piper voice (got %d)", name, *def.Sid))
+			}
+		} else {
+			errs = append(errs, validateSid(name, *def.Sid)...)
+		}
 	}
 	if def.Speed != nil {
 		errs = append(errs, validateSpeed(name, *def.Speed)...)

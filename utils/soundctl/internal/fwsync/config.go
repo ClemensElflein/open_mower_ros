@@ -76,17 +76,59 @@ type SoundDef struct {
 	Speed *float64 `yaml:"speed,omitempty" json:"-"`
 }
 
-// TTSConfig is the top-level "tts:" block: the defaults used for every sound
-// that has a "tts:" text. Every field is optional.
+// TTSConfig is the top-level "tts:" block: the defaults for every sound that has
+// a "tts:" text.
+//
+// The layout is deliberately split in two: options that both engines understand
+// are flat (speed, bitrate, loudnorm), everything engine specific sits in the
+// block named after that engine (supertonic, piper). Switching the engine is
+// therefore one line, and a block that does not belong to the selected engine is
+// simply unused — it can stay in the file as the documented alternative.
+//
+//	speed    speaking rate, both engines (piper: length_scale = 1/speed)
+//	bitrate  MP3 bitrate of the encoder (both engines)
+//	loudnorm EBU R128 normalisation in ffmpeg (both engines)
+//
+// A per-sound "sid:"/"speed:" overrides these for a single announcement.
 type TTSConfig struct {
 	Engine   string   `yaml:"engine"`
-	Model    string   `yaml:"model"`
-	Sid      *int     `yaml:"sid"`
 	Speed    *float64 `yaml:"speed"`
 	Bitrate  string   `yaml:"bitrate"`
 	LoudNorm *bool    `yaml:"loudnorm"`
-	// Threads is the ONNX thread count of the TTS engine (0 = the CLI default).
+
+	// Supertonic is used when engine is "supertonic" (the sherpa-onnx engine).
+	Supertonic SupertonicConfig `yaml:"supertonic"`
+	// Piper is used when engine is "piper" (OHF-Voice/piper1-gpl).
+	Piper PiperConfig `yaml:"piper"`
+
+	// Deprecated: the flat fields were replaced by the per-engine blocks. They
+	// are kept only to reject an old file with a precise message instead of
+	// silently ignoring the values.
+	LegacyModel   string `yaml:"model"`
+	LegacySid     *int   `yaml:"sid"`
+	LegacyThreads *int   `yaml:"threads"`
+}
+
+// SupertonicConfig is the engine block of the sherpa-onnx Supertonic engine.
+type SupertonicConfig struct {
+	// Model is the directory below <tts-dir>/models ("" = DefaultTTSModel).
+	Model string `yaml:"model"`
+	// Sid is the speaker id (0..9; the model ships 10 speakers).
+	Sid *int `yaml:"sid"`
+	// Threads is the ONNX thread count (0 = engine default).
 	Threads int `yaml:"threads"`
+}
+
+// PiperConfig is the engine block of Piper.
+type PiperConfig struct {
+	// Voice is the voice name below <piper-dir> (e.g. "en_US-bryce-medium") or a
+	// path to the .onnx file. It decides the language and the timber; there is no
+	// speaker id for the single-speaker voices.
+	Voice string `yaml:"voice"`
+	// SentenceSilence is seconds of silence after each sentence (0 = none; the
+	// binaries default to 0.2 (standalone) or 0 (piper1-gpl), so being explicit
+	// keeps the output identical whichever binary renders).
+	SentenceSilence *float64 `yaml:"sentence_silence"`
 }
 
 // Config is the parsed sounds_*.yaml file.
@@ -170,14 +212,25 @@ func (c *Config) TTSSounds() []string {
 // TTSSettings is the resolved (i.e. defaulted) tts block. The resolved values
 // are part of the render cache key, so a change in the YAML or in the defaults
 // above invalidates the previously rendered MP3s.
+//
+// Model/Sid/Threads belong to the supertonic engine, Voice/SentenceSilence to
+// piper; the fields of the engine that is not selected stay at their defaults.
 type TTSSettings struct {
 	Engine   string
-	Model    string
-	Sid      int
 	Speed    float64
 	Bitrate  string
 	LoudNorm bool
-	Threads  int
+	// Model is the supertonic model directory.
+	Model string
+	// Sid is the speaker id: the supertonic speaker, or the -s id of a
+	// multi-speaker piper voice (0 = "not set", single-speaker voices).
+	Sid int
+	// Threads is the supertonic ONNX thread count (0 = engine default).
+	Threads int
+	// Voice is the piper voice (name or .onnx path).
+	Voice string
+	// SentenceSilence is piper's pause after each sentence, in seconds.
+	SentenceSilence float64
 }
 
 // TTSSettings resolves the top-level tts block, applying the package defaults.
@@ -192,16 +245,10 @@ func (c *Config) TTSSettings() TTSSettings {
 		// quieter than the rest of the corpus and varies by up to 3 LU between
 		// sentences, which is audible over the mower.
 		LoudNorm: true,
-		Threads:  c.TTS.Threads,
 	}
+
 	if c.TTS.Engine != "" {
 		s.Engine = c.TTS.Engine
-	}
-	if c.TTS.Model != "" {
-		s.Model = c.TTS.Model
-	}
-	if c.TTS.Sid != nil {
-		s.Sid = *c.TTS.Sid
 	}
 	if c.TTS.Speed != nil {
 		s.Speed = *c.TTS.Speed
@@ -211,6 +258,27 @@ func (c *Config) TTSSettings() TTSSettings {
 	}
 	if c.TTS.LoudNorm != nil {
 		s.LoudNorm = *c.TTS.LoudNorm
+	}
+
+	// Engine blocks: only the selected one contributes, so the other block can
+	// stay in the file as the documented alternative.
+	if c.TTS.Supertonic.Model != "" {
+		s.Model = c.TTS.Supertonic.Model
+	}
+	s.Threads = c.TTS.Supertonic.Threads
+	if c.TTS.Supertonic.Sid != nil {
+		s.Sid = *c.TTS.Supertonic.Sid
+	}
+	if c.TTS.Piper.Voice != "" {
+		s.Voice = c.TTS.Piper.Voice
+	}
+	if c.TTS.Piper.SentenceSilence != nil {
+		s.SentenceSilence = *c.TTS.Piper.SentenceSilence
+	}
+	if s.Engine == "piper" {
+		// A piper voice is a single speaker by default; a per-sound sid: still
+		// selects a speaker of a multi-speaker voice.
+		s.Sid = 0
 	}
 	return s
 }
@@ -225,17 +293,21 @@ func (c *Config) TTSSettings() TTSSettings {
 // audio between machines.
 type TTSIdentity struct {
 	Engine   string
-	Model    string
+	Model    string // supertonic model directory ("" for piper)
+	Voice    string // piper voice ("" for supertonic)
 	Language string
 	Text     string
 	Bitrate  string
 	Sid      int
 	Speed    float64
 	LoudNorm bool
+	// SentenceSilence is piper's pause after each sentence; it changes the audio,
+	// so it has to be part of the key.
+	SentenceSilence float64
 }
 
 // ttsKeyVersion is bumped whenever Key changes shape, so old caches miss.
-const ttsKeyVersion = "tts1"
+const ttsKeyVersion = "tts2"
 
 // Key is the canonical string the fingerprint hashes. Keep it stable: it is the
 // cache key that lives in the sidecar files on the robot.
@@ -244,10 +316,12 @@ func (t TTSIdentity) Key() string {
 		ttsKeyVersion,
 		t.Engine,
 		t.Model,
+		t.Voice,
 		t.Language,
 		strconv.Itoa(t.Sid),
 		strconv.FormatFloat(t.Speed, 'f', 3, 64),
 		strconv.FormatBool(t.LoudNorm),
+		strconv.FormatFloat(t.SentenceSilence, 'f', 2, 64),
 		t.Bitrate,
 		t.Text,
 	}, "|")
@@ -276,14 +350,16 @@ func (c *Config) Identity(name string) (TTSIdentity, bool) {
 	}
 	set := c.TTSSettings()
 	id := TTSIdentity{
-		Engine:   set.Engine,
-		Model:    set.Model,
-		Language: c.Language,
-		Text:     def.TTS,
-		Bitrate:  set.Bitrate,
-		Sid:      set.Sid,
-		Speed:    set.Speed,
-		LoudNorm: set.LoudNorm,
+		Engine:          set.Engine,
+		Model:           set.Model,
+		Voice:           set.Voice,
+		Language:        c.Language,
+		Text:            def.TTS,
+		Bitrate:         set.Bitrate,
+		Sid:             set.Sid,
+		Speed:           set.Speed,
+		LoudNorm:        set.LoudNorm,
+		SentenceSilence: set.SentenceSilence,
 	}
 	if def.Sid != nil {
 		id.Sid = *def.Sid

@@ -16,14 +16,14 @@ import (
 func TestShippedFingerprints(t *testing.T) {
 	want := map[string]map[string]string{
 		"sounds_en.yaml": {
-			"boot_complete":    "c7f55af1",
-			"ros_connected":    "40971503",
-			"ros_disconnected": "8f3fb044",
+			"boot_complete":    "fc6eeec4",
+			"ros_connected":    "2a471827",
+			"ros_disconnected": "e5efbd60",
 		},
 		"sounds_de.yaml": {
-			"boot_complete":    "5318c29d",
-			"ros_connected":    "0f8dd3bd",
-			"ros_disconnected": "09281a55",
+			"boot_complete":    "68761a43",
+			"ros_connected":    "c93eaf47",
+			"ros_disconnected": "5486b22b",
 		},
 	}
 	for file, expected := range want {

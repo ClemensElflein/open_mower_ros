@@ -30,14 +30,18 @@
 #              be a plain name (no path) ending in .mp3, at most 55 chars. With
 #              a tts: text it is only the name the render is stored under and
 #              defaults to <sound id>.mp3.
-#   tts        mp3: text to speak. soundctl renders it (sherpa-onnx + the
-#              Supertonic 3 voice) into 16 kHz mono CBR MP3 instead of shipping
-#              a recording. The render lands in sounds/<language>/ and is
-#              re-rendered only when the text or the voice changes (a .json
-#              sidecar next to the MP3 is the cache and staleness marker).
-#              A sound may have a tts text, a file or both.
-#   sid        tts: speaker id of the voice (0..9, default from the tts block)
-#   speed      tts: speaking rate (0.7..1.5, default from the tts block)
+#   tts        mp3: text to speak. soundctl renders it with the engine of this
+#              file's tts block (Piper or Supertonic) into a 16 kHz mono CBR
+#              MP3 instead of shipping a recording. The render lands in
+#              sounds/<language>/ and is re-rendered only when the text, the
+#              voice or a tts setting changes (a .json sidecar next to the MP3
+#              is the cache and staleness marker). A sound may have a tts text,
+#              a file or both.
+#   sid        tts: speaker of the voice, overriding the tts block:
+#                supertonic  speaker 0..9
+#                piper       -s id of a multi-speaker voice (single-speaker
+#                            voices ignore it - leave it out for those)
+#   speed      tts: speaking rate, overriding the tts block (0.7..1.5)
 #
 # sound_path: high-level directory holding the local MP3 source files (used
 #             for the 16 kHz/mono check and as the upload source). It is NOT
@@ -55,15 +59,28 @@
 # language: subdirectory of sound_path/the overlay that holds the renders of
 #           this language (sounds/<language>/). Its texts are in this language.
 #
-# tts:      defaults for every sound with a tts: text. Changing any of them
-#           re-renders all announcements (it is part of the cache key).
-#   engine     supertonic (the only supported engine)
-#   model      model directory below <tts-dir>/models
-#   sid        speaker id 0..9
-#   speed      speaking rate 0.7..1.5
+# tts:      how the announcements of THIS file are spoken. Options both engines
+#           understand are flat, everything engine specific sits in the block
+#           named after the engine;
+#           Changing any of these re-renders every announcement of this file
+#           (all of it is part of the render cache key).
+#   engine     supertonic | piper
+#   speed      speaking rate 0.7..1.5 (piper: passed as length_scale = 1/speed)
 #   bitrate    MP3 bitrate, e.g. 32k/48k/64k (CBR, 16 kHz mono, keep it small)
-#   loudnorm   normalise to -16 LUFS so all announcements are equally loud
-#   threads    ONNX threads (0 = engine default)
+#   loudnorm   EBU R128 to -16 LUFS, so all announcements are equally loud
+#   supertonic (engine: supertonic, sherpa-onnx)
+#     model    model directory below <tts-dir>/models (default: Supertonic 3)
+#     sid      speaker id 0..9 (the model ships 10 speakers)
+#     threads  ONNX threads (0 = engine default)
+#   piper     (engine: piper)
+#     voice    voice name below <tts-dir>/piper/voices (or a path to a .onnx);
+#              it also decides the language the engine phonemises
+#     sentence_silence  seconds of silence after each sentence
+#
+# Both engines and the voice are baked into the image (`soundctl tts install`),
+# and CI renders every language ahead of time - a fresh mower therefore only has
+# to upload the files instead of rendering on its first start. Only a changed
+# text/voice/setting makes the robot re-render.
 #
 # MP3 file naming convention (see sounds/README.md):
 #   <lang>_<name>.mp3   text announcements (en_, de_, ...)
@@ -76,34 +93,51 @@ language: en
 sound_path: /opt/open_mower_ros/sounds
 
 # Defaults for every sound with a tts: text (see the file header).
+#
+# Options both engines understand are flat (speed, bitrate, loudnorm); everything
+# engine specific sits in the block named after the engine.
+#
+#   speed    speaking rate (piper: passed as length_scale = 1/speed)
+#   bitrate  MP3 bitrate; 32k matches the hand-made effects
+#   loudnorm EBU R128 to -16 LUFS, so every announcement is equally loud
+#
+# English uses Piper: bryce (public domain) is the voice that sounded best, and speed 1.2 is its natural pace.
 tts:
-  engine: supertonic
-  # model: sherpa-onnx-supertonic-3-tts-int8-2026-05-11  # the default
-  sid: 5 # Speaker ID
-  speed: 1.0
-  bitrate: 32k # same as the hand-made announcements
+  engine: piper
+  speed: 1.2
+  bitrate: 32k
   loudnorm: true
+
+  piper:
+    # A voice name below <tts-dir>/piper/voices (or a path to a .onnx).
+    # Alternatives (see utils/soundctl/README.md).
+    voice: en_US-bryce-medium
+    # Pause after each sentence. Set explicitly: the standalone piper binary
+    # defaults to 0.2 s, the piper1-gpl CLI to 0 s.
+    sentence_silence: 0.15
 
 # Only the sounds listed here replace the LL ROM default; everything else
 # falls back to the firmware default.
 #
-# The firmware default for SUCCESS is already a decaying ping (sine, 554 Hz,
-# 360 ms, attack 4 ms, decay 220 ms, volume 70) — the equivalent override, in
-# case you want to tune it here:
-#   success:
-#     type: sequence
-#     volume: 70
-#     waveform: sine
-#     attack_ms: 4
-#     decay_ms: 220
-#     sequence:
-#       - {freq: 554, duration_ms: 360}
 sounds:
+  # The firmware default for SUCCESS is already a decaying ping (sine, 554 Hz,
+  # 360 ms, attack 4 ms, decay 220 ms, volume 70) — the equivalent override, in
+  # case you want to tune it here:
+  #   success:
+  #     type: sequence
+  #     volume: 70
+  #     waveform: sine
+  #     attack_ms: 4
+  #     decay_ms: 220
+  #     sequence:
+  #       - {freq: 554, duration_ms: 360}
+  # FW stage1: Waiting for stage2 ping
   boot_ping:
     type: mp3
     volume: 80
     repeat_ms: 4000
     file: zz_ping.mp3
+  # FW stage2 boot completed
   boot_complete:
     type: mp3
     tts: "Hi, I am Steve, your intelligent lawn mower from OpenMower. Lawn care is my profession."

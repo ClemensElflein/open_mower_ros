@@ -7,11 +7,11 @@ Default sound files (MP3) for the HW v2 sound system.
 Files live flat in this directory with a short prefix that also controls the
 alphabetical grouping in a directory listing:
 
-| Prefix | Kind | Example |
-|---|---|---|
-| `<lang>_` | recording (checked in, hand-made; optional) | `de_meine-ansage.mp3` |
-| `tone_` | tone / beep effect | `tone_warning.mp3` |
-| `zz_` | background sound (sorts last) | `zz_minion-fire-alarm.mp3` |
+| Prefix    | Kind                                        | Example                    |
+| --------- | ------------------------------------------- | -------------------------- |
+| `<lang>_` | recording (checked in, hand-made; optional) | `de_meine-ansage.mp3`      |
+| `tone_`   | tone / beep effect                          | `tone_warning.mp3`         |
+| `zz_`     | background sound (sorts last)               | `zz_minion-fire-alarm.mp3` |
 
 The `sounds_<lang>.yaml` definition references them by bare filename via
 `file: zz_ping.mp3`; its top-level `sound_path` points here.
@@ -25,24 +25,57 @@ possible — give a sound a `file:` and no `tts:` text. (The German recordings t
 used to ship here were removed in favour of the TTS voice; `git log` has them if
 one is ever wanted back.)
 
-## Why Supertonic 3 (and not the alternatives)
+The `<language>/` subdirectories are **not** committed (see `.gitignore`): CI
+renders **every** language into them before the image build — the engines cannot
+run under buildx emulation — so the image already ships the announcements and a
+mower only has to upload them on its first start. A local `soundctl tts` writes to
+the same place, which is why `soundctl validate --check-mp3` finds them.
 
-The announcements have to be rendered **on the mower, without internet**, in
-several languages, from a ~200 MB footprint that fits next to ROS on a CM4. The
-engines that were compared for this (offline and cloud, A/B-listened at equal
-loudness):
+## Engines: which voice speaks which language
 
-| engine | verdict |
-|---|---|
-| **Supertonic 3** (sherpa-onnx, int8 ONNX) | chosen — offline, **English and German**, 10 speakers, ~5-8 s per announcement on the CM4 |
-| Piper (`en_US-libritts_r`) | English only: sherpa-onnx v2.0.0 dropped espeak-ng and ships no German lexicon |
-| Kokoro v0.19 | English only |
-| Google Translate TTS / Azure "edge" voices | keyless cloud endpoints — unsuitable for a robot (needs internet, unstable, no licence to ship) |
+Each definition file picks its engine in the `tts:` block, so the two languages
+can use different ones. Both engines are baked into the image and render into
+`/data/sounds/<language>/` on the first start — no network at runtime.
 
-The engine and its model are baked into the image (`soundctl tts install`,
-~220 MB at `/opt/open_mower_ros/tts`); the announcements are rendered into
-`/data/sounds/<language>/` on the first start, so no network is needed at
-runtime and the renders survive an image update.
+| language    | engine                         | voice                            | why                                                                         |
+| ----------- | ------------------------------ | -------------------------------- | --------------------------------------------------------------------------- |
+| **English** | **Piper**                      | `en_US-bryce-medium` @ speed 1.2 | sounded best, is public domain, and half the model size of a "high" voice   |
+| **German**  | **Supertonic 3** (sherpa-onnx) | speaker 5 @ speed 1.0            | none of the German Piper voices convinced (thorsten/kerstin/mls were tried) |
+
+```
+tts:
+  engine: piper            # or supertonic
+  speed: 1.2               # both engines (piper: length_scale = 1/speed)
+  bitrate: 32k             # our encoder, both engines
+  loudnorm: true           # EBU R128, both engines
+  piper:                   # only used when engine: piper
+    voice: en_US-bryce-medium
+    sentence_silence: 0.15
+  supertonic:              # only used when engine: supertonic
+    sid: 5
+```
+
+Options both engines understand stay flat; everything engine specific sits in the
+block named after the engine. The block of the engine that is *not* selected is
+ignored, so it can stay in the file as the documented alternative — switching the
+engine is a one-line change (and re-renders that language on the next start).
+
+Image footprint: Supertonic (engine + model via `soundctl tts install`, ~220 MB)
++ Piper (standalone binary 49 MB + voice 61 MB), both under
+`/opt/open_mower_ros/tts/`.
+
+**Licences.** The engines: Piper's standalone binary is MIT, `piper1-gpl` is
+GPL-3.0 (same as this project), sherpa-onnx is Apache-2.0 and the Supertonic 3
+weights are `openrail`. The Piper *voices* are published under MIT, but each voice
+has a `MODEL_CARD` naming the dataset it was trained on — `bryce` is public
+domain, `thorsten` is CC0, while e.g. `ryan` and `hfc_*` come from
+non-commercial (CC BY-NC-SA) data. `en_US-bryce-medium` therefore ships with a
+clean provenance.
+
+The engines that were compared before this choice (all offline unless noted):
+Supertonic 3, Piper (en_US/… and the German voices), Kokoro v0.19 (English only)
+and — as reference only — Google Translate TTS / Azure "edge" voices, which are
+keyless cloud endpoints and unsuitable for a robot.
 
 ## Requirements
 
@@ -68,7 +101,8 @@ runtime and the renders survive an image update.
   runs
 
   1. `soundctl tts`: renders missing/stale announcements (a no-op when the
-     sidecars are up to date);
+     sidecars are up to date — with the CI pre-renders in the image that is
+     normally the case, so the first start only uploads instead of rendering);
   2. `soundctl sync`:
      * reads `sound_path` + `file`, computes the CRC32 and uploads
        missing/changed files via the FileService to the hardcoded LL path
@@ -100,13 +134,13 @@ runtime and the renders survive an image update.
 
 First start after an image update, i.e. the worst case (nothing rendered yet):
 
-| step | time |
-|---|---|
+| step                                                          | time                                                    |
+| ------------------------------------------------------------- | ------------------------------------------------------- |
 | render `boot_complete` / `ros_connected` / `ros_disconnected` | 7.6 s / 6.0 s / 4.8 s (x86 host: 2.1 s / 1.7 s / 1.4 s) |
-| SoundService probe (multicast) | 3–10 s |
-| FileService discovery (10 s advertisement period) | ≤ 10 s typical, 30 s window |
-| upload, per MP3 (256-byte RPC chunks + flash commit) | 3–5 s (19 kB) |
-| whole startup sync | ~30 s |
+| SoundService probe (multicast)                                | 3–10 s                                                  |
+| FileService discovery (10 s advertisement period)             | ≤ 10 s typical, 30 s window                             |
+| upload, per MP3 (256-byte RPC chunks + flash commit)          | 3–5 s (19 kB)                                           |
+| whole startup sync                                            | ~30 s                                                   |
 
 A second start is `0 rendered, 3 up to date` + `up to date` for every file, i.e.
 only the discovery time. `boot_ping` with `repeat_ms: 4000` repeats with a

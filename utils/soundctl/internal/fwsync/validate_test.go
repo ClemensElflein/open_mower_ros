@@ -29,9 +29,10 @@ version: 1
 language: en
 sound_path: /opt/open_mower_ros/sounds
 tts:
-  sid: 5
   speed: 1.0
   bitrate: 32k
+  supertonic:
+    sid: 5
 sounds:
   boot_complete:
     type: mp3
@@ -197,8 +198,25 @@ func TestValidateRejectsBadTTSSettings(t *testing.T) {
 		},
 		{
 			name: "unknown engine",
+			doc:  "version: 1\nlanguage: en\nsound_path: /opt/open_mower_ros/sounds\ntts:\n  engine: espeak\nsounds:\n  boot_complete:\n    type: mp3\n    volume: 50\n    tts: hello\n",
+			want: `tts.engine "espeak" is not supported`,
+		},
+		{
+			name: "piper without a voice",
 			doc:  "version: 1\nlanguage: en\nsound_path: /opt/open_mower_ros/sounds\ntts:\n  engine: piper\nsounds:\n  boot_complete:\n    type: mp3\n    volume: 50\n    tts: hello\n",
-			want: `tts.engine "piper" is not supported`,
+			want: "tts.piper.voice must not be empty",
+		},
+		{
+			name: "legacy flat tts.sid",
+			doc:  "version: 1\nlanguage: en\nsound_path: /opt/open_mower_ros/sounds\ntts:\n  sid: 5\nsounds:\n  boot_complete:\n    type: mp3\n    volume: 50\n    tts: hello\n",
+			want: "tts.sid is no longer supported, use tts.supertonic.sid",
+		},
+		{
+			name: "piper sentence_silence out of range",
+			doc: "version: 1\nlanguage: en\nsound_path: /opt/open_mower_ros/sounds\n" +
+				"tts:\n  engine: piper\n  piper:\n    voice: en_US-bryce-medium\n    sentence_silence: 9\n" +
+				"sounds:\n  boot_complete:\n    type: mp3\n    volume: 50\n    tts: hello\n",
+			want: "sentence_silence must be 0..5 s",
 		},
 		{
 			name: "invalid bitrate",

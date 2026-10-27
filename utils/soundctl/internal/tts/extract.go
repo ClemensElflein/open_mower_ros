@@ -3,6 +3,7 @@ package tts
 import (
 	"archive/tar"
 	"compress/bzip2"
+	"compress/gzip"
 	"errors"
 	"fmt"
 	"io"
@@ -20,6 +21,21 @@ func extractTarBz2(archivePath, dst string, keep func(rel string) bool) error {
 	}
 	defer f.Close()
 	return extractTar(bzip2.NewReader(f), dst, keep)
+}
+
+// extractTarGz unpacks a .tar.gz archive (the piper bundles) into dst.
+func extractTarGz(archivePath, dst string) error {
+	f, err := os.Open(archivePath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	gz, err := gzip.NewReader(f)
+	if err != nil {
+		return err
+	}
+	defer gz.Close()
+	return extractTar(gz, dst, nil)
 }
 
 // extractTar unpacks a tar stream into dst. The sherpa archives wrap everything

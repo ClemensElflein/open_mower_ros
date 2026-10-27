@@ -110,6 +110,51 @@ func (s Sherpa) Args(id fwsync.TTSIdentity, wav string) ([]string, error) {
 	return append(args, id.Text), nil
 }
 
+// Engine renders a text into a WAV file; the encoder then turns that into the
+// firmware MP3 (16 kHz mono CBR, EBU R128). Sherpa (Supertonic) is the engine the
+// shipped definitions use; Piper is available for auditioning with
+// `soundctl say --engine piper`.
+type Engine interface {
+	// Available reports why the engine cannot be used (nil = it can).
+	Available() error
+	// Synthesize writes the spoken text to wav (16-bit PCM, the voice's native
+	// rate) and returns how long the engine took.
+	Synthesize(id fwsync.TTSIdentity, wav string) (time.Duration, error)
+	// Describe renders the voice/settings of one synthesis for the log line.
+	Describe(id fwsync.TTSIdentity) string
+}
+
+// Describe renders the identity for the log line ("supertonic sid=5 1.00x 32k
+// loudnorm de").
+func (s Sherpa) Describe(id fwsync.TTSIdentity) string { return id.String() }
+
+// runEngine runs an engine binary that writes wav and returns the wall time it
+// took. stdin is fed to the process ("" = none). Shared by all engines so the
+// "no output / empty output / non-zero exit" handling is identical.
+func runEngine(bin string, args []string, env []string, stdin, wav string) (time.Duration, error) {
+	_ = os.Remove(wav)
+
+	cmd := exec.Command(bin, args...)
+	if env != nil {
+		cmd.Env = env
+	}
+	if stdin != "" {
+		cmd.Stdin = strings.NewReader(stdin)
+	}
+	start := time.Now()
+	out, err := cmd.CombinedOutput()
+	wall := time.Since(start)
+	if err != nil {
+		return wall, fmt.Errorf("%s: %v: %s", filepath.Base(bin), err, tail(string(out), 500))
+	}
+	if st, err := os.Stat(wav); err != nil {
+		return wall, fmt.Errorf("%s produced no output: %w", filepath.Base(bin), err)
+	} else if st.Size() == 0 {
+		return wall, fmt.Errorf("%s produced an empty WAV", filepath.Base(bin))
+	}
+	return wall, nil
+}
+
 // Synthesize writes the spoken text to wav (a 16-bit PCM WAV at the model's
 // native rate) and returns how long the engine took.
 func (s Sherpa) Synthesize(id fwsync.TTSIdentity, wav string) (time.Duration, error) {
@@ -117,25 +162,11 @@ func (s Sherpa) Synthesize(id fwsync.TTSIdentity, wav string) (time.Duration, er
 	if err != nil {
 		return 0, err
 	}
-	_ = os.Remove(wav)
-
-	cmd := exec.Command(s.Bin, args...)
-	cmd.Env = os.Environ()
+	env := os.Environ()
 	if s.LibDir != "" {
-		cmd.Env = append(cmd.Env, "LD_LIBRARY_PATH="+s.LibDir)
+		env = append(env, "LD_LIBRARY_PATH="+s.LibDir)
 	}
-	start := time.Now()
-	out, err := cmd.CombinedOutput()
-	wall := time.Since(start)
-	if err != nil {
-		return wall, fmt.Errorf("%s: %v: %s", filepath.Base(s.Bin), err, tail(string(out), 500))
-	}
-	if st, err := os.Stat(wav); err != nil {
-		return wall, fmt.Errorf("%s produced no output: %w", filepath.Base(s.Bin), err)
-	} else if st.Size() == 0 {
-		return wall, fmt.Errorf("%s produced an empty WAV", filepath.Base(s.Bin))
-	}
-	return wall, nil
+	return runEngine(s.Bin, args, env, "", wav)
 }
 
 // tail returns the last n characters of s (error output is long and the useful
