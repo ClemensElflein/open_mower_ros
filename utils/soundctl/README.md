@@ -5,29 +5,62 @@ files and the `tts:` announcements, and it talks to the low level over the xbot
 service protocol (FileService SID 12, SoundService SID 13).
 
 The user-facing story (sound files, overlays, startup behaviour) is documented in
-[`sounds/README.md`](../../sounds/README.md); this file is about the code.
+[`sounds/README.md`](../../sounds/README.md); this file is about the tool and the code,
+including how to run it against a checkout (see *Local use*).
 
 ## Commands
 
-| command                      | purpose                                                                                                                                                     |
-| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `validate`                   | check `sounds_*.yaml` against `services/sound_service.json` (ids, types, ranges) and the MP3s (16 kHz mono)                                                 |
-| `tts`                        | render the `tts:` texts into 16 kHz mono CBR MP3s (sherpa-onnx + ffmpeg), with a `.json` sidecar as cache; `--check` reports missing/stale renders          |
-| `say`                        | render **one** ad-hoc text with the same chain and play it on this machine — no YAML, no cache. The way to audition a text before it goes into a definition |
-| `tts install` / `tts verify` | fetch / check the pinned engine + model (~220 MB, `$OPENMOWER_TTS_DIR`, default `/opt/open_mower_ros/tts`)                                                  |
-| `sync`                       | upload changed MP3s, push the definitions blob, remove orphans, optionally set the volume                                                                   |
-| `play` / `stop`              | trigger a tone, sequence, MP3 or configured sound on a running robot                                                                                        |
-| `discover`                   | list the services the low level advertises (first thing to check when `sync` cannot reach it)                                                               |
+| command                      | purpose                                                                                                                                                        |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `validate`                   | check `sounds_*.yaml` against `services/sound_service.json` (ids, types, ranges) and the MP3s (16 kHz mono)                                                    |
+| `tts`                        | render the `tts:` texts into 16 kHz mono CBR MP3s (Supertonic or Piper, then ffmpeg), with a `.json` sidecar as cache; `--check` reports missing/stale renders |
+| `say`                        | render **one** ad-hoc text with the same chain and play it on this machine — no YAML, no cache. The way to audition a text before it goes into a definition    |
+| `tts install` / `tts verify` | fetch / check a pinned engine: Supertonic (~220 MB) and/or Piper + one voice (~110 MB), below `$OPENMOWER_TTS_DIR`                                             |
+| `sync`                       | upload changed MP3s, push the definitions blob, remove orphans, optionally set the volume                                                                      |
+| `play` / `stop`              | trigger a tone, sequence, MP3 or configured sound on a running robot                                                                                           |
+| `discover`                   | list the services the low level advertises (first thing to check when `sync` cannot reach it)                                                                  |
 
-## Auditioning a text on a dev machine
+## Local use (dev machine)
+
+### Install the engines
+
+`soundctl tts install` fetches the pinned assets, verifies their SHA-256 and
+unpacks them. The image build runs the same two commands, so a robot never
+downloads anything:
 
 ```bash
 cd utils/soundctl
-go run ./cmd/soundctl tts install --dir ~/.cache/openmower-tts   # once, ~220 MB
-export OPENMOWER_TTS_DIR=~/.cache/openmower-tts
+export OPENMOWER_TTS_DIR=~/.cache/openmower-tts        # default: /opt/open_mower_ros/tts
 
+# supertonic: sherpa-onnx CLI + libs + the Supertonic 3 model (~220 MB)
+go run ./cmd/soundctl tts install --dir "$OPENMOWER_TTS_DIR"
+# piper: standalone bundle (binary, espeak-ng data, libs) + one voice (~110 MB)
+go run ./cmd/soundctl tts install --engine piper --dir "$OPENMOWER_TTS_DIR"
+
+# completeness check without downloading or running an engine
+go run ./cmd/soundctl tts verify --dir "$OPENMOWER_TTS_DIR"
+go run ./cmd/soundctl tts verify --engine piper --dir "$OPENMOWER_TTS_DIR"
+```
+
+| path below `$OPENMOWER_TTS_DIR` | content                                                        |
+| ------------------------------- | -------------------------------------------------------------- |
+| `bin/`, `lib/`                  | sherpa-onnx CLI (`sherpa-onnx-offline-tts`) + `libonnxruntime` |
+| `models/<model>/`               | Supertonic 3 int8 model (`--model` picks another name)         |
+| `piper/`                        | piper binary, `espeak-ng-data`, its shared libraries           |
+| `piper/voices/`                 | `<voice>.onnx` + `<voice>.onnx.json`                           |
+| `install.json`, `.cache/`       | what was installed (arch, checksums), the archives             |
+
+`--voice` selects one of the pinned Piper voices: `en_US-bryce-medium` (default),
+`en_US-joe-medium`, `en_US-mike-medium`, `en_US-norman-medium`,
+`de_DE-thorsten-high`. `--arch` installs for another architecture, `--base-url`
+uses a mirror, `--force` re-downloads. A render also accepts any `.onnx` path.
+
+### Audition a text
+
+```bash
 go run ./cmd/soundctl say "Hallo, ich bin Steve" --lang de       # speaks now
 go run ./cmd/soundctl say "Der Akku ist fast leer" --lang de --speed 1.1
+go run ./cmd/soundctl say --engine piper --voice en_US-bryce-medium "Hi" --speed 1.2
 go run ./cmd/soundctl say "Hello" --sid 3 --out /tmp/hello.mp3 --play=false
 go run ./cmd/soundctl say "Test" --player "mpg123 -q"            # own player
 ```
@@ -37,53 +70,43 @@ check as `soundctl tts`, so what you hear is what the mower will play. Playback 
 `ffplay -nodisp -autoexit` (comes with the ffmpeg the encoder needs anyway);
 `--player` accepts any command that takes the file as last argument.
 
-### Engines and voices
+### Check and render the definitions
 
-Two engines are supported, and a definition picks one in its `tts:` block:
-
-```yaml
-tts:
-  engine: piper        # or supertonic
-  speed: 1.2           # both engines (piper: length_scale = 1/speed)
-  bitrate: 32k         # our encoder
-  loudnorm: true       # our ffmpeg stage
-  piper:               # only used when engine: piper
-    voice: en_US-bryce-medium
-    sentence_silence: 0.15
-  supertonic:          # only used when engine: supertonic
-    sid: 5
-```
-
-Only the block of the selected engine is used, so the other one can stay in the
-file as the documented alternative. `soundctl tts` renders with the engine the
-YAML names; `soundctl say --engine …` does the same ad hoc.
+Outside the image the YAML's absolute `/opt/open_mower_ros/...` paths do not
+exist, so pass `--sound-ids` and `--sound-path` (paths are relative to
+`utils/soundctl`):
 
 ```bash
-# Both engines are installed by soundctl (pinned by SHA256, no Python needed for
-# piper). ~330 MB in total; --voice picks one of the tested voices.
-go run ./cmd/soundctl tts install --dir ~/.cache/openmower-tts
-go run ./cmd/soundctl tts install --engine piper --dir ~/.cache/openmower-tts
-go run ./cmd/soundctl tts install --engine piper --voice en_US-joe-medium --dir ~/.cache/openmower-tts
-export OPENMOWER_TTS_DIR=~/.cache/openmower-tts
+# paths, 16 kHz mono, tts texts; an unrendered `tts:` sound counts as `pending`
+go run ./cmd/soundctl validate --sound-ids ../../services/sound_service.json \
+  --sound-path ../../sounds --config ../../src/open_mower/params/sounds_en.yaml --check-mp3
 
-# Ad-hoc auditioning (no YAML, no cache):
-go run ./cmd/soundctl say --engine piper --voice en_US-bryce-medium "Hi, I am Steve" --speed 1.2
-go run ./cmd/soundctl say --lang de --sid 5 "Hallo, ich bin Steve"
+# render into a scratch dir; --check only reports missing/stale (exit 1 if any)
+go run ./cmd/soundctl tts --sound-ids ../../services/sound_service.json \
+  --sound-path ../../sounds --config ../../src/open_mower/params/sounds_en.yaml --sounds-dir /tmp/sounds
+go run ./cmd/soundctl tts --sound-ids ../../services/sound_service.json \
+  --sound-path ../../sounds --config ../../src/open_mower/params/sounds_en.yaml --sounds-dir /tmp/sounds --check
 
-# Render every language into the build context, exactly like CI does:
+# every language into the build context, exactly like CI
 for lang in en de; do
   go run ./cmd/soundctl tts \
-    --config "../src/open_mower/params/sounds_${lang}.yaml" \
-    --sound-ids ../services/sound_service.json \
-    --sound-path ../sounds --sounds-dir ../sounds \
-    --tts-dir "$OPENMOWER_TTS_DIR"
+    --config "../../src/open_mower/params/sounds_${lang}.yaml" \
+    --sound-ids ../../services/sound_service.json \
+    --sound-path ../../sounds --sounds-dir ../../sounds
 done
 ```
 
-Alternatively piper from pip (`pip install piper-tts`, slower because of the
-Python start) works too — pass `--piper-bin ~/.venvs/piper/bin/piper`.
+### Engines, voices and licences
 
-Notes:
+Which engine speaks which language, and the `tts:` block of a definition, are
+documented in [`sounds/README.md`](../../sounds/README.md). From the CLI:
+
+- `soundctl tts` renders with the engine the YAML names, `soundctl say --engine …`
+  with the one given on the command line.
+- `--piper-bin` / `--piper-dir` override the piper executable and its voices dir,
+  `--tts-bin` / `--tts-lib-dir` / `--tts-model-dir` the sherpa-onnx side.
+- piper from pip (`pip install piper-tts`, slower because of the Python start)
+  also works: pass `--piper-bin ~/.venvs/piper/bin/piper`.
 - `--voice` is a name below `--piper-dir` (`en_US-bryce-medium`) or a path to a
   `.onnx`; the language is derived from the voice name, so `--lang` is not needed.
 - `--speed 1.2` maps to piper's `--length_scale 0.833` (its scale is the
@@ -133,7 +156,10 @@ that also means no glibc version of the build host leaks in.
 - `--sound-path` overrides the YAML's `sound_path` for host runs from a checkout
   (the YAMLs carry the absolute image path).
 - The writable overlay is `/data/sounds` (`$OPENMOWER_SOUNDS_DIR`, `--sounds-dir`):
-  renders and customised files go there and win over the shipped ones.
+  renders and customised files go there and win over the shipped ones. On a stock
+  robot this directory is *not* mounted, i.e. it lives in the container and is
+  empty after the next restart — fine for the shipped sounds (they are read from
+  the image), relevant only for customisations (see `sounds/README.md`).
 - File resolution order: `<overlay>/<lang>`, `<sound_path>/<lang>`, `<overlay>`,
   `<sound_path>`.
 - An xbot service advertises every 1 s only while unclaimed and younger than

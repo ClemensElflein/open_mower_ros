@@ -5,6 +5,31 @@
 #
 # This file only lists the sounds that shall REPLACE a ROM default.
 #
+# ---------------------------------------------------------------------------
+# CUSTOMISING SOUNDS — READ THIS FIRST (nothing to do otherwise)
+# ---------------------------------------------------------------------------
+# Every announcement is already rendered into the image (sounds/<language>/),
+# so a robot that plays the shipped sounds needs none of this: reads are served
+# from the image, no extra directory and no extra mount required.
+#
+# Customising is different. Your own MP3, a re-render (`soundctl tts --force`)
+# or an edited text is written to the writable overlay /data/sounds/<language>/,
+# but on a stock OpenMower that path is NOT persistent. The stock docker compose
+# mounts /data/ros, /data/recordings and /data/params individually, so /data/sounds
+# lives in the container's own filesystem and is gone on the next `openmower restart`.
+#
+# To keep customisations, create the directory on the host once and mount it
+# next to the other data mounts.
+#
+#   openmower@openmower:~ $ mkdir ~/sounds
+#   openmower@openmower:~ $ nano /opt/stacks/openmower/compose.yaml
+#   and add a `- /home/openmower/sounds:/data/sounds` next to the open_mower_ros/volumes entry.
+#   openmower@openmower:~ $openmower restart
+#
+# Nothing has to be migrated: a stock robot has no files in the overlay, and
+# everything the image ships keeps playing from /opt/open_mower_ros/sounds.
+# ---------------------------------------------------------------------------
+#
 # Per-sound fields (all optional except type/volume):
 #   type       tone | sequence | mp3
 #   volume     0..100 (the master volume scales on top)
