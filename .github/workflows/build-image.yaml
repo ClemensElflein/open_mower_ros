@@ -117,6 +117,15 @@ jobs:
           # the engines are platform specific.
           key: tts-engines-${{ matrix.docker_build_arch }}-${{ hashFiles('utils/soundctl/internal/tts/install.go') }}
 
+      # The render encodes the announcements (EBU R128 + MP3) with ffmpeg, which
+      # the image has but the runner does not.
+      - name: Install ffmpeg (for the announcement render)
+        if: matrix.variant == 'default'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg
+          ffmpeg -version | head -1
+
       - name: Render the TTS announcements (all languages)
         if: matrix.variant == 'default'
         working-directory: utils/soundctl
