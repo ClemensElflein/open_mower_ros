@@ -1,4 +1,4 @@
-package xbot
+package fileservice
 
 import (
 	"encoding/binary"
@@ -8,13 +8,13 @@ import (
 
 func TestParseFileListPayload(t *testing.T) {
 	// Payload: total=2, count=1, one entry.
-	payload := make([]byte, 8+fileListEntrySize)
+	payload := make([]byte, 8+listEntrySize)
 	binary.LittleEndian.PutUint32(payload[0:4], 2)
 	binary.LittleEndian.PutUint32(payload[4:8], 1)
-	copy(payload[8:8+fileListPathLen], "/sounds/en_hi-i-am-steve.mp3")
-	binary.LittleEndian.PutUint32(payload[8+fileListPathLen:8+fileListEntrySize], 0xDEADBEEF)
+	copy(payload[8:8+listPathLen], "/sounds/en_hi-i-am-steve.mp3")
+	binary.LittleEndian.PutUint32(payload[8+listPathLen:8+listEntrySize], 0xDEADBEEF)
 
-	total, entries, err := parseFileListPayload(payload)
+	total, entries, err := parseList(payload)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -37,7 +37,7 @@ func TestParseFileListPayloadEmpty(t *testing.T) {
 	binary.LittleEndian.PutUint32(payload[0:4], 0)
 	binary.LittleEndian.PutUint32(payload[4:8], 0)
 
-	total, entries, err := parseFileListPayload(payload)
+	total, entries, err := parseList(payload)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,20 +52,20 @@ func TestParseFileListPayloadTruncated(t *testing.T) {
 	binary.LittleEndian.PutUint32(payload[0:4], 1)
 	binary.LittleEndian.PutUint32(payload[4:8], 1)
 
-	if _, _, err := parseFileListPayload(payload); err == nil {
+	if _, _, err := parseList(payload); err == nil {
 		t.Fatal("expected an error for a truncated payload, got nil")
 	}
 }
 
 func TestParseFileListPayloadLongPath(t *testing.T) {
 	// A path exactly at the 128-byte limit (no NUL padding).
-	payload := make([]byte, 8+fileListEntrySize)
+	payload := make([]byte, 8+listEntrySize)
 	binary.LittleEndian.PutUint32(payload[0:4], 1)
 	binary.LittleEndian.PutUint32(payload[4:8], 1)
-	longPath := "/sounds/" + strings.Repeat("x", fileListPathLen-len("/sounds/"))
-	copy(payload[8:8+fileListPathLen], longPath)
+	longPath := "/sounds/" + strings.Repeat("x", listPathLen-len("/sounds/"))
+	copy(payload[8:8+listPathLen], longPath)
 
-	_, entries, err := parseFileListPayload(payload)
+	_, entries, err := parseList(payload)
 	if err != nil {
 		t.Fatal(err)
 	}

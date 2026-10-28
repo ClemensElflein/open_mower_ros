@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"hash/crc32"
 	"log/slog"
-	"net"
 	"os"
-	"strconv"
 	"time"
 
-	"github.com/ClemensElflein/open_mower_ros/utils/soundctl/xbot"
+	"github.com/ClemensElflein/open_mower_ros/utils/soundctl/xbot/services/fileservice"
+	"github.com/ClemensElflein/open_mower_ros/utils/soundctl/xbot/services/soundservice"
+	"github.com/xtech/xbot_framework/xbot_service_interface_go/xbot"
 )
 
 // Options configures a sync run.
@@ -39,7 +39,7 @@ type Options struct {
 
 	// Wait bounds the FileService discovery. It is deliberately separate from
 	// the SoundService probe and starts when the wait for the FileService starts:
-	// a service advertises only every xbot.SlowAdvertisementInterval (10 s) once
+	// a service advertises only every xbot.AdvertisementInterval (10 s) once
 	// the low level has been up for a minute, so a shorter window can miss a
 	// perfectly healthy LL — and a budget shared with the probe makes it worse.
 	// Zero waits as long as the caller's context allows.
@@ -98,7 +98,7 @@ func Sync(ctx context.Context, opts Options) error {
 		soundTimeout = defaultSoundCheckTimeout
 	}
 	soundCtx, cancel := context.WithTimeout(ctx, soundTimeout)
-	ss, err := xbot.NewSoundServiceNoClaim(soundCtx, opts.BindIP)
+	ss, err := soundservice.DialNoClaim(soundCtx, opts.BindIP)
 	cancel()
 	if err != nil {
 		// A cancelled/deadline-exceeded parent context is an abort, not "no sound
@@ -115,8 +115,7 @@ func Sync(ctx context.Context, opts Options) error {
 		return nil
 	}
 	defer func() { _ = ss.Close() }()
-	ip, port := ss.Endpoint()
-	slog.Info("SoundService available", "addr", net.JoinHostPort(ip, strconv.Itoa(port)),
+	slog.Info("SoundService available", "addr", ss.Endpoint(),
 		"hint", "pass it to \"soundctl play --addr\" for instant playback")
 
 	// The FileService is always present, so connecting to it doubles as the "LL is
@@ -131,7 +130,7 @@ func Sync(ctx context.Context, opts Options) error {
 		defer cancel()
 	}
 	slog.Info("connecting to FileService", "bind", opts.BindIP, "wait", opts.Wait)
-	fs, err := xbot.NewFileService(fsCtx, opts.BindIP, opts.Heartbeat, opts.RPCTimeout)
+	fs, err := fileservice.Dial(fsCtx, opts.BindIP, opts.Heartbeat, opts.RPCTimeout)
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return ctxErr
@@ -153,7 +152,7 @@ func Sync(ctx context.Context, opts Options) error {
 			if err != nil {
 				return err
 			}
-			if err := uploadFile(fs, local, file); err != nil {
+			if err := uploadFile(ctx, fs, local, file); err != nil {
 				return err
 			}
 		}
@@ -166,7 +165,7 @@ func Sync(ctx context.Context, opts Options) error {
 		return err
 	}
 
-	if err := cleanup(fs, cfg); err != nil {
+	if err := cleanup(ctx, fs, cfg); err != nil {
 		return err
 	}
 	slog.Info("sync complete")
@@ -181,7 +180,7 @@ func Sync(ctx context.Context, opts Options) error {
 // That is why the volume is sent over a fresh connection: the one used for the blob
 // is stale afterwards. A failure there is only a warning — the definitions, which
 // matter most, are already applied.
-func applyDefinitions(ctx context.Context, cfg *Config, opts Options, ss *xbot.SoundService) error {
+func applyDefinitions(ctx context.Context, cfg *Config, opts Options, ss *soundservice.Client) error {
 	blob, err := cfg.Blob()
 	if err != nil {
 		return fmt.Errorf("marshal definitions: %w", err)
@@ -198,7 +197,7 @@ func applyDefinitions(ctx context.Context, cfg *Config, opts Options, ss *xbot.S
 		return nil
 	}
 
-	ss, err = xbot.NewSoundServiceNoClaim(ctx, opts.BindIP)
+	ss, err = soundservice.DialNoClaim(ctx, opts.BindIP)
 	if err != nil {
 		slog.Warn("could not reconnect after the restart — master volume not sent", "error", err)
 		return nil
@@ -241,7 +240,7 @@ func verifyRenders(layout Layout, cfg *Config) error {
 	return nil
 }
 
-func uploadFile(fs *xbot.FileService, localPath, remoteName string) error {
+func uploadFile(ctx context.Context, fs *fileservice.Client, localPath, remoteName string) error {
 	data, err := os.ReadFile(localPath)
 	if err != nil {
 		return fmt.Errorf("read %s: %w", localPath, err)
@@ -259,7 +258,7 @@ func uploadFile(fs *xbot.FileService, localPath, remoteName string) error {
 	crc := crc32.ChecksumIEEE(data)
 	remote := "/sounds/" + remoteName
 
-	exists, err := fs.FileExists(remote, crc)
+	exists, err := fs.Exists(ctx, remote, crc)
 	if err != nil {
 		return fmt.Errorf("FileExists(%s): %w", remote, err)
 	}
@@ -269,8 +268,8 @@ func uploadFile(fs *xbot.FileService, localPath, remoteName string) error {
 	}
 
 	slog.Info("uploading", "file", remoteName, "bytes", len(data))
-	for off := 0; off < len(data); off += xbot.FileChunkSize {
-		end := off + xbot.FileChunkSize
+	for off := 0; off < len(data); off += fileservice.ChunkSize {
+		end := off + fileservice.ChunkSize
 		if end > len(data) {
 			end = len(data)
 		}
@@ -280,7 +279,7 @@ func uploadFile(fs *xbot.FileService, localPath, remoteName string) error {
 		if isLast {
 			h = crc
 		}
-		n, err := fs.FileWrite(remote, uint32(off), chunk, h)
+		n, err := fs.Write(ctx, remote, uint32(off), chunk, h)
 		if err != nil {
 			return fmt.Errorf("FileWrite(%s @%d): %w", remote, off, err)
 		}
@@ -289,7 +288,7 @@ func uploadFile(fs *xbot.FileService, localPath, remoteName string) error {
 		}
 	}
 
-	ok, err := fs.FileExists(remote, crc)
+	ok, err := fs.Exists(ctx, remote, crc)
 	if err != nil {
 		return fmt.Errorf("verify FileExists(%s): %w", remote, err)
 	}
@@ -303,20 +302,20 @@ func uploadFile(fs *xbot.FileService, localPath, remoteName string) error {
 // cleanup removes any /sounds/ file that is no longer referenced by the
 // definition (an orphan), so the firmware never keeps stale MP3s. It also logs
 // what it finds so the sync run is easy to follow.
-func cleanup(fs *xbot.FileService, cfg *Config) error {
+func cleanup(ctx context.Context, fs *fileservice.Client, cfg *Config) error {
 	// Files the definition currently references.
 	referenced := make(map[string]bool)
 	for _, f := range cfg.Files() {
 		referenced["/sounds/"+f] = true
 	}
 
-	existing, err := listAllFiles(fs)
+	existing, err := listAllFiles(ctx, fs)
 	if err != nil {
 		return fmt.Errorf("FileList: %w", err)
 	}
 	slog.Info("found files in /sounds/", "count", len(existing))
 
-	var orphans []xbot.FileEntry
+	var orphans []fileservice.Entry
 	for _, e := range existing {
 		if !referenced[e.Path] {
 			orphans = append(orphans, e)
@@ -329,7 +328,7 @@ func cleanup(fs *xbot.FileService, cfg *Config) error {
 
 	slog.Info("orphaned files", "count", len(orphans))
 	for _, o := range orphans {
-		ok, err := fs.FileRemove(o.Path)
+		ok, err := fs.Remove(ctx, o.Path)
 		if err != nil {
 			return fmt.Errorf("FileRemove(%s): %w", o.Path, err)
 		}
@@ -343,11 +342,11 @@ func cleanup(fs *xbot.FileService, cfg *Config) error {
 }
 
 // listAllFiles pages through FileList until every /sounds/ entry is collected.
-func listAllFiles(fs *xbot.FileService) ([]xbot.FileEntry, error) {
-	var all []xbot.FileEntry
+func listAllFiles(ctx context.Context, fs *fileservice.Client) ([]fileservice.Entry, error) {
+	var all []fileservice.Entry
 	var offset uint32
 	for {
-		total, entries, err := fs.FileList("/sounds/", offset)
+		total, entries, err := fs.List(ctx, "/sounds/", offset)
 		if err != nil {
 			return nil, err
 		}

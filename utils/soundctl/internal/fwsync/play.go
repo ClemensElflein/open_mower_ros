@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ClemensElflein/open_mower_ros/utils/soundctl/xbot"
+	"github.com/ClemensElflein/open_mower_ros/utils/soundctl/xbot/services/soundservice"
 )
 
 // ToneSpec is a runtime tone. The fields are plain ints, so the same validation
@@ -115,7 +115,7 @@ func Play(ctx context.Context, opts PlayOptions) error {
 // There is deliberately no endpoint cache: a stale address would silently swallow
 // the fire-and-forget playback RPCs, and when instant calls matter the address
 // from the `soundctl sync` log can just be passed with --addr.
-func connect(ctx context.Context, opts PlayOptions) (*xbot.SoundService, error) {
+func connect(ctx context.Context, opts PlayOptions) (*soundservice.Client, error) {
 	if opts.Addr != "" {
 		svc, err := serviceAt(opts.Addr)
 		if err != nil {
@@ -126,27 +126,23 @@ func connect(ctx context.Context, opts PlayOptions) (*xbot.SoundService, error) 
 	}
 
 	slog.Info("discovering SoundService (can take a few seconds — claimed services advertise slowly)…")
-	svc, err := xbot.NewSoundServiceNoClaim(ctx, opts.BindIP)
+	svc, err := soundservice.DialNoClaim(ctx, opts.BindIP)
 	if err != nil {
 		return nil, fmt.Errorf("SoundService: %w (hint: pass --addr <ip:port>, e.g. from the `soundctl sync` log)", err)
 	}
-	ip, port := svc.Endpoint()
-	slog.Info("SoundService found", "addr", net.JoinHostPort(ip, strconv.Itoa(port)),
+	slog.Info("SoundService found", "addr", svc.Endpoint(),
 		"hint", "pass it with --addr for instant calls")
 	return svc, nil
 }
 
 // serviceAt connects to "ip:port" without discovery or claim.
-func serviceAt(addr string) (*xbot.SoundService, error) {
-	host, portStr, err := net.SplitHostPort(addr)
-	if err != nil {
+func serviceAt(addr string) (*soundservice.Client, error) {
+	if _, portStr, err := net.SplitHostPort(addr); err != nil {
 		return nil, fmt.Errorf("bad endpoint %q (want \"ip:port\"): %w", addr, err)
-	}
-	port, err := strconv.Atoi(portStr)
-	if err != nil || port <= 0 || port > 65535 {
+	} else if port, err := strconv.Atoi(portStr); err != nil || port <= 0 || port > 65535 {
 		return nil, fmt.Errorf("bad endpoint %q: invalid port", addr)
 	}
-	svc, err := xbot.NewSoundServiceAt(host, port)
+	svc, err := soundservice.NewAt(addr)
 	if err != nil {
 		return nil, fmt.Errorf("SoundService: %w", err)
 	}
@@ -187,7 +183,7 @@ func validatePlay(opts PlayOptions, ids *SoundIDs) error {
 // dispatchPlay sends the single action selected by opts (already validated by
 // validatePlay) and logs it. Feedback is the sound itself: the firmware sends the
 // RPC result to the service owner, i.e. the high-level system.
-func dispatchPlay(svc *xbot.SoundService, opts PlayOptions, ids *SoundIDs) error {
+func dispatchPlay(svc *soundservice.Client, opts PlayOptions, ids *SoundIDs) error {
 	switch {
 	case opts.Stop:
 		slog.Info("stopping playback")

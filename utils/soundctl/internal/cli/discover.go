@@ -11,7 +11,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/ClemensElflein/open_mower_ros/utils/soundctl/xbot"
+	"github.com/ClemensElflein/open_mower_ros/utils/soundctl/xbot/services/fileservice"
+	"github.com/xtech/xbot_framework/xbot_service_interface_go/xbot"
 )
 
 // newDiscoverCmd lists the services the low level advertises on the xbot
@@ -62,10 +63,10 @@ func newDiscoverCmd() *cobra.Command {
 			for _, svc := range services {
 				fmt.Fprintln(out, svc)
 			}
-			if !hasService(services, xbot.ServiceFile) {
+			if !hasService(services, fileservice.ServiceID) {
 				fmt.Fprintf(cmd.ErrOrStderr(),
 					"note: the FileService (SID %d) was not advertised — \"soundctl sync\" cannot upload MP3s\n"+
-						"      until the LL firmware implements it.\n", xbot.ServiceFile)
+						"      until the LL firmware implements it.\n", fileservice.ServiceID)
 			}
 			return nil
 		},
@@ -76,9 +77,9 @@ func newDiscoverCmd() *cobra.Command {
 }
 
 // hasService reports whether the list contains the given service id.
-func hasService(services []xbot.ServiceAdvertisement, sid uint16) bool {
+func hasService(services []xbot.Advertisement, sid uint16) bool {
 	for _, svc := range services {
-		if svc.SID == sid {
+		if svc.ServiceID == sid {
 			return true
 		}
 	}

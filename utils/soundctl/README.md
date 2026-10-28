@@ -131,10 +131,21 @@ documented in [`sounds/README.md`](../../sounds/README.md). From the CLI:
 cmd/soundctl      main
 internal/cli      cobra commands (flags only, no logic)
 internal/fwsync   domain layer: config, validation, MP3 parser, layout/overlay,
-                  sidecar cache, xbot sync + play
-internal/tts      engine (sherpa-onnx), ffmpeg encoder, render pipeline, installer
-xbot              minimal xbot protocol client (discovery, claim, RPC, heatshrink)
+                  sidecar cache, sync + play
+internal/tts      engines (sherpa-onnx, piper), ffmpeg encoder, render pipeline, installer
+xbot/services     service specific clients: fileservice (SID 12), soundservice (SID 13)
 ```
+
+The protocol itself — discovery, claim, heartbeat, RPC calls, DATA and
+configuration transactions, heatshrink — lives in the xbot_framework Go module
+(`github.com/xtech/xbot_framework/xbot_service_interface_go/xbot`). The two
+packages below `xbot/services` only add the ids and parameter layouts of
+`services/file_service.json` and `services/sound_service.json`.
+
+While the module is still being tested, `go.mod` pins it with a `replace` to the
+submodule checkout (`../../src/lib/xbot_framework/xbot_service_interface_go`);
+once it is released upstream the replace disappears and only the versioned
+`require` remains.
 
 `internal/cli` stays thin on purpose: everything testable lives in `fwsync`/`tts`
 and is covered by table-driven tests (`*_test.go` next to the code).

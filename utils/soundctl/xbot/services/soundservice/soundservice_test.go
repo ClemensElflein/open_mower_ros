@@ -1,14 +1,14 @@
-package xbot
+package soundservice
 
 import (
 	"encoding/binary"
 	"testing"
 )
 
-// TestPackPlayTone pins the wire layout of the PlayTone parameters: one
+// TestToneParams pins the wire layout of the PlayTone parameters: one
 // descriptor per schema parameter (Freq u16, Duration u16, Volume u8, Preempt u8).
-func TestPackPlayTone(t *testing.T) {
-	params := packPlayTone(400, 60, 45, true)
+func TestToneParams(t *testing.T) {
+	params := toneParams(400, 60, 45, true)
 	if len(params) != 4 {
 		t.Fatalf("params = %d, want 4", len(params))
 	}
@@ -31,11 +31,11 @@ func TestPackPlayTone(t *testing.T) {
 	}
 }
 
-// TestPackPlaySequence pins the parameter order of PlaySequence: it must match
+// TestSequenceParams pins the parameter order of PlaySequence: it must match
 // the "functions" entry in services/sound_service.json
 // (Sequence, Wave, Volume, Unison, DetuneHz, AttackMs, DecayMs, Preempt, RepeatMs).
-func TestPackPlaySequence(t *testing.T) {
-	params := packPlaySequence("250:60 0:40 375:80", 3, 45, 1, 20, 5, 200, 2000, true)
+func TestSequenceParams(t *testing.T) {
+	params := sequenceParams("250:60 0:40 375:80", 3, 45, 1, 20, 5, 200, 2000, true)
 	if len(params) != 9 {
 		t.Fatalf("params = %d, want 9", len(params))
 	}
