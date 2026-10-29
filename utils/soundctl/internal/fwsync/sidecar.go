@@ -20,21 +20,24 @@ const sidecarVersion = 1
 // (<file>.mp3.json), so it travels with the file into the image and into the
 // writable overlay without any global index to keep in sync.
 type Sidecar struct {
-	Version     int     `json:"version"`
-	Fingerprint string  `json:"fingerprint"`
-	Text        string  `json:"text"`
-	Engine      string  `json:"engine"`
-	Model       string  `json:"model"`
-	Language    string  `json:"language"`
-	Sid         int     `json:"sid"`
-	Speed       float64 `json:"speed"`
-	LoudNorm    bool    `json:"loudnorm"`
-	BitrateKbps int     `json:"bitrate_kbps"`
-	SampleRate  int     `json:"sample_rate"`
-	Channels    int     `json:"channels"`
-	DurationMs  int     `json:"duration_ms"`
-	Bytes       int64   `json:"bytes"`
-	CRC32       uint32  `json:"crc32"`
+	Version         int     `json:"version"`
+	Fingerprint     string  `json:"fingerprint"`
+	Text            string  `json:"text"`
+	Engine          string  `json:"engine"`
+	Model           string  `json:"model"`
+	Voice           string  `json:"voice,omitempty"`
+	Language        string  `json:"language"`
+	Stability       float64 `json:"stability"`
+	SimilarityBoost float64 `json:"similarity_boost"`
+	Style           float64 `json:"style"`
+	UseSpeakerBoost bool    `json:"use_speaker_boost"`
+	LoudNorm        bool    `json:"loudnorm"`
+	BitrateKbps     int     `json:"bitrate_kbps"`
+	SampleRate      int     `json:"sample_rate"`
+	Channels        int     `json:"channels"`
+	DurationMs      int     `json:"duration_ms"`
+	Bytes           int64   `json:"bytes"`
+	CRC32           uint32  `json:"crc32"`
 
 	// Bookkeeping only; never compared (it must not affect the cache).
 	RenderedAt string `json:"rendered_at,omitempty"`
@@ -48,21 +51,24 @@ func SidecarPath(mp3 string) string { return mp3 + SidecarSuffix }
 // NewSidecar builds the sidecar of a freshly rendered MP3.
 func NewSidecar(id TTSIdentity, info MP3Info, bytes int64, crc uint32) Sidecar {
 	return Sidecar{
-		Version:     sidecarVersion,
-		Fingerprint: id.Fingerprint(),
-		Text:        id.Text,
-		Engine:      id.Engine,
-		Model:       id.Model,
-		Language:    id.Language,
-		Sid:         id.Sid,
-		Speed:       id.Speed,
-		LoudNorm:    id.LoudNorm,
-		BitrateKbps: info.BitrateKbps,
-		SampleRate:  info.SampleRate,
-		Channels:    info.Channels,
-		DurationMs:  info.DurationMs,
-		Bytes:       bytes,
-		CRC32:       crc,
+		Version:         sidecarVersion,
+		Fingerprint:     id.Fingerprint(),
+		Text:            id.Text,
+		Engine:          id.Engine,
+		Model:           id.Model,
+		Language:        id.Language,
+		Voice:           id.Voice,
+		Stability:       id.Stability,
+		SimilarityBoost: id.SimilarityBoost,
+		Style:           id.Style,
+		UseSpeakerBoost: id.UseSpeakerBoost,
+		LoudNorm:        id.LoudNorm,
+		BitrateKbps:     info.BitrateKbps,
+		SampleRate:      info.SampleRate,
+		Channels:        info.Channels,
+		DurationMs:      info.DurationMs,
+		Bytes:           bytes,
+		CRC32:           crc,
 	}
 }
 

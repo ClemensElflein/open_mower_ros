@@ -82,8 +82,8 @@ COPY --link --from=slic3r /opt/prebuilt/slic3r_coverage_planner /opt/prebuilt/sl
 
 # Fetch the list of packages
 COPY --link --from=dependencies /apt-install_list /apt-install_list
-# ffmpeg for `soundctl tts` (loudnorm + MP3 encoding) and ca-certificates for the
-# HTTPS downloads of the TTS engines it installs.
+# ffmpeg for `soundctl tts` (loudnorm + MP3 encoding); ca-certificates for the
+# ElevenLabs API, which the robot calls with the key of its user.
 RUN apt-get update && \
     apt-get install --no-install-recommends --yes $(cat /apt-install_list) libasio-dev ffmpeg ca-certificates && \
     rm -rf /var/lib/apt/lists/*
@@ -91,26 +91,16 @@ RUN apt-get update && \
 COPY --link ./ /opt/open_mower_ros
 COPY --link --from=gobuild /out/soundctl /usr/local/bin/soundctl
 
-# TTS engine + model for the `tts:` texts of the sound definitions
-RUN soundctl tts install --dir /opt/open_mower_ros/tts --arch "$(dpkg --print-architecture)"
-
 # Gate the shipped definitions here rather than on the mower: ids/types/ranges
 # against services/sound_service.json and 16 kHz mono for every referenced MP3.
-# The announcements come from the CI pre-render in the build context (see
-# .github/workflows/build-image.yaml); a language whose render is missing would
-# be reported as "pending" instead of failing, so this stays warning-free either way.
+# The announcements are rendered by the robot itself (online, with the user's
+# ElevenLabs key), so this image carries no TTS engine and no pre-rendered MP3s: a
+# language whose render is missing is reported as "pending", not as an error.
 RUN for lang in en de; do \
     soundctl validate \
     --config "/opt/open_mower_ros/src/open_mower/params/sounds_${lang}.yaml" \
     --check-mp3; \
     done
-
-# Piper engine + the English voice (sounds_en.yaml renders with engine: piper).
-# soundctl pins both by SHA256 (internal/tts/install.go). The 2023 standalone build
-# is used on purpose: no Python in the image, ~4x faster than the pip CLI, and it
-# loads the current voices.
-RUN soundctl tts install --engine piper --dir /opt/open_mower_ros/tts && \
-    soundctl tts verify --engine piper --dir /opt/open_mower_ros/tts
 
 # delete prebuilt libs (so that they won't shadow the preinstalled ones)
 RUN rm -rf /opt/open_mower_ros/src/lib/slic3r_coverage_planner /apt-install_list

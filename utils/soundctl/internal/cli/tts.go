@@ -4,20 +4,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/ClemensElflein/open_mower_ros/utils/soundctl/internal/fwsync"
 	"github.com/ClemensElflein/open_mower_ros/utils/soundctl/internal/tts"
 )
-
-// envOr returns the environment variable key or def.
-func envOr(key, def string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
-	}
-	return def
-}
 
 // dataDir is the writable data partition of the mower (a mount in the OS image,
 // ./data in docker-simulation) and soundsDirName the overlay below it.
@@ -48,41 +41,47 @@ func dataSoundsDir(data string, isDir func(string) bool) string {
 	return filepath.Join(data, soundsDirName)
 }
 
-// defaultTTSDir returns the TTS asset directory: image path, then
-// $OPENMOWER_TTS_DIR, else the image default.
-func defaultTTSDir() string { return envOr("OPENMOWER_TTS_DIR", tts.DefaultDir) }
+// DefaultAPIKeyFile is where the mower keeps the ElevenLabs key. The sounds
+// overlay is the one directory every user who customises sounds mounts anyway,
+// and it lives on the data partition, so the key needs no extra volume and
+// survives image updates. It is never uploaded (sync only sends the files named
+// in sounds_*.yaml) and never deleted (cleanup compares the low level's listing
+// against those names) - hence the dot-file name.
+const DefaultAPIKeyFile = "/data/sounds/.elevenlabs.key"
 
-// piperBinary resolves the piper executable. It is resolved lazily (not as a
-// flag default) so that --tts-dir on the command line is honoured: explicit
-// flag, $OPENMOWER_PIPER_BIN, <tts-dir>/piper/piper, else "piper" from PATH.
-func (f *ttsFlags) piperBinary() string {
-	if f.piperBin != "" {
-		return f.piperBin
+// apiKey resolves the ElevenLabs key: explicit flag, explicit file, then
+// $ELEVENLABS_API_KEY, then the default file. The environment is what CI (a
+// repository secret) and a dev shell use; the file is what the mower uses.
+func apiKey(explicit, explicitFile, defaultFile string) (string, error) {
+	if v := strings.TrimSpace(explicit); v != "" {
+		return v, nil
 	}
-	if v := os.Getenv("OPENMOWER_PIPER_BIN"); v != "" {
-		return v
+	if explicitFile != "" {
+		return readKeyFile(explicitFile)
 	}
-	inTTS := filepath.Join(f.ttsDir, "piper", "piper")
-	if st, err := os.Stat(inTTS); err == nil && !st.IsDir() {
-		return inTTS
+	if v := strings.TrimSpace(os.Getenv("ELEVENLABS_API_KEY")); v != "" {
+		return v, nil
 	}
-	return "piper"
+	if defaultFile != "" {
+		if v, err := readKeyFile(defaultFile); err == nil && v != "" {
+			return v, nil
+		}
+	}
+	return "", fmt.Errorf("no ElevenLabs API key: pass --api-key/--api-key-file, set $ELEVENLABS_API_KEY, or write %s", defaultFile)
 }
 
-// piperVoiceDir resolves the directory that holds the <voice>.onnx files, with
-// the same precedence as piperBinary.
-func (f *ttsFlags) piperVoiceDir() string {
-	if f.piperDir != "" {
-		return f.piperDir
+// readKeyFile reads a key file. Editors append a newline, so the value is
+// trimmed; anything else (a missing file included) is an error.
+func readKeyFile(path string) (string, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("read API key file: %w", err)
 	}
-	if v := os.Getenv("OPENMOWER_PIPER_DIR"); v != "" {
-		return v
+	key := strings.TrimSpace(string(raw))
+	if key == "" {
+		return "", fmt.Errorf("%s is empty", path)
 	}
-	inTTS := filepath.Join(f.ttsDir, "piper", "voices")
-	if st, err := os.Stat(inTTS); err == nil && st.IsDir() {
-		return inTTS
-	}
-	return ""
+	return key, nil
 }
 
 // ttsFlags are the flags of the tts command.
@@ -91,15 +90,10 @@ type ttsFlags struct {
 	soundIDs    string
 	soundsDir   string
 	soundPathOv string
-	ttsDir      string
-	ttsBin      string
-	ttsLibDir   string
-	ttsModelDir string
-	piperBin    string
-	piperDir    string
+	apiKey      string
+	apiKeyFile  string
+	apiURL      string
 	ffmpeg      string
-	threads     int
-	steps       int
 	force       bool
 	check       bool
 }
@@ -110,54 +104,26 @@ func (f *ttsFlags) register(cmd *cobra.Command) {
 	fl.StringVar(&f.soundIDs, "sound-ids", defaultSoundIDsPath, "path to the shared definition (sound_service.json)")
 	fl.StringVar(&f.soundsDir, "sounds-dir", defaultSoundsDir(), "writable overlay with customised/rendered MP3s (empty: only sound_path)")
 	layoutFlag(cmd, &f.soundPathOv)
-	fl.StringVar(&f.ttsDir, "tts-dir", defaultTTSDir(), "TTS asset directory (bin/, lib/, models/); $OPENMOWER_TTS_DIR")
-	fl.StringVar(&f.ttsBin, "tts-bin", "", "override the sherpa-onnx-offline-tts binary (default: <tts-dir>/bin/...)")
-	fl.StringVar(&f.ttsLibDir, "tts-lib-dir", "", "override LD_LIBRARY_PATH of the engine (default: <tts-dir>/lib)")
-	fl.StringVar(&f.ttsModelDir, "tts-model-dir", "", "override the model directory (default: <tts-dir>/models/<tts.model>)")
+	fl.StringVar(&f.apiKey, "api-key", "", "ElevenLabs API key (instead of the file/environment); never put it in sounds_*.yaml")
+	fl.StringVar(&f.apiKeyFile, "api-key-file", "", "file holding the ElevenLabs API key (default: $ELEVENLABS_API_KEY, "+DefaultAPIKeyFile+")")
+	fl.StringVar(&f.apiURL, "api-url", "", "ElevenLabs API root (default: "+tts.DefaultElevenLabsURL+"; e.g. https://api.eu.residency.elevenlabs.io)")
 	fl.StringVar(&f.ffmpeg, "ffmpeg", "ffmpeg", "ffmpeg binary used for encoding")
-	fl.StringVar(&f.piperBin, "piper-bin", "", "piper executable (engine: piper); default: $OPENMOWER_PIPER_BIN, <tts-dir>/piper/piper, PATH")
-	fl.StringVar(&f.piperDir, "piper-dir", "", "voices dir (engine: piper); default: $OPENMOWER_PIPER_DIR, <tts-dir>/piper/voices")
-	fl.IntVar(&f.threads, "threads", 0, "ONNX threads (default: tts.threads from the YAML, 0 = engine default)")
-	fl.IntVar(&f.steps, "steps", 0, "flow-matching steps (default: 8; lower = faster, rougher)")
 	fl.BoolVar(&f.force, "force", false, "re-render even if the sidecar says the file is up to date")
 	fl.BoolVar(&f.check, "check", false, "render nothing, only report missing/stale renders (exit 1 if any)")
 }
 
 // engineFor builds the engine a definition asks for. The same factory serves
 // `soundctl tts` (engine from the YAML) and `soundctl say` (engine from flags),
-// so both always use the same binary invocation.
+// so both always use the same engine.
 func (f *ttsFlags) engineFor(set fwsync.TTSSettings) (tts.Engine, error) {
-	switch set.Engine {
-	case "supertonic":
-		return f.engine(set), nil
-	case "piper":
-		return tts.Piper{
-			Bin:             f.piperBinary(),
-			VoiceDir:        f.piperVoiceDir(),
-			Voice:           set.Voice,
-			SentenceSilence: set.SentenceSilence,
-		}, nil
+	if set.Engine != fwsync.DefaultTTSEngine {
+		return nil, fmt.Errorf("tts.engine %q is not supported (use %q)", set.Engine, fwsync.DefaultTTSEngine)
 	}
-	return nil, fmt.Errorf("tts.engine %q is not supported (use \"supertonic\" or \"piper\")", set.Engine)
-}
-
-// engine assembles the Sherpa engine from the flags and the resolved tts block.
-func (f *ttsFlags) engine(set fwsync.TTSSettings) tts.Sherpa {
-	bin, lib, modelDir := f.ttsBin, f.ttsLibDir, f.ttsModelDir
-	if bin == "" {
-		bin = filepath.Join(f.ttsDir, "bin", "sherpa-onnx-offline-tts")
+	key, err := apiKey(f.apiKey, f.apiKeyFile, DefaultAPIKeyFile)
+	if err != nil {
+		return nil, err
 	}
-	if lib == "" {
-		lib = filepath.Join(f.ttsDir, "lib")
-	}
-	if modelDir == "" {
-		modelDir = filepath.Join(f.ttsDir, "models", set.Model)
-	}
-	threads := f.threads
-	if threads == 0 {
-		threads = set.Threads
-	}
-	return tts.Sherpa{Bin: bin, LibDir: lib, ModelDir: modelDir, Threads: threads, NumSteps: f.steps}
+	return tts.ElevenLabs{APIKey: key, BaseURL: f.apiURL}, nil
 }
 
 func (f *ttsFlags) run(cmd *cobra.Command) error {
@@ -178,25 +144,26 @@ func (f *ttsFlags) run(cmd *cobra.Command) error {
 
 	layout := newLayout(cfg, f.soundPathOv, f.soundsDir)
 	out := cmd.OutOrStdout()
+	jobs := cfg.RenderJobs()
 
 	if f.check {
-		if len(cfg.TTSSounds()) == 0 {
-			fmt.Fprintf(out, "no tts sounds in %s\n", f.config)
+		if len(jobs) == 0 {
+			fmt.Fprintf(out, "no tts variants in %s\n", f.config)
 			return nil
 		}
 		pending := tts.Pending(cfg, layout)
 		if len(pending) == 0 {
-			fmt.Fprintf(out, "OK: %d tts sound(s) up to date\n", len(cfg.TTSSounds()))
+			fmt.Fprintf(out, "OK: %d tts render(s) up to date\n", len(jobs))
 			return nil
 		}
-		for _, name := range pending {
-			fmt.Fprintf(out, "stale: %s\n", name)
+		for _, label := range pending {
+			fmt.Fprintf(out, "stale: %s\n", label)
 		}
-		return fmt.Errorf("%d of %d tts render(s) missing or stale", len(pending), len(cfg.TTSSounds()))
+		return fmt.Errorf("%d of %d tts render(s) missing or stale", len(pending), len(jobs))
 	}
 
-	if len(cfg.TTSSounds()) == 0 {
-		fmt.Fprintf(out, "no tts sounds in %s\n", f.config)
+	if len(jobs) == 0 {
+		fmt.Fprintf(out, "no tts variants in %s\n", f.config)
 		return nil
 	}
 
@@ -205,10 +172,7 @@ func (f *ttsFlags) run(cmd *cobra.Command) error {
 		return err
 	}
 	if err := eng.Available(); err != nil {
-		if fw := cfg.TTSSettings().Engine; fw == "piper" {
-			return fmt.Errorf("%w (install piper and the voice, or pass --piper-bin/--piper-dir)", err)
-		}
-		return fmt.Errorf("%w (run \"soundctl tts install\" or set --tts-dir)", err)
+		return err
 	}
 	enc := tts.Encoder{FFmpeg: f.ffmpeg}
 	if err := enc.Available(); err != nil {
@@ -243,25 +207,25 @@ func newTTSCmd() *cobra.Command {
 	f := &ttsFlags{}
 	cmd := &cobra.Command{
 		Use:   "tts",
-		Short: "Render the tts: texts of sounds_*.yaml into the firmware MP3s",
-		Long: "Synthesise every sound that has a 'tts:' text and write it as a 16 kHz mono\n" +
-			"CBR MP3 into the sound overlay (sounds/<language>/). Each file gets a\n" +
-			"\".json\" sidecar with the render fingerprint, so a re-run only touches what\n" +
-			"changed: the text, the voice (sid/speed), the language or the bitrate.\n" +
+		Short: "Render the tts variants of sounds_*.yaml into the firmware MP3s",
+		Long: "Synthesise every tts variant and write it as a 16 kHz mono CBR MP3 into\n" +
+			"the sound overlay (sounds/<language>/). Each file gets a \".json\" sidecar\n" +
+			"with the render fingerprint, so a re-run only touches what changed: the\n" +
+			"text, the voice, a voice setting, the language or the bitrate.\n" +
+			"\n" +
+			"The engine is ElevenLabs (cloud): the text is sent to the API, the returned\n" +
+			"16 kHz WAV is normalised and encoded by ffmpeg. The API key comes from\n" +
+			"--api-key, --api-key-file, $ELEVENLABS_API_KEY,\n" +
+			"$ELEVENLABS_API_KEY or " + DefaultAPIKeyFile + ".\n" +
 			"\n" +
 			"Runs once per ROS start inside the container; \"tts --check\" only reports\n" +
-			"what would be rendered (for CI), and sync refuses to upload a stale render.\n" +
-			"\n" +
-			"The engine is chosen per definition in its \"tts:\" block: \"supertonic\"\n" +
-			"(sherpa-onnx, model below --tts-dir, voice by sid) or \"piper\" (voice and\n" +
-			"binaries below --piper-dir/--piper-bin). Both are baked into the image;\n" +
-			"\"tts install\" fetches the Supertonic engine/model for host use.",
+			"what would be rendered (it needs no key), and sync refuses to upload a\n" +
+			"stale render.",
 		Example: "  soundctl tts --config src/open_mower/params/sounds_de.yaml --sounds-dir /data/sounds\n" +
 			"  soundctl tts --check",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error { return f.run(cmd) },
 	}
 	f.register(cmd)
-	cmd.AddCommand(newTTSInstallCmd(), newTTSVerifyCmd())
 	return cmd
 }

@@ -96,11 +96,9 @@ jobs:
           echo "version=${version}" >> ${GITHUB_OUTPUT}
           echo "Software version: ${version}"
 
-      # Render the TTS announcements into the build context, for every language.
-      # The image can't do this itself (the engines don't run under buildx
-      # emulation), and pre-rendered files mean a mower only has to upload them
-      # instead of rendering ~60 s on its first start. The engines are cached
-      # between runs, the render itself takes a few seconds.
+      # Render the TTS announcements into the build context, for every language,
+      # so a fresh mower only has to upload them instead of spending API requests
+      # on its first start (the robot can still render, with the user's own key).
       - name: Set up Go (renders the announcements below)
         if: matrix.variant == 'default'
         uses: actions/setup-go@v7
@@ -108,14 +106,18 @@ jobs:
           go-version-file: utils/soundctl/go.mod
           cache-dependency-path: utils/soundctl/go.sum
 
-      - name: Cache the TTS engines
+      # The renders are the cache: soundctl only re-renders a variant whose
+      # fingerprint (text + voice + voice settings + bitrate) changed, so a
+      # restored sounds/ tree keeps every unchanged file and the step below only
+      # spends API requests for the rest. A miss (or the 7-day eviction) is fine -
+      # it just re-renders, and a cloud model may sound slightly different.
+      - name: Cache the rendered announcements
         if: matrix.variant == 'default'
         uses: actions/cache@v6
         with:
-          path: ~/.cache/openmower-tts
-          # Arch in the key: the arm64 and amd64 legs must not share a cache,
-          # the engines are platform specific.
-          key: tts-engines-${{ matrix.docker_build_arch }}-${{ hashFiles('utils/soundctl/internal/tts/install.go') }}
+          path: sounds
+          key: tts-renders-${{ matrix.docker_build_arch }}-${{ hashFiles('src/open_mower/params/sounds_*.yaml') }}
+          restore-keys: tts-renders-${{ matrix.docker_build_arch }}-
 
       # The render encodes the announcements (EBU R128 + MP3) with ffmpeg, which
       # the image has but the runner does not.
@@ -126,22 +128,36 @@ jobs:
           sudo apt-get install -y --no-install-recommends ffmpeg
           ffmpeg -version | head -1
 
-      - name: Render the TTS announcements (all languages)
+      # Rendering needs the ElevenLabs key, which is a repository secret: a pull
+      # request from a fork never sees it. Detect it in its own step, because a
+      # step's `if` cannot read a secret directly.
+      - name: Check for the ElevenLabs key
+        id: tts_key
         if: matrix.variant == 'default'
+        env:
+          KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+        run: |
+          if [ -n "${KEY}" ]; then
+            echo "available=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "available=false" >> "${GITHUB_OUTPUT}"
+            echo "::notice::No ELEVENLABS_API_KEY secret - this build ships without the announcements (the robot renders them with its own key)."
+          fi
+
+      - name: Render the TTS announcements (all languages)
+        if: matrix.variant == 'default' && steps.tts_key.outputs.available == 'true'
         working-directory: utils/soundctl
+        env:
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
         run: |
           set -euo pipefail
-          tts_dir="${HOME}/.cache/openmower-tts"
           go build -o "${RUNNER_TEMP}/soundctl" ./cmd/soundctl
-          "${RUNNER_TEMP}/soundctl" tts install --dir "${tts_dir}"
-          "${RUNNER_TEMP}/soundctl" tts install --engine piper --dir "${tts_dir}"
           for lang in en de; do
             "${RUNNER_TEMP}/soundctl" tts \
               --config "../../src/open_mower/params/sounds_${lang}.yaml" \
               --sound-ids ../../services/sound_service.json \
               --sound-path ../../sounds \
-              --sounds-dir ../../sounds \
-              --tts-dir "${tts_dir}"
+              --sounds-dir ../../sounds
           done
 
       # Setup Python 3

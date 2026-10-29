@@ -1,10 +1,12 @@
 package tts
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ClemensElflein/open_mower_ros/utils/soundctl/internal/fwsync"
 )
@@ -41,47 +43,56 @@ func TestEnsureWritableDirCreates(t *testing.T) {
 	}
 }
 
+// fakeEngine satisfies Engine; Synthesize must never be reached in these tests.
+type fakeEngine struct{}
+
+func (fakeEngine) Available() error { return nil }
+
+func (fakeEngine) Synthesize(fwsync.TTSIdentity, string) (time.Duration, error) {
+	return 0, errors.New("fake engine must not run")
+}
+
+func (fakeEngine) Describe(fwsync.TTSIdentity) string { return "fake" }
+
 // TestRenderTextNeedsText pins the only branch of RenderText that does not need
 // the external engine.
 func TestRenderTextNeedsText(t *testing.T) {
-	if _, err := RenderText("   \n", fwsync.TTSIdentity{}, filepath.Join(t.TempDir(), "none.mp3"), Sherpa{}, Encoder{}, nil); err == nil {
+	if _, err := RenderText("   \n", fwsync.TTSIdentity{}, filepath.Join(t.TempDir(), "none.mp3"), fakeEngine{}, Encoder{}, nil); err == nil {
 		t.Fatal("an empty text must be rejected before the engine runs")
 	}
 }
 
-// TestRenderTextWithEngine exercises the real chain (engine + ffmpeg) and is
-// skipped unless a local installation is pointed at, e.g.
+// TestRenderTextWithEngine exercises the real chain (ElevenLabs + ffmpeg) and is
+// skipped unless a key and a voice id are in the environment, e.g.
 //
-//	OPENMOWER_TTS_DIR=/opt/open_mower_ros/tts go test ./internal/tts -run RenderText -v
+//	ELEVENLABS_API_KEY=... OPENMOWER_TTS_VOICE=5gaEGrWSk4v20HMfIhgC go test ./internal/tts -run RenderText -v
 //
-// It asserts what the mower depends on: the firmware format and a real file.
+// It asserts what the mower depends on: the firmware format, a real file and no
+// cache sidecar for an ad-hoc render.
 func TestRenderTextWithEngine(t *testing.T) {
-	dir := os.Getenv("OPENMOWER_TTS_DIR")
-	if dir == "" {
-		t.Skip("OPENMOWER_TTS_DIR not set (no local engine to test against)")
+	key := os.Getenv("ELEVENLABS_API_KEY")
+	voice := os.Getenv("OPENMOWER_TTS_VOICE")
+	if key == "" || voice == "" {
+		t.Skip("ELEVENLABS_API_KEY and OPENMOWER_TTS_VOICE not set (no cloud render to test against)")
 	}
 	enc := Encoder{FFmpeg: "ffmpeg"}
 	if err := enc.Available(); err != nil {
 		t.Skipf("ffmpeg not available: %v", err)
 	}
-	eng := Sherpa{
-		Bin:      filepath.Join(dir, "bin", "sherpa-onnx-offline-tts"),
-		LibDir:   filepath.Join(dir, "lib"),
-		ModelDir: filepath.Join(dir, "models", fwsync.DefaultTTSModel),
-	}
-	if err := eng.Available(); err != nil {
-		t.Skipf("engine not installed in %s: %v", dir, err)
-	}
+	eng := ElevenLabs{APIKey: key}
 
 	dst := filepath.Join(t.TempDir(), "say.mp3")
 	id := fwsync.TTSIdentity{
-		Engine:   fwsync.DefaultTTSEngine,
-		Model:    fwsync.DefaultTTSModel,
-		Language: "de",
-		Bitrate:  "32k",
-		Sid:      fwsync.DefaultTTSSid,
-		Speed:    fwsync.DefaultTTSSpeed,
-		LoudNorm: true,
+		Engine:          fwsync.DefaultTTSEngine,
+		Model:           fwsync.DefaultTTSModel,
+		Voice:           voice,
+		Language:        "de",
+		Bitrate:         "32k",
+		LoudNorm:        true,
+		Stability:       fwsync.DefaultTTSStability,
+		SimilarityBoost: fwsync.DefaultTTSSimilarityBoost,
+		Style:           fwsync.DefaultTTSStyle,
+		UseSpeakerBoost: fwsync.DefaultTTSUseSpeakerBoost,
 	}
 	res, err := RenderText("Hallo Welt.", id, dst, eng, enc, t.Logf)
 	if err != nil {

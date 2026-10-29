@@ -13,56 +13,40 @@ including how to run it against a checkout (see *Local use*).
 | command                      | purpose                                                                                                                                                        |
 | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `validate`                   | check `sounds_*.yaml` against `services/sound_service.json` (ids, types, ranges) and the MP3s (16 kHz mono)                                                    |
-| `tts`                        | render the `tts:` texts into 16 kHz mono CBR MP3s (Supertonic or Piper, then ffmpeg), with a `.json` sidecar as cache; `--check` reports missing/stale renders |
+| `tts`                        | render the tts variants into 16 kHz mono CBR MP3s (ElevenLabs, then ffmpeg), with a `.json` sidecar as cache; `--check` reports missing/stale renders and needs no key |
 | `say`                        | render **one** ad-hoc text with the same chain and play it on this machine — no YAML, no cache. The way to audition a text before it goes into a definition    |
-| `tts install` / `tts verify` | fetch / check a pinned engine: Supertonic (~220 MB) and/or Piper + one voice (~110 MB), below `$OPENMOWER_TTS_DIR`                                             |
 | `sync`                       | upload changed MP3s, push the definitions blob, remove orphans, optionally set the volume                                                                      |
 | `play` / `stop`              | trigger a tone, sequence, MP3 or configured sound on a running robot                                                                                           |
 | `discover`                   | list the services the low level advertises (first thing to check when `sync` cannot reach it)                                                                  |
 
 ## Local use (dev machine)
 
-### Install the engines
+### The ElevenLabs key
 
-`soundctl tts install` fetches the pinned assets, verifies their SHA-256 and
-unpacks them. The image build runs the same two commands, so a robot never
-downloads anything:
+Nothing is downloaded or installed: the only asset is the API key. Resolution
+order (first hit wins):
 
-```bash
-cd utils/soundctl
-export OPENMOWER_TTS_DIR=~/.cache/openmower-tts        # default: /opt/open_mower_ros/tts
-
-# supertonic: sherpa-onnx CLI + libs + the Supertonic 3 model (~220 MB)
-go run ./cmd/soundctl tts install --dir "$OPENMOWER_TTS_DIR"
-# piper: standalone bundle (binary, espeak-ng data, libs) + one voice (~110 MB)
-go run ./cmd/soundctl tts install --engine piper --dir "$OPENMOWER_TTS_DIR"
-
-# completeness check without downloading or running an engine
-go run ./cmd/soundctl tts verify --dir "$OPENMOWER_TTS_DIR"
-go run ./cmd/soundctl tts verify --engine piper --dir "$OPENMOWER_TTS_DIR"
+```
+--api-key  >  --api-key-file  >  $ELEVENLABS_API_KEY  >  /data/sounds/.elevenlabs.key
 ```
 
-| path below `$OPENMOWER_TTS_DIR` | content                                                        |
-| ------------------------------- | -------------------------------------------------------------- |
-| `bin/`, `lib/`                  | sherpa-onnx CLI (`sherpa-onnx-offline-tts`) + `libonnxruntime` |
-| `models/<model>/`               | Supertonic 3 int8 model (`--model` picks another name)         |
-| `piper/`                        | piper binary, `espeak-ng-data`, its shared libraries           |
-| `piper/voices/`                 | `<voice>.onnx` + `<voice>.onnx.json`                           |
-| `install.json`, `.cache/`       | what was installed (arch, checksums), the archives             |
+On the mower the key belongs in `/data/sounds/.elevenlabs.key` (mode 600): that
+directory is the writable overlay, it is mounted by everyone who customises
+sounds anyway, and it is never uploaded (`sync` only sends the files named in
+`sounds_*.yaml`) nor deleted (`cleanup` compares the low level's listing against
+those names). Locally, exporting `ELEVENLABS_API_KEY` is enough.
 
-`--voice` selects one of the pinned Piper voices: `en_US-bryce-medium` (default),
-`en_US-joe-medium`, `en_US-mike-medium`, `en_US-norman-medium`,
-`de_DE-thorsten-high`. `--arch` installs for another architecture, `--base-url`
-uses a mirror, `--force` re-downloads. A render also accepts any `.onnx` path.
+`tts --check` and `validate --check-mp3` need no key at all, so CI and a fork can
+gate the definitions without a secret.
 
 ### Audition a text
 
 ```bash
-go run ./cmd/soundctl say "Hallo, ich bin Steve" --lang de       # speaks now
-go run ./cmd/soundctl say "Der Akku ist fast leer" --lang de --speed 1.1
-go run ./cmd/soundctl say --engine piper --voice en_US-bryce-medium "Hi" --speed 1.2
-go run ./cmd/soundctl say "Hello" --sid 3 --out /tmp/hello.mp3 --play=false
-go run ./cmd/soundctl say "Test" --player "mpg123 -q"            # own player
+export ELEVENLABS_API_KEY=sk-...
+go run ./cmd/soundctl say "Hallo, ich bin Steve" --lang de --voice I5mfJk5ETJFOHZxoRrHq
+go run ./cmd/soundctl say "Der Akku ist fast leer" --lang de --voice I5mfJk5ETJFOHZxoRrHq --stability 0.4
+go run ./cmd/soundctl say "Hello" --voice 5gaEGrWSk4v20HMfIhgC --out /tmp/hello.mp3 --play=false
+go run ./cmd/soundctl say "Test" --voice 5gaEGrWSk4v20HMfIhgC --player "mpg123 -q"
 ```
 
 `say` uses the identical engine call, loudness normalisation, encoder and format
@@ -96,35 +80,26 @@ for lang in en de; do
 done
 ```
 
-### Engines, voices and licences
+### Engine, voices and licences
 
-Which engine speaks which language, and the `tts:` block of a definition, are
+Which voice speaks which language, and the `tts:` block of a definition, are
 documented in [`sounds/README.md`](../../sounds/README.md). From the CLI:
 
-- `soundctl tts` renders with the engine the YAML names, `soundctl say --engine …`
-  with the one given on the command line.
-- `--piper-bin` / `--piper-dir` override the piper executable and its voices dir,
-  `--tts-bin` / `--tts-lib-dir` / `--tts-model-dir` the sherpa-onnx side.
-- piper from pip (`pip install piper-tts`, slower because of the Python start)
-  also works: pass `--piper-bin ~/.venvs/piper/bin/piper`.
-- `--voice` is a name below `--piper-dir` (`en_US-bryce-medium`) or a path to a
-  `.onnx`; the language is derived from the voice name, so `--lang` is not needed.
-- `--speed 1.2` maps to piper's `--length_scale 0.833` (its scale is the
-  reciprocal of speed); a per-sound `sid:` maps to `-s` for multi-speaker voices;
-  `sentence_silence` is passed through.
-- Both piper generations work: the 2023 standalone binary (no Python, ~4x faster,
-  what the image installs) and the current `piper1-gpl` CLI. The text is fed via
-  stdin and only `-m/-f/-s`, `--sentence_silence` and `--length_scale` are used,
-  because those exist in both.
-- Voice licenses are a two-level thing: the voice repository
-  (`rhasspy/piper-voices`) is published under **MIT** and Piper states it imposes
-  *no additional restrictions* on the voice models — but every voice directory
-  has a `MODEL_CARD` naming the **dataset** it was trained on, and those differ:
-  `de_DE-thorsten-*` → CC0, `en_GB-alba-*` → CC BY 4.0,
-  `en_US-bryce-*` / `en_US-joe-*` / `en_US-mike-*` / `en_US-norman-*` → public
-  domain / CC0, `en_US-ryan-*` / `en_US-hfc_*` → CC BY-NC-SA 4.0 (non-commercial
-  source data). The weights are MIT-labelled; the model card is about provenance.
-
+- `soundctl tts` renders with the engine the YAML names (only `elevenlabs` is
+  left; the offline engines were removed), `soundctl say` takes the same settings
+  as flags: `--voice`, `--model`, `--stability`, `--similarity-boost`, `--style`,
+  `--speaker-boost`.
+- `--voice` is the ElevenLabs voice **id** (20 characters, e.g.
+  `5gaEGrWSk4v20HMfIhgC` for "Jeremy"), not a name. `--model` is the model id
+  (`eleven_v4`, `eleven_multilingual_v2`, `eleven_flash_v2_5`, ...).
+- `--api-url` points the client at another API root, e.g. the EU residency host
+  `https://api.eu.residency.elevenlabs.io`.
+- Every voice setting is part of the render cache key: changing one re-renders the
+  announcements on the next `tts` run, which costs one API request per file.
+- Licences: the *voice* is licensed by ElevenLabs (and the voice owner), the
+  generated audio by the plan you booked - check both before shipping the files
+  in a public image. The API also logs the requests unless zero-retention (an
+  enterprise feature) is enabled; the texts are generic announcements.
 ## Layout
 
 ```
@@ -132,7 +107,7 @@ cmd/soundctl      main
 internal/cli      cobra commands (flags only, no logic)
 internal/fwsync   domain layer: config, validation, MP3 parser, layout/overlay,
                   sidecar cache, sync + play
-internal/tts      engines (sherpa-onnx, piper), ffmpeg encoder, render pipeline, installer
+internal/tts      ElevenLabs engine, ffmpeg encoder, render pipeline (sidecar cache)
 ```
 
 The protocol (discovery, claim, heartbeat, RPC calls, DATA and configuration

@@ -8,24 +8,24 @@ name: soundctl
 on:
   push:
     branches:
-      - 'main'
-      - 'releases/**'
-      - 'v2'
+      - "main"
+      - "releases/**"
+      - "v2"
     paths:
-      - 'utils/soundctl/**'
-      - 'services/**'
-      - 'sounds/**'
-      - 'src/open_mower/params/sounds_*.yaml'
-      - '.github/workflows/soundctl.yaml'
+      - "utils/soundctl/**"
+      - "services/**"
+      - "sounds/**"
+      - "src/open_mower/params/sounds_*.yaml"
+      - ".github/workflows/soundctl.yaml"
   pull_request:
     branches:
-      - 'main'
+      - "main"
     paths:
-      - 'utils/soundctl/**'
-      - 'services/**'
-      - 'sounds/**'
-      - 'src/open_mower/params/sounds_*.yaml'
-      - '.github/workflows/soundctl.yaml'
+      - "utils/soundctl/**"
+      - "services/**"
+      - "sounds/**"
+      - "src/open_mower/params/sounds_*.yaml"
+      - ".github/workflows/soundctl.yaml"
   workflow_dispatch:
 
 permissions:
@@ -42,7 +42,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           # services/sound_service.json (the shared definition) is a submodule.
-          submodules: 'recursive'
+          submodules: "recursive"
           persist-credentials: false
 
       - name: Set up Go
@@ -83,4 +83,62 @@ jobs:
               --sound-ids ../../services/sound_service.json \
               --sound-path ../../sounds \
               --check-mp3
+          done
+
+  # End-to-end render check: renders every language with the real ElevenLabs API
+  # and asserts the result is what the firmware needs (16 kHz mono, cache agrees).
+  # It is the only job that needs the key - a repository secret, so a pull request
+  # from a fork cannot use it; the step notices that and skips instead of failing.
+  render:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: "recursive"
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: utils/soundctl/go.mod
+          cache-dependency-path: utils/soundctl/go.sum
+
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg
+
+      # A step's `if` cannot read a secret directly, so detect it in its own step.
+      - name: Check for the ElevenLabs key
+        id: tts_key
+        env:
+          KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+        run: |
+          if [ -n "${KEY}" ]; then
+            echo "available=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "available=false" >> "${GITHUB_OUTPUT}"
+            echo "::notice::No ELEVENLABS_API_KEY secret - skipping the render check."
+          fi
+
+      - name: Render and verify the announcements
+        if: steps.tts_key.outputs.available == 'true'
+        working-directory: utils/soundctl
+        env:
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+        run: |
+          set -euo pipefail
+          out="${RUNNER_TEMP}/sounds"
+          for lang in en de; do
+            args=(--config "../../src/open_mower/params/sounds_${lang}.yaml"
+                  --sound-ids ../../services/sound_service.json
+                  --sound-path ../../sounds
+                  --sounds-dir "${out}")
+            go run ./cmd/soundctl tts "${args[@]}"
+            # Nothing may be left stale, and every render must be 16 kHz mono.
+            go run ./cmd/soundctl tts --check "${args[@]}"
+            go run ./cmd/soundctl validate --check-mp3 "${args[@]}"
           done

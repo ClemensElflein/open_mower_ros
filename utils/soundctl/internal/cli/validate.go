@@ -48,32 +48,33 @@ func newValidateCmd() *cobra.Command {
 
 			if checkMP3 {
 				layout := newLayout(cfg, soundPathOv, soundsDir)
+				// Files that `soundctl tts` produces have no committed MP3: the render
+				// is created by the robot, so a fresh checkout is not an error.
+				rendered := make(map[string]bool)
+				for _, job := range cfg.RenderJobs() {
+					rendered[job.File] = true
+				}
 				for _, name := range cfg.Names() {
-					file := cfg.FileName(name)
-					if file == "" {
-						continue
-					}
-					path, err := layout.Find(file)
-					if err != nil {
-						// A tts sound has no committed MP3: the render is created by
-						// `soundctl tts` on the robot, so a fresh checkout is not an
-						// error. Everything else must exist.
-						if cfg.Sounds[name].TTS != "" {
-							fmt.Fprintf(cmd.OutOrStdout(), "  pending: %s (rendered by 'soundctl tts')\n", file)
+					for _, file := range cfg.FileNames(name) {
+						path, err := layout.Find(file)
+						if err != nil {
+							if rendered[file] {
+								fmt.Fprintf(cmd.OutOrStdout(), "  pending: %s (rendered by 'soundctl tts')\n", file)
+								continue
+							}
+							report("%s: %v", file, err)
 							continue
 						}
-						report("%s: %v", file, err)
-						continue
-					}
-					info, err := fwsync.CheckMP3(path)
-					if err != nil {
-						report("%s: %v", file, err)
-						continue
-					}
-					if !info.Is16kMono() {
-						report("%s: not 16 kHz mono (rate=%d channels=%d)", file, info.SampleRate, info.Channels)
-					} else {
-						fmt.Fprintf(cmd.OutOrStdout(), "  ok: %s (%s)\n", file, info)
+						info, err := fwsync.CheckMP3(path)
+						if err != nil {
+							report("%s: %v", file, err)
+							continue
+						}
+						if !info.Is16kMono() {
+							report("%s: not 16 kHz mono (rate=%d channels=%d)", file, info.SampleRate, info.Channels)
+						} else {
+							fmt.Fprintf(cmd.OutOrStdout(), "  ok: %s (%s)\n", file, info)
+						}
 					}
 				}
 			}

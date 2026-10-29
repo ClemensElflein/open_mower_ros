@@ -47,18 +47,14 @@ func (o Options) logf(format string, args ...any) {
 	}
 }
 
-// Pending returns the sound ids whose render is missing or stale, i.e. what
+// Pending returns the labels of the renders that are missing or stale, i.e. what
 // "soundctl tts --check" prints and what sync refuses to upload.
 func Pending(cfg *fwsync.Config, layout fwsync.Layout) []string {
 	var out []string
-	for _, name := range cfg.TTSSounds() {
-		id, ok := cfg.Identity(name)
-		if !ok {
-			continue
-		}
-		path, err := layout.Find(cfg.FileName(name))
-		if err != nil || !upToDate(path, id) {
-			out = append(out, name)
+	for _, job := range cfg.RenderJobs() {
+		path, err := layout.Find(job.File)
+		if err != nil || !upToDate(path, job.Identity) {
+			out = append(out, job.Label)
 		}
 	}
 	return out
@@ -90,12 +86,12 @@ func ensureWritableDir(dir string) error {
 	return nil
 }
 
-// Render synthesises and encodes every "tts:" sound of the config into the
+// Render synthesises and encodes every tts variant of the config into the
 // overlay's language directory and writes the sidecar cache next to each file.
-// Sounds whose sidecar already matches are skipped (unless opts.Force).
+// Renders whose sidecar already matches are skipped (unless opts.Force).
 func Render(cfg *fwsync.Config, layout fwsync.Layout, eng Engine, enc Encoder, opts Options) ([]Result, error) {
-	names := cfg.TTSSounds()
-	if len(names) == 0 {
+	jobs := cfg.RenderJobs()
+	if len(jobs) == 0 {
 		return nil, nil
 	}
 
@@ -109,34 +105,28 @@ func Render(cfg *fwsync.Config, layout fwsync.Layout, eng Engine, enc Encoder, o
 		}
 	}
 
-	results := make([]Result, 0, len(names))
-	for i, name := range names {
-		id, ok := cfg.Identity(name)
-		if !ok {
-			continue
-		}
-		file := cfg.FileName(name)
-		dst := filepath.Join(outDir, file)
+	results := make([]Result, 0, len(jobs))
+	for i, job := range jobs {
+		dst := filepath.Join(outDir, job.File)
 
 		// Prefer an up-to-date copy wherever the layout finds it: a render that
-		// already sits in the image does not have to be duplicated into the
-		// overlay.
-		if existing, err := layout.Find(file); err == nil && !opts.Force && upToDate(existing, id) {
-			opts.logf("[%d/%d] %-24s up to date (%s)", i+1, len(names), name, existing)
-			results = append(results, Result{Name: name, File: file, Path: existing, Skipped: true})
+		// already sits in the image does not have to be duplicated into the overlay.
+		if existing, err := layout.Find(job.File); err == nil && !opts.Force && upToDate(existing, job.Identity) {
+			opts.logf("[%d/%d] %-24s up to date (%s)", i+1, len(jobs), job.Label, existing)
+			results = append(results, Result{Name: job.Label, File: job.File, Path: existing, Skipped: true})
 			continue
 		}
 
 		if opts.Check {
-			results = append(results, Result{Name: name, File: file, Path: dst, Stale: true})
+			results = append(results, Result{Name: job.Label, File: job.File, Path: dst, Stale: true})
 			continue
 		}
 
-		res, err := renderOne(name, id, dst, eng, enc, opts)
+		res, err := renderOne(job, dst, eng, enc, opts)
 		if err != nil {
-			return results, fmt.Errorf("%s: %w", name, err)
+			return results, fmt.Errorf("%s: %w", job.Label, err)
 		}
-		opts.logf("[%d/%d] %-24s %s, %d kB, %d ms", i+1, len(names), name, res.Info, res.Bytes/1024, res.RenderMs)
+		opts.logf("[%d/%d] %-24s %s, %d kB, %d ms", i+1, len(jobs), job.Label, res.Info, res.Bytes/1024, res.RenderMs)
 		results = append(results, res)
 	}
 	return results, nil
@@ -238,16 +228,16 @@ func RenderText(text string, id fwsync.TTSIdentity, dst string, eng Engine, enc 
 	return res, nil
 }
 
-// renderOne renders, verifies, installs and caches a single YAML sound.
-func renderOne(name string, id fwsync.TTSIdentity, dst string, eng Engine, enc Encoder, opts Options) (Result, error) {
-	res := Result{Name: name, File: filepath.Base(dst), Path: dst}
+// renderOne renders, verifies, installs and caches one variant.
+func renderOne(job fwsync.RenderJob, dst string, eng Engine, enc Encoder, opts Options) (Result, error) {
+	res := Result{Name: job.Label, File: filepath.Base(dst), Path: dst}
 
-	r, err := encode(name, id, dst, eng, enc, opts.logf)
+	r, err := encode(job.Label, job.Identity, dst, eng, enc, opts.logf)
 	if err != nil {
 		return res, err
 	}
 
-	sc := fwsync.NewSidecar(id, r.Info, int64(len(r.Data)), crc32.ChecksumIEEE(r.Data))
+	sc := fwsync.NewSidecar(job.Identity, r.Info, int64(len(r.Data)), crc32.ChecksumIEEE(r.Data))
 	sc.Stamped(opts.Generator, r.RenderMs, time.Now())
 	if err := fwsync.WriteSidecar(dst, sc); err != nil {
 		return res, fmt.Errorf("write sidecar: %w", err)

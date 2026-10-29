@@ -10,14 +10,17 @@ import (
 
 func testIdentity() TTSIdentity {
 	return TTSIdentity{
-		Engine:   DefaultTTSEngine,
-		Model:    DefaultTTSModel,
-		Language: "en",
-		Text:     "Robot operating system connected",
-		Bitrate:  "32k",
-		Sid:      5,
-		Speed:    1.0,
-		LoudNorm: true,
+		Engine:          DefaultTTSEngine,
+		Model:           DefaultTTSModel,
+		Voice:           "5gaEGrWSk4v20HMfIhgC",
+		Language:        "en",
+		Text:            "Robot operating system connected",
+		Bitrate:         "32k",
+		LoudNorm:        true,
+		Stability:       DefaultTTSStability,
+		SimilarityBoost: DefaultTTSSimilarityBoost,
+		Style:           DefaultTTSStyle,
+		UseSpeakerBoost: DefaultTTSUseSpeakerBoost,
 	}
 }
 
@@ -75,15 +78,15 @@ func TestSidecarDetectsChanges(t *testing.T) {
 	}
 
 	changed = id
-	changed.Speed = 1.1
+	changed.Stability = 0.7
 	if sc.Matches(changed) {
-		t.Fatal("a changed speed still matches")
+		t.Fatal("a changed stability still matches")
 	}
 
 	changed = id
-	changed.Sid = 7
+	changed.Style = 0.3
 	if sc.Matches(changed) {
-		t.Fatal("a changed speaker id still matches")
+		t.Fatal("a changed style still matches")
 	}
 
 	changed = id

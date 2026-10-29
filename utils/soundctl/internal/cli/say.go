@@ -20,24 +20,23 @@ import (
 // `soundctl tts` implies a working `soundctl say`.
 const defaultPlayer = "ffplay -nodisp -autoexit -loglevel error"
 
-// sayFlags are the flags of the say command. The ttsFlags part is only used for
-// the engine location (--tts-dir/-bin/-lib-dir/-model-dir/--ffmpeg/--threads/
-// --steps); --config and friends make no sense without a YAML.
+// sayFlags are the flags of the say command: the ElevenLabs settings plus the
+// encoder and playback options. The embedded ttsFlags only contributes the API
+// key/URL resolution and --ffmpeg; --config and friends make no sense without a
+// YAML.
 type sayFlags struct {
 	ttsFlags
 
-	engine   string
 	lang     string
 	model    string
-	sid      int
-	speed    float64
+	voice    string
 	bitrate  string
 	loudNorm bool
 
-	// piper (--engine piper) only
-	voice           string
-	piperBin        string
-	sentenceSilence float64
+	stability       float64
+	similarityBoost float64
+	style           float64
+	speakerBoost    bool
 
 	out    string
 	play   bool
@@ -48,15 +47,15 @@ type sayFlags struct {
 // and logged exactly like the YAML one.
 func (f *sayFlags) settings() fwsync.TTSSettings {
 	return fwsync.TTSSettings{
-		Engine:          f.engine,
+		Engine:          fwsync.DefaultTTSEngine,
 		Model:           f.model,
-		Sid:             f.sid,
-		Speed:           f.speed,
+		Voice:           f.voice,
 		Bitrate:         f.bitrate,
 		LoudNorm:        f.loudNorm,
-		Threads:         f.threads,
-		Voice:           f.voice,
-		SentenceSilence: f.sentenceSilence,
+		Stability:       f.stability,
+		SimilarityBoost: f.similarityBoost,
+		Style:           f.style,
+		UseSpeakerBoost: f.speakerBoost,
 	}
 }
 
@@ -115,16 +114,15 @@ func newSayCmd() *cobra.Command {
 		Use:   "say <text>",
 		Short: "Render a text with the mower's TTS chain and play it here",
 		Long: "Synthesise one text on this machine and play it through the local speakers.\n" +
-			"It is the same chain as the announcements on the mower - same encoder, EBU\n" +
-			"R128 loudness normalisation, 16 kHz mono CBR MP3 and the same format check -\n" +
-			"so a text can be auditioned before it goes into sounds_*.yaml.\n" +
+			"It is the same chain as the announcements on the mower - ElevenLabs, the same\n" +
+			"encoder, EBU R128 loudness normalisation, 16 kHz mono CBR MP3 and the same\n" +
+			"format check - so a text or a voice setting can be auditioned before it goes\n" +
+			"into sounds_*.yaml.\n" +
 			"\n" +
-			"Two engines are available: \"supertonic\" (the one the shipped definitions\n" +
-			"use, --tts-dir) and \"piper\" (OHF-Voice/piper1-gpl: a VITS voice with\n" +
-			"espeak-ng embedded, --voice/--piper-dir/--piper-bin). Piper is for\n" +
-			"auditioning only - `soundctl tts` still renders with Supertonic.\n" +
+			"--voice is the ElevenLabs voice id; --model picks the model\n" +
+			"(eleven_v4, eleven_multilingual_v2, eleven_flash_v2_5, ...).\n" +
 			"\n" +
-			"No YAML and no cache: every call renders (~2 s on a PC, ~5-8 s on the CM4).\n" +
+			"No YAML and no cache: every call renders (one API request, about a second).\n" +
 			"For the definitions use \"soundctl tts\", which caches via .json sidecars.\n" +
 			"\n" +
 			"Playback uses \"ffplay\", part of the ffmpeg the encoder needs anyway;\n" +
@@ -134,11 +132,10 @@ func newSayCmd() *cobra.Command {
 			"\n" +
 			"The text is the joined arguments (quotes optional: say Hallo Welt), or \"-\"\n" +
 			"to read it from stdin.",
-		Example: "  soundctl say \"Hallo, ich bin Steve\" --lang de\n" +
-			"  soundctl say \"Der Akku ist fast leer\" --lang de --speed 1.1\n" +
-			"  soundctl say \"Hallo\" --engine piper --voice de_DE-thorsten-high --voice-dir ~/.local/share/piper\n" +
-			"  soundctl say \"Hello\" --engine piper --voice en_GB-alba-medium --out /tmp/hello.mp3 --play=false\n" +
-			"  soundctl say \"Test\" --lang de --player \"mpg123 -q\"",
+		Example: "  soundctl say \"Hallo, ich bin Steve\" --lang de --voice I5mfJk5ETJFOHZxoRrHq\n" +
+			"  soundctl say \"Der Akku ist fast leer\" --lang de --voice I5mfJk5ETJFOHZxoRrHq --stability 0.4\n" +
+			"  soundctl say \"Hello\" --voice 5gaEGrWSk4v20HMfIhgC --out /tmp/hello.mp3 --play=false\n" +
+			"  soundctl say \"Test\" --voice 5gaEGrWSk4v20HMfIhgC --player \"mpg123 -q\"",
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			out := cmd.OutOrStdout()
@@ -149,36 +146,18 @@ func newSayCmd() *cobra.Command {
 			}
 
 			set := f.settings()
-			if set.Engine == "piper" && !cmd.Flags().Changed("sid") {
-				// A piper voice is single-speaker unless a sid is asked for.
-				set.Sid = 0
+			if errs := fwsync.ValidateLanguage(f.lang); len(errs) > 0 {
+				return errors.New(strings.Join(errs, "; "))
 			}
 			if errs := fwsync.ValidateTTSSettings(set); len(errs) > 0 {
 				return errors.New(strings.Join(errs, "; "))
-			}
-			if set.Engine == "supertonic" {
-				if errs := fwsync.ValidateLanguage(f.lang); len(errs) > 0 {
-					return errors.New(strings.Join(errs, "; "))
-				}
-			} else if lang := tts.VoiceLanguage(set.Voice); lang != "" {
-				// Piper brings its own phonemisation (espeak-ng): the voice decides
-				// the language, --lang is not passed to the engine.
-				f.lang = lang
 			}
 
 			eng, err := f.ttsFlags.engineFor(set)
 			if err != nil {
 				return err
 			}
-
-			// Normalise the bitrate so the log line matches the YAML spelling.
-			if kbps, err := fwsync.ParseBitrate(set.Bitrate); err == nil {
-				set.Bitrate = fwsync.FormatBitrate(kbps)
-			}
 			if err := eng.Available(); err != nil {
-				if set.Engine == "supertonic" {
-					return fmt.Errorf("%w (run \"soundctl tts install\" or set --tts-dir)", err)
-				}
 				return err
 			}
 			enc := tts.Encoder{FFmpeg: f.ffmpeg}
@@ -197,13 +176,16 @@ func newSayCmd() *cobra.Command {
 			}
 
 			id := fwsync.TTSIdentity{
-				Engine:   f.engine,
-				Model:    set.Model,
-				Language: f.lang,
-				Bitrate:  set.Bitrate,
-				Sid:      set.Sid,
-				Speed:    set.Speed,
-				LoudNorm: set.LoudNorm,
+				Engine:          set.Engine,
+				Model:           set.Model,
+				Voice:           set.Voice,
+				Language:        f.lang,
+				Bitrate:         set.Bitrate,
+				LoudNorm:        set.LoudNorm,
+				Stability:       set.Stability,
+				SimilarityBoost: set.SimilarityBoost,
+				Style:           set.Style,
+				UseSpeakerBoost: set.UseSpeakerBoost,
 			}
 			res, err := tts.RenderText(text, id, dst, eng, enc, func(format string, args ...any) {
 				fmt.Fprintf(out, format+"\n", args...)
@@ -221,28 +203,21 @@ func newSayCmd() *cobra.Command {
 	}
 
 	fl := cmd.Flags()
-	fl.StringVar(&f.engine, "engine", "supertonic", "TTS engine: supertonic (the shipped one) or piper")
-	fl.StringVar(&f.lang, "lang", "en", "language of the text (the model's --lang: en, de, ...); piper derives it from the voice")
-	fl.StringVar(&f.model, "model", fwsync.DefaultTTSModel, "model directory below <tts-dir>/models")
-	fl.IntVar(&f.sid, "sid", fwsync.DefaultTTSSid, "speaker id 0..9")
-	fl.Float64Var(&f.speed, "speed", fwsync.DefaultTTSSpeed, "speaking rate 0.7..1.5")
+	fl.StringVar(&f.lang, "lang", "en", "language of the text (ISO 639-1: en, de, ...)")
+	fl.StringVar(&f.model, "model", fwsync.DefaultTTSModel, "ElevenLabs model id (eleven_v4, eleven_multilingual_v2, eleven_flash_v2_5, ...)")
+	fl.StringVar(&f.voice, "voice", "", "ElevenLabs voice id (required)")
+	fl.Float64Var(&f.stability, "stability", fwsync.DefaultTTSStability, "voice stability 0..1 (lower = more expressive)")
+	fl.Float64Var(&f.similarityBoost, "similarity-boost", fwsync.DefaultTTSSimilarityBoost, "similarity boost 0..1")
+	fl.Float64Var(&f.style, "style", fwsync.DefaultTTSStyle, "style exaggeration 0..1 (0 = the voice's own delivery)")
+	fl.BoolVar(&f.speakerBoost, "speaker-boost", fwsync.DefaultTTSUseSpeakerBoost, "ElevenLabs speaker boost")
 	fl.StringVar(&f.bitrate, "bitrate", fwsync.DefaultTTSBitrate, "MP3 bitrate, CBR 16 kHz mono (e.g. 32k, 48k, 64k)")
 	fl.BoolVar(&f.loudNorm, "loudnorm", true, "EBU R128 normalise to -16 LUFS (--loudnorm=false for the raw level)")
-	fl.StringVar(&f.ttsDir, "tts-dir", defaultTTSDir(), "TTS asset directory (bin/, lib/, models/); $OPENMOWER_TTS_DIR")
-	fl.StringVar(&f.ttsBin, "tts-bin", "", "override the sherpa-onnx-offline-tts binary (default: <tts-dir>/bin/...)")
-	fl.StringVar(&f.ttsLibDir, "tts-lib-dir", "", "override LD_LIBRARY_PATH of the engine (default: <tts-dir>/lib)")
-	fl.StringVar(&f.ttsModelDir, "tts-model-dir", "", "override the model directory (default: <tts-dir>/models/<model>)")
+	fl.StringVar(&f.apiKey, "api-key", "", "ElevenLabs API key (instead of the file/environment)")
+	fl.StringVar(&f.apiKeyFile, "api-key-file", "", "file holding the ElevenLabs API key (default: environment, then "+DefaultAPIKeyFile+")")
+	fl.StringVar(&f.apiURL, "api-url", "", "ElevenLabs API root (default: "+tts.DefaultElevenLabsURL+")")
 	fl.StringVar(&f.ffmpeg, "ffmpeg", "ffmpeg", "ffmpeg binary used for encoding")
-	fl.IntVar(&f.threads, "threads", 0, "ONNX threads (0 = engine default)")
-	fl.IntVar(&f.steps, "steps", 0, "flow-matching steps (default: 8; lower = faster, rougher)")
 	fl.StringVar(&f.out, "out", "", "keep the rendered MP3 here (default: temp file, removed after playback)")
 	fl.BoolVar(&f.play, "play", true, "play the result (--play=false renders only)")
 	fl.StringVar(&f.player, "player", defaultPlayer, "playback command; the file is appended as last argument")
-
-	// --engine piper only
-	fl.StringVar(&f.voice, "voice", "", "piper voice: a name below --piper-dir (en_US-bryce-medium) or a path to a .onnx")
-	fl.StringVar(&f.piperDir, "piper-dir", "", "voices dir; default: $OPENMOWER_PIPER_DIR, <tts-dir>/piper/voices")
-	fl.StringVar(&f.piperBin, "piper-bin", "", "piper executable; default: $OPENMOWER_PIPER_BIN, <tts-dir>/piper/piper, PATH")
-	fl.Float64Var(&f.sentenceSilence, "sentence-silence", 0, "piper: seconds of silence after each sentence")
 	return cmd
 }

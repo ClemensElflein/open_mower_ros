@@ -22,23 +22,22 @@ func loadFixture(t *testing.T, doc string) *Config {
 	return cfg
 }
 
-// validBase is a minimal valid definition; every case below replaces one part of
+// validTTS is the minimal valid tts block of the fixture below.
+const validTTS = "tts:\n  engine: elevenlabs\n  elevenlabs:\n    voice: 5gaEGrWSk4v20HMfIhgC\n"
+
+// validBase is a minimal valid definition; the cases below replace one part of
 // it to isolate a single rule.
-const validBase = `
-version: 1
-language: en
-sound_path: /opt/open_mower_ros/sounds
-tts:
-  speed: 1.0
-  bitrate: 32k
-  supertonic:
-    sid: 5
-sounds:
-  boot_complete:
-    type: mp3
-    volume: 80
-    tts: "Robot boot complete"
-`
+const validBase = "version: 1\nlanguage: en\nsound_path: /opt/open_mower_ros/sounds\n" +
+	validTTS +
+	"sounds:\n  boot_complete:\n    type: mp3\n    volume: 80\n    variants:\n      - \"Robot boot complete\"\n"
+
+// TestValidBaseIsAccepted keeps the minimal fixture honest: it has to validate,
+// otherwise the "rejects …" cases below could pass for the wrong reason.
+func TestValidBaseIsAccepted(t *testing.T) {
+	if errs := loadFixture(t, validBase).Validate(sharedIDs(t)); len(errs) > 0 {
+		t.Fatalf("the minimal fixture is not valid: %v", errs)
+	}
+}
 
 // TestValidateShippedDefinitions keeps the two checked-in definitions valid: the
 // robot runs `soundctl sync` on them, and a validation error there means silence.
@@ -56,18 +55,49 @@ func TestValidateShippedDefinitions(t *testing.T) {
 	}
 }
 
-func TestValidateFillsTTSFileName(t *testing.T) {
-	cfg := loadFixture(t, validBase)
-	if got := cfg.FileName("boot_complete"); got != "boot_complete.mp3" {
-		t.Fatalf("FileName = %q, want boot_complete.mp3 (filled in for a tts-only sound)", got)
+// TestNormalizeDerivesVariantFiles pins the file naming: a tts variant without a
+// file name becomes <language>_<sound>_<n>.mp3, and the first variant is what the
+// current firmware plays.
+func TestNormalizeDerivesVariantFiles(t *testing.T) {
+	doc := "version: 1\nlanguage: en\nsound_path: /opt/open_mower_ros/sounds\n" + validTTS +
+		"sounds:\n  boot_complete:\n    type: mp3\n    volume: 80\n    variants:\n" +
+		"      - \"one\"\n      - \"two\"\n      - {file: zz_custom.mp3}\n"
+	cfg := loadFixture(t, doc)
+
+	want := []string{"en_boot_complete_1.mp3", "en_boot_complete_2.mp3", "zz_custom.mp3"}
+	got := cfg.Files()
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("Files() = %v, want %v", got, want)
+	}
+	if first := cfg.FileName("boot_complete"); first != want[0] {
+		t.Errorf("FileName() = %q, want the first variant %q", first, want[0])
+	}
+	jobs := cfg.RenderJobs()
+	if len(jobs) != 2 {
+		t.Fatalf("RenderJobs() = %d jobs, want 2 (the file variant needs no render)", len(jobs))
+	}
+	if jobs[1].Label != "boot_complete[2]" || jobs[1].Identity.Text != "two" {
+		t.Errorf("second job = %+v, want the second tts variant", jobs[1])
 	}
 	if errs := cfg.Validate(sharedIDs(t)); len(errs) > 0 {
 		t.Fatalf("valid definition rejected: %v", errs)
 	}
 }
 
+func assertValidateError(t *testing.T, cfg *Config, ids *SoundIDs, want string) {
+	t.Helper()
+	errs := cfg.Validate(ids)
+	if len(errs) == 0 {
+		t.Fatalf("no error reported, want %q", want)
+	}
+	if !strings.Contains(strings.Join(errs, "\n"), want) {
+		t.Fatalf("errors do not contain %q:\n%s", want, strings.Join(errs, "\n"))
+	}
+}
+
 func TestValidateRejectsContractViolations(t *testing.T) {
 	ids := sharedIDs(t)
+	tone := "type: tone\n    volume: 50\n    tone: {freq: 440, duration_ms: 100}\n"
 	cases := []struct {
 		name string
 		doc  string
@@ -75,17 +105,17 @@ func TestValidateRejectsContractViolations(t *testing.T) {
 	}{
 		{
 			name: "unknown sound id",
-			doc:  "version: 1\nsound_path: /opt/open_mower_ros/sounds\nsounds:\n  nonsense:\n    type: tone\n    volume: 50\n    tone: {freq: 440, duration_ms: 100}\n",
+			doc:  "version: 1\nsound_path: /opt/open_mower_ros/sounds\nsounds:\n  nonsense:\n    " + tone,
 			want: `unknown sound id "nonsense"`,
 		},
 		{
 			name: "relative sound_path",
-			doc:  "version: 1\nsound_path: sounds\nsounds:\n  success:\n    type: tone\n    volume: 50\n    tone: {freq: 440, duration_ms: 100}\n",
+			doc:  "version: 1\nsound_path: sounds\nsounds:\n  success:\n    " + tone,
 			want: "must be an absolute path",
 		},
 		{
 			name: "wrong version",
-			doc:  "version: 2\nsound_path: /opt/open_mower_ros/sounds\nsounds:\n  success:\n    type: tone\n    volume: 50\n    tone: {freq: 440, duration_ms: 100}\n",
+			doc:  "version: 2\nsound_path: /opt/open_mower_ros/sounds\nsounds:\n  success:\n    " + tone,
 			want: "'version' must be 1",
 		},
 		{
@@ -104,35 +134,71 @@ func TestValidateRejectsContractViolations(t *testing.T) {
 			want: "invalid 'unison' 2",
 		},
 		{
-			name: "attack out of byte range",
-			doc:  "version: 1\nsound_path: /opt/open_mower_ros/sounds\nsounds:\n  boot_ping:\n    type: tone\n    volume: 50\n    attack_ms: 300\n    tone: {freq: 440, duration_ms: 100}\n",
-			want: "attack_ms must be 0..255 (got 300)",
-		},
-		{
-			name: "repeat out of uint16 range",
-			doc:  "version: 1\nsound_path: /opt/open_mower_ros/sounds\nsounds:\n  boot_ping:\n    type: tone\n    volume: 50\n    repeat_ms: 70000\n    tone: {freq: 440, duration_ms: 100}\n",
-			want: "repeat_ms must be 0..65535 (got 70000)",
-		},
-		{
-			name: "sequence too long",
-			doc: "version: 1\nsound_path: /opt/open_mower_ros/sounds\nsounds:\n  success:\n    type: sequence\n    volume: 50\n" +
-				"    sequence:\n" + strings.Repeat("      - {freq: 440, duration_ms: 100}\n", maxNotes+1),
-			want: "'sequence' must have 1..8 notes",
-		},
-		{
-			name: "file with a path",
-			doc:  "version: 1\nsound_path: /opt/open_mower_ros/sounds\nsounds:\n  boot_complete:\n    type: mp3\n    volume: 50\n    file: sub/boot.mp3\n",
-			want: "'file' must be a plain file name",
-		},
-		{
-			name: "file without mp3 suffix",
-			doc:  "version: 1\nsound_path: /opt/open_mower_ros/sounds\nsounds:\n  boot_complete:\n    type: mp3\n    volume: 50\n    file: boot.wav\n",
-			want: "'file' must end in .mp3",
-		},
-		{
-			name: "mp3 without source",
+			name: "mp3 without variants",
 			doc:  "version: 1\nsound_path: /opt/open_mower_ros/sounds\nsounds:\n  boot_complete:\n    type: mp3\n    volume: 50\n",
-			want: "needs either a 'tts' text or a 'file'",
+			want: "mp3 entry needs 'variants'",
+		},
+		{
+			name: "legacy file at sound level",
+			doc:  "version: 1\nsound_path: /opt/open_mower_ros/sounds\nsounds:\n  boot_complete:\n    type: mp3\n    volume: 50\n    file: zz_ping.mp3\n",
+			want: "'file'/'tts' at sound level was replaced by 'variants'",
+		},
+		{
+			name: "legacy tts at sound level",
+			doc: "version: 1\nlanguage: en\nsound_path: /opt/open_mower_ros/sounds\n" + validTTS +
+				"sounds:\n  boot_complete:\n    type: mp3\n    volume: 50\n    tts: hello\n",
+			want: "'file'/'tts' at sound level was replaced by 'variants'",
+		},
+		{
+			name: "variants on a tone",
+			doc:  "version: 1\nsound_path: /opt/open_mower_ros/sounds\nsounds:\n  success:\n    " + tone + "    variants:\n      - \"nope\"\n",
+			want: "'variants' only apply to type: mp3",
+		},
+		{
+			name: "empty variant",
+			doc:  "version: 1\nsound_path: /opt/open_mower_ros/sounds\nsounds:\n  boot_complete:\n    type: mp3\n    volume: 50\n    variants:\n      - {}\n",
+			want: "needs a 'tts' text or a 'file'",
+		},
+		{
+			name: "invalid pick",
+			doc:  "version: 1\nsound_path: /opt/open_mower_ros/sounds\nsounds:\n  boot_complete:\n    type: mp3\n    volume: 50\n    pick: sometimes\n    variants:\n      - {file: zz_ping.mp3}\n",
+			want: "'pick' must be",
+		},
+		{
+			name: "invalid every",
+			doc:  "version: 1\nsound_path: /opt/open_mower_ros/sounds\nsounds:\n  boot_complete:\n    type: mp3\n    volume: 50\n    every: soon\n    variants:\n      - {file: zz_ping.mp3}\n",
+			want: "'every' is not a duration",
+		},
+		{
+			name: "every too short",
+			doc:  "version: 1\nsound_path: /opt/open_mower_ros/sounds\nsounds:\n  boot_complete:\n    type: mp3\n    volume: 50\n    every: 100ms\n    variants:\n      - {file: zz_ping.mp3}\n",
+			want: "'every' must be at least 1s",
+		},
+		{
+			name: "chance without every",
+			doc:  "version: 1\nsound_path: /opt/open_mower_ros/sounds\nsounds:\n  boot_complete:\n    type: mp3\n    volume: 50\n    chance: 0.5\n    variants:\n      - {file: zz_ping.mp3}\n",
+			want: "'chance' needs 'every'",
+		},
+		{
+			name: "chance out of range",
+			doc:  "version: 1\nsound_path: /opt/open_mower_ros/sounds\nsounds:\n  boot_complete:\n    type: mp3\n    volume: 50\n    every: 60s\n    chance: 2\n    variants:\n      - {file: zz_ping.mp3}\n",
+			want: "'chance' must be 0..1",
+		},
+		{
+			name: "missing language",
+			doc:  "version: 1\nsound_path: /opt/open_mower_ros/sounds\nsounds:\n  boot_complete:\n    type: mp3\n    volume: 50\n    variants:\n      - \"hello\"\n",
+			want: "'language' is required",
+		},
+		{
+			name: "unsafe language",
+			doc:  "version: 1\nlanguage: ../EN\nsound_path: /opt/open_mower_ros/sounds\nsounds:\n  boot_complete:\n    type: mp3\n    volume: 50\n    variants:\n      - \"hello\"\n",
+			want: "must be lowercase letters, digits or '-'",
+		},
+		{
+			name: "tts text too long",
+			doc: "version: 1\nlanguage: en\nsound_path: /opt/open_mower_ros/sounds\n" + validTTS +
+				"sounds:\n  boot_complete:\n    type: mp3\n    volume: 50\n    variants:\n      - \"" + strings.Repeat("a", maxTTSText+1) + "\"\n",
+			want: "the limit is 500",
 		},
 	}
 	for _, c := range cases {
@@ -142,91 +208,56 @@ func TestValidateRejectsContractViolations(t *testing.T) {
 	}
 }
 
-// assertValidateError checks that Validate reports want (a substring).
-func assertValidateError(t *testing.T, cfg *Config, ids *SoundIDs, want string) {
-	t.Helper()
-	errs := cfg.Validate(ids)
-	if len(errs) == 0 {
-		t.Fatalf("no error reported, want %q", want)
-	}
-	if !strings.Contains(strings.Join(errs, "\n"), want) {
-		t.Fatalf("errors do not contain %q:\n%s", want, strings.Join(errs, "\n"))
-	}
-}
-
 func TestValidateRejectsBadTTSSettings(t *testing.T) {
 	ids := sharedIDs(t)
+	sound := "sounds:\n  boot_complete:\n    type: mp3\n    volume: 50\n    variants:\n      - \"hello\"\n"
 	cases := []struct {
 		name string
 		doc  string
 		want string
 	}{
 		{
-			name: "tts on a tone",
-			doc:  "version: 1\nlanguage: en\nsound_path: /opt/open_mower_ros/sounds\nsounds:\n  boot_ping:\n    type: tone\n    volume: 50\n    tts: hello\n    tone: {freq: 440, duration_ms: 100}\n",
-			want: "'tts' is only supported for type: mp3",
-		},
-		{
-			name: "blank tts text",
-			doc:  "version: 1\nlanguage: en\nsound_path: /opt/open_mower_ros/sounds\nsounds:\n  boot_complete:\n    type: mp3\n    volume: 50\n    file: boot.mp3\n    tts: \"   \"\n",
-			want: "'tts' must not be empty or whitespace only",
-		},
-		{
-			name: "sid without tts",
-			doc:  "version: 1\nsound_path: /opt/open_mower_ros/sounds\nsounds:\n  boot_complete:\n    type: mp3\n    volume: 50\n    file: boot.mp3\n    sid: 3\n",
-			want: "'sid'/'speed' only apply to a sound with a 'tts' text",
-		},
-		{
-			name: "sid out of range",
-			doc:  "version: 1\nlanguage: en\nsound_path: /opt/open_mower_ros/sounds\nsounds:\n  boot_complete:\n    type: mp3\n    volume: 50\n    tts: hello\n    sid: 12\n",
-			want: "boot_complete: 'sid' must be 0..9 (got 12)",
-		},
-		{
-			name: "speed out of range",
-			doc:  "version: 1\nlanguage: en\nsound_path: /opt/open_mower_ros/sounds\nsounds:\n  boot_complete:\n    type: mp3\n    volume: 50\n    tts: hello\n    speed: 2.5\n",
-			want: "'speed' must be 0.7..1.5",
-		},
-		{
-			name: "missing language",
-			doc:  "version: 1\nsound_path: /opt/open_mower_ros/sounds\nsounds:\n  boot_complete:\n    type: mp3\n    volume: 50\n    tts: hello\n",
-			want: "'language' is required",
-		},
-		{
-			name: "unsafe language",
-			doc:  "version: 1\nlanguage: ../EN\nsound_path: /opt/open_mower_ros/sounds\nsounds:\n  boot_complete:\n    type: mp3\n    volume: 50\n    tts: hello\n",
-			want: "must be lowercase letters, digits or '-'",
-		},
-		{
 			name: "unknown engine",
-			doc:  "version: 1\nlanguage: en\nsound_path: /opt/open_mower_ros/sounds\ntts:\n  engine: espeak\nsounds:\n  boot_complete:\n    type: mp3\n    volume: 50\n    tts: hello\n",
+			doc:  "version: 1\nlanguage: en\nsound_path: /opt/open_mower_ros/sounds\ntts:\n  engine: espeak\n" + sound,
 			want: `tts.engine "espeak" is not supported`,
 		},
 		{
-			name: "piper without a voice",
-			doc:  "version: 1\nlanguage: en\nsound_path: /opt/open_mower_ros/sounds\ntts:\n  engine: piper\nsounds:\n  boot_complete:\n    type: mp3\n    volume: 50\n    tts: hello\n",
-			want: "tts.piper.voice must not be empty",
+			name: "missing voice",
+			doc:  "version: 1\nlanguage: en\nsound_path: /opt/open_mower_ros/sounds\ntts:\n  engine: elevenlabs\n" + sound,
+			want: "tts.elevenlabs.voice must not be empty",
 		},
 		{
-			name: "legacy flat tts.sid",
-			doc:  "version: 1\nlanguage: en\nsound_path: /opt/open_mower_ros/sounds\ntts:\n  sid: 5\nsounds:\n  boot_complete:\n    type: mp3\n    volume: 50\n    tts: hello\n",
-			want: "tts.sid is no longer supported, use tts.supertonic.sid",
-		},
-		{
-			name: "piper sentence_silence out of range",
+			name: "stability out of range",
 			doc: "version: 1\nlanguage: en\nsound_path: /opt/open_mower_ros/sounds\n" +
-				"tts:\n  engine: piper\n  piper:\n    voice: en_US-bryce-medium\n    sentence_silence: 9\n" +
-				"sounds:\n  boot_complete:\n    type: mp3\n    volume: 50\n    tts: hello\n",
-			want: "sentence_silence must be 0..5 s",
+				"tts:\n  engine: elevenlabs\n  elevenlabs:\n    voice: abc\n    stability: 1.5\n" + sound,
+			want: "tts.elevenlabs.stability must be 0..1",
 		},
 		{
 			name: "invalid bitrate",
-			doc:  "version: 1\nlanguage: en\nsound_path: /opt/open_mower_ros/sounds\ntts:\n  bitrate: 320k\nsounds:\n  boot_complete:\n    type: mp3\n    volume: 50\n    tts: hello\n",
+			doc:  "version: 1\nlanguage: en\nsound_path: /opt/open_mower_ros/sounds\ntts:\n  bitrate: 320k\n  elevenlabs:\n    voice: abc\n" + sound,
 			want: "not a 16 kHz mono MP3 bitrate",
 		},
 		{
-			name: "tts text too long",
-			doc:  "version: 1\nlanguage: en\nsound_path: /opt/open_mower_ros/sounds\nsounds:\n  boot_complete:\n    type: mp3\n    volume: 50\n    tts: \"" + strings.Repeat("a", maxTTSText+1) + "\"\n",
-			want: "the limit is 500",
+			name: "removed piper engine",
+			doc: "version: 1\nlanguage: en\nsound_path: /opt/open_mower_ros/sounds\n" +
+				"tts:\n  engine: elevenlabs\n  elevenlabs:\n    voice: abc\n  piper:\n    voice: en_US-bryce-medium\n" + sound,
+			want: "the 'piper' engine was removed",
+		},
+		{
+			name: "removed supertonic engine",
+			doc: "version: 1\nlanguage: en\nsound_path: /opt/open_mower_ros/sounds\n" +
+				"tts:\n  engine: elevenlabs\n  elevenlabs:\n    voice: abc\n  supertonic:\n    sid: 5\n" + sound,
+			want: "the 'supertonic' engine was removed",
+		},
+		{
+			name: "removed speed",
+			doc:  "version: 1\nlanguage: en\nsound_path: /opt/open_mower_ros/sounds\ntts:\n  speed: 1.2\n  elevenlabs:\n    voice: abc\n" + sound,
+			want: "tts.speed was removed",
+		},
+		{
+			name: "removed sid",
+			doc:  "version: 1\nlanguage: en\nsound_path: /opt/open_mower_ros/sounds\ntts:\n  sid: 5\n  elevenlabs:\n    voice: abc\n" + sound,
+			want: "tts.sid was removed",
 		},
 	}
 	for _, c := range cases {
@@ -238,13 +269,13 @@ func TestValidateRejectsBadTTSSettings(t *testing.T) {
 
 func TestValidateRejectsDuplicateFile(t *testing.T) {
 	doc := "version: 1\nsound_path: /opt/open_mower_ros/sounds\nsounds:\n" +
-		"  success:\n    type: mp3\n    volume: 50\n    file: same.mp3\n" +
-		"  warning:\n    type: mp3\n    volume: 50\n    file: same.mp3\n"
-	assertValidateError(t, loadFixture(t, doc), sharedIDs(t), `'file' "same.mp3" is also used by "success"`)
+		"  success:\n    type: mp3\n    volume: 50\n    variants:\n      - {file: same.mp3}\n" +
+		"  warning:\n    type: mp3\n    volume: 50\n    variants:\n      - {file: same.mp3}\n"
+	assertValidateError(t, loadFixture(t, doc), sharedIDs(t), `file "same.mp3" is also used by "success"`)
 }
 
 func TestValidateRejectsLongFileName(t *testing.T) {
-	doc := "version: 1\nsound_path: /opt/open_mower_ros/sounds\nsounds:\n  success:\n    type: mp3\n    volume: 50\n    file: " +
-		strings.Repeat("a", MaxMP3NameLen) + ".mp3\n"
+	doc := "version: 1\nsound_path: /opt/open_mower_ros/sounds\nsounds:\n  success:\n    type: mp3\n    volume: 50\n    variants:\n      - {file: " +
+		strings.Repeat("a", MaxMP3NameLen) + ".mp3}\n"
 	assertValidateError(t, loadFixture(t, doc), sharedIDs(t), "the firmware limit is")
 }

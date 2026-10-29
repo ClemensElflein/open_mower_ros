@@ -212,30 +212,24 @@ func applyDefinitions(ctx context.Context, cfg *Config, opts Options, ss *sounds
 	return nil
 }
 
-// verifyRenders makes sure every tts sound on disk was rendered from the text
-// the definition currently contains. A mismatch means the YAML was edited
-// without re-rendering them, and uploading the old audio would be silently
-// wrong, so this fails the sync instead of guessing.
+// verifyRenders makes sure every tts variant on disk was rendered from the text
+// the definition currently contains. A mismatch means the YAML was edited without
+// re-rendering, and uploading the old audio would be silently wrong, so this
+// fails the sync instead of guessing.
 func verifyRenders(layout Layout, cfg *Config) error {
-	for _, name := range cfg.TTSSounds() {
-		id, ok := cfg.Identity(name)
-		if !ok {
-			continue
-		}
-		file := cfg.FileName(name)
-		path, err := layout.Find(file)
+	for _, job := range cfg.RenderJobs() {
+		path, err := layout.Find(job.File)
 		if err != nil {
-			return fmt.Errorf("%s: %w (run \"soundctl tts\")", name, err)
+			return fmt.Errorf("%s: %w (run \"soundctl tts\")", job.Label, err)
 		}
 		sc, err := ReadSidecar(path)
 		if err != nil {
-			return fmt.Errorf("%s: no render metadata next to %s (%v) — run \"soundctl tts\"", name, path, err)
+			return fmt.Errorf("%s: no render metadata next to %s (%v) - run \"soundctl tts\"", job.Label, path, err)
 		}
-		if !sc.Matches(id) {
-			return fmt.Errorf("%s: %s is stale (rendered as %s, expected %s) — run \"soundctl tts\"",
-				name, path, sc.Fingerprint, id.Fingerprint())
+		if !sc.Matches(job.Identity) {
+			return fmt.Errorf("%s: %s is stale (rendered as %s, expected %s) - run \"soundctl tts\"",
+				job.Label, path, sc.Fingerprint, job.Identity.Fingerprint())
 		}
-		slog.Info("render up to date", "sound", name, "file", path, "fingerprint", sc.Fingerprint)
 	}
 	return nil
 }

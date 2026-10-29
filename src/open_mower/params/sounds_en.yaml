@@ -8,26 +8,24 @@
 # ---------------------------------------------------------------------------
 # CUSTOMISING SOUNDS — READ THIS FIRST (nothing to do otherwise)
 # ---------------------------------------------------------------------------
-# Every announcement is already rendered into the image (sounds/<language>/),
-# so a robot that plays the shipped sounds needs none of this: reads are served
-# from the image, no extra directory and no extra mount required.
+# Every announcement is rendered and uploaded by the robot itself: `soundctl tts`
+# renders the tts variants into the writable overlay (/data/sounds/<language>/)
+# at startup, `soundctl sync` uploads them to the low level. A changed text, voice
+# or voice setting re-renders only that file (a .json sidecar next to the MP3 is
+# the cache), and syncing refuses to upload a stale render.
 #
-# Customising is different. Your own MP3, a re-render (`soundctl tts --force`)
-# or an edited text is written to the writable overlay /data/sounds/<language>/,
-# but on a stock OpenMower that path is NOT persistent. The stock docker compose
-# mounts /data/ros, /data/recordings and /data/params individually, so /data/sounds
-# lives in the container's own filesystem and is gone on the next `openmower restart`.
-#
-# To keep customisations, create the directory on the host once and mount it
-# next to the other data mounts.
+# The overlay is NOT persistent on a stock OpenMower: the docker compose mounts
+# /data/ros, /data/recordings and /data/params individually, so /data/sounds lives
+# in the container and is gone after `openmower restart`. That is harmless for the
+# shipped sounds (they are re-rendered), but it also drops your own MP3s and the
+# ElevenLabs key file. To keep both, mount the directory from the host:
 #
 #   openmower@openmower:~ $ mkdir ~/sounds
 #   openmower@openmower:~ $ nano /opt/stacks/openmower/compose.yaml
-#   and add a `- /home/openmower/sounds:/data/sounds` next to the open_mower_ros/volumes entry.
-#   openmower@openmower:~ $openmower restart
-#
-# Nothing has to be migrated: a stock robot has no files in the overlay, and
-# everything the image ships keeps playing from /opt/open_mower_ros/sounds.
+#   and add a `- /home/openmower/sounds:/data/sounds` next to the other volumes.
+#   openmower@openmower:~ $ echo 'sk-...' > ~/sounds/.elevenlabs.key
+#   openmower@openmower:~ $ chmod 600 ~/sounds/.elevenlabs.key
+#   openmower@openmower:~ $ openmower restart
 # ---------------------------------------------------------------------------
 #
 # Per-sound fields (all optional except type/volume):
@@ -51,22 +49,20 @@
 #              pending queue and plays this one immediately. The ROM default
 #              sets it for EMERGENCY, so an alert is never delayed behind an
 #              announcement. Everything else is queued in order.
-#   file       mp3: the name the file is played as (/sounds/<file>). It has to
-#              be a plain name (no path) ending in .mp3, at most 55 chars. With
-#              a tts: text it is only the name the render is stored under and
-#              defaults to <sound id>.mp3.
-#   tts        mp3: text to speak. soundctl renders it with the engine of this
-#              file's tts block (Piper or Supertonic) into a 16 kHz mono CBR
-#              MP3 instead of shipping a recording. The render lands in
-#              sounds/<language>/ and is re-rendered only when the text, the
-#              voice or a tts setting changes (a .json sidecar next to the MP3
-#              is the cache and staleness marker). A sound may have a tts text,
-#              a file or both.
-#   sid        tts: speaker of the voice, overriding the tts block:
-#                supertonic  speaker 0..9
-#                piper       -s id of a multi-speaker voice (single-speaker
-#                            voices ignore it - leave it out for those)
-#   speed      tts: speaking rate, overriding the tts block (0.7..1.5)
+#   variants   mp3: the playable takes of this sound, one list entry per take
+#                - "text to speak"      a tts variant: soundctl renders it
+#                - {file: name.mp3}     an existing recording (below sound_path)
+#              A tts variant is stored as <language>_<sound>_<n>.mp3, so a sound
+#              with two texts produces en_boot_complete_1.mp3 and _2.mp3. A file
+#              name must be plain (no path), end in .mp3 and be at most 55 chars.
+#   pick       which variant the low level plays: random (default), rotate (never
+#              the same twice in a row) or first. Until the firmware knows the
+#              list it plays the first variant, so a multi-variant sound is
+#              already fully uploaded and just not yet varied.
+#   every      duration such as "120s": the low level rolls by itself once per
+#              interval whether to play this sound - background ambience. Without
+#              every, a sound only plays when the high level requests it.
+#   chance     0..1, the probability of playing after such a roll (needs every).
 #
 # sound_path: high-level directory holding the local MP3 source files (used
 #             for the 16 kHz/mono check and as the upload source). It is NOT
@@ -84,32 +80,30 @@
 # language: subdirectory of sound_path/the overlay that holds the renders of
 #           this language (sounds/<language>/). Its texts are in this language.
 #
-# tts:      how the announcements of THIS file are spoken. Options both engines
-#           understand are flat, everything engine specific sits in the block
-#           named after the engine;
-#           Changing any of these re-renders every announcement of this file
-#           (all of it is part of the render cache key).
-#   engine     supertonic | piper
-#   speed      speaking rate 0.7..1.5 (piper: passed as length_scale = 1/speed)
+# tts:      how the tts variants of THIS file are spoken. Engine-agnostic options
+#           are flat, everything that belongs to ElevenLabs sits in the
+#           elevenlabs block. All of it is part of the render cache key, so
+#           changing one re-renders every announcement of this file.
+#   engine     elevenlabs (the only engine; the offline Piper/Supertonic engines
+#              were removed - they needed ~330 MB of models in the image)
 #   bitrate    MP3 bitrate, e.g. 32k/48k/64k (CBR, 16 kHz mono, keep it small)
 #   loudnorm   EBU R128 to -16 LUFS, so all announcements are equally loud
-#   supertonic (engine: supertonic, sherpa-onnx)
-#     model    model directory below <tts-dir>/models (default: Supertonic 3)
-#     sid      speaker id 0..9 (the model ships 10 speakers)
-#     threads  ONNX threads (0 = engine default)
-#   piper     (engine: piper)
-#     voice    voice name below <tts-dir>/piper/voices (or a path to a .onnx);
-#              it also decides the language the engine phonemises
-#     sentence_silence  seconds of silence after each sentence
+#   elevenlabs
+#     model    ElevenLabs model id: eleven_v4 (quality), eleven_multilingual_v2
+#              (most stable, the API default) or eleven_flash_v2_5 (cheap/fast)
+#     voice    voice id (not a name); `soundctl tts --help` shows where the key
+#              goes, the id is listed in the ElevenLabs portal
+#     stability / similarity_boost / style   0..1, use_speaker_boost  true|false
 #
-# Both engines and the voice are baked into the image (`soundctl tts install`),
-# and CI renders every language ahead of time - a fresh mower therefore only has
-# to upload the files instead of rendering on its first start. Only a changed
-# text/voice/setting makes the robot re-render.
+# The text is sent to the ElevenLabs API and the returned 16 kHz audio is
+# normalised and encoded by ffmpeg. The API key is never part of this file: it
+# comes from --api-key, --api-key-file, $ELEVENLABS_API_KEY or
+# /data/sounds/.elevenlabs.key (first hit wins).
+# Without a key the robot logs it, skips the render and still syncs what it has.
 #
 # MP3 file naming convention (see sounds/README.md):
-#   <lang>_<name>.mp3   text announcements (en_, de_, ...)
-#   zz_<name>.mp3       background sounds (sort last)
+#   <lang>_<name>_<n>.mp3  text announcements (en_, de_, ...)
+#   zz_<name>.mp3          background sounds (sort last)
 #
 # MP3 files MUST be 16 kHz mono — the firmware does NOT resample!
 
@@ -117,29 +111,21 @@ version: 1
 language: en
 sound_path: /opt/open_mower_ros/sounds
 
-# Defaults for every sound with a tts: text (see the file header).
+# Defaults for every tts variant (see the file header).
 #
-# Options both engines understand are flat (speed, bitrate, loudnorm); everything
-# engine specific sits in the block named after the engine.
-#
-#   speed    speaking rate (piper: passed as length_scale = 1/speed)
-#   bitrate  MP3 bitrate; 32k matches the hand-made effects
-#   loudnorm EBU R128 to -16 LUFS, so every announcement is equally loud
-#
-# English uses Piper: bryce (public domain) is the voice that sounded best, and speed 1.2 is its natural pace.
+# English uses ElevenLabs "Jeremy" with the v4 model.
 tts:
-  engine: piper
-  speed: 1.2
+  engine: elevenlabs
   bitrate: 32k
   loudnorm: true
 
-  piper:
-    # A voice name below <tts-dir>/piper/voices (or a path to a .onnx).
-    # Alternatives (see utils/soundctl/README.md).
-    voice: en_US-bryce-medium
-    # Pause after each sentence. Set explicitly: the standalone piper binary
-    # defaults to 0.2 s, the piper1-gpl CLI to 0 s.
-    sentence_silence: 0.15
+  elevenlabs:
+    model: eleven_v4
+    voice: 5gaEGrWSk4v20HMfIhgC # Jeremy
+    stability: 0.5 # 0..1, lower = more expressive
+    similarity_boost: 0.75 # 0..1
+    style: 0.0 # 0..1, 0 = the voice's own delivery
+    use_speaker_boost: true
 
 # Only the sounds listed here replace the LL ROM default; everything else
 # falls back to the firmware default.
@@ -161,25 +147,38 @@ sounds:
     type: mp3
     volume: 80
     repeat_ms: 4000
-    file: zz_ping.mp3
-  # FW stage2 boot completed
+    variants:
+      - { file: zz_ping.mp3 }
+  # FW stage2 boot completed. Five takes: the firmware picks one per playback
+  # (pick: random), so the greeting varies. [enjoyable] is an ElevenLabs v4 audio
+  # tag, not spoken.
   boot_complete:
     type: mp3
-    tts: "Hi, I am Steve, your intelligent lawn mower from OpenMower. Lawn care is my profession."
-    volume: 100
-    file: en_boot_complete.mp3
+    volume: 90
+    pick: random
+    variants:
+      - "Hi, I am your intelligent OpenMower lawn mower. Lawn care is my profession."
+      - "Hi, I am your intelligent OpenMower lawn mower. [enjoyable]I really do love eating grass."
+      - "Hi, I am your intelligent OpenMower lawn mower. Firmware is running - I am just waking up."
+      - "Hi, I am your intelligent OpenMower lawn mower. My brain is still booting ... but the basics are up."
+      - "Hi, I am your intelligent OpenMower lawn mower. The hardware is up - the mind is still loading."
   emergency:
     type: mp3
-    volume: 90
+    volume: 100
     preempt: true
-    file: zz_minion-fire-alarm.mp3
+    variants:
+      - { file: zz_minion-fire-alarm.mp3 }
   ros_connected:
     type: mp3
-    tts: "The robot operating system has started."
-    volume: 100
-    file: en_ros_connected.mp3
+    volume: 90
+    variants:
+      - "The robot operating system has started."
+      - "The robot operating system has started. The mind is loaded now, too."
+      - "The robot operating system has started. All systems online."
   ros_disconnected:
     type: mp3
-    tts: "The robot operating system has stopped."
-    volume: 100
-    file: en_ros_disconnected.mp3
+    volume: 90
+    variants:
+      - "The robot operating system has stopped."
+      - "The robot operating system has stopped. Until next time."
+      - "The robot operating system has stopped. The grass got lucky today."

@@ -22,37 +22,53 @@ resample. `soundctl validate --check-mp3` checks it.
 generated (see `.gitignore`) and rendered by `soundctl tts` in CI before the image
 build. A hand-made recording still works: give the sound a `file:` and no `tts:`.
 
-## Engines
+## Engine and voices
 
-Each definition picks its engine in its `tts:` block, so the languages differ:
+Both languages use ElevenLabs; the engine is picked per definition, so a language
+can use another voice, model or voice setting:
 
-| language | engine                     | voice                           |
-| -------- | -------------------------- | ------------------------------- |
-| English  | Piper                      | `en_US-bryce-medium`, speed 1.2 |
-| German   | Supertonic 3 (sherpa-onnx) | speaker 5, speed 1.0            |
+| language | voice                           | model       |
+| -------- | ------------------------------- | ----------- |
+| English  | `5gaEGrWSk4v20HMfIhgC` (Jeremy) | `eleven_v4` |
+| German   | `I5mfJk5ETJFOHZxoRrHq` (Hans)   | `eleven_v4` |
 
 ```yaml
 tts:
-  engine: piper            # or supertonic
-  speed: 1.2               # both engines (piper: length_scale = 1/speed)
-  bitrate: 32k             # our encoder, both engines
-  loudnorm: true           # EBU R128, both engines
-  piper:                   # only read when engine: piper
-    voice: en_US-bryce-medium
-    sentence_silence: 0.15
-  supertonic:              # only read when engine: supertonic
-    sid: 5
+  engine: elevenlabs
+  bitrate: 32k             # our encoder
+  loudnorm: true           # EBU R128, so all announcements are equally loud
+  elevenlabs:
+    model: eleven_v4       # or eleven_multilingual_v2 / eleven_flash_v2_5
+    voice: 5gaEGrWSk4v20HMfIhgC
+    stability: 0.5
+    similarity_boost: 0.75
+    style: 0.0
+    use_speaker_boost: true
 ```
 
-Options both engines understand are flat, engine specific ones live in the block
-named after the engine. The unused block stays as the documented alternative, so
-switching the engine is one line (and re-renders that language). Both engines ship
-in the image (~220 MB Supertonic + ~110 MB Piper under `/opt/open_mower_ros/tts/`)
-and need no network — but they only *run* when something has to be rendered, which
-is the exception because the image already carries the pre-rendered MP3s. Both
-sample their output, so re-rendering unchanged text yields a slightly different
-"take"; `soundctl tts --force` re-rolls one.
+The text goes to the ElevenLabs API and the returned 16 kHz audio is normalised
+and encoded by ffmpeg. Nothing runs locally.
+The API key never belongs in these files: it
+comes from `--api-key`, `--api-key-file`, `$ELEVENLABS_API_KEY` or
+`/data/sounds/.elevenlabs.key` (see `utils/soundctl/README.md`).
 
+Because a hosted model can change, the render fingerprint is a *request*
+fingerprint: `soundctl tts --force` re-rolls an announcement after a model update.
+
+### Variants and ambience
+
+Every mp3 sound lists its takes under `variants`: a plain string is a tts text,
+`{file: x.mp3}` an existing recording. A tts variant is stored as
+`<language>_<sound>_<n>.mp3`. The low level picks one take per playback
+(`pick: random` (default) | `rotate` | `first`); until its firmware knows the
+list it plays the first take, while all of them are already rendered and
+uploaded.
+
+`every` and `chance` let the *low level* decide whether a background sound plays
+at all: `every: 120s` evaluates once per interval, `chance: 0.25` plays it with
+25 % probability (a sound without `every` only plays when the high level asks for
+it). soundctl validates both and puts them into the definitions blob; the
+playback itself is a firmware feature that is still to come.
 ## Runtime
 
 - Image: this directory at `/opt/open_mower_ros/sounds/`
@@ -88,9 +104,7 @@ sample their output, so re-rendering unchanged text yields a slightly different
 
 | step                                                 | time                        |
 | ---------------------------------------------------- | --------------------------- |
-| render one announcement, English (Piper)             | 1.3–1.6 s                   |
-| render one announcement, German (Supertonic)         | 4.8–7.6 s                   |
-| ... similar on the CI runner (arm64)                 | 0.8 s / 3.2–6.2 s           |
+| render one announcement (ElevenLabs + ffmpeg)        | 1–2 s (API round trip)      |
 | SoundService probe (multicast)                       | 3–10 s                      |
 | FileService discovery (10 s advertisement period)    | ≤ 10 s typical, 30 s window |
 | upload, per MP3 (256-byte RPC chunks + flash commit) | 3–5 s (19 kB)               |
