@@ -5,6 +5,8 @@ go 1.23
 require (
 	github.com/hajimehoshi/go-mp3 v0.3.4
 	github.com/spf13/cobra v1.10.2
+	github.com/xtech/definitions-open-mower/golang v0.2.0
+	github.com/xtech/xbot_framework/xbot_service_interface_go v0.3.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -14,7 +16,4 @@ require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.9 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
-	github.com/xtech/xbot_framework/xbot_service_interface_go v0.1.0
 )
-
-replace github.com/xtech/xbot_framework/xbot_service_interface_go => ../../src/lib/xbot_framework/xbot_service_interface_go

@@ -1,4 +1,4 @@
-package fileservice
+package fwsync
 
 import (
 	"encoding/binary"
@@ -6,15 +6,23 @@ import (
 	"testing"
 )
 
+// Mirror of the FileList wire layout (services/file_service.json): every entry is
+// a NUL padded char[128] path plus the uint32 hash of its sidecar.
+const (
+	testListPathLen   = 128
+	testListEntryLen  = testListPathLen + 4
+	testListHeaderLen = 8
+)
+
 func TestParseFileListPayload(t *testing.T) {
 	// Payload: total=2, count=1, one entry.
-	payload := make([]byte, 8+listEntrySize)
+	payload := make([]byte, testListHeaderLen+testListEntryLen)
 	binary.LittleEndian.PutUint32(payload[0:4], 2)
 	binary.LittleEndian.PutUint32(payload[4:8], 1)
-	copy(payload[8:8+listPathLen], "/sounds/en_hi-i-am-steve.mp3")
-	binary.LittleEndian.PutUint32(payload[8+listPathLen:8+listEntrySize], 0xDEADBEEF)
+	copy(payload[testListHeaderLen:testListHeaderLen+testListPathLen], "/sounds/en_hi-i-am-steve.mp3")
+	binary.LittleEndian.PutUint32(payload[testListHeaderLen+testListPathLen:testListHeaderLen+testListEntryLen], 0xDEADBEEF)
 
-	total, entries, err := parseList(payload)
+	total, entries, err := parseFileList(payload)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,11 +41,11 @@ func TestParseFileListPayload(t *testing.T) {
 }
 
 func TestParseFileListPayloadEmpty(t *testing.T) {
-	payload := make([]byte, 8)
+	payload := make([]byte, testListHeaderLen)
 	binary.LittleEndian.PutUint32(payload[0:4], 0)
 	binary.LittleEndian.PutUint32(payload[4:8], 0)
 
-	total, entries, err := parseList(payload)
+	total, entries, err := parseFileList(payload)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,24 +56,24 @@ func TestParseFileListPayloadEmpty(t *testing.T) {
 
 func TestParseFileListPayloadTruncated(t *testing.T) {
 	// total=1 but the entry payload is cut off → must error, not panic.
-	payload := make([]byte, 8)
+	payload := make([]byte, testListHeaderLen)
 	binary.LittleEndian.PutUint32(payload[0:4], 1)
 	binary.LittleEndian.PutUint32(payload[4:8], 1)
 
-	if _, _, err := parseList(payload); err == nil {
+	if _, _, err := parseFileList(payload); err == nil {
 		t.Fatal("expected an error for a truncated payload, got nil")
 	}
 }
 
 func TestParseFileListPayloadLongPath(t *testing.T) {
 	// A path exactly at the 128-byte limit (no NUL padding).
-	payload := make([]byte, 8+listEntrySize)
+	payload := make([]byte, testListHeaderLen+testListEntryLen)
 	binary.LittleEndian.PutUint32(payload[0:4], 1)
 	binary.LittleEndian.PutUint32(payload[4:8], 1)
-	longPath := "/sounds/" + strings.Repeat("x", listPathLen-len("/sounds/"))
-	copy(payload[8:8+listPathLen], longPath)
+	longPath := "/sounds/" + strings.Repeat("x", testListPathLen-len("/sounds/"))
+	copy(payload[testListHeaderLen:testListHeaderLen+testListPathLen], longPath)
 
-	_, entries, err := parseList(payload)
+	_, entries, err := parseFileList(payload)
 	if err != nil {
 		t.Fatal(err)
 	}

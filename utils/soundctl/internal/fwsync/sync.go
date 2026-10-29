@@ -9,8 +9,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/ClemensElflein/open_mower_ros/utils/soundctl/xbot/services/fileservice"
-	"github.com/ClemensElflein/open_mower_ros/utils/soundctl/xbot/services/soundservice"
+	"github.com/xtech/definitions-open-mower/golang/fileservice"
+	"github.com/xtech/definitions-open-mower/golang/soundservice"
 	"github.com/xtech/xbot_framework/xbot_service_interface_go/xbot"
 )
 
@@ -98,7 +98,7 @@ func Sync(ctx context.Context, opts Options) error {
 		soundTimeout = defaultSoundCheckTimeout
 	}
 	soundCtx, cancel := context.WithTimeout(ctx, soundTimeout)
-	ss, err := soundservice.DialNoClaim(soundCtx, opts.BindIP)
+	ss, err := soundservice.Dial(soundCtx, xbot.Options{NoClaim: true, BindIP: opts.BindIP})
 	cancel()
 	if err != nil {
 		// A cancelled/deadline-exceeded parent context is an abort, not "no sound
@@ -130,7 +130,7 @@ func Sync(ctx context.Context, opts Options) error {
 		defer cancel()
 	}
 	slog.Info("connecting to FileService", "bind", opts.BindIP, "wait", opts.Wait)
-	fs, err := fileservice.Dial(fsCtx, opts.BindIP, opts.Heartbeat, opts.RPCTimeout)
+	fs, err := fileservice.Dial(fsCtx, xbot.Options{BindIP: opts.BindIP, Heartbeat: opts.Heartbeat, CallTimeout: opts.RPCTimeout})
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return ctxErr
@@ -188,7 +188,7 @@ func applyDefinitions(ctx context.Context, cfg *Config, opts Options, ss *sounds
 	encoded := xbot.HeatshrinkEncode(blob)
 	slog.Info("sound definitions", "sounds", len(cfg.Sounds), "json_bytes", len(blob), "compressed_bytes", len(encoded))
 
-	if err := ss.SetDefinitions(encoded); err != nil {
+	if err := ss.SetSoundDefinitions(encoded); err != nil {
 		return fmt.Errorf("SetDefinitions: %w", err)
 	}
 	slog.Info("sound definitions sent")
@@ -197,14 +197,14 @@ func applyDefinitions(ctx context.Context, cfg *Config, opts Options, ss *sounds
 		return nil
 	}
 
-	ss, err = soundservice.DialNoClaim(ctx, opts.BindIP)
+	ss, err = soundservice.Dial(ctx, xbot.Options{NoClaim: true, BindIP: opts.BindIP})
 	if err != nil {
 		slog.Warn("could not reconnect after the restart — master volume not sent", "error", err)
 		return nil
 	}
 	defer func() { _ = ss.Close() }()
 
-	if err := ss.SetVolume(uint8(opts.Volume)); err != nil {
+	if err := ss.SendVolume(uint8(opts.Volume)); err != nil {
 		slog.Warn("could not send the master volume", "error", err)
 		return nil
 	}
@@ -258,18 +258,18 @@ func uploadFile(ctx context.Context, fs *fileservice.Client, localPath, remoteNa
 	crc := crc32.ChecksumIEEE(data)
 	remote := "/sounds/" + remoteName
 
-	exists, err := fs.Exists(ctx, remote, crc)
+	exists, err := fs.FileExists(ctx, remote, crc)
 	if err != nil {
 		return fmt.Errorf("FileExists(%s): %w", remote, err)
 	}
-	if exists {
+	if exists == 1 {
 		slog.Info("up to date", "file", remoteName)
 		return nil
 	}
 
 	slog.Info("uploading", "file", remoteName, "bytes", len(data))
-	for off := 0; off < len(data); off += fileservice.ChunkSize {
-		end := off + fileservice.ChunkSize
+	for off := 0; off < len(data); off += fileServiceChunkSize {
+		end := off + fileServiceChunkSize
 		if end > len(data) {
 			end = len(data)
 		}
@@ -279,7 +279,7 @@ func uploadFile(ctx context.Context, fs *fileservice.Client, localPath, remoteNa
 		if isLast {
 			h = crc
 		}
-		n, err := fs.Write(ctx, remote, uint32(off), chunk, h)
+		n, err := fs.FileWrite(ctx, remote, uint32(off), chunk, h)
 		if err != nil {
 			return fmt.Errorf("FileWrite(%s @%d): %w", remote, off, err)
 		}
@@ -288,11 +288,11 @@ func uploadFile(ctx context.Context, fs *fileservice.Client, localPath, remoteNa
 		}
 	}
 
-	ok, err := fs.Exists(ctx, remote, crc)
+	ok, err := fs.FileExists(ctx, remote, crc)
 	if err != nil {
 		return fmt.Errorf("verify FileExists(%s): %w", remote, err)
 	}
-	if !ok {
+	if ok != 1 {
 		return fmt.Errorf("verify failed for %s", remote)
 	}
 	slog.Info("uploaded", "file", remoteName)
@@ -315,7 +315,7 @@ func cleanup(ctx context.Context, fs *fileservice.Client, cfg *Config) error {
 	}
 	slog.Info("found files in /sounds/", "count", len(existing))
 
-	var orphans []fileservice.Entry
+	var orphans []fileEntry
 	for _, e := range existing {
 		if !referenced[e.Path] {
 			orphans = append(orphans, e)
@@ -328,11 +328,11 @@ func cleanup(ctx context.Context, fs *fileservice.Client, cfg *Config) error {
 
 	slog.Info("orphaned files", "count", len(orphans))
 	for _, o := range orphans {
-		ok, err := fs.Remove(ctx, o.Path)
+		ok, err := fs.FileRemove(ctx, o.Path)
 		if err != nil {
 			return fmt.Errorf("FileRemove(%s): %w", o.Path, err)
 		}
-		if ok {
+		if ok == 0 {
 			slog.Info("removed orphan", "path", o.Path)
 		} else {
 			return fmt.Errorf("FileRemove(%s): firmware reported failure", o.Path)
@@ -342,11 +342,15 @@ func cleanup(ctx context.Context, fs *fileservice.Client, cfg *Config) error {
 }
 
 // listAllFiles pages through FileList until every /sounds/ entry is collected.
-func listAllFiles(ctx context.Context, fs *fileservice.Client) ([]fileservice.Entry, error) {
-	var all []fileservice.Entry
+func listAllFiles(ctx context.Context, fs *fileservice.Client) ([]fileEntry, error) {
+	var all []fileEntry
 	var offset uint32
 	for {
-		total, entries, err := fs.List(ctx, "/sounds/", offset)
+		raw, err := fs.FileList(ctx, "/sounds/", offset)
+		if err != nil {
+			return nil, err
+		}
+		total, entries, err := parseFileList(raw)
 		if err != nil {
 			return nil, err
 		}

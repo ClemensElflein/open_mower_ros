@@ -11,7 +11,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/ClemensElflein/open_mower_ros/utils/soundctl/xbot/services/fileservice"
+	"github.com/xtech/definitions-open-mower/golang/fileservice"
 	"github.com/xtech/xbot_framework/xbot_service_interface_go/xbot"
 )
 

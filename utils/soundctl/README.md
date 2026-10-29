@@ -133,19 +133,25 @@ internal/cli      cobra commands (flags only, no logic)
 internal/fwsync   domain layer: config, validation, MP3 parser, layout/overlay,
                   sidecar cache, sync + play
 internal/tts      engines (sherpa-onnx, piper), ffmpeg encoder, render pipeline, installer
-xbot/services     service specific clients: fileservice (SID 12), soundservice (SID 13)
 ```
 
-The protocol itself — discovery, claim, heartbeat, RPC calls, DATA and
-configuration transactions, heatshrink — lives in the xbot_framework Go module
-(`github.com/xtech/xbot_framework/xbot_service_interface_go/xbot`). The two
-packages below `xbot/services` only add the ids and parameter layouts of
-`services/file_service.json` and `services/sound_service.json`.
+The protocol (discovery, claim, heartbeat, RPC calls, DATA and configuration
+transactions, heatshrink), lives in the xbot_framework Go module
+(`github.com/xtech/xbot_framework/xbot_service_interface_go/xbot`), and the
+service clients for file service (SID 12) and sound service (SID 13) are
+generated from `services/file_service.json` / `services/sound_service.json` and
+published as `github.com/xtech/definitions-open-mower/golang` (`fileservice`,
+`soundservice`).
 
-While the module is still being tested, `go.mod` pins it with a `replace` to the
-submodule checkout (`../../src/lib/xbot_framework/xbot_service_interface_go`);
-once it is released upstream the replace disappears and only the versioned
-`require` remains.
+Two details stay local because they are tool policy, not protocol:
+`internal/fwsync/filelist.go` decodes the raw `FileList` payload (the schema
+declares it as opaque bytes) and defines the 256 byte `FileWrite` chunk size.
+
+`go.mod` pins both released modules (`github.com/xtech/definitions-open-mower/golang`
+for the service clients, `github.com/xtech/xbot_framework/xbot_service_interface_go`
+for the protocol). A schema change means: regenerate the clients in the
+definitions repository, release it, and bump the `require` here - nothing in this
+tool has to change.
 
 `internal/cli` stays thin on purpose: everything testable lives in `fwsync`/`tts`
 and is covered by table-driven tests (`*_test.go` next to the code).

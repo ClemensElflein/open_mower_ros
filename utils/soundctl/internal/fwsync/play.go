@@ -8,7 +8,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ClemensElflein/open_mower_ros/utils/soundctl/xbot/services/soundservice"
+	"github.com/xtech/definitions-open-mower/golang/soundservice"
+	"github.com/xtech/xbot_framework/xbot_service_interface_go/xbot"
 )
 
 // ToneSpec is a runtime tone. The fields are plain ints, so the same validation
@@ -94,13 +95,13 @@ func Play(ctx context.Context, opts PlayOptions) error {
 	defer func() { _ = svc.Close() }()
 
 	if opts.Volume >= 0 {
-		if err := svc.SetVolume(uint8(opts.Volume)); err != nil {
+		if err := svc.SendVolume(uint8(opts.Volume)); err != nil {
 			return fmt.Errorf("set master volume: %w", err)
 		}
 		slog.Info("master volume set", "volume", opts.Volume)
 	}
 
-	if err := dispatchPlay(svc, opts, ids); err != nil {
+	if err := dispatchPlay(ctx, svc, opts, ids); err != nil {
 		return err
 	}
 	// RPC responses go to the service owner (the high-level system), so there is
@@ -126,7 +127,7 @@ func connect(ctx context.Context, opts PlayOptions) (*soundservice.Client, error
 	}
 
 	slog.Info("discovering SoundService (can take a few seconds — claimed services advertise slowly)…")
-	svc, err := soundservice.DialNoClaim(ctx, opts.BindIP)
+	svc, err := soundservice.Dial(ctx, xbot.Options{NoClaim: true, BindIP: opts.BindIP})
 	if err != nil {
 		return nil, fmt.Errorf("SoundService: %w (hint: pass --addr <ip:port>, e.g. from the `soundctl sync` log)", err)
 	}
@@ -142,7 +143,7 @@ func serviceAt(addr string) (*soundservice.Client, error) {
 	} else if port, err := strconv.Atoi(portStr); err != nil || port <= 0 || port > 65535 {
 		return nil, fmt.Errorf("bad endpoint %q: invalid port", addr)
 	}
-	svc, err := soundservice.NewAt(addr)
+	svc, err := soundservice.Dial(context.Background(), xbot.Options{Endpoint: addr})
 	if err != nil {
 		return nil, fmt.Errorf("SoundService: %w", err)
 	}
@@ -183,17 +184,17 @@ func validatePlay(opts PlayOptions, ids *SoundIDs) error {
 // dispatchPlay sends the single action selected by opts (already validated by
 // validatePlay) and logs it. Feedback is the sound itself: the firmware sends the
 // RPC result to the service owner, i.e. the high-level system.
-func dispatchPlay(svc *soundservice.Client, opts PlayOptions, ids *SoundIDs) error {
+func dispatchPlay(ctx context.Context, svc *soundservice.Client, opts PlayOptions, ids *SoundIDs) error {
 	switch {
 	case opts.Stop:
 		slog.Info("stopping playback")
-		return svc.Stop()
+		return sent(svc.Stop(ctx))
 
 	case opts.Tone != nil:
 		tone := opts.Tone.toSoundDef().Tone
 		slog.Info("playing tone", "freq", tone.Freq, "duration_ms", tone.DurationMs, "volume", opts.Tone.Volume,
 			"preempt", opts.Preempt)
-		return svc.PlayTone(uint16(tone.Freq), uint16(tone.DurationMs), uint8(opts.Tone.Volume), opts.Preempt)
+		return sent(svc.PlayTone(ctx, uint16(tone.Freq), uint16(tone.DurationMs), uint8(opts.Tone.Volume), flag(opts.Preempt)))
 
 	case opts.Sequence != nil:
 		waveform, _ := ids.Waveform(opts.Sequence.Waveform) // validated by validatePlay
@@ -201,18 +202,31 @@ func dispatchPlay(svc *soundservice.Client, opts PlayOptions, ids *SoundIDs) err
 			"volume", opts.Sequence.Volume, "unison", opts.Sequence.Unison, "detune_hz", opts.Sequence.DetuneHz,
 			"attack_ms", opts.Sequence.AttackMs, "decay_ms", opts.Sequence.DecayMs, "repeat_ms", opts.Sequence.RepeatMs,
 			"preempt", opts.Preempt)
-		return svc.PlaySequence(opts.Sequence.Notes, waveform, uint8(opts.Sequence.Volume),
-			uint8(opts.Sequence.Unison), uint16(opts.Sequence.DetuneHz), uint8(opts.Sequence.AttackMs),
-			uint8(opts.Sequence.DecayMs), uint16(opts.Sequence.RepeatMs), opts.Preempt)
+		return sent(svc.PlaySequence(ctx, opts.Sequence.Notes, soundservice.Waveform(waveform),
+			uint8(opts.Sequence.Volume), uint8(opts.Sequence.Unison), uint16(opts.Sequence.DetuneHz),
+			uint8(opts.Sequence.AttackMs), uint8(opts.Sequence.DecayMs), flag(opts.Preempt),
+			uint16(opts.Sequence.RepeatMs)))
 
 	case opts.Mp3Path != "":
 		slog.Info("playing mp3", "path", opts.Mp3Path, "preempt", opts.Preempt)
-		return svc.PlayMp3(opts.Mp3Path, opts.Preempt)
+		return sent(svc.PlayMP3(ctx, opts.Mp3Path, flag(opts.Preempt)))
 
 	case opts.Sound != "":
 		id, _ := ids.Value(opts.Sound) // validated by validatePlay
 		slog.Info("playing sound", "sound", opts.Sound, "id", id)
-		return svc.PlaySound(id)
+		return sent(svc.PlaySound(ctx, soundservice.SoundID(id)))
 	}
 	return fmt.Errorf("nothing to play")
+}
+
+// sent discards the return value of a play RPC: the firmware sends the result to
+// the service owner (the high-level system), so only the send error matters here.
+func sent(_ uint8, err error) error { return err }
+
+// flag converts a bool option to the uint8_t the schema uses for Preempt.
+func flag(v bool) uint8 {
+	if v {
+		return 1
+	}
+	return 0
 }
