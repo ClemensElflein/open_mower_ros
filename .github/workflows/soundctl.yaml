@@ -137,7 +137,10 @@ jobs:
                   --sound-ids ../../services/sound_service.json
                   --sound-path ../../sounds
                   --sounds-dir "${out}")
-            go run ./cmd/soundctl tts "${args[@]}"
+            # --keep-going: try every variant, so the log names all failures
+            # instead of stopping at the first one. The job still fails - that is
+            # the signal - but it does not touch the image build.
+            go run ./cmd/soundctl tts --keep-going "${args[@]}"
             # Nothing may be left stale, and every render must be 16 kHz mono.
             go run ./cmd/soundctl tts --check "${args[@]}"
             go run ./cmd/soundctl validate --check-mp3 "${args[@]}"

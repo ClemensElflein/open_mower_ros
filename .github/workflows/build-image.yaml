@@ -144,8 +144,14 @@ jobs:
             echo "::notice::No ELEVENLABS_API_KEY secret - this build ships without the announcements (the robot renders them with its own key)."
           fi
 
+      # Best effort on purpose: a failed render (API down, licence, rate limit)
+      # keeps the previous file and must not stop the image build. The step still
+      # shows up as failed in the run, and `soundctl tts --check` names what is
+      # stale - at runtime `soundctl sync` skips those files, so the low level
+      # keeps playing what it already has.
       - name: Render the TTS announcements (all languages)
         if: matrix.variant == 'default' && steps.tts_key.outputs.available == 'true'
+        continue-on-error: true
         working-directory: utils/soundctl
         env:
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
@@ -153,12 +159,20 @@ jobs:
           set -euo pipefail
           go build -o "${RUNNER_TEMP}/soundctl" ./cmd/soundctl
           for lang in en de; do
-            "${RUNNER_TEMP}/soundctl" tts \
+            "${RUNNER_TEMP}/soundctl" tts --keep-going \
               --config "../../src/open_mower/params/sounds_${lang}.yaml" \
               --sound-ids ../../services/sound_service.json \
               --sound-path ../../sounds \
               --sounds-dir ../../sounds
           done
+
+      # Without a key nothing was rendered: drop whatever the render cache
+      # restored. An image with audio from an older definition looks fine and only
+      # fails much later - `soundctl sync` refuses to upload a stale render, so the
+      # robot stays silent instead of playing something that is not in the YAML.
+      - name: Drop restored renders when there is no key
+        if: matrix.variant == 'default' && steps.tts_key.outputs.available != 'true'
+        run: rm -rf sounds/en sounds/de
 
       # Setup Python 3
       - name: Set up Python

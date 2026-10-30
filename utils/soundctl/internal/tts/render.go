@@ -24,6 +24,10 @@ type Options struct {
 	Force bool
 	// Check renders nothing and only reports which sounds are missing/stale.
 	Check bool
+	// KeepGoing continues with the next variant when one fails (a failed render
+	// leaves the previous file untouched). The CLI reports the failures at the end
+	// and still exits non-zero, so the caller decides whether that is fatal.
+	KeepGoing bool
 	// Generator is written into the sidecar ("soundctl 0.1.0").
 	Generator string
 	Log       Logf
@@ -34,8 +38,10 @@ type Result struct {
 	Name     string
 	File     string
 	Path     string
-	Skipped  bool // sidecar matched, nothing to do
-	Stale    bool // Check only: a render is missing or out of date
+	Skipped  bool  // sidecar matched, nothing to do
+	Stale    bool  // Check only: a render is missing or out of date
+	Failed   bool  // the render failed, the previous file was kept
+	Err      error // why it failed (Failed only)
 	Info     fwsync.MP3Info
 	RenderMs int64
 	Bytes    int64
@@ -124,7 +130,12 @@ func Render(cfg *fwsync.Config, layout fwsync.Layout, eng Engine, enc Encoder, o
 
 		res, err := renderOne(job, dst, eng, enc, opts)
 		if err != nil {
-			return results, fmt.Errorf("%s: %w", job.Label, err)
+			if !opts.KeepGoing {
+				return results, fmt.Errorf("%s: %w", job.Label, err)
+			}
+			opts.logf("[%d/%d] %-24s FAILED: %v (previous file kept)", i+1, len(jobs), job.Label, err)
+			results = append(results, Result{Name: job.Label, File: job.File, Path: dst, Failed: true, Err: err})
+			continue
 		}
 		opts.logf("[%d/%d] %-24s %s, %d kB, %d ms", i+1, len(jobs), job.Label, res.Info, res.Bytes/1024, res.RenderMs)
 		results = append(results, res)

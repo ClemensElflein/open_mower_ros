@@ -109,3 +109,75 @@ func TestRenderTextWithEngine(t *testing.T) {
 		t.Error("RenderText wrote a sidecar; ad-hoc renders are not cached")
 	}
 }
+
+// TestRenderKeepGoing pins the failure policy: a failing variant must not stop the
+// others, and the file it had before is left untouched. Without KeepGoing the
+// first failure aborts (that is what an interactive `soundctl tts` should do).
+func TestRenderKeepGoing(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "sounds_en.yaml")
+	doc := `version: 1
+language: en
+sound_path: /nonexistent
+tts:
+  engine: elevenlabs
+  elevenlabs:
+    voice: voice-id
+sounds:
+  boot_complete:
+    type: mp3
+    volume: 100
+    variants:
+      - "one"
+      - "two"
+`
+	if err := os.WriteFile(cfgPath, []byte(doc), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := fwsync.LoadConfig(cfgPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	layout := fwsync.Layout{SoundPath: dir, Overlay: filepath.Join(dir, "overlay"), Language: "en"}
+
+	// A previous render of the first variant must survive the failure.
+	previous := filepath.Join(layout.OutDir(), "en_boot_complete_1.mp3")
+	if err := os.MkdirAll(filepath.Dir(previous), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(previous, []byte("previous take"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	results, err := Render(cfg, layout, fakeEngine{}, Encoder{FFmpeg: "ffmpeg"}, Options{
+		OutDir:    layout.OutDir(),
+		KeepGoing: true,
+		Log:       func(string, ...any) {},
+	})
+	if err != nil {
+		t.Fatalf("KeepGoing must not return an error: %v", err)
+	}
+	if len(results) != 2 {
+		t.Fatalf("got %d result(s), want 2", len(results))
+	}
+	for _, r := range results {
+		if !r.Failed {
+			t.Errorf("%s: Failed = false, want true", r.Name)
+		}
+	}
+	data, err := os.ReadFile(previous)
+	if err != nil {
+		t.Fatalf("read previous render: %v", err)
+	}
+	if string(data) != "previous take" {
+		t.Errorf("previous file changed to %q", data)
+	}
+
+	// The default is fail-fast.
+	if _, err := Render(cfg, layout, fakeEngine{}, Encoder{FFmpeg: "ffmpeg"}, Options{
+		OutDir: layout.OutDir(),
+		Log:    func(string, ...any) {},
+	}); err == nil {
+		t.Fatal("expected an error without KeepGoing")
+	}
+}

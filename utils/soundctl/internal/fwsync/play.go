@@ -194,7 +194,7 @@ func dispatchPlay(ctx context.Context, svc *soundservice.Client, opts PlayOption
 		tone := opts.Tone.toSoundDef().Tone
 		slog.Info("playing tone", "freq", tone.Freq, "duration_ms", tone.DurationMs, "volume", opts.Tone.Volume,
 			"preempt", opts.Preempt)
-		return sent(svc.PlayTone(ctx, uint16(tone.Freq), uint16(tone.DurationMs), uint8(opts.Tone.Volume), flag(opts.Preempt)))
+		return sent(svc.PlayTone(ctx, uint16(tone.Freq), uint16(tone.DurationMs), uint8(opts.Tone.Volume), preemptByte(opts.Preempt)))
 
 	case opts.Sequence != nil:
 		waveform, _ := ids.Waveform(opts.Sequence.Waveform) // validated by validatePlay
@@ -204,12 +204,12 @@ func dispatchPlay(ctx context.Context, svc *soundservice.Client, opts PlayOption
 			"preempt", opts.Preempt)
 		return sent(svc.PlaySequence(ctx, opts.Sequence.Notes, soundservice.Waveform(waveform),
 			uint8(opts.Sequence.Volume), uint8(opts.Sequence.Unison), uint16(opts.Sequence.DetuneHz),
-			uint8(opts.Sequence.AttackMs), uint8(opts.Sequence.DecayMs), flag(opts.Preempt),
+			uint8(opts.Sequence.AttackMs), uint8(opts.Sequence.DecayMs), preemptByte(opts.Preempt),
 			uint16(opts.Sequence.RepeatMs)))
 
 	case opts.Mp3Path != "":
 		slog.Info("playing mp3", "path", opts.Mp3Path, "preempt", opts.Preempt)
-		return sent(svc.PlayMP3(ctx, opts.Mp3Path, flag(opts.Preempt)))
+		return sent(svc.PlayMP3(ctx, opts.Mp3Path, preemptByte(opts.Preempt)))
 
 	case opts.Sound != "":
 		id, _ := ids.Value(opts.Sound) // validated by validatePlay
@@ -223,8 +223,10 @@ func dispatchPlay(ctx context.Context, svc *soundservice.Client, opts PlayOption
 // the service owner (the high-level system), so only the send error matters here.
 func sent(_ uint8, err error) error { return err }
 
-// flag converts a bool option to the uint8_t the schema uses for Preempt.
-func flag(v bool) uint8 {
+// preemptByte converts the Preempt option to the uint8_t the schema uses for it.
+// (Not called "flag": the package must stay free to import the stdlib flag
+// package for test switches.)
+func preemptByte(v bool) uint8 {
 	if v {
 		return 1
 	}

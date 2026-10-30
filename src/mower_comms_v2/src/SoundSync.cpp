@@ -56,8 +56,11 @@ std::string BuildCommand() {
   // `timeout 300` bounds the whole chain: if a child ever hangs, the read loop would block
   // forever and RunWithRetries could never clear the running flag (no sync for the rest of the
   // uptime). A fresh install needs ~40 s on a CM4, so 300 s is generous.
-  std::string command = "timeout 300 " + std::string(kCommand) + " tts --config " + config + "; timeout 300 " +
-                        std::string(kCommand) + " sync --config " + config + " --wait 30s";
+  // --keep-going: try every variant instead of stopping at the first failure, so a
+  // missing key or an API error leaves as much as possible rendered. The sync below
+  // then skips whatever is still stale (the low level keeps its previous file).
+  std::string command = "timeout 300 " + std::string(kCommand) + " tts --keep-going --config " + config +
+                        "; timeout 300 " + std::string(kCommand) + " sync --config " + config + " --wait 30s";
   if (settings.volume >= 0) {
     command += " --volume " + std::to_string(settings.volume);
   }

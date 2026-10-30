@@ -13,7 +13,7 @@ including how to run it against a checkout (see *Local use*).
 | command                      | purpose                                                                                                                                                        |
 | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `validate`                   | check `sounds_*.yaml` against `services/sound_service.json` (ids, types, ranges) and the MP3s (16 kHz mono)                                                    |
-| `tts`                        | render the tts variants into 16 kHz mono CBR MP3s (ElevenLabs, then ffmpeg), with a `.json` sidecar as cache; `--check` reports missing/stale renders and needs no key |
+| `tts`                        | render the tts variants into 16 kHz mono CBR MP3s (ElevenLabs, then ffmpeg); a `.json` sidecar per file is the cache; `--check` reports missing/stale renders and needs no key, `--keep-going` renders the rest when one variant fails |
 | `tts voices`                 | list the ElevenLabs voices the key may use (`--all` includes the Voice Library ones, which need a paid plan)                                                        |
 | `say`                        | render **one** ad-hoc text with the same chain and play it on this machine — no YAML, no cache. The way to audition a text before it goes into a definition    |
 | `sync`                       | upload changed MP3s, push the definitions blob, remove orphans, optionally set the volume                                                                      |
@@ -138,6 +138,26 @@ for the service clients, `github.com/xtech/xbot_framework/xbot_service_interface
 for the protocol). A schema change means: regenerate the clients in the
 definitions repository, release it, and bump the `require` here - nothing in this
 tool has to change.
+
+### What happens when a render fails
+
+A render is a cache lookup, not a build step: for every variant `soundctl tts`
+compares the sidecar fingerprint with the identity the definition currently
+describes and renders only what differs. That is the whole mechanism - there is no
+committed list of fingerprints to keep in sync.
+
+If a render fails (API down, licence, no key), the previous file stays untouched
+(renders are written to a temp file and renamed only after the format check):
+
+- `soundctl tts --keep-going` tries every variant, prints each failure and still
+  exits non-zero, so the caller decides whether that is fatal.
+- `soundctl sync` skips files whose sidecar no longer matches and logs the reason.
+  They stay referenced in the definitions blob, so the low level keeps playing the
+  file it already has - an old announcement instead of a mismatched one - and the
+  rest of the sounds still sync.
+- The image build renders best effort (`continue-on-error`), so an API problem
+  never blocks the image; the step is marked failed in the run and `tts --check`
+  names what is stale.
 
 `internal/cli` stays thin on purpose: everything testable lives in `fwsync`/`tts`
 and is covered by table-driven tests (`*_test.go` next to the code).

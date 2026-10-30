@@ -98,6 +98,7 @@ type ttsFlags struct {
 	ffmpeg      string
 	force       bool
 	check       bool
+	keepGoing   bool
 }
 
 func (f *ttsFlags) register(cmd *cobra.Command) {
@@ -112,6 +113,7 @@ func (f *ttsFlags) register(cmd *cobra.Command) {
 	fl.StringVar(&f.ffmpeg, "ffmpeg", "ffmpeg", "ffmpeg binary used for encoding")
 	fl.BoolVar(&f.force, "force", false, "re-render even if the sidecar says the file is up to date")
 	fl.BoolVar(&f.check, "check", false, "render nothing, only report missing/stale renders (exit 1 if any)")
+	fl.BoolVar(&f.keepGoing, "keep-going", false, "continue with the other variants when one fails (its previous file is kept, exit code stays non-zero)")
 }
 
 // engineFor builds the engine a definition asks for. The same factory serves
@@ -184,6 +186,7 @@ func (f *ttsFlags) run(cmd *cobra.Command) error {
 	results, err := tts.Render(cfg, layout, eng, enc, tts.Options{
 		OutDir:    layout.OutDir(),
 		Force:     f.force,
+		KeepGoing: f.keepGoing,
 		Generator: "soundctl " + version,
 		Log: func(format string, args ...any) {
 			fmt.Fprintf(out, format+"\n", args...)
@@ -193,15 +196,21 @@ func (f *ttsFlags) run(cmd *cobra.Command) error {
 		return err
 	}
 
-	rendered, skipped := 0, 0
+	rendered, skipped, failed := 0, 0, 0
 	for _, r := range results {
-		if r.Skipped {
+		switch {
+		case r.Failed:
+			failed++
+		case r.Skipped:
 			skipped++
-		} else {
+		default:
 			rendered++
 		}
 	}
-	fmt.Fprintf(out, "%d rendered, %d up to date (%s)\n", rendered, skipped, layout.OutDir())
+	fmt.Fprintf(out, "%d rendered, %d up to date, %d failed (%s)\n", rendered, skipped, failed, layout.OutDir())
+	if failed > 0 {
+		return fmt.Errorf("%d render(s) failed - their previous files were kept in %s", failed, layout.OutDir())
+	}
 	return nil
 }
 

@@ -77,9 +77,11 @@ func Sync(ctx context.Context, opts Options) error {
 	if opts.SoundPath != "" {
 		layout.SoundPath = opts.SoundPath
 	}
-	if err := verifyRenders(layout, cfg); err != nil {
-		return err
-	}
+	// Renders whose sidecar no longer matches the definition are skipped, not
+	// uploaded: the low level keeps the file it already has (it stays referenced in
+	// the blob), so an older announcement keeps playing instead of a mismatched one.
+	// That must never block the rest of the sync - `soundctl tts` is the fix.
+	stale := staleRenders(layout, cfg)
 
 	// Validate the requested master volume up front: an out-of-range value must
 	// fail the run before uploads, cleanup or SetDefinitions change the robot.
@@ -148,6 +150,10 @@ func Sync(ctx context.Context, opts Options) error {
 			if err := ctx.Err(); err != nil {
 				return err
 			}
+			if reason, ok := stale[file]; ok {
+				slog.Warn("skipping a stale render", "file", file, "reason", reason)
+				continue
+			}
 			local, err := layout.Find(file)
 			if err != nil {
 				return err
@@ -212,26 +218,28 @@ func applyDefinitions(ctx context.Context, cfg *Config, opts Options, ss *sounds
 	return nil
 }
 
-// verifyRenders makes sure every tts variant on disk was rendered from the text
-// the definition currently contains. A mismatch means the YAML was edited without
-// re-rendering, and uploading the old audio would be silently wrong, so this
-// fails the sync instead of guessing.
-func verifyRenders(layout Layout, cfg *Config) error {
+// staleRenders returns the rendered files whose sidecar does not match the
+// definition any more, with the reason. They are not uploaded and not deleted: the
+// low level keeps them referenced, so the previous announcement keeps playing.
+func staleRenders(layout Layout, cfg *Config) map[string]string {
+	stale := make(map[string]string)
 	for _, job := range cfg.RenderJobs() {
 		path, err := layout.Find(job.File)
 		if err != nil {
-			return fmt.Errorf("%s: %w (run \"soundctl tts\")", job.Label, err)
+			stale[job.File] = "no render on disk (run \"soundctl tts\")"
+			continue
 		}
 		sc, err := ReadSidecar(path)
 		if err != nil {
-			return fmt.Errorf("%s: no render metadata next to %s (%v) - run \"soundctl tts\"", job.Label, path, err)
+			stale[job.File] = fmt.Sprintf("no render metadata next to %s (%v) - run \"soundctl tts\"", path, err)
+			continue
 		}
 		if !sc.Matches(job.Identity) {
-			return fmt.Errorf("%s: %s is stale (rendered as %s, expected %s) - run \"soundctl tts\"",
-				job.Label, path, sc.Fingerprint, job.Identity.Fingerprint())
+			stale[job.File] = fmt.Sprintf("rendered as %s, expected %s - run \"soundctl tts\"",
+				sc.Fingerprint, job.Identity.Fingerprint())
 		}
 	}
-	return nil
+	return stale
 }
 
 func uploadFile(ctx context.Context, fs *fileservice.Client, localPath, remoteName string) error {
