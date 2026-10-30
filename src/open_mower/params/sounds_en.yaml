@@ -121,7 +121,7 @@ tts:
 
   elevenlabs:
     model: eleven_v4
-    voice: e243k3NwaO5uqjBb8yKV # Ryan
+    voice: CwhRBWXzGAHq8TQ4Fs17 # Roger
     stability: 0.5 # 0..1, lower = more expressive
     similarity_boost: 0.75 # 0..1
     style: 0.0 # 0..1, 0 = the voice's own delivery
