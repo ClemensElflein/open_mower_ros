@@ -60,6 +60,17 @@ RUN --mount=type=bind,source=src,target=src \
 
 ####################################################################################################
 
+# Build the soundctl Go binary. OM_SOFTWARE_VERSION is injected so that
+# `soundctl version` and the "generator" field of the tts sidecars name the image
+# they came from (the assemble stage declares the same build arg, CI passes it once).
+FROM golang:1.23 AS gobuild
+ARG OM_SOFTWARE_VERSION=dev
+WORKDIR /src
+COPY utils/soundctl/go.mod utils/soundctl/go.sum ./
+RUN go mod download
+COPY utils/soundctl/ ./
+RUN CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X github.com/ClemensElflein/open_mower_ros/utils/soundctl/internal/cli.version=${OM_SOFTWARE_VERSION}" -o /out/soundctl ./cmd/soundctl
+
 # Assemble final image (without nginx/mosquitto)
 FROM base AS assemble
 
@@ -71,11 +82,25 @@ COPY --link --from=slic3r /opt/prebuilt/slic3r_coverage_planner /opt/prebuilt/sl
 
 # Fetch the list of packages
 COPY --link --from=dependencies /apt-install_list /apt-install_list
+# ffmpeg for `soundctl tts` (loudnorm + MP3 encoding); ca-certificates for the
+# ElevenLabs API, which the robot calls with the key of its user.
 RUN apt-get update && \
-    apt-get install --no-install-recommends --yes $(cat /apt-install_list) libasio-dev && \
+    apt-get install --no-install-recommends --yes $(cat /apt-install_list) libasio-dev ffmpeg ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
 COPY --link ./ /opt/open_mower_ros
+COPY --link --from=gobuild /out/soundctl /usr/local/bin/soundctl
+
+# Gate the shipped definitions here rather than on the mower: ids/types/ranges
+# against services/sound_service.json and 16 kHz mono for every referenced MP3.
+# The announcements are rendered by the robot itself (online, with the user's
+# ElevenLabs key), so this image carries no TTS engine and no pre-rendered MP3s: a
+# language whose render is missing is reported as "pending", not as an error.
+RUN for lang in en de; do \
+    soundctl validate \
+    --config "/opt/open_mower_ros/src/open_mower/params/sounds_${lang}.yaml" \
+    --check-mp3; \
+    done
 
 # delete prebuilt libs (so that they won't shadow the preinstalled ones)
 RUN rm -rf /opt/open_mower_ros/src/lib/slic3r_coverage_planner /apt-install_list

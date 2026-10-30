@@ -1,0 +1,147 @@
+name: soundctl
+
+# Build, vet and test the soundctl module (utils/soundctl) and validate the
+# shipped sound definitions. The module is pure Go with no robot/network
+# dependency, so all of this runs in well under a minute and catches the cheap
+# mistakes (unformatted code, a YAML the firmware would reject, a missing MP3)
+# before an image build or a deploy.
+on:
+  push:
+    branches:
+      - "main"
+      - "releases/**"
+      - "v2"
+    paths:
+      - "utils/soundctl/**"
+      - "services/**"
+      - "sounds/**"
+      - "src/open_mower/params/sounds_*.yaml"
+      - ".github/workflows/soundctl.yaml"
+  pull_request:
+    branches:
+      - "main"
+    paths:
+      - "utils/soundctl/**"
+      - "services/**"
+      - "sounds/**"
+      - "src/open_mower/params/sounds_*.yaml"
+      - ".github/workflows/soundctl.yaml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: utils/soundctl
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          # services/sound_service.json (the shared definition) is a submodule.
+          submodules: "recursive"
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: utils/soundctl/go.mod
+          cache-dependency-path: utils/soundctl/go.sum
+
+      - name: gofmt
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "${unformatted}" ]; then
+            echo "gofmt would change:"
+            echo "${unformatted}"
+            exit 1
+          fi
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: go test
+        run: go test ./... -count=1
+
+      # The image is arm64; a cross-compile check catches anything that sneaks a
+      # platform dependency (cgo, a syscall package) into the module.
+      - name: cross-compile for the mower (linux/arm64)
+        run: CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build ./...
+
+      # Gate the shipped definitions: ids/types/ranges against the shared
+      # sound_service.json, and 16 kHz mono for every referenced MP3. The
+      # announcements that only a `tts:` text produces are reported as "pending"
+      # (they are rendered on the mower), so no ffmpeg/engine is needed here.
+      - name: validate the shipped sound definitions
+        run: |
+          for lang in en de; do
+            go run ./cmd/soundctl validate \
+              --config "../../src/open_mower/params/sounds_${lang}.yaml" \
+              --sound-ids ../../services/sound_service.json \
+              --sound-path ../../sounds \
+              --check-mp3
+          done
+
+  # End-to-end render check: renders every language with the real ElevenLabs API
+  # and asserts the result is what the firmware needs (16 kHz mono, cache agrees).
+  # It is the only job that needs the key - a repository secret, so a pull request
+  # from a fork cannot use it; the step notices that and skips instead of failing.
+  render:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: "recursive"
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: utils/soundctl/go.mod
+          cache-dependency-path: utils/soundctl/go.sum
+
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg
+
+      # A step's `if` cannot read a secret directly, so detect it in its own step.
+      - name: Check for the ElevenLabs key
+        id: tts_key
+        env:
+          KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+        run: |
+          if [ -n "${KEY}" ]; then
+            echo "available=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "available=false" >> "${GITHUB_OUTPUT}"
+            echo "::notice::No ELEVENLABS_API_KEY secret - skipping the render check."
+          fi
+
+      - name: Render and verify the announcements
+        if: steps.tts_key.outputs.available == 'true'
+        working-directory: utils/soundctl
+        env:
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+        run: |
+          set -euo pipefail
+          out="${RUNNER_TEMP}/sounds"
+          for lang in en de; do
+            args=(--config "../../src/open_mower/params/sounds_${lang}.yaml"
+                  --sound-ids ../../services/sound_service.json
+                  --sound-path ../../sounds
+                  --sounds-dir "${out}")
+            # --keep-going: try every variant, so the log names all failures
+            # instead of stopping at the first one. The job still fails - that is
+            # the signal - but it does not touch the image build.
+            go run ./cmd/soundctl tts --keep-going "${args[@]}"
+            # Nothing may be left stale, and every render must be 16 kHz mono.
+            go run ./cmd/soundctl tts --check "${args[@]}"
+            go run ./cmd/soundctl validate --check-mp3 "${args[@]}"
+          done

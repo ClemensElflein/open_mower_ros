@@ -1,0 +1,184 @@
+# sounds_en.yaml — Sound-Overrides for the HW v2 sound system.
+#
+# The low-level ROM defaults (TONE/SEQUENCE) stay untouched in the firmware
+# (fw: src/drivers/sound/sound_definition.hpp).
+#
+# This file only lists the sounds that shall REPLACE a ROM default.
+#
+# ---------------------------------------------------------------------------
+# CUSTOMISING SOUNDS — READ THIS FIRST (nothing to do otherwise)
+# ---------------------------------------------------------------------------
+# Every announcement is rendered and uploaded by the robot itself: `soundctl tts`
+# renders the tts variants into the writable overlay (/data/sounds/<language>/)
+# at startup, `soundctl sync` uploads them to the low level. A changed text, voice
+# or voice setting re-renders only that file (a .json sidecar next to the MP3 is
+# the cache), and syncing refuses to upload a stale render.
+#
+# The overlay is NOT persistent on a stock OpenMower: the docker compose mounts
+# /data/ros, /data/recordings and /data/params individually, so /data/sounds lives
+# in the container and is gone after `openmower restart`. That is harmless for the
+# shipped sounds (they are re-rendered), but it also drops your own MP3s and the
+# ElevenLabs key file. To keep both, mount the directory from the host:
+#
+#   openmower@openmower:~ $ mkdir ~/sounds
+#   openmower@openmower:~ $ nano /opt/stacks/openmower/compose.yaml
+#   and add a `- /home/openmower/sounds:/data/sounds` next to the other volumes.
+#   openmower@openmower:~ $ echo 'sk-...' > ~/sounds/.elevenlabs.key
+#   openmower@openmower:~ $ chmod 600 ~/sounds/.elevenlabs.key
+#   openmower@openmower:~ $ openmower restart
+# ---------------------------------------------------------------------------
+#
+# Per-sound fields (all optional except type/volume):
+#   type       tone | sequence | mp3
+#   volume     0..100 (the master volume scales on top)
+#   waveform   sine | square | triangle | saw   (tone/sequence)
+#   unison     detuned voices, 1/3/5/7         (thickens the sound)
+#   detune_hz  frequency spread between them
+#   attack_ms  sequence: fade-in at the start of every note, 0..255 ms
+#              (0 = instant onset, ~5 ms removes the click of a hard start)
+#   decay_ms   sequence: fade-out of every note, 0..255 ms
+#              (0 = hold the note at full level until its duration is over).
+#              The fade is exponential and reaches about -60 dB after that time,
+#              so a single note with a decay is a "ping" that rings out instead
+#              of a hard-gated rectangle.
+#   repeat_ms  repeat the sound every n ms until another sound plays, 0..65535
+#              (0 = play once). The firmware player repeats it itself, so the
+#              request queue is not involved; the ROM default uses it for
+#              BOOT_PING (every 2 s while Stage 2 waits for ROS).
+#   preempt    true = alert: the firmware stops a running sound, drops the
+#              pending queue and plays this one immediately. The ROM default
+#              sets it for EMERGENCY, so an alert is never delayed behind an
+#              announcement. Everything else is queued in order.
+#   variants   mp3: the playable takes of this sound, one list entry per take
+#                - "text to speak"      a tts variant: soundctl renders it
+#                - {file: name.mp3}     an existing recording (below sound_path)
+#              A tts variant is stored as <language>_<sound>_<n>.mp3, so a sound
+#              with two texts produces en_boot_complete_1.mp3 and _2.mp3. A file
+#              name must be plain (no path), end in .mp3 and be at most 55 chars.
+#   pick       which variant the low level plays: random (default), rotate (never
+#              the same twice in a row) or first. Until the firmware knows the
+#              list it plays the first variant, so a multi-variant sound is
+#              already fully uploaded and just not yet varied.
+#   every      duration such as "120s": the low level rolls by itself once per
+#              interval whether to play this sound - background ambience. Without
+#              every, a sound only plays when the high level requests it.
+#   chance     0..1, the probability of playing after such a roll (needs every).
+#
+# sound_path: high-level directory holding the local MP3 source files (used
+#             for the 16 kHz/mono check and as the upload source). It is NOT
+#             transmitted to the LL. The LL path is a fixed contract:
+#             /sounds/<file> (hardcoded in the firmware and the upload tool).
+#             Files that are customised on the robot live in the writable
+#             overlay (/data/sounds, or --sounds-dir) and take precedence over
+#             the ones shipped here — nothing is copied back and forth. A file
+#             is looked up in <overlay>/<language>, <sound_path>/<language>,
+#             <overlay>, <sound_path> — in that order. Outside the image that
+#             path does not exist, so a run from a checkout passes
+#             `--sound-path sounds` (or sets OPENMOWER_SOUNDS_DIR for the
+#             writable overlay).
+#
+# language: subdirectory of sound_path/the overlay that holds the renders of
+#           this language (sounds/<language>/). Its texts are in this language.
+#
+# tts:      how the tts variants of THIS file are spoken. Engine-agnostic options
+#           are flat, everything that belongs to ElevenLabs sits in the
+#           elevenlabs block. All of it is part of the render cache key, so
+#           changing one re-renders every announcement of this file.
+#   engine     elevenlabs (the only engine; the offline Piper/Supertonic engines
+#              were removed - they needed ~330 MB of models in the image)
+#   bitrate    MP3 bitrate, e.g. 32k/48k/64k (CBR, 16 kHz mono, keep it small)
+#   loudnorm   EBU R128 to -16 LUFS, so all announcements are equally loud
+#   elevenlabs
+#     model    ElevenLabs model id: eleven_v4 (quality), eleven_multilingual_v2
+#              (most stable, the API default) or eleven_flash_v2_5 (cheap/fast)
+#     voice    voice id (not a name); `soundctl tts --help` shows where the key
+#              goes, the id is listed in the ElevenLabs portal
+#     stability / similarity_boost / style   0..1, use_speaker_boost  true|false
+#
+# The text is sent to the ElevenLabs API and the returned 16 kHz audio is
+# normalised and encoded by ffmpeg. The API key is never part of this file: it
+# comes from --api-key, --api-key-file, $ELEVENLABS_API_KEY or
+# /data/sounds/.elevenlabs.key (first hit wins).
+# Without a key the robot logs it, skips the render and still syncs what it has.
+#
+# MP3 file naming convention (see sounds/README.md):
+#   <lang>_<name>_<n>.mp3  text announcements (en_, de_, ...)
+#   zz_<name>.mp3          background sounds (sort last)
+#
+# MP3 files MUST be 16 kHz mono — the firmware does NOT resample!
+
+version: 1
+language: en
+sound_path: /opt/open_mower_ros/sounds
+
+# Defaults for every tts variant (see the file header).
+#
+# English uses ElevenLabs "Jeremy" with the v4 model.
+tts:
+  engine: elevenlabs
+  bitrate: 32k
+  loudnorm: true
+
+  elevenlabs:
+    model: eleven_v4
+    voice: CwhRBWXzGAHq8TQ4Fs17 # Roger
+    stability: 0.5 # 0..1, lower = more expressive
+    similarity_boost: 0.75 # 0..1
+    style: 0.0 # 0..1, 0 = the voice's own delivery
+    use_speaker_boost: true
+
+# Only the sounds listed here replace the LL ROM default; everything else
+# falls back to the firmware default.
+#
+sounds:
+  # The firmware default for SUCCESS is already a decaying ping (sine, 554 Hz,
+  # 360 ms, attack 4 ms, decay 220 ms, volume 70) — the equivalent override, in
+  # case you want to tune it here:
+  #   success:
+  #     type: sequence
+  #     volume: 70
+  #     waveform: sine
+  #     attack_ms: 4
+  #     decay_ms: 220
+  #     sequence:
+  #       - {freq: 554, duration_ms: 360}
+  # FW stage1: Waiting for stage2 ping
+  boot_ping:
+    type: mp3
+    volume: 80
+    repeat_ms: 4000
+    variants:
+      - { file: zz_ping.mp3 }
+  # FW stage2 boot completed. Five takes: the firmware picks one per playback
+  # (pick: random), so the greeting varies. [enjoyable] is an ElevenLabs v4 audio
+  # tag, not spoken.
+  boot_complete:
+    type: mp3
+    volume: 90
+    pick: random
+    variants:
+      - "Hi, I am your intelligent OpenMower lawn mower. Lawn care is my profession."
+      - "Hi, I am your intelligent OpenMower lawn mower. [enjoyable]I really do love eating grass."
+      - "Hi, I am your intelligent OpenMower lawn mower. Firmware is running - I am just waking up."
+      - "Hi, I am your intelligent OpenMower lawn mower. My brain is still booting ... but the basics are up."
+      - "Hi, I am your intelligent OpenMower lawn mower. The hardware is up - the mind is still loading."
+  emergency:
+    type: mp3
+    volume: 100
+    preempt: true
+    variants:
+      - { file: zz_minion-fire-alarm.mp3 }
+  ros_connected:
+    type: mp3
+    volume: 90
+    variants:
+      - "The robot operating system has started."
+      - "The robot operating system has started. The mind is loaded now, too."
+      - "The robot operating system has started. All systems online."
+  ros_disconnected:
+    type: mp3
+    volume: 90
+    variants:
+      - "The robot operating system has stopped."
+      - "The robot operating system has stopped. Until next time."
+      - "The robot operating system has stopped. The grass got lucky today."
