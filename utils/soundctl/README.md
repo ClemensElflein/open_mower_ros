@@ -14,6 +14,7 @@ including how to run it against a checkout (see *Local use*).
 | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `validate`                   | check `sounds_*.yaml` against `services/sound_service.json` (ids, types, ranges) and the MP3s (16 kHz mono)                                                    |
 | `tts`                        | render the tts variants into 16 kHz mono CBR MP3s (ElevenLabs, then ffmpeg), with a `.json` sidecar as cache; `--check` reports missing/stale renders and needs no key |
+| `tts voices`                 | list the ElevenLabs voices the key may use (`--all` includes the Voice Library ones, which need a paid plan)                                                        |
 | `say`                        | render **one** ad-hoc text with the same chain and play it on this machine — no YAML, no cache. The way to audition a text before it goes into a definition    |
 | `sync`                       | upload changed MP3s, push the definitions blob, remove orphans, optionally set the volume                                                                      |
 | `play` / `stop`              | trigger a tone, sequence, MP3 or configured sound on a running robot                                                                                           |
@@ -38,6 +39,16 @@ those names). Locally, exporting `ELEVENLABS_API_KEY` is enough.
 
 `tts --check` and `validate --check-mp3` need no key at all, so CI and a fork can
 gate the definitions without a secret.
+
+Which voices the plan may actually use through the API is a licence question, not
+a technical one: the built-in premade voices (`voice_type=default`) work on the
+free tier, Voice Library voices (`community`, e.g. most non-English ones) need a
+paid subscription. `soundctl tts voices` asks the API instead of the portal:
+
+```bash
+soundctl tts voices                    # premade, free-tier usable
+soundctl tts voices --all --language de # everything German, incl. the library ones
+```
 
 ### Audition a text
 

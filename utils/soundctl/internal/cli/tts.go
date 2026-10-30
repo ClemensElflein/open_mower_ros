@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
+	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
@@ -203,6 +205,96 @@ func (f *ttsFlags) run(cmd *cobra.Command) error {
 	return nil
 }
 
+// newTTSVoicesCmd lists the ElevenLabs voices the configured key can use. The
+// plan decides which ones are usable via the API: the built-in premade voices
+// (voice_type=default) work on the free tier, Voice Library ones (community) need
+// a paid subscription.
+func newTTSVoicesCmd() *cobra.Command {
+	var (
+		voiceType  string
+		all        bool
+		language   string
+		search     string
+		apiKeyVal  string
+		apiKeyFile string
+		apiURL     string
+	)
+	cmd := &cobra.Command{
+		Use:   "voices",
+		Short: "List the ElevenLabs voices this API key can use",
+		Long: "Queries GET /v2/voices and prints id, name, category and labels.\n" +
+			"The default filter shows the premade voices (category premade), which a\n" +
+			"free plan may use through the API; \"--all\" also shows the Voice Library\n" +
+			"(community) voices, which need a paid plan for API use.\n" +
+			"\n" +
+			"The id goes into tts.elevenlabs.voice of sounds_*.yaml.",
+		Example: "  soundctl tts voices\n" +
+			"  soundctl tts voices --all --language de\n" +
+			"  soundctl tts voices --search steve",
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			key, err := apiKey(apiKeyVal, apiKeyFile, DefaultAPIKeyFile)
+			if err != nil {
+				return err
+			}
+			filter := voiceType
+			if all {
+				filter = ""
+			}
+			voices, err := tts.ElevenLabs{APIKey: key, BaseURL: apiURL}.Voices(filter)
+			if err != nil {
+				return err
+			}
+
+			out := cmd.OutOrStdout()
+			w := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
+			fmt.Fprintln(w, "VOICE_ID\tCATEGORY\tLANGUAGE\tNAME\tLABELS")
+			shown := 0
+			for _, v := range voices {
+				if search != "" && !strings.Contains(strings.ToLower(v.Name), strings.ToLower(search)) {
+					continue
+				}
+				lang := v.Labels["language"]
+				if language != "" && !strings.Contains(strings.ToLower(lang), strings.ToLower(language)) {
+					continue
+				}
+				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", v.VoiceID, v.Category, lang, v.Name, voiceLabels(v))
+				shown++
+			}
+			if err := w.Flush(); err != nil {
+				return err
+			}
+			fmt.Fprintf(out, "\n%d of %d voice(s) shown.\n", shown, len(voices))
+			fmt.Fprintln(out, "The premade (default) voices work with a free plan via the API;",
+				"Voice Library (community) voices need a paid subscription.")
+			return nil
+		},
+	}
+	fl := cmd.Flags()
+	fl.StringVar(&voiceType, "type", "default", "voice_type filter: default (premade), community (Voice Library), personal, workspace")
+	fl.BoolVar(&all, "all", false, "no voice_type filter (everything the account can see)")
+	fl.StringVar(&language, "language", "", "only voices labelled with this language (e.g. de)")
+	fl.StringVar(&search, "search", "", "substring match on the voice name")
+	fl.StringVar(&apiKeyVal, "api-key", "", "ElevenLabs API key (instead of the file/environment)")
+	fl.StringVar(&apiKeyFile, "api-key-file", "", "file holding the ElevenLabs API key")
+	fl.StringVar(&apiURL, "api-url", "", "ElevenLabs API root (default: "+tts.DefaultElevenLabsURL+")")
+	return cmd
+}
+
+// voiceLabels renders the label map in a stable order.
+func voiceLabels(v tts.Voice) string {
+	keys := make([]string, 0, len(v.Labels))
+	for k := range v.Labels {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	parts := make([]string, 0, len(keys))
+	for _, k := range keys {
+		parts = append(parts, k+"="+v.Labels[k])
+	}
+	return strings.Join(parts, ", ")
+}
+
 func newTTSCmd() *cobra.Command {
 	f := &ttsFlags{}
 	cmd := &cobra.Command{
@@ -227,5 +319,6 @@ func newTTSCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error { return f.run(cmd) },
 	}
 	f.register(cmd)
+	cmd.AddCommand(newTTSVoicesCmd())
 	return cmd
 }

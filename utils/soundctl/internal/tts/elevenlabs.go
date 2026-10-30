@@ -187,6 +187,82 @@ func (e ElevenLabs) client() *http.Client {
 	return &http.Client{Timeout: DefaultElevenLabsTimeout}
 }
 
+// Voice is one entry of GET /v2/voices.
+type Voice struct {
+	VoiceID  string            `json:"voice_id"`
+	Name     string            `json:"name"`
+	Category string            `json:"category"`
+	Labels   map[string]string `json:"labels"`
+}
+
+// voicesPage is the paginated response of GET /v2/voices.
+type voicesPage struct {
+	Voices        []Voice `json:"voices"`
+	HasMore       bool    `json:"has_more"`
+	NextPageToken string  `json:"next_page_token"`
+}
+
+// Voices lists the voices of the account. voiceType filters server side:
+// "default" are the built-in premade voices (the only ones a free plan may use
+// through the API), "community" the Voice Library ones, "" everything.
+func (e ElevenLabs) Voices(voiceType string) ([]Voice, error) {
+	if err := e.Available(); err != nil {
+		return nil, err
+	}
+	var all []Voice
+	page := 0
+	var token string
+	for {
+		query := url.Values{}
+		query.Set("page_size", "100")
+		if voiceType != "" {
+			query.Set("voice_type", voiceType)
+		}
+		if page > 0 && token != "" {
+			query.Set("next_page_token", token)
+		}
+		body, err := e.get("/v2/voices?" + query.Encode())
+		if err != nil {
+			return nil, err
+		}
+		var resp voicesPage
+		if err := json.Unmarshal(body, &resp); err != nil {
+			return nil, fmt.Errorf("elevenlabs: list voices: %w (%s)", err, errorText(body))
+		}
+		all = append(all, resp.Voices...)
+		if !resp.HasMore || resp.NextPageToken == "" || resp.NextPageToken == token {
+			return all, nil
+		}
+		token = resp.NextPageToken
+		page++
+	}
+}
+
+// get performs a GET against the API and returns the body.
+func (e ElevenLabs) get(pathAndQuery string) ([]byte, error) {
+	endpoint := strings.TrimRight(e.baseURL(), "/") + pathAndQuery
+	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("elevenlabs: build request: %w", err)
+	}
+	req.Header.Set("xi-api-key", strings.TrimSpace(e.APIKey))
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := e.client().Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("elevenlabs: request: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	body, readErr := io.ReadAll(io.LimitReader(resp.Body, 8<<20))
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("elevenlabs: %s: %s", resp.Status, errorText(body))
+	}
+	if readErr != nil {
+		return nil, fmt.Errorf("elevenlabs: read response: %w", readErr)
+	}
+	return body, nil
+}
+
 // isWAV checks the RIFF/WAVE magic: the encoder would fail on anything else, but
 // with a much less helpful message.
 func isWAV(b []byte) bool {

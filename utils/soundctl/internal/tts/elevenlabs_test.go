@@ -183,3 +183,62 @@ func TestAvailableNeedsAKey(t *testing.T) {
 		t.Fatalf("Available() with a key: %v", err)
 	}
 }
+
+func TestVoicesListsAndPaginates(t *testing.T) {
+	var calls int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v2/voices" {
+			t.Errorf("path = %q, want /v2/voices", r.URL.Path)
+		}
+		if got := r.Header.Get("xi-api-key"); got != testKey {
+			t.Errorf("xi-api-key = %q, want the configured key", got)
+		}
+		if got := r.URL.Query().Get("voice_type"); got != "default" {
+			t.Errorf("voice_type = %q, want default", got)
+		}
+		if got := r.URL.Query().Get("page_size"); got != "100" {
+			t.Errorf("page_size = %q, want 100", got)
+		}
+
+		if atomic.AddInt32(&calls, 1) == 1 {
+			if got := r.URL.Query().Get("next_page_token"); got != "" {
+				t.Errorf("first request carries next_page_token %q", got)
+			}
+			_, _ = io.WriteString(w, `{"voices":[{"voice_id":"v1","name":"Rachel","category":"premade","labels":{"language":"en"}}],"has_more":true,"next_page_token":"p2"}`)
+			return
+		}
+		if got := r.URL.Query().Get("next_page_token"); got != "p2" {
+			t.Errorf("second request next_page_token = %q, want p2", got)
+		}
+		_, _ = io.WriteString(w, `{"voices":[{"voice_id":"v2","name":"Adam","category":"premade"}],"has_more":false}`)
+	}))
+	defer srv.Close()
+
+	voices, err := ElevenLabs{APIKey: testKey, BaseURL: srv.URL}.Voices("default")
+	if err != nil {
+		t.Fatalf("Voices: %v", err)
+	}
+	if len(voices) != 2 {
+		t.Fatalf("got %d voice(s), want 2 (both pages)", len(voices))
+	}
+	if voices[0].VoiceID != "v1" || voices[0].Name != "Rachel" || voices[0].Labels["language"] != "en" {
+		t.Errorf("first voice = %+v", voices[0])
+	}
+	if voices[1].VoiceID != "v2" {
+		t.Errorf("second voice = %+v", voices[1])
+	}
+}
+
+func TestVoicesRejectsBadStatus(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = io.WriteString(w, `{"detail":"bad key"}`)
+	}))
+	defer srv.Close()
+
+	if _, err := (ElevenLabs{APIKey: testKey, BaseURL: srv.URL}).Voices("default"); err == nil {
+		t.Fatal("expected an error for a 401")
+	} else if !strings.Contains(err.Error(), "401") {
+		t.Errorf("error = %v, want the status code", err)
+	}
+}
