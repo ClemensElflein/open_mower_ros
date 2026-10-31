@@ -132,17 +132,15 @@ func Sync(ctx context.Context, opts Options) error {
 		defer cancel()
 	}
 	slog.Info("connecting to FileService", "bind", opts.BindIP, "wait", opts.Wait)
-	fs, err := fileservice.Dial(fsCtx, xbot.Options{BindIP: opts.BindIP, Heartbeat: opts.Heartbeat, CallTimeout: opts.RPCTimeout})
+	fs, err := DialFileService(fsCtx, opts)
 	if err != nil {
-		if ctxErr := ctx.Err(); ctxErr != nil {
-			return ctxErr
-		}
-		return fmt.Errorf("FileService not reachable (run \"soundctl discover\" to see what the LL advertises): %w", err)
+		return err
 	}
 	defer func() { _ = fs.Close() }()
 	slog.Info("FileService connected")
 
 	files := cfg.Files()
+	reportStorage(ctx, fs, layout, files)
 	if len(files) == 0 {
 		slog.Info("no MP3 files in definition")
 	} else {
@@ -240,6 +238,37 @@ func staleRenders(layout Layout, cfg *Config) map[string]string {
 		}
 	}
 	return stale
+}
+
+// reportStorage logs the low level's LittleFS usage and warns when the local sound
+// set is bigger than what is still free. It never fails the sync: files whose hash
+// already matches are not uploaded, so the real need is usually far smaller, and a
+// full flash surfaces as a FileWrite error anyway.
+func reportStorage(ctx context.Context, fs *fileservice.Client, layout Layout, files []string) {
+	raw, err := fs.FileStats(ctx)
+	if err != nil {
+		slog.Warn("could not read the low level's storage usage", "error", err)
+		return
+	}
+	stats, err := ParseFileStats(raw)
+	if err != nil {
+		slog.Warn("unexpected FileStats answer", "error", err)
+		return
+	}
+	slog.Info("low level storage", "usage", stats.String())
+
+	var need uint64
+	for _, file := range files {
+		if path, err := layout.Find(file); err == nil {
+			if st, err := os.Stat(path); err == nil {
+				need += uint64(st.Size())
+			}
+		}
+	}
+	if need > uint64(stats.FreeBytes) {
+		slog.Warn("the local sound set is bigger than the free space (already uploaded files are skipped, so this may still fit)",
+			"set_bytes", need, "free_bytes", stats.FreeBytes)
+	}
 }
 
 func uploadFile(ctx context.Context, fs *fileservice.Client, localPath, remoteName string) error {

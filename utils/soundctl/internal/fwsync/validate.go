@@ -288,6 +288,8 @@ func validateHeader(name string, def SoundDef, ids *SoundIDs) []string {
 	errs = append(errs, validateRange(name, "decay_ms", def.DecayMs, 255)...)
 	// repeat_ms is a uint16 in the definition (0 = play once).
 	errs = append(errs, validateRange(name, "repeat_ms", def.RepeatMs, 0xFFFF)...)
+	// pause_after_ms is a uint16 too (0 = play the next sound right away).
+	errs = append(errs, validateRange(name, "pause_after_ms", def.PauseAfterMs, 0xFFFF)...)
 
 	return errs
 }

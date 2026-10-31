@@ -81,9 +81,15 @@ type SoundDef struct {
 	// RepeatMs repeats the sound every n ms until another sound plays (0 = play once).
 	// The firmware player restarts the sound itself, so a repeating sound cannot fill
 	// its request queue (see the repeat note in the firmware's sound_player.cpp).
-	RepeatMs int    `yaml:"repeat_ms,omitempty" json:"repeat_ms,omitempty"`
-	Tone     *Tone  `yaml:"tone,omitempty" json:"tone,omitempty"`
-	Sequence []Note `yaml:"sequence,omitempty" json:"sequence,omitempty"`
+	RepeatMs int `yaml:"repeat_ms,omitempty" json:"repeat_ms,omitempty"`
+	// PauseAfterMs keeps the low level silent for that time after this sound ended,
+	// before the next queued sound starts (0 = play through). The pause belongs to
+	// this sound, so it works for every type; a preempting sound (preempt) and Stop
+	// cut it short, and a repeating sound (repeat_ms) does not pause between its own
+	// iterations.
+	PauseAfterMs int    `yaml:"pause_after_ms,omitempty" json:"pause_after_ms,omitempty"`
+	Tone         *Tone  `yaml:"tone,omitempty" json:"tone,omitempty"`
+	Sequence     []Note `yaml:"sequence,omitempty" json:"sequence,omitempty"`
 
 	// Variants are the playable takes of a type=mp3 sound: a tts text that
 	// `soundctl tts` renders, or an existing MP3. Every sound (even one with a

@@ -124,6 +124,17 @@ func TestValidateRejectsContractViolations(t *testing.T) {
 			want: "'volume' must be 0..100 (got 101)",
 		},
 		{
+			// The definition stores it in a uint16, so the firmware would truncate it.
+			name: "pause_after_ms too large",
+			doc:  "version: 1\nsound_path: /opt/open_mower_ros/sounds\nsounds:\n  success:\n    type: tone\n    volume: 50\n    pause_after_ms: 70000\n    tone: {freq: 440, duration_ms: 100}\n",
+			want: "pause_after_ms must be 0..65535 (got 70000)",
+		},
+		{
+			name: "pause_after_ms negative",
+			doc:  "version: 1\nsound_path: /opt/open_mower_ros/sounds\nsounds:\n  success:\n    type: tone\n    volume: 50\n    pause_after_ms: -1\n    tone: {freq: 440, duration_ms: 100}\n",
+			want: "pause_after_ms must be 0..65535 (got -1)",
+		},
+		{
 			name: "unknown waveform",
 			doc:  "version: 1\nsound_path: /opt/open_mower_ros/sounds\nsounds:\n  boot_ping:\n    type: tone\n    volume: 50\n    waveform: noise\n    tone: {freq: 440, duration_ms: 100}\n",
 			want: `invalid 'waveform' "noise"`,

@@ -10,7 +10,7 @@ func TestConfigBlob(t *testing.T) {
 		Version:   1,
 		SoundPath: "/opt/open_mower_ros/sounds",
 		Sounds: map[string]SoundDef{
-			"boot_complete": {Type: "mp3", Volume: 100, File: "en_hi.mp3"},
+			"boot_complete": {Type: "mp3", Volume: 100, File: "en_hi.mp3", PauseAfterMs: 600},
 			"warning": {Type: "sequence", Volume: 80, Waveform: "saw",
 				Sequence: []Note{{Freq: 880, DurationMs: 150}, {Freq: 0, DurationMs: 80}}},
 			"emergency": {Type: "sequence", Volume: 90, Preempt: true,
@@ -48,6 +48,10 @@ func TestConfigBlob(t *testing.T) {
 	}
 	if sounds.BootComplete.Type != "mp3" || sounds.BootComplete.File != "en_hi.mp3" || sounds.BootComplete.Volume != 100 {
 		t.Fatalf("boot_complete = %+v", sounds.BootComplete)
+	}
+	// The key has to reach the firmware parser (sound_service.cpp) spelled exactly like this.
+	if sounds.BootComplete.PauseAfterMs != 600 {
+		t.Fatalf("boot_complete.pause_after_ms = %d, want 600", sounds.BootComplete.PauseAfterMs)
 	}
 	if sounds.Warning.Type != "sequence" || sounds.Warning.Waveform != "saw" || len(sounds.Warning.Sequence) != 2 {
 		t.Fatalf("warning = %+v", sounds.Warning)
