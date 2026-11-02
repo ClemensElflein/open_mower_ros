@@ -85,6 +85,7 @@ namespace ftc_local_planner
         uint32_t current_index;
         double current_progress;
         Eigen::Affine3d local_control_point;
+        bool last_step_backs_up = false; //!< Whether the step the control point passed last backs up
 
         /**
          * Private members
@@ -96,6 +97,11 @@ namespace ftc_local_planner
         bool oscillation_warning_ = false;
 
         double distanceLookahead();
+
+        /**
+         * Whether the plan backs up from pose index: it and the next pose elsewhere both face against the way between them.
+         */
+        bool planBacksUp(uint32_t index) const;
         PlannerState update_planner_state();
         void update_control_point(double dt);
         void calculate_velocity_commands(double dt, geometry_msgs::TwistStamped &cmd_vel);

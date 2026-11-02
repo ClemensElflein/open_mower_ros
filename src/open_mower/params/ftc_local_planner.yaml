@@ -4,6 +4,7 @@ FTCPlanner:
   oscillation_recovery: false
   debug_pid: true
   forward_only: true
+  back_up_with_plan: true
   goal_timeout: 20.0
   kd_ang: 0.5
   kd_lat: 1.23
