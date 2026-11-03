@@ -54,6 +54,10 @@ soundctl tts voices --all --language de # ElevenLabs, everything German, incl. t
 soundctl tts voices --engine cartesia --language de   # Cartesia voices
 ```
 
+The model id of a Cartesia engine block goes to the API unchanged: `GET /models`
+lists the release aliases (`sonic-3.6`, `sonic-3.5`, `sonic-3`), and dated ids
+such as `sonic-3.6-2026-08-27` pin a single build without being listed.
+
 ### Audition a text
 
 ```bash

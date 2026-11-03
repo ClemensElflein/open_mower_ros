@@ -26,8 +26,11 @@ const (
 	// TTSEngineElevenLabs and TTSEngineCartesia are the cloud engines. The engine is
 	// chosen per file (sounds_<lang>.yaml), so one language can use ElevenLabs and
 	// another Cartesia.
-	TTSEngineElevenLabs  = "elevenlabs"
-	TTSEngineCartesia    = "cartesia"
+	TTSEngineElevenLabs = "elevenlabs"
+	TTSEngineCartesia   = "cartesia"
+	// DefaultCartesiaModel is the Cartesia release alias: it follows the newest
+	// stable 3.6 build. A dated id (sonic-3.6-2026-08-27) pins one build instead;
+	// the API accepts those, `GET /models` only lists the aliases.
 	DefaultCartesiaModel = "sonic-3.6"
 	// DefaultTTSModel is the ElevenLabs model id. eleven_v4 is the quality
 	// model; eleven_multilingual_v2 is the more conservative alternative and
@@ -198,8 +201,11 @@ type ElevenLabsConfig struct {
 
 // CartesiaConfig is used when tts.engine is "cartesia".
 type CartesiaConfig struct {
-	// Model is a Cartesia model id ("" = DefaultCartesiaModel, a pinned
-	// sonic-3.6 snapshot). "sonic-3.6" follows the newest stable release.
+	// Model is a Cartesia model id ("" = DefaultCartesiaModel, the sonic-3.6
+	// release alias, i.e. the newest stable 3.6 build). A dated id pins one build.
+	// Cartesia does not render bit-identically, so pinning only keeps the voice
+	// character; the model is part of the render fingerprint, so changing the id
+	// re-renders the whole set.
 	Model string `yaml:"model"`
 	// Voice is the Cartesia voice *id* (not a name);
 	// `soundctl tts voices --engine cartesia` lists the ids of the account.

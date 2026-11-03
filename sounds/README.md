@@ -79,10 +79,10 @@ work without any configuration:
 The engine is picked per language file, so one language can use ElevenLabs and
 another Cartesia:
 
-| language | engine       | voice                                              | model                  |
-| -------- | ------------ | -------------------------------------------------- | ---------------------- |
-| English  | `elevenlabs` | `TX3LPaxmHKxFdv7VOQHJ` (Liam)                      | `eleven_v4`            |
-| German   | `cartesia`   | `b7187e84-fe22-4344-ba4a-bc013fcb533e` (Sebastian) | `sonic-3.6-2026-08-27` |
+| language | engine       | voice                                              | model       |
+| -------- | ------------ | -------------------------------------------------- | ----------- |
+| English  | `elevenlabs` | `TX3LPaxmHKxFdv7VOQHJ` (Liam)                      | `eleven_v4` |
+| German   | `cartesia`   | `b7187e84-fe22-4344-ba4a-bc013fcb533e` (Sebastian) | `sonic-3.6` |
 
 ```yaml
 # ElevenLabs (sounds_en.yaml)
@@ -104,7 +104,7 @@ tts:
   bitrate: 32k
   loudnorm: true
   cartesia:
-    model: sonic-3.6-2026-08-27   # dated snapshot: a render keeps sounding the same
+    model: sonic-3.6             # release alias: follows the newest 3.6 build
     voice: b7187e84-fe22-4344-ba4a-bc013fcb533e
 ```
 
@@ -112,11 +112,24 @@ Cartesia has no counterpart of the ElevenLabs voice settings (stability, style,
 speaker boost). Both engines are asked for 16 kHz audio, which is the rate the
 firmware plays.
 
+The German definition uses the release alias `sonic-3.6` and therefore follows
+the newest stable 3.6 build; a dated id (`sonic-3.6-2026-08-27`) pins one build
+instead, and `GET /models` lists only the aliases. Cartesia does not render
+bit-identically - two identical requests return different bytes - so pinning
+buys the voice *character*, not the bytes. What stays untouched is a file that
+is already rendered: its `.json` sidecar records text, voice and model, and
+`soundctl tts` only re-renders on a mismatch, so the whole set is rendered from
+one model in one go. A single variant re-rendered later (after a text change)
+may sound slightly different from its unchanged neighbours - that is the price
+of the alias.
+
 The text goes to the selected engine and the returned 16 kHz audio is normalised
 and encoded by ffmpeg. Nothing runs locally.
 The API key never belongs in these files: it
-comes from `--api-key`, `--api-key-file`, `$ELEVENLABS_API_KEY` or
-`/data/sounds/.elevenlabs.key` (see `utils/soundctl/README.md`).
+comes from `--api-key`, `--api-key-file`, `$ELEVENLABS_API_KEY` /
+`$CARTESIA_API_KEY` or `/data/sounds/.elevenlabs.key` /
+`/data/sounds/.cartesia.key`, one chain per engine (see
+`utils/soundctl/README.md`).
 
 Because a hosted model can change, the render fingerprint is a *request*
 fingerprint: `soundctl tts --force` re-rolls an announcement after a model update.

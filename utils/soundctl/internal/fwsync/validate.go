@@ -74,7 +74,7 @@ func ValidateTTSSettings(set TTSSettings) []string {
 	switch set.Engine {
 	case TTSEngineCartesia:
 		if strings.TrimSpace(set.Model) == "" {
-			errs = append(errs, "tts.cartesia.model must not be empty (a Sonic model id, e.g. \"sonic-3.6-2026-08-27\")")
+			errs = append(errs, "tts.cartesia.model must not be empty (a Sonic model id, e.g. \"sonic-3.6\")")
 		}
 		if strings.TrimSpace(set.Voice) == "" {
 			errs = append(errs, "tts.cartesia.voice must not be empty (a Cartesia voice id; `soundctl tts voices --engine cartesia` lists them)")

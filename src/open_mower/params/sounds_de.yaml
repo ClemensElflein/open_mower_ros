@@ -99,9 +99,13 @@
 #     voice    voice id (not a name); `soundctl tts voices` lists them
 #     stability / similarity_boost / style   0..1, use_speaker_boost  true|false
 #   cartesia
-#     model    Sonic model id. The default pins a dated snapshot
-#              (sonic-3.6-2026-08-27), so a rendered corpus keeps sounding the
-#              same; "sonic-3.6" would follow the newest stable release.
+#     model    Sonic model id; the default is the release alias sonic-3.6, so the
+#              set follows the newest stable 3.6 build. A dated id pins one
+#              build (sonic-3.6-2026-08-27); `GET /models` lists only the aliases.
+#              Cartesia does not render bit-identically, so a later re-render of
+#              a single variant may sound slightly different from the files that
+#              are already rendered - the .json sidecar (which records model and
+#              voice) is what protects an existing file, not the model id.
 #     voice    Cartesia voice id (not a name);
 #              `soundctl tts voices --engine cartesia` lists them. Cartesia has
 #              no stability/style knobs.
