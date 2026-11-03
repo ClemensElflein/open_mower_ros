@@ -19,6 +19,7 @@ on:
       - "v2"
     paths:
       - "utils/soundctl/**"
+      - "services"
       - "services/**"
       - "sounds/**"
       - "src/open_mower/params/sounds_*.yaml"
@@ -28,6 +29,7 @@ on:
       - "main"
     paths:
       - "utils/soundctl/**"
+      - "services"
       - "services/**"
       - "sounds/**"
       - "src/open_mower/params/sounds_*.yaml"
@@ -141,16 +143,33 @@ jobs:
         run: |
           set -euo pipefail
           out="${RUNNER_TEMP}/sounds"
+          # Each language renders with the engine its file names, and each engine has
+          # its own secret: skip a language whose key is missing (with a notice) so
+          # it cannot hide the check of the other one.
+          declare -A secret=([elevenlabs]="${ELEVENLABS_API_KEY:-}" [cartesia]="${CARTESIA_API_KEY:-}")
+          failed=0
           for lang in en de; do
-            args=(--config "../../src/open_mower/params/sounds_${lang}.yaml"
+            cfg="../../src/open_mower/params/sounds_${lang}.yaml"
+            engine=$(sed -n 's/^[[:space:]]*engine:[[:space:]]*\([a-z]*\).*/\1/p' "${cfg}" | head -1)
+            if [ -z "${engine}" ]; then
+              echo "::error::could not read tts.engine from ${cfg}"
+              failed=1
+              continue
+            fi
+            if [ -z "${secret[${engine}]:-}" ]; then
+              echo "::notice::sounds_${lang}.yaml uses '${engine}', but its key is not set - skipping the ${lang} render check."
+              continue
+            fi
+            args=(--config "${cfg}"
                   --sound-ids ../../services/sound_service.json
                   --sound-path ../../sounds
                   --sounds-dir "${out}")
             # --keep-going: try every variant, so the log names all failures
             # instead of stopping at the first one. The job still fails - that is
             # the signal - but it does not touch the image build.
-            go run ./cmd/soundctl tts --keep-going "${args[@]}"
+            go run ./cmd/soundctl tts --keep-going "${args[@]}" || failed=1
             # Nothing may be left stale, and every render must be 16 kHz mono.
-            go run ./cmd/soundctl tts --check "${args[@]}"
-            go run ./cmd/soundctl validate --check-mp3 "${args[@]}"
+            go run ./cmd/soundctl tts --check "${args[@]}" || failed=1
+            go run ./cmd/soundctl validate --check-mp3 "${args[@]}" || failed=1
           done
+          exit "${failed}"

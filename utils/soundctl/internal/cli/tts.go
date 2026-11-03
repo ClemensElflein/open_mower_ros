@@ -54,7 +54,7 @@ const DefaultAPIKeyFile = "/data/sounds/.elevenlabs.key"
 // DefaultCartesiaAPIKeyFile is the same trick for the Cartesia key.
 const DefaultCartesiaAPIKeyFile = "/data/sounds/.cartesia.key"
 
-// apiKey resolves the ElevenLabs key: explicit flag, explicit file, then
+// apiKey resolves the key of an engine: explicit flag, explicit file, then
 // $ELEVENLABS_API_KEY, then the default file. The environment is what CI (a
 // repository secret) and a dev shell use; the file is what the mower uses.
 func apiKey(engine, explicit, explicitFile string) (string, error) {
@@ -364,10 +364,11 @@ func newTTSCmd() *cobra.Command {
 			"with the render fingerprint, so a re-run only touches what changed: the\n" +
 			"text, the voice, a voice setting, the language or the bitrate.\n" +
 			"\n" +
-			"The engine is ElevenLabs (cloud): the text is sent to the API, the returned\n" +
-			"16 kHz WAV is normalised and encoded by ffmpeg. The API key comes from\n" +
-			"--api-key, --api-key-file, $ELEVENLABS_API_KEY,\n" +
-			"$ELEVENLABS_API_KEY or " + DefaultAPIKeyFile + ".\n" +
+			"The engine comes from the definition's tts.engine (a hosted API): the text\n" +
+			"is sent to it and the returned 16 kHz audio is normalised and encoded by\n" +
+			"ffmpeg. The key is resolved per engine: --api-key, --api-key-file,\n" +
+			"$ELEVENLABS_API_KEY / " + DefaultAPIKeyFile + ", or\n" +
+			"$CARTESIA_API_KEY / " + DefaultCartesiaAPIKeyFile + ".\n" +
 			"\n" +
 			"Runs once per ROS start inside the container; \"tts --check\" only reports\n" +
 			"what would be rendered (it needs no key), and sync refuses to upload a\n" +

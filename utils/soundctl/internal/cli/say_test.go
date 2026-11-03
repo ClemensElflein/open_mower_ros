@@ -46,18 +46,19 @@ func TestSayText(t *testing.T) {
 	}
 }
 
-// TestSayValidatesBeforeRendering: a bad --speed/--sid/--bitrate has to fail
-// before the engine is looked for, so the message is the useful one and nobody
-// waits for a render that cannot work.
+// TestSayValidatesBeforeRendering: a missing voice, an out-of-range voice setting,
+// a bad bitrate or language has to fail before the engine (and therefore the API
+// key) is looked for, so the message is the useful one and nobody waits for a
+// render that cannot work.
 func TestSayValidatesBeforeRendering(t *testing.T) {
 	cases := []struct {
 		args []string
 		want string
 	}{
-		{[]string{"Hallo", "--speed", "2.5"}, "speed"},
-		{[]string{"Hallo", "--sid", "12"}, "sid"},
-		{[]string{"Hallo", "--bitrate", "320k"}, "bitrate"},
-		{[]string{"Hallo", "--lang", "DE"}, "language"},
+		{[]string{"Hallo"}, "voice must not be empty"},
+		{[]string{"Hallo", "--voice", "x", "--stability", "1.5"}, "stability must be 0..1"},
+		{[]string{"Hallo", "--voice", "x", "--bitrate", "320k"}, "bitrate"},
+		{[]string{"Hallo", "--voice", "x", "--lang", "DE"}, "language"},
 	}
 	for _, c := range cases {
 		cmd := newSayCmd()
@@ -70,6 +71,11 @@ func TestSayValidatesBeforeRendering(t *testing.T) {
 		}
 		if !strings.Contains(err.Error(), c.want) {
 			t.Errorf("%v: error %q does not mention %q", c.args, err, c.want)
+		}
+		// The key lookup comes after the validation: reaching it would mean this
+		// case passes because of a missing key instead of the bad value.
+		if strings.Contains(err.Error(), "API key") {
+			t.Errorf("%v: validation ran after the key lookup (%q)", c.args, err)
 		}
 	}
 }

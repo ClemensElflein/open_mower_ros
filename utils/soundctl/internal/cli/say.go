@@ -114,10 +114,11 @@ func newSayCmd() *cobra.Command {
 		Use:   "say <text>",
 		Short: "Render a text with the mower's TTS chain and play it here",
 		Long: "Synthesise one text on this machine and play it through the local speakers.\n" +
-			"It is the same chain as the announcements on the mower - ElevenLabs, the same\n" +
-			"encoder, EBU R128 loudness normalisation, 16 kHz mono CBR MP3 and the same\n" +
-			"format check - so a text or a voice setting can be auditioned before it goes\n" +
-			"into sounds_*.yaml.\n" +
+			"It is the same chain as the announcements on the mower - ElevenLabs (always:\n" +
+			"there is no engine flag, so the Cartesia texts of sounds_de.yaml cannot be\n" +
+			"auditioned here), the same encoder, EBU R128 loudness normalisation, 16 kHz\n" +
+			"mono CBR MP3 and the same format check - so a text or a voice setting can be\n" +
+			"auditioned before it goes into sounds_*.yaml.\n" +
 			"\n" +
 			"--voice is the ElevenLabs voice id; --model picks the model\n" +
 			"(eleven_v4, eleven_multilingual_v2, eleven_flash_v2_5, ...).\n" +

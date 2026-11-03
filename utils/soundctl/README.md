@@ -10,15 +10,15 @@ including how to run it against a checkout (see *Local use*).
 
 ## Commands
 
-| command                      | purpose                                                                                                                                                        |
-| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `validate`                   | check `sounds_*.yaml` against `services/sound_service.json` (ids, types, ranges) and the MP3s (16 kHz mono)                                                    |
-| `tts`                        | render the tts variants into 16 kHz mono CBR MP3s (ElevenLabs, then ffmpeg); a `.json` sidecar per file is the cache; `--check` reports missing/stale renders and needs no key, `--keep-going` renders the rest when one variant fails |
-| `tts voices`                 | list the ElevenLabs voices the key may use (`--all` includes the Voice Library ones, which need a paid plan)                                                        |
-| `say`                        | render **one** ad-hoc text with the same chain and play it on this machine — no YAML, no cache. The way to audition a text before it goes into a definition    |
-| `sync`                       | upload changed MP3s, push the definitions blob, remove orphans, optionally set the volume                                                                      |
-| `play` / `stop`              | trigger a tone, sequence, MP3 or configured sound on a running robot                                                                                           |
-| `discover`                   | list the services the low level advertises (first thing to check when `sync` cannot reach it)                                                                  |
+| command         | purpose                                                                                                                                                                                                                                                                       |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `validate`      | check `sounds_*.yaml` against `services/sound_service.json` (ids, types, ranges) and the MP3s (16 kHz mono)                                                                                                                                                                   |
+| `tts`           | render the tts variants into 16 kHz mono CBR MP3s (the engine the YAML names: ElevenLabs or Cartesia, then ffmpeg); a `.json` sidecar per file is the cache; `--check` reports missing/stale renders and needs no key, `--keep-going` renders the rest when one variant fails |
+| `tts voices`    | list the voices of an engine (`--engine`, default ElevenLabs; `--all` also shows its Voice Library, which needs a paid plan)                                                                                                                                                  |
+| `say`           | render **one** ad-hoc text with the same chain and play it on this machine — no YAML, no cache. ElevenLabs only (no engine flag); the way to audition a text before it goes into a definition                                                                                 |
+| `sync`          | upload changed MP3s, push the definitions blob, remove orphans, optionally set the volume                                                                                                                                                                                     |
+| `play` / `stop` | trigger a tone, sequence, MP3 or configured sound on a running robot                                                                                                                                                                                                          |
+| `discover`      | list the services the low level advertises (first thing to check when `sync` cannot reach it)                                                                                                                                                                                 |
 
 ## Local use (dev machine)
 
@@ -68,10 +68,13 @@ go run ./cmd/soundctl say "Hello" --voice 5gaEGrWSk4v20HMfIhgC --out /tmp/hello.
 go run ./cmd/soundctl say "Test" --voice 5gaEGrWSk4v20HMfIhgC --player "mpg123 -q"
 ```
 
-`say` uses the identical engine call, loudness normalisation, encoder and format
-check as `soundctl tts`, so what you hear is what the mower will play. Playback is
-`ffplay -nodisp -autoexit` (comes with the ffmpeg the encoder needs anyway);
-`--player` accepts any command that takes the file as last argument.
+`say` renders with ElevenLabs (`DefaultTTSEngine`; there is no `--engine` flag), so
+it cannot audition the Cartesia announcements of the German file - render those
+with `soundctl tts` and listen to `sounds/de/*.mp3`. Apart from the engine it uses
+the identical call, loudness normalisation, encoder and format check as
+`soundctl tts`. Playback is `ffplay -nodisp -autoexit` (comes with the ffmpeg the
+encoder needs anyway); `--player` accepts any command that takes the file as last
+argument.
 
 ### Check and render the definitions
 
@@ -104,10 +107,10 @@ done
 Which voice speaks which language, and the `tts:` block of a definition, are
 documented in [`sounds/README.md`](../../sounds/README.md). From the CLI:
 
-- `soundctl tts` renders with the engine the YAML names (only `elevenlabs` is
-  left; the offline engines were removed), `soundctl say` takes the same settings
-  as flags: `--voice`, `--model`, `--stability`, `--similarity-boost`, `--style`,
-  `--speaker-boost`.
+- `soundctl tts` renders with the engine the YAML names (`elevenlabs` or
+  `cartesia`; the offline engines were removed). `soundctl say` takes the same
+  ElevenLabs settings as flags: `--voice`, `--model`, `--stability`,
+  `--similarity-boost`, `--style`, `--speaker-boost`.
 - `--voice` is the ElevenLabs voice **id** (20 characters, e.g.
   `5gaEGrWSk4v20HMfIhgC` for "Jeremy"), not a name. `--model` is the model id
   (`eleven_v4`, `eleven_multilingual_v2`, `eleven_flash_v2_5`, ...).
@@ -126,7 +129,7 @@ cmd/soundctl      main
 internal/cli      cobra commands (flags only, no logic)
 internal/fwsync   domain layer: config, validation, MP3 parser, layout/overlay,
                   sidecar cache, sync + play
-internal/tts      ElevenLabs engine, ffmpeg encoder, render pipeline (sidecar cache)
+internal/tts      ElevenLabs + Cartesia engines, ffmpeg encoder, render pipeline (sidecar cache)
 ```
 
 The protocol (discovery, claim, heartbeat, RPC calls, DATA and configuration

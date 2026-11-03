@@ -51,6 +51,16 @@ type Options struct {
 // should not be so long that a soundless robot wastes the whole --wait window.
 const defaultSoundCheckTimeout = 10 * time.Second
 
+// soundCheckTimeout is the probe budget, also used for the reconnect that follows
+// the definitions transaction: a service that does not answer must not turn a
+// successful sync into a hang.
+func soundCheckTimeout(opts Options) time.Duration {
+	if opts.SoundCheckTimeout > 0 {
+		return opts.SoundCheckTimeout
+	}
+	return defaultSoundCheckTimeout
+}
+
 // Sync uploads the MP3 files the definition references but the firmware is
 // missing (or whose content hash differs), removes /sounds/ files that are no
 // longer referenced, and pushes the sound definitions to the SoundService.
@@ -95,10 +105,7 @@ func Sync(ctx context.Context, opts Options) error {
 	// first: a soundless robot is left completely untouched. It is never claimed,
 	// because the high-level system owns it — pushing definitions and the volume
 	// are one-way messages.
-	soundTimeout := opts.SoundCheckTimeout
-	if soundTimeout <= 0 {
-		soundTimeout = defaultSoundCheckTimeout
-	}
+	soundTimeout := soundCheckTimeout(opts)
 	soundCtx, cancel := context.WithTimeout(ctx, soundTimeout)
 	ss, err := soundservice.Dial(soundCtx, xbot.Options{NoClaim: true, BindIP: opts.BindIP})
 	cancel()
@@ -201,7 +208,9 @@ func applyDefinitions(ctx context.Context, cfg *Config, opts Options, ss *sounds
 		return nil
 	}
 
-	ss, err = soundservice.Dial(ctx, xbot.Options{NoClaim: true, BindIP: opts.BindIP})
+	reconnectCtx, cancel := context.WithTimeout(ctx, soundCheckTimeout(opts))
+	ss, err = soundservice.Dial(reconnectCtx, xbot.Options{NoClaim: true, BindIP: opts.BindIP})
+	cancel()
 	if err != nil {
 		slog.Warn("could not reconnect after the restart — master volume not sent", "error", err)
 		return nil

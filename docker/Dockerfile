@@ -97,10 +97,13 @@ COPY --link --from=gobuild /out/soundctl /usr/local/bin/soundctl
 # into sounds/ (the build context) when a TTS secret is configured, and the
 # robot renders whatever is still missing at startup with its own key. A render
 # that is absent is reported as "pending", not as an error.
-RUN for lang in en de; do \
-    soundctl validate \
-    --config "/opt/open_mower_ros/src/open_mower/params/sounds_${lang}.yaml" \
-    --check-mp3; \
+# `set -e`: a loop's status is the last iteration's, so without it a failing `en`
+# would be masked by a passing `de`.
+RUN set -eu; \
+    for lang in en de; do \
+      soundctl validate \
+        --config "/opt/open_mower_ros/src/open_mower/params/sounds_${lang}.yaml" \
+        --check-mp3; \
     done
 
 # delete prebuilt libs (so that they won't shadow the preinstalled ones)

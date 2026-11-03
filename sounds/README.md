@@ -20,7 +20,10 @@ resample. `soundctl validate --check-mp3` checks it.
 
 **Announcements with a `tts:` text are not checked in.** `sounds/<language>/` is
 generated (see `.gitignore`) and rendered by `soundctl tts` in CI before the image
-build. A hand-made recording still works: give the sound a `file:` and no `tts:`.
+build - but only for a language whose engine key is configured. Without one (a
+pull request from a fork, or a revoked/rotated key) the image ships without those
+MP3s and the robot renders them at startup with its own key. A hand-made recording
+still works: give the sound a `file:` and no `tts:`.
 
 ## Sound IDs
 
@@ -164,8 +167,8 @@ playback itself is a firmware feature that is still to come.
   The one-time mount is described in the header of `sounds_en.yaml` /
   `sounds_de.yaml`.
 - Startup (and every low-level connect) runs `sound_sync` from `mower_comms_v2`:
-  1. `soundctl tts` — renders missing/stale announcements (a no-op with the CI
-     pre-renders in the image);
+  1. `soundctl tts` — renders missing/stale announcements (a no-op when the
+     image already carries the CI renders);
   2. `soundctl sync` — validates the definition, uploads missing/changed MP3s via
      the FileService to `/sounds/<file>`, deletes orphaned files from `/sounds/`,
      pushes the `sounds:` map (heatshrink) to the SoundService and optionally sets
@@ -188,12 +191,13 @@ playback itself is a firmware feature that is still to come.
 | FileService discovery (10 s advertisement period)    | ≤ 10 s typical, 30 s window |
 | upload, per MP3 (256-byte RPC chunks + flash commit) | 3–5 s (19 kB)               |
 
-With the pre-renders in the image a start only pays discovery plus uploads
-(`0 rendered, x up to date`) — rendering is the exception (new/changed text).
+With the pre-renders in the image (an image built with a TTS key) a start only
+pays discovery plus uploads (`0 rendered, x up to date`) — rendering is the
+exception (new/changed text).
 
 ## Tooling
 
 The engines, the renderer and the checks live in `soundctl`:
-[`utils/soundctl/README.md`](../../utils/soundctl/README.md) covers installing both
+[`utils/soundctl/README.md`](../utils/soundctl/README.md) covers installing both
 engines and their models/voices, auditioning a text with `say`, and validating or
 rendering a definition from a checkout.

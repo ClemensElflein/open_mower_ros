@@ -119,7 +119,11 @@ jobs:
         if: matrix.variant == 'default'
         uses: actions/cache@v6
         with:
-          path: sounds
+          # Only the per-language render directories: the tracked recordings
+          # (zz_*.mp3, README.md) come from the checkout, not from a cache.
+          path: |
+            sounds/en
+            sounds/de
           key: tts-renders-${{ matrix.docker_build_arch }}-${{ hashFiles('src/open_mower/params/sounds_*.yaml') }}
           restore-keys: tts-renders-${{ matrix.docker_build_arch }}-
 
@@ -164,13 +168,18 @@ jobs:
         run: |
           set -euo pipefail
           go build -o "${RUNNER_TEMP}/soundctl" ./cmd/soundctl
+          # Every language gets its attempt: a failure in `en` must not leave `de`
+          # unrendered. The status is collected instead, so the step still fails
+          # (continue-on-error keeps the image build going).
+          failed=0
           for lang in en de; do
             "${RUNNER_TEMP}/soundctl" tts --keep-going \
               --config "../../src/open_mower/params/sounds_${lang}.yaml" \
               --sound-ids ../../services/sound_service.json \
               --sound-path ../../sounds \
-              --sounds-dir ../../sounds
+              --sounds-dir ../../sounds || failed=1
           done
+          exit "${failed}"
 
       # Without a key nothing was rendered: drop whatever the render cache
       # restored. An image with audio from an older definition looks fine and only
