@@ -39,6 +39,25 @@ func TestValidBaseIsAccepted(t *testing.T) {
 	}
 }
 
+// TestValidCartesiaIsAccepted is the counterpart of TestValidBaseIsAccepted for the
+// second engine: its own minimal block has to validate, and the model falls back to
+// the pinned snapshot.
+func TestValidCartesiaIsAccepted(t *testing.T) {
+	doc := "version: 1\nlanguage: de\nsound_path: /opt/open_mower_ros/sounds\n" +
+		"tts:\n  engine: cartesia\n  cartesia:\n    voice: b7187e84-fe22-4344-ba4a-bc013fcb533e\n" +
+		"sounds:\n  boot_complete:\n    type: mp3\n    volume: 80\n    variants:\n      - \"Hallo\"\n"
+	cfg := loadFixture(t, doc)
+	if errs := cfg.Validate(sharedIDs(t)); len(errs) > 0 {
+		t.Fatalf("valid cartesia definition rejected: %v", errs)
+	}
+	if got := cfg.TTSSettings().Model; got != DefaultCartesiaModel {
+		t.Fatalf("model = %q, want the pinned default %q", got, DefaultCartesiaModel)
+	}
+	if got := cfg.TTSSettings().Engine; got != TTSEngineCartesia {
+		t.Fatalf("engine = %q", got)
+	}
+}
+
 // TestValidateShippedDefinitions keeps the two checked-in definitions valid: the
 // robot runs `soundctl sync` on them, and a validation error there means silence.
 func TestValidateShippedDefinitions(t *testing.T) {
@@ -236,6 +255,11 @@ func TestValidateRejectsBadTTSSettings(t *testing.T) {
 			name: "missing voice",
 			doc:  "version: 1\nlanguage: en\nsound_path: /opt/open_mower_ros/sounds\ntts:\n  engine: elevenlabs\n" + sound,
 			want: "tts.elevenlabs.voice must not be empty",
+		},
+		{
+			name: "missing cartesia voice",
+			doc:  "version: 1\nlanguage: de\nsound_path: /opt/open_mower_ros/sounds\ntts:\n  engine: cartesia\n" + sound,
+			want: "tts.cartesia.voice must not be empty",
 		},
 		{
 			name: "stability out of range",

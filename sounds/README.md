@@ -32,38 +32,38 @@ The value is wire format **and** the key of the overrides the low level persists
 so from now on values are only ever **appended**, never renumbered or reordered — a
 renumbered id would silently address a different sound.
 
-| id | name | when |
-| -: | ---- | ---- |
-| 0 | `BOOT_PING` | stage 2 waits for ROS (repeats every 2 s) |
-| 1 | `BOOT_COMPLETE` | the firmware is up |
-| 2 | `SUCCESS` | generic positive ack |
-| 3 | `WARNING` | generic warning |
-| 4 | `ERROR` | generic error |
-| 5 | `EMERGENCY` | an audible emergency was latched (preempts everything) |
-| 6 | `EMERGENCY_CLEARED` | the emergency is over |
-| 7 | `ROS_CONNECTED` | the high level is up |
-| 8 | `ROS_DISCONNECTED` | the high level heartbeat stopped |
-| 9 | `GPS_RTK_FIX` | RTK fix acquired |
-| 10 | `GPS_RTK_LOST` | RTK fix lost |
-| 11 | `AUTONOMOUS_NOTICE` | "stay back, autonomous mower at work" |
-| 12 | `VOLUME_UP` | one step louder |
-| 13 | `VOLUME_DOWN` | one step quieter |
-| 14 | `LOW_BATTERY` | battery is low |
-| 15 | `CHARGING_START` | charging started |
-| 16 | `CHARGING_DONE` | battery full |
-| 17 | `SHUTDOWN_SAFE` | the Pi is down, safe to power off |
-| 18 | `MOWING_START` | starting to mow |
-| 19 | `MOWING_PAUSED` | mowing paused (state `PAUSED`) |
-| 20 | `MOWING_RESUMED` | mowing continues |
-| 21 | `MOWING_COMPLETE` | done, heading back to the station |
-| 22 | `DOCKING_START` | heading back to the charging station |
-| 23 | `AREA_RECORDING_MODE` | entering the area-recording mode |
-| 24 | `RAIN_DETECTED` | rain, heading back to the station |
-| 25 | `LIFT_TRIGGERED` | wheel-lift sensor triggered an emergency |
-| 26 | `COLLISION_TRIGGERED` | collision sensor triggered an emergency |
-| 27 | `MOWER_BLOCKED` | the mower motor is blocked (RPM limit/timeout) |
-| 28 | `STOP_BUTTON` | the stop button was pressed |
-| 29 | `RECOVERED` | a recovery manoeuvre finished |
+|   id | name                  | when                                                   |
+| ---: | --------------------- | ------------------------------------------------------ |
+|    0 | `BOOT_PING`           | stage 2 waits for ROS (repeats every 2 s)              |
+|    1 | `BOOT_COMPLETE`       | the firmware is up                                     |
+|    2 | `SUCCESS`             | generic positive ack                                   |
+|    3 | `WARNING`             | generic warning                                        |
+|    4 | `ERROR`               | generic error                                          |
+|    5 | `EMERGENCY`           | an audible emergency was latched (preempts everything) |
+|    6 | `EMERGENCY_CLEARED`   | the emergency is over                                  |
+|    7 | `ROS_CONNECTED`       | the high level is up                                   |
+|    8 | `ROS_DISCONNECTED`    | the high level heartbeat stopped                       |
+|    9 | `GPS_RTK_FIX`         | RTK fix acquired                                       |
+|   10 | `GPS_RTK_LOST`        | RTK fix lost                                           |
+|   11 | `AUTONOMOUS_NOTICE`   | "stay back, autonomous mower at work"                  |
+|   12 | `VOLUME_UP`           | one step louder                                        |
+|   13 | `VOLUME_DOWN`         | one step quieter                                       |
+|   14 | `LOW_BATTERY`         | battery is low                                         |
+|   15 | `CHARGING_START`      | charging started                                       |
+|   16 | `CHARGING_DONE`       | battery full                                           |
+|   17 | `SHUTDOWN_SAFE`       | the Pi is down, safe to power off                      |
+|   18 | `MOWING_START`        | starting to mow                                        |
+|   19 | `MOWING_PAUSED`       | mowing paused (state `PAUSED`)                         |
+|   20 | `MOWING_RESUMED`      | mowing continues                                       |
+|   21 | `MOWING_COMPLETE`     | done, heading back to the station                      |
+|   22 | `DOCKING_START`       | heading back to the charging station                   |
+|   23 | `AREA_RECORDING_MODE` | entering the area-recording mode                       |
+|   24 | `RAIN_DETECTED`       | rain, heading back to the station                      |
+|   25 | `LIFT_TRIGGERED`      | wheel-lift sensor triggered an emergency               |
+|   26 | `COLLISION_TRIGGERED` | collision sensor triggered an emergency                |
+|   27 | `MOWER_BLOCKED`       | the mower motor is blocked (RPM limit/timeout)         |
+|   28 | `STOP_BUTTON`         | the stop button was pressed                            |
+|   29 | `RECOVERED`           | a recovery manoeuvre finished                          |
 
 Ids the high level fills in carry **no ROM sound**: they stay silent until
 `sounds_<lang>.yaml` defines an announcement (TTS text or recording), so a trigger that
@@ -76,29 +76,43 @@ work without any configuration:
 
 ## Engine and voices
 
-Both languages use ElevenLabs; the engine is picked per definition, so a language
-can use another voice, model or voice setting:
+The engine is picked per language file, so one language can use ElevenLabs and
+another Cartesia:
 
-| language | voice                           | model       |
-| -------- | ------------------------------- | ----------- |
-| English  | `5gaEGrWSk4v20HMfIhgC` (Jeremy) | `eleven_v4` |
-| German   | `I5mfJk5ETJFOHZxoRrHq` (Hans)   | `eleven_v4` |
+| language | engine       | voice                                              | model                  |
+| -------- | ------------ | -------------------------------------------------- | ---------------------- |
+| English  | `elevenlabs` | `TX3LPaxmHKxFdv7VOQHJ` (Liam)                      | `eleven_v4`            |
+| German   | `cartesia`   | `b7187e84-fe22-4344-ba4a-bc013fcb533e` (Sebastian) | `sonic-3.6-2026-08-27` |
 
 ```yaml
+# ElevenLabs (sounds_en.yaml)
 tts:
   engine: elevenlabs
   bitrate: 32k             # our encoder
   loudnorm: true           # EBU R128, so all announcements are equally loud
   elevenlabs:
     model: eleven_v4       # or eleven_multilingual_v2 / eleven_flash_v2_5
-    voice: 5gaEGrWSk4v20HMfIhgC
+    voice: TX3LPaxmHKxFdv7VOQHJ
     stability: 0.5
     similarity_boost: 0.75
     style: 0.0
     use_speaker_boost: true
+
+# Cartesia (sounds_de.yaml)
+tts:
+  engine: cartesia
+  bitrate: 32k
+  loudnorm: true
+  cartesia:
+    model: sonic-3.6-2026-08-27   # dated snapshot: a render keeps sounding the same
+    voice: b7187e84-fe22-4344-ba4a-bc013fcb533e
 ```
 
-The text goes to the ElevenLabs API and the returned 16 kHz audio is normalised
+Cartesia has no counterpart of the ElevenLabs voice settings (stability, style,
+speaker boost). Both engines are asked for 16 kHz audio, which is the rate the
+firmware plays.
+
+The text goes to the selected engine and the returned 16 kHz audio is normalised
 and encoded by ffmpeg. Nothing runs locally.
 The API key never belongs in these files: it
 comes from `--api-key`, `--api-key-file`, `$ELEVENLABS_API_KEY` or

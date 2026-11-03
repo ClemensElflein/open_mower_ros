@@ -112,16 +112,17 @@ jobs:
           sudo apt-get install -y --no-install-recommends ffmpeg
 
       # A step's `if` cannot read a secret directly, so detect it in its own step.
-      - name: Check for the ElevenLabs key
+      - name: Check for the TTS keys
         id: tts_key
         env:
-          KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          ELEVEN: ${{ secrets.ELEVENLABS_API_KEY }}
+          CARTESIA: ${{ secrets.CARTESIA_API_KEY }}
         run: |
-          if [ -n "${KEY}" ]; then
+          if [ -n "${ELEVEN}" ] || [ -n "${CARTESIA}" ]; then
             echo "available=true" >> "${GITHUB_OUTPUT}"
           else
             echo "available=false" >> "${GITHUB_OUTPUT}"
-            echo "::notice::No ELEVENLABS_API_KEY secret - skipping the render check."
+            echo "::notice::No ELEVENLABS_API_KEY / CARTESIA_API_KEY secret - skipping the render check."
           fi
 
       - name: Render and verify the announcements
@@ -129,6 +130,7 @@ jobs:
         working-directory: utils/soundctl
         env:
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          CARTESIA_API_KEY: ${{ secrets.CARTESIA_API_KEY }}
         run: |
           set -euo pipefail
           out="${RUNNER_TEMP}/sounds"

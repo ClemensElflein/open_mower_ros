@@ -71,8 +71,19 @@ func ValidateTTSSettings(set TTSSettings) []string {
 	if _, err := ParseBitrate(set.Bitrate); err != nil {
 		errs = append(errs, "tts."+err.Error())
 	}
-	if set.Engine != "elevenlabs" {
-		return append(errs, fmt.Sprintf("tts.engine %q is not supported (use \"elevenlabs\")", set.Engine))
+	switch set.Engine {
+	case TTSEngineCartesia:
+		if strings.TrimSpace(set.Model) == "" {
+			errs = append(errs, "tts.cartesia.model must not be empty (a Sonic model id, e.g. \"sonic-3.6-2026-08-27\")")
+		}
+		if strings.TrimSpace(set.Voice) == "" {
+			errs = append(errs, "tts.cartesia.voice must not be empty (a Cartesia voice id; `soundctl tts voices --engine cartesia` lists them)")
+		}
+		return errs
+	case TTSEngineElevenLabs:
+		// checked below
+	default:
+		return append(errs, fmt.Sprintf("tts.engine %q is not supported (use %q or %q)", set.Engine, TTSEngineElevenLabs, TTSEngineCartesia))
 	}
 	if strings.TrimSpace(set.Model) == "" {
 		errs = append(errs, "tts.elevenlabs.model must not be empty (e.g. \"eleven_v4\")")

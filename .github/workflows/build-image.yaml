@@ -128,20 +128,21 @@ jobs:
           sudo apt-get install -y --no-install-recommends ffmpeg
           ffmpeg -version | head -1
 
-      # Rendering needs the ElevenLabs key, which is a repository secret: a pull
+      # Rendering needs the API keys, which are repository secrets: a pull
       # request from a fork never sees it. Detect it in its own step, because a
       # step's `if` cannot read a secret directly.
-      - name: Check for the ElevenLabs key
+      - name: Check for the TTS keys
         id: tts_key
         if: matrix.variant == 'default'
         env:
-          KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          ELEVEN: ${{ secrets.ELEVENLABS_API_KEY }}
+          CARTESIA: ${{ secrets.CARTESIA_API_KEY }}
         run: |
-          if [ -n "${KEY}" ]; then
+          if [ -n "${ELEVEN}" ] || [ -n "${CARTESIA}" ]; then
             echo "available=true" >> "${GITHUB_OUTPUT}"
           else
             echo "available=false" >> "${GITHUB_OUTPUT}"
-            echo "::notice::No ELEVENLABS_API_KEY secret - this build ships without the announcements (the robot renders them with its own key)."
+            echo "::notice::No ELEVENLABS_API_KEY / CARTESIA_API_KEY secret - this build ships without the announcements (the robot renders them with its own key)."
           fi
 
       # Best effort on purpose: a failed render (API down, licence, rate limit)
@@ -155,6 +156,7 @@ jobs:
         working-directory: utils/soundctl
         env:
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          CARTESIA_API_KEY: ${{ secrets.CARTESIA_API_KEY }}
         run: |
           set -euo pipefail
           go build -o "${RUNNER_TEMP}/soundctl" ./cmd/soundctl

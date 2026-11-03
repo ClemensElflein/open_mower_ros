@@ -19,10 +19,16 @@ import (
 // TTS defaults. They are part of the render cache key (see TTSIdentity), so
 // changing one of them re-renders every announcement on the next tts run.
 const (
-	// DefaultTTSEngine is the only engine: the ElevenLabs cloud API. The
-	// offline engines (Supertonic, Piper) were removed; an older definition that
-	// still names one fails with "unsupported tts engine".
-	DefaultTTSEngine = "elevenlabs"
+	// DefaultTTSEngine is what a definition gets when it does not name one: the
+	// ElevenLabs cloud API. The offline engines (Supertonic, Piper) were removed;
+	// an older definition that still names one fails with "unsupported tts engine".
+	DefaultTTSEngine = TTSEngineElevenLabs
+	// TTSEngineElevenLabs and TTSEngineCartesia are the cloud engines. The engine is
+	// chosen per file (sounds_<lang>.yaml), so one language can use ElevenLabs and
+	// another Cartesia.
+	TTSEngineElevenLabs  = "elevenlabs"
+	TTSEngineCartesia    = "cartesia"
+	DefaultCartesiaModel = "sonic-3.6"
 	// DefaultTTSModel is the ElevenLabs model id. eleven_v4 is the quality
 	// model; eleven_multilingual_v2 is the more conservative alternative and
 	// eleven_flash_v2_5 the cheap/fast one (see the ElevenLabs model list).
@@ -162,6 +168,9 @@ type TTSConfig struct {
 	// ElevenLabs is used when engine is "elevenlabs" (the cloud engine).
 	ElevenLabs ElevenLabsConfig `yaml:"elevenlabs"`
 
+	// Cartesia is used when engine is "cartesia" (the other cloud engine).
+	Cartesia CartesiaConfig `yaml:"cartesia"`
+
 	// Deprecated inputs of the removed offline engines. They are decoded only so
 	// the validator can refuse an old file instead of silently voicing it with a
 	// different engine.
@@ -185,6 +194,16 @@ type ElevenLabsConfig struct {
 	SimilarityBoost *float64 `yaml:"similarity_boost"`
 	Style           *float64 `yaml:"style"`
 	UseSpeakerBoost *bool    `yaml:"use_speaker_boost"`
+}
+
+// CartesiaConfig is used when tts.engine is "cartesia".
+type CartesiaConfig struct {
+	// Model is a Cartesia model id ("" = DefaultCartesiaModel, a pinned
+	// sonic-3.6 snapshot). "sonic-3.6" follows the newest stable release.
+	Model string `yaml:"model"`
+	// Voice is the Cartesia voice *id* (not a name);
+	// `soundctl tts voices --engine cartesia` lists the ids of the account.
+	Voice string `yaml:"voice"`
 }
 
 // SupertonicConfig is the engine block of the sherpa-onnx Supertonic engine.
@@ -326,8 +345,8 @@ type TTSSettings struct {
 	Engine          string
 	Bitrate         string
 	LoudNorm        bool
-	Model           string // ElevenLabs model id
-	Voice           string // ElevenLabs voice id
+	Model           string // engine model id (ElevenLabs or Cartesia)
+	Voice           string // engine voice id
 	Stability       float64
 	SimilarityBoost float64
 	Style           float64
@@ -337,19 +356,13 @@ type TTSSettings struct {
 // TTSSettings resolves the top-level tts block, applying the package defaults.
 func (c *Config) TTSSettings() TTSSettings {
 	s := TTSSettings{
-		Engine:          DefaultTTSEngine,
-		Bitrate:         DefaultTTSBitrate,
-		Model:           DefaultTTSModel,
-		Stability:       DefaultTTSStability,
-		SimilarityBoost: DefaultTTSSimilarityBoost,
-		Style:           DefaultTTSStyle,
-		UseSpeakerBoost: DefaultTTSUseSpeakerBoost,
+		Engine:  DefaultTTSEngine,
+		Bitrate: DefaultTTSBitrate,
 		// Loudness normalisation is on by default: raw engine output is ~9 dB
 		// quieter than the rest of the corpus and varies by up to 3 LU between
 		// sentences, which is audible over the mower.
 		LoudNorm: true,
 	}
-
 	if c.TTS.Engine != "" {
 		s.Engine = c.TTS.Engine
 	}
@@ -360,11 +373,27 @@ func (c *Config) TTSSettings() TTSSettings {
 		s.LoudNorm = *c.TTS.LoudNorm
 	}
 
+	if s.Engine == TTSEngineCartesia {
+		// Cartesia has no counterpart of the ElevenLabs voice knobs, so they stay
+		// zero - which also keeps them out of the render identity.
+		s.Model = DefaultCartesiaModel
+		if c.TTS.Cartesia.Model != "" {
+			s.Model = c.TTS.Cartesia.Model
+		}
+		s.Voice = c.TTS.Cartesia.Voice
+		return s
+	}
+
 	el := c.TTS.ElevenLabs
+	s.Model = DefaultTTSModel
 	if el.Model != "" {
 		s.Model = el.Model
 	}
 	s.Voice = el.Voice
+	s.Stability = DefaultTTSStability
+	s.SimilarityBoost = DefaultTTSSimilarityBoost
+	s.Style = DefaultTTSStyle
+	s.UseSpeakerBoost = DefaultTTSUseSpeakerBoost
 	if el.Stability != nil {
 		s.Stability = *el.Stability
 	}
@@ -389,8 +418,8 @@ func (c *Config) TTSSettings() TTSSettings {
 // setting re-renders the announcements.
 type TTSIdentity struct {
 	Engine          string
-	Model           string // ElevenLabs model id
-	Voice           string // ElevenLabs voice id
+	Model           string // engine model id (ElevenLabs or Cartesia)
+	Voice           string // engine voice id
 	Language        string
 	Text            string
 	Bitrate         string
@@ -434,6 +463,9 @@ func (t TTSIdentity) String() string {
 	loud := "raw"
 	if t.LoudNorm {
 		loud = "loudnorm"
+	}
+	if t.Engine == TTSEngineCartesia {
+		return fmt.Sprintf("%s %s voice=%s %s %s %s", t.Engine, t.Model, t.Voice, t.Bitrate, loud, t.Language)
 	}
 	boost := "noboost"
 	if t.UseSpeakerBoost {

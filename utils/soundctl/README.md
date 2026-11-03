@@ -22,20 +22,23 @@ including how to run it against a checkout (see *Local use*).
 
 ## Local use (dev machine)
 
-### The ElevenLabs key
+### The API keys
 
-Nothing is downloaded or installed: the only asset is the API key. Resolution
-order (first hit wins):
+Nothing is downloaded or installed: the only assets are the API keys of the two
+engines (the engine is chosen per language file). Resolution order, first hit
+wins, per engine:
 
 ```
---api-key  >  --api-key-file  >  $ELEVENLABS_API_KEY  >  /data/sounds/.elevenlabs.key
+--api-key > --api-key-file > $ELEVENLABS_API_KEY > /data/sounds/.elevenlabs.key
+                            $CARTESIA_API_KEY   > /data/sounds/.cartesia.key
 ```
 
 On the mower the key belongs in `/data/sounds/.elevenlabs.key` (mode 600): that
 directory is the writable overlay, it is mounted by everyone who customises
 sounds anyway, and it is never uploaded (`sync` only sends the files named in
 `sounds_*.yaml`) nor deleted (`cleanup` compares the low level's listing against
-those names). Locally, exporting `ELEVENLABS_API_KEY` is enough.
+those names). Locally, exporting the engine's variable is enough
+(`ELEVENLABS_API_KEY` / `CARTESIA_API_KEY`).
 
 `tts --check` and `validate --check-mp3` need no key at all, so CI and a fork can
 gate the definitions without a secret.
@@ -46,8 +49,9 @@ free tier, Voice Library voices (`community`, e.g. most non-English ones) need a
 paid subscription. `soundctl tts voices` asks the API instead of the portal:
 
 ```bash
-soundctl tts voices                    # premade, free-tier usable
-soundctl tts voices --all --language de # everything German, incl. the library ones
+soundctl tts voices                    # ElevenLabs, premade (free tier)
+soundctl tts voices --all --language de # ElevenLabs, everything German, incl. the library ones
+soundctl tts voices --engine cartesia --language de   # Cartesia voices
 ```
 
 ### Audition a text

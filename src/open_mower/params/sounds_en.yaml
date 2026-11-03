@@ -90,21 +90,26 @@
 #           are flat, everything that belongs to ElevenLabs sits in the
 #           elevenlabs block. All of it is part of the render cache key, so
 #           changing one re-renders every announcement of this file.
-#   engine     elevenlabs (the only engine; the offline Piper/Supertonic engines
-#              were removed - they needed ~330 MB of models in the image)
+#   engine     elevenlabs or cartesia
 #   bitrate    MP3 bitrate, e.g. 32k/48k/64k (CBR, 16 kHz mono, keep it small)
 #   loudnorm   EBU R128 to -16 LUFS, so all announcements are equally loud
 #   elevenlabs
 #     model    ElevenLabs model id: eleven_v4 (quality), eleven_multilingual_v2
 #              (most stable, the API default) or eleven_flash_v2_5 (cheap/fast)
-#     voice    voice id (not a name); `soundctl tts --help` shows where the key
-#              goes, the id is listed in the ElevenLabs portal
+#     voice    voice id (not a name); `soundctl tts voices` lists them
 #     stability / similarity_boost / style   0..1, use_speaker_boost  true|false
+#   cartesia
+#     model    Sonic model id. The default pins a dated snapshot
+#              (sonic-3.6-2026-08-27), so a rendered corpus keeps sounding the
+#              same; "sonic-3.6" would follow the newest stable release.
+#     voice    Cartesia voice id (not a name);
+#              `soundctl tts voices --engine cartesia` lists them. Cartesia has
+#              no stability/style knobs.
 #
-# The text is sent to the ElevenLabs API and the returned 16 kHz audio is
-# normalised and encoded by ffmpeg. The API key is never part of this file: it
-# comes from --api-key, --api-key-file, $ELEVENLABS_API_KEY or
-# /data/sounds/.elevenlabs.key (first hit wins).
+# The text is sent to the selected engine and the returned 16 kHz audio is
+# normalised and encoded by ffmpeg. An API key is never part of this file: it
+# comes from --api-key, --api-key-file, $ELEVENLABS_API_KEY / $CARTESIA_API_KEY
+# or /data/sounds/.elevenlabs.key / /data/sounds/.cartesia.key (first hit wins).
 # Without a key the robot logs it, skips the render and still syncs what it has.
 #
 # MP3 file naming convention (see sounds/README.md):
@@ -124,6 +129,10 @@ tts:
   engine: elevenlabs
   bitrate: 32k
   loudnorm: true
+
+  cartesia:
+    model: sonic-3.6
+    voice: b7187e84-fe22-4344-ba4a-bc013fcb533e # Sebastian
 
   elevenlabs:
     model: eleven_v4

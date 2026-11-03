@@ -51,25 +51,37 @@ func dataSoundsDir(data string, isDir func(string) bool) string {
 // against those names) - hence the dot-file name.
 const DefaultAPIKeyFile = "/data/sounds/.elevenlabs.key"
 
+// DefaultCartesiaAPIKeyFile is the same trick for the Cartesia key.
+const DefaultCartesiaAPIKeyFile = "/data/sounds/.cartesia.key"
+
 // apiKey resolves the ElevenLabs key: explicit flag, explicit file, then
 // $ELEVENLABS_API_KEY, then the default file. The environment is what CI (a
 // repository secret) and a dev shell use; the file is what the mower uses.
-func apiKey(explicit, explicitFile, defaultFile string) (string, error) {
+func apiKey(engine, explicit, explicitFile string) (string, error) {
 	if v := strings.TrimSpace(explicit); v != "" {
 		return v, nil
 	}
 	if explicitFile != "" {
 		return readKeyFile(explicitFile)
 	}
-	if v := strings.TrimSpace(os.Getenv("ELEVENLABS_API_KEY")); v != "" {
+	env, file := apiKeySource(engine)
+	if v := strings.TrimSpace(os.Getenv(env)); v != "" {
 		return v, nil
 	}
-	if defaultFile != "" {
-		if v, err := readKeyFile(defaultFile); err == nil && v != "" {
-			return v, nil
-		}
+	if v, err := readKeyFile(file); err == nil && v != "" {
+		return v, nil
 	}
-	return "", fmt.Errorf("no ElevenLabs API key: pass --api-key/--api-key-file, set $ELEVENLABS_API_KEY, or write %s", defaultFile)
+	return "", fmt.Errorf("no %s API key: pass --api-key/--api-key-file, set $%s, or write %s", engine, env, file)
+}
+
+// apiKeySource names the environment variable and the default file of an engine.
+// The environment is what CI (a repository secret) and a dev shell use; the file
+// is what the mower uses.
+func apiKeySource(engine string) (env, file string) {
+	if engine == fwsync.TTSEngineCartesia {
+		return "CARTESIA_API_KEY", DefaultCartesiaAPIKeyFile
+	}
+	return "ELEVENLABS_API_KEY", DefaultAPIKeyFile
 }
 
 // readKeyFile reads a key file. Editors append a newline, so the value is
@@ -107,9 +119,9 @@ func (f *ttsFlags) register(cmd *cobra.Command) {
 	fl.StringVar(&f.soundIDs, "sound-ids", defaultSoundIDsPath, "path to the shared definition (sound_service.json)")
 	fl.StringVar(&f.soundsDir, "sounds-dir", defaultSoundsDir(), "writable overlay with customised/rendered MP3s (empty: only sound_path)")
 	layoutFlag(cmd, &f.soundPathOv)
-	fl.StringVar(&f.apiKey, "api-key", "", "ElevenLabs API key (instead of the file/environment); never put it in sounds_*.yaml")
-	fl.StringVar(&f.apiKeyFile, "api-key-file", "", "file holding the ElevenLabs API key (default: $ELEVENLABS_API_KEY, "+DefaultAPIKeyFile+")")
-	fl.StringVar(&f.apiURL, "api-url", "", "ElevenLabs API root (default: "+tts.DefaultElevenLabsURL+"; e.g. https://api.eu.residency.elevenlabs.io)")
+	fl.StringVar(&f.apiKey, "api-key", "", "API key of the engine (instead of the file/environment); never put it in sounds_*.yaml")
+	fl.StringVar(&f.apiKeyFile, "api-key-file", "", "file holding the API key of the engine (default: $ELEVENLABS_API_KEY / "+DefaultAPIKeyFile+", or $CARTESIA_API_KEY / "+DefaultCartesiaAPIKeyFile+")")
+	fl.StringVar(&f.apiURL, "api-url", "", "API root (default: "+tts.DefaultElevenLabsURL+" for elevenlabs - e.g. the EU host - and "+tts.DefaultCartesiaURL+" for cartesia)")
 	fl.StringVar(&f.ffmpeg, "ffmpeg", "ffmpeg", "ffmpeg binary used for encoding")
 	fl.BoolVar(&f.force, "force", false, "re-render even if the sidecar says the file is up to date")
 	fl.BoolVar(&f.check, "check", false, "render nothing, only report missing/stale renders (exit 1 if any)")
@@ -120,14 +132,19 @@ func (f *ttsFlags) register(cmd *cobra.Command) {
 // `soundctl tts` (engine from the YAML) and `soundctl say` (engine from flags),
 // so both always use the same engine.
 func (f *ttsFlags) engineFor(set fwsync.TTSSettings) (tts.Engine, error) {
-	if set.Engine != fwsync.DefaultTTSEngine {
-		return nil, fmt.Errorf("tts.engine %q is not supported (use %q)", set.Engine, fwsync.DefaultTTSEngine)
-	}
-	key, err := apiKey(f.apiKey, f.apiKeyFile, DefaultAPIKeyFile)
+	key, err := apiKey(set.Engine, f.apiKey, f.apiKeyFile)
 	if err != nil {
 		return nil, err
 	}
-	return tts.ElevenLabs{APIKey: key, BaseURL: f.apiURL}, nil
+	switch set.Engine {
+	case fwsync.TTSEngineCartesia:
+		return tts.Cartesia{APIKey: key, BaseURL: f.apiURL}, nil
+	case fwsync.TTSEngineElevenLabs:
+		return tts.ElevenLabs{APIKey: key, BaseURL: f.apiURL}, nil
+	default:
+		return nil, fmt.Errorf("tts.engine %q is not supported (use %q or %q)", set.Engine,
+			fwsync.TTSEngineElevenLabs, fwsync.TTSEngineCartesia)
+	}
 }
 
 func (f *ttsFlags) run(cmd *cobra.Command) error {
@@ -224,28 +241,59 @@ func newTTSVoicesCmd() *cobra.Command {
 		all        bool
 		language   string
 		search     string
+		engine     string
 		apiKeyVal  string
 		apiKeyFile string
 		apiURL     string
 	)
 	cmd := &cobra.Command{
 		Use:   "voices",
-		Short: "List the ElevenLabs voices this API key can use",
-		Long: "Queries GET /v2/voices and prints id, name, category and labels.\n" +
-			"The default filter shows the premade voices (category premade), which a\n" +
-			"free plan may use through the API; \"--all\" also shows the Voice Library\n" +
-			"(community) voices, which need a paid plan for API use.\n" +
+		Short: "List the voices the API key of an engine can use",
+		Long: "Queries the voice list of the engine (ElevenLabs GET /v2/voices, Cartesia GET /voices)\n" +
+			"and prints the id, language and name, so the id can go into the matching\n" +
+			"block of sounds_*.yaml (tts.elevenlabs.voice or tts.cartesia.voice).\n" +
 			"\n" +
-			"The id goes into tts.elevenlabs.voice of sounds_*.yaml.",
+			"For ElevenLabs the default filter shows the premade voices (category premade),\n" +
+			"which a free plan may use through the API; \"--all\" also shows the Voice\n" +
+			"Library (community) voices, which need a paid plan for API use.",
 		Example: "  soundctl tts voices\n" +
 			"  soundctl tts voices --all --language de\n" +
-			"  soundctl tts voices --search steve",
+			"  soundctl tts voices --search steve\n" +
+			"  soundctl tts voices --engine cartesia --language de",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			key, err := apiKey(apiKeyVal, apiKeyFile, DefaultAPIKeyFile)
+			key, err := apiKey(engine, apiKeyVal, apiKeyFile)
 			if err != nil {
 				return err
 			}
+			out := cmd.OutOrStdout()
+
+			if engine == fwsync.TTSEngineCartesia {
+				voices, err := tts.Cartesia{APIKey: key, BaseURL: apiURL}.Voices()
+				if err != nil {
+					return err
+				}
+				w := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
+				fmt.Fprintln(w, "VOICE_ID\tLANGUAGE\tGENDER\tNAME\tDESCRIPTION")
+				shown := 0
+				for _, v := range voices {
+					if search != "" && !strings.Contains(strings.ToLower(v.Name+" "+v.Description), strings.ToLower(search)) {
+						continue
+					}
+					if language != "" && !strings.Contains(strings.ToLower(v.Language), strings.ToLower(language)) {
+						continue
+					}
+					fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", v.ID, v.Language, v.Gender, v.Name, v.Description)
+					shown++
+				}
+				if err := w.Flush(); err != nil {
+					return err
+				}
+				fmt.Fprintf(out, "\n%d of %d voice(s) shown.\n", shown, len(voices))
+				fmt.Fprintln(out, "The id goes into tts.cartesia.voice of sounds_*.yaml.")
+				return nil
+			}
+
 			filter := voiceType
 			if all {
 				filter = ""
@@ -255,7 +303,6 @@ func newTTSVoicesCmd() *cobra.Command {
 				return err
 			}
 
-			out := cmd.OutOrStdout()
 			w := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
 			fmt.Fprintln(w, "VOICE_ID\tCATEGORY\tLANGUAGE\tNAME\tLABELS")
 			shown := 0
@@ -274,19 +321,22 @@ func newTTSVoicesCmd() *cobra.Command {
 				return err
 			}
 			fmt.Fprintf(out, "\n%d of %d voice(s) shown.\n", shown, len(voices))
+			fmt.Fprintln(out, "The id goes into tts.elevenlabs.voice of sounds_*.yaml.")
 			fmt.Fprintln(out, "The premade (default) voices work with a free plan via the API;",
 				"Voice Library (community) voices need a paid subscription.")
 			return nil
 		},
 	}
 	fl := cmd.Flags()
+	fl.StringVar(&engine, "engine", fwsync.DefaultTTSEngine, "engine whose voices are listed: "+
+		fwsync.TTSEngineElevenLabs+" or "+fwsync.TTSEngineCartesia)
 	fl.StringVar(&voiceType, "type", "default", "voice_type filter: default (premade), community (Voice Library), personal, workspace")
 	fl.BoolVar(&all, "all", false, "no voice_type filter (everything the account can see)")
 	fl.StringVar(&language, "language", "", "only voices labelled with this language (e.g. de)")
 	fl.StringVar(&search, "search", "", "substring match on the voice name")
-	fl.StringVar(&apiKeyVal, "api-key", "", "ElevenLabs API key (instead of the file/environment)")
-	fl.StringVar(&apiKeyFile, "api-key-file", "", "file holding the ElevenLabs API key")
-	fl.StringVar(&apiURL, "api-url", "", "ElevenLabs API root (default: "+tts.DefaultElevenLabsURL+")")
+	fl.StringVar(&apiKeyVal, "api-key", "", "API key of the engine (instead of the file/environment)")
+	fl.StringVar(&apiKeyFile, "api-key-file", "", "file holding the API key of the engine")
+	fl.StringVar(&apiURL, "api-url", "", "API root (default: "+tts.DefaultElevenLabsURL+" for elevenlabs, "+tts.DefaultCartesiaURL+" for cartesia)")
 	return cmd
 }
 
