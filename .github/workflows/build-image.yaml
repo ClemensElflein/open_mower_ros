@@ -1,5 +1,9 @@
 name: Build
 
+# See soundctl.yaml: without `run-name`, every run in the Actions list carries
+# the PR or commit title instead of the workflow name.
+run-name: Build (${{ github.head_ref || github.ref_name }})
+
 # Controls when the workflow will run
 on:
   workflow_dispatch:

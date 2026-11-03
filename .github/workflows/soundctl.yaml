@@ -1,5 +1,11 @@
 name: soundctl
 
+# GitHub titles a run with the PR or commit title unless `run-name` is set, so
+# without this every run in the Actions list is labelled with the PR title. The
+# workflow name plus the branch reads better; the PR number and event stay
+# visible in the run's own header.
+run-name: soundctl (${{ github.head_ref || github.ref_name }})
+
 # Build, vet and test the soundctl module (utils/soundctl) and validate the
 # shipped sound definitions. The module is pure Go with no robot/network
 # dependency, so all of this runs in well under a minute and catches the cheap
