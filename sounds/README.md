@@ -22,6 +22,58 @@ resample. `soundctl validate --check-mp3` checks it.
 generated (see `.gitignore`) and rendered by `soundctl tts` in CI before the image
 build. A hand-made recording still works: give the sound a `file:` and no `tts:`.
 
+## Sound IDs
+
+`SoundId` in `services/sound_service.json` is the catalogue of playable sounds, and the
+keys in `sounds_<lang>.yaml` are these names. The list is ordered so that the sounds the
+low level needs most sit together (flash-friendly grouping of the persisted overrides).
+
+The value is wire format **and** the key of the overrides the low level persists in flash,
+so from now on values are only ever **appended**, never renumbered or reordered — a
+renumbered id would silently address a different sound.
+
+| id | name | when |
+| -: | ---- | ---- |
+| 0 | `BOOT_PING` | stage 2 waits for ROS (repeats every 2 s) |
+| 1 | `BOOT_COMPLETE` | the firmware is up |
+| 2 | `SUCCESS` | generic positive ack |
+| 3 | `WARNING` | generic warning |
+| 4 | `ERROR` | generic error |
+| 5 | `EMERGENCY` | an audible emergency was latched (preempts everything) |
+| 6 | `EMERGENCY_CLEARED` | the emergency is over |
+| 7 | `ROS_CONNECTED` | the high level is up |
+| 8 | `ROS_DISCONNECTED` | the high level heartbeat stopped |
+| 9 | `GPS_RTK_FIX` | RTK fix acquired |
+| 10 | `GPS_RTK_LOST` | RTK fix lost |
+| 11 | `AUTONOMOUS_NOTICE` | "stay back, autonomous mower at work" |
+| 12 | `VOLUME_UP` | one step louder |
+| 13 | `VOLUME_DOWN` | one step quieter |
+| 14 | `LOW_BATTERY` | battery is low |
+| 15 | `CHARGING_START` | charging started |
+| 16 | `CHARGING_DONE` | battery full |
+| 17 | `SHUTDOWN_SAFE` | the Pi is down, safe to power off |
+| 18 | `MOWING_START` | starting to mow |
+| 19 | `MOWING_PAUSED` | mowing paused (state `PAUSED`) |
+| 20 | `MOWING_RESUMED` | mowing continues |
+| 21 | `MOWING_COMPLETE` | done, heading back to the station |
+| 22 | `DOCKING_START` | heading back to the charging station |
+| 23 | `AREA_RECORDING_MODE` | entering the area-recording mode |
+| 24 | `RAIN_DETECTED` | rain, heading back to the station |
+| 25 | `LIFT_TRIGGERED` | wheel-lift sensor triggered an emergency |
+| 26 | `COLLISION_TRIGGERED` | collision sensor triggered an emergency |
+| 27 | `MOWER_BLOCKED` | the mower motor is blocked (RPM limit/timeout) |
+| 28 | `STOP_BUTTON` | the stop button was pressed |
+| 29 | `RECOVERED` | a recovery manoeuvre finished |
+
+Ids the high level fills in carry **no ROM sound**: they stay silent until
+`sounds_<lang>.yaml` defines an announcement (TTS text or recording), so a trigger that
+has no definition yet cannot beep by accident. Two exceptions carry a real ROM sound and
+work without any configuration:
+
+- `AUTONOMOUS_NOTICE` — the reversing alarm of lorries and forklifts: 1020 Hz beeps
+  (three of them, square wave), repeated every 3 s while the mower works on its own.
+- `VOLUME_UP` / `VOLUME_DOWN` — a rising and a falling figure for the volume slider.
+
 ## Engine and voices
 
 Both languages use ElevenLabs; the engine is picked per definition, so a language
