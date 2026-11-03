@@ -85,10 +85,11 @@ jobs:
               --check-mp3
           done
 
-  # End-to-end render check: renders every language with the real ElevenLabs API
-  # and asserts the result is what the firmware needs (16 kHz mono, cache agrees).
-  # It is the only job that needs the key - a repository secret, so a pull request
-  # from a fork cannot use it; the step notices that and skips instead of failing.
+  # End-to-end render check: renders every language with the engine its file names
+  # (the real ElevenLabs or Cartesia API) and asserts the result is what the
+  # firmware needs (16 kHz mono, cache agrees). It is the only job that needs a
+  # key - a repository secret, so a pull request from a fork cannot use it; the
+  # step notices that and skips instead of failing.
   render:
     runs-on: ubuntu-latest
     permissions:
