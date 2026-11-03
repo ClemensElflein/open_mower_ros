@@ -73,8 +73,7 @@ Ids the high level fills in carry **no ROM sound**: they stay silent until
 has no definition yet cannot beep by accident. Two exceptions carry a real ROM sound and
 work without any configuration:
 
-- `AUTONOMOUS_NOTICE` — the reversing alarm of lorries and forklifts: 1020 Hz beeps
-  (three of them, square wave), repeated every 3 s while the mower works on its own.
+- `AUTONOMOUS_NOTICE` — the reversing alarm of lorries and forklifts.
 - `VOLUME_UP` / `VOLUME_DOWN` — a rising and a falling figure for the volume slider.
 
 ## Engine and voices

@@ -150,17 +150,6 @@ tts:
 # falls back to the firmware default.
 #
 sounds:
-  # The firmware default for SUCCESS is already a decaying ping (sine, 554 Hz,
-  # 360 ms, attack 4 ms, decay 220 ms, volume 70) — the equivalent override, in
-  # case you want to tune it here:
-  #   success:
-  #     type: sequence
-  #     volume: 70
-  #     waveform: sine
-  #     attack_ms: 4
-  #     decay_ms: 220
-  #     sequence:
-  #       - {freq: 554, duration_ms: 360}
   # FW stage1: Waiting for stage2 ping
   boot_ping:
     type: mp3
