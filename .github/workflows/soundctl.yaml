@@ -123,8 +123,9 @@ jobs:
       # The renders are their own cache: soundctl writes a .json sidecar next to
       # every MP3 and only re-renders a variant whose fingerprint changed (engine,
       # model, voice, voice settings, bitrate, language, text, see fwsync.TTSIdentity.Key).
-      - name: Cache the rendered announcements
-        uses: actions/cache@v6
+      - name: Restore the rendered announcements
+        id: tts_cache
+        uses: actions/cache/restore@v6
         with:
           path: ${{ runner.temp }}/sounds
           # soundctl code changes re-render on purpose: that is what this job checks.
@@ -184,3 +185,12 @@ jobs:
             go run ./cmd/soundctl validate --check-mp3 "${args[@]}" || failed=1
           done
           exit "${failed}"
+
+      # Save even when the render above failed: whatever was rendered is what
+      # the next run reuses, so an unchanged definition costs no TTS request.
+      - name: Save the rendered announcements
+        if: ${{ !cancelled() && steps.tts_key.outputs.available == 'true' }}
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ runner.temp }}/sounds
+          key: ${{ steps.tts_cache.outputs.cache-primary-key }}
