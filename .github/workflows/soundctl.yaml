@@ -120,6 +120,17 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends ffmpeg
 
+      # The renders are their own cache: soundctl writes a .json sidecar next to
+      # every MP3 and only re-renders a variant whose fingerprint changed (engine,
+      # model, voice, voice settings, bitrate, language, text, see fwsync.TTSIdentity.Key).
+      - name: Cache the rendered announcements
+        uses: actions/cache@v6
+        with:
+          path: ${{ runner.temp }}/sounds
+          # soundctl code changes re-render on purpose: that is what this job checks.
+          key: tts-check-${{ hashFiles('src/open_mower/params/sounds_*.yaml', 'utils/soundctl/**/*.go', 'utils/soundctl/go.mod', 'utils/soundctl/go.sum') }}
+          restore-keys: tts-check-
+
       # A step's `if` cannot read a secret directly, so detect it in its own step.
       - name: Check for the TTS keys
         id: tts_key
