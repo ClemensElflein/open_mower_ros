@@ -20,14 +20,12 @@ func TestLoadSoundIDsFromSharedDefinition(t *testing.T) {
 	}
 
 	want := []string{
-		"boot_ping", "boot_complete", "success", "warning", "error",
-		"emergency", "emergency_cleared", "ros_connected", "ros_disconnected",
-		"gps_rtk_fix", "gps_rtk_lost", "autonomous_notice", "volume_up",
-		"volume_down", "low_battery", "charging_start", "charging_done",
-		"shutdown_safe", "mowing_start", "mowing_paused", "mowing_resumed",
-		"mowing_complete", "docking_start", "area_recording_mode",
-		"rain_detected", "lift_triggered", "collision_triggered",
-		"mower_blocked", "stop_button", "recovered",
+		"area_recording_mode", "autonomous_notice", "boot_complete", "boot_ping", "charging_done",
+		"charging_start", "collision_triggered", "docking_start", "emergency", "emergency_cleared",
+		"error", "gps_rtk_fix", "gps_rtk_lost", "lift_triggered", "low_battery", "mower_blocked",
+		"mowing_ambience", "mowing_complete", "mowing_paused", "mowing_resumed", "mowing_start",
+		"rain_detected", "recovered", "ros_connected", "ros_disconnected", "shutdown_safe",
+		"stop_button", "success", "volume_down", "volume_up", "warning",
 	}
 	if got := ids.Names(); len(got) != len(want) {
 		t.Fatalf("names = %v, want %v", got, want)
@@ -39,8 +37,8 @@ func TestLoadSoundIDsFromSharedDefinition(t *testing.T) {
 	}
 	// The ids are a wire format (and the key of the persisted overrides):
 	// appending is fine, renumbering is not - pin the last one.
-	if v, ok := ids.Value("recovered"); !ok || v != 29 {
-		t.Fatalf("recovered = %d (found=%v), want 29", v, ok)
+	if v, ok := ids.Value("recovered"); !ok || v != 30 {
+		t.Fatalf("recovered = %d (found=%v), want 30", v, ok)
 	}
 	if ids.Has("count") || ids.Has("nonsense") {
 		t.Fatalf("unexpected sound id present")
