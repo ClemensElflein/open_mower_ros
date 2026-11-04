@@ -526,6 +526,7 @@ namespace ftc_local_planner
         last_angle_error = angle_error;
 
         // allow linear movement only if in following state
+        double lat_sign = 1.0;
 
         if (current_state == FOLLOWING)
         {
@@ -547,9 +548,10 @@ namespace ftc_local_planner
                     lin_speed = -config.max_cmd_vel_speed;
                 }
 
+                // reversing, the robot steers the other way back onto the path
                 if (lin_speed < 0)
                 {
-                    lat_error *= -1.0;
+                    lat_sign = -1.0;
                 }
             }
             cmd_vel.twist.linear.x = lin_speed;
@@ -572,7 +574,7 @@ namespace ftc_local_planner
             }
 
             double ang_speed = ang_gain_factor * (angle_error * config.kp_ang + i_angle_error * config.ki_ang + d_angle * config.kd_ang) +
-                               lat_error * config.kp_lat + i_lat_error * config.ki_lat + d_lat * config.kd_lat;
+                               lat_sign * (lat_error * config.kp_lat + i_lat_error * config.ki_lat + d_lat * config.kd_lat);
 
             if (ang_speed > config.max_cmd_vel_ang)
             {
@@ -614,17 +616,17 @@ namespace ftc_local_planner
             debugPidMsg.kp_lon_set = lon_error;
 
             // proportional
-            debugPidMsg.kp_lat_set = lat_error * config.kp_lat;
+            debugPidMsg.kp_lat_set = lat_sign * lat_error * config.kp_lat;
             debugPidMsg.kp_lon_set = lon_error * config.kp_lon;
             debugPidMsg.kp_ang_set = angle_error * config.kp_ang;
 
             // integral
-            debugPidMsg.ki_lat_set = i_lat_error * config.ki_lat;
+            debugPidMsg.ki_lat_set = lat_sign * i_lat_error * config.ki_lat;
             debugPidMsg.ki_lon_set = i_lon_error * config.ki_lon;
             debugPidMsg.ki_ang_set = i_angle_error * config.ki_ang;
 
             // diff
-            debugPidMsg.kd_lat_set = d_lat * config.kd_lat;
+            debugPidMsg.kd_lat_set = lat_sign * d_lat * config.kd_lat;
             debugPidMsg.kd_lon_set = d_lon * config.kd_lon;
             debugPidMsg.kd_ang_set = d_angle * config.kd_ang;
 
