@@ -352,7 +352,7 @@ namespace ftc_local_planner
                 speed = config.speed_slow;
             }
             // the robot follows the control point, so this limits how fast it reverses
-            if (planBacksUp(current_index))
+            if (config.back_up_with_plan && planBacksUp(current_index))
             {
                 speed = fmin(speed, config.speed_reverse);
                 current_movement_speed = fmin(current_movement_speed, speed);
