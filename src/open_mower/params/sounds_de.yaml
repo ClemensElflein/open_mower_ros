@@ -192,3 +192,19 @@ sounds:
       - "Das Roboter-Betriebssystem wurde gestoppt."
       - "Das Roboter-Betriebssystem wurde gestoppt. Bis zum nächsten Mal."
       - "Das Roboter-Betriebssystem wurde gestoppt. Da hat das Gras heute aber Glück gehabt."
+
+  # Background effects while the mower works on its own. The low level rolls once
+  # per `every` interval and plays one take with `chance` probability.
+  mowing_ambience:
+    type: mp3
+    volume: 80
+    pick: random
+    every: 60s
+    chance: 0.25
+    variants:
+      - { file: zz_cow.mp3 }
+      - { file: zz_sheep.mp3 }
+      - { file: zz_burp.mp3 }
+      - { file: zz_fart-wet.mp3 }
+      - { file: zz_fart-vegan.mp3 }
+      - { file: zz_minion-fart.mp3 }

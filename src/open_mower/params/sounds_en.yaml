@@ -193,3 +193,23 @@ sounds:
       - "The robot operating system has stopped."
       - "The robot operating system has stopped. Until next time."
       - "The robot operating system has stopped. The grass got lucky today."
+
+  # Background effects while the mower works on its own. The low level rolls once
+  # per `every` interval and plays one take with `chance` probability - the same
+  # statistics the old firmware had (~35 % per minute, with a minimum pause in
+  # between). The "wait two minutes after the first GPS fix" part is not here: it
+  # belongs to the firmware state machine, which evaluates this id only while it
+  # is MOWING - hence the name.
+  mowing_ambience:
+    type: mp3
+    volume: 80
+    pick: random
+    every: 60s
+    chance: 0.25
+    variants:
+      - { file: zz_cow.mp3 }
+      - { file: zz_sheep.mp3 }
+      - { file: zz_burp.mp3 }
+      - { file: zz_fart-wet.mp3 }
+      - { file: zz_fart-vegan.mp3 }
+      - { file: zz_minion-fart.mp3 }

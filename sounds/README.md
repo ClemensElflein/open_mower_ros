@@ -59,14 +59,15 @@ renumbered id would silently address a different sound.
 |   19 | `MOWING_PAUSED`       | mowing paused (state `PAUSED`)                         |
 |   20 | `MOWING_RESUMED`      | mowing continues                                       |
 |   21 | `MOWING_COMPLETE`     | done, heading back to the station                      |
-|   22 | `DOCKING_START`       | heading back to the charging station                   |
-|   23 | `AREA_RECORDING_MODE` | entering the area-recording mode                       |
-|   24 | `RAIN_DETECTED`       | rain, heading back to the station                      |
-|   25 | `LIFT_TRIGGERED`      | wheel-lift sensor triggered an emergency               |
-|   26 | `COLLISION_TRIGGERED` | collision sensor triggered an emergency                |
-|   27 | `MOWER_BLOCKED`       | the mower motor is blocked (RPM limit/timeout)         |
-|   28 | `STOP_BUTTON`         | the stop button was pressed                            |
-|   29 | `RECOVERED`           | a recovery manoeuvre finished                          |
+|   22 | `MOWING_AMBIENCE`     | background effects while mowing (rolled by the LL)     |
+|   23 | `DOCKING_START`       | heading back to the charging station                   |
+|   24 | `AREA_RECORDING_MODE` | entering the area-recording mode                       |
+|   25 | `RAIN_DETECTED`       | rain, heading back to the station                      |
+|   26 | `LIFT_TRIGGERED`      | wheel-lift sensor triggered an emergency               |
+|   27 | `COLLISION_TRIGGERED` | collision sensor triggered an emergency                |
+|   28 | `MOWER_BLOCKED`       | the mower motor is blocked (RPM limit/timeout)         |
+|   29 | `STOP_BUTTON`         | the stop button was pressed                            |
+|   30 | `RECOVERED`           | a recovery manoeuvre finished                          |
 
 Ids the high level fills in carry **no ROM sound**: they stay silent until
 `sounds_<lang>.yaml` defines an announcement (TTS text or recording), so a trigger that
@@ -75,6 +76,11 @@ work without any configuration:
 
 - `AUTONOMOUS_NOTICE` — the reversing alarm of lorries and forklifts.
 - `VOLUME_UP` / `VOLUME_DOWN` — a rising and a falling figure for the volume slider.
+
+`MOWING_AMBIENCE` is the odd one out: the high level never triggers it. Its definition
+carries `every`/`chance`/`pick`, and the **low level** rolls on its own once per interval
+and plays a random take — but only while its state machine is mowing (that condition is
+firmware logic, not a definition field).
 
 ## Engine and voices
 
