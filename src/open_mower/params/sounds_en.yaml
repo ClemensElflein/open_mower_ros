@@ -127,8 +127,6 @@ language: en
 sound_path: /opt/open_mower_ros/sounds
 
 # Defaults for every tts variant (see the file header).
-#
-# English uses ElevenLabs "Jeremy" with the v4 model.
 tts:
   engine: elevenlabs
   bitrate: 32k
