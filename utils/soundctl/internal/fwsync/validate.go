@@ -280,6 +280,12 @@ func validateHeader(name string, def SoundDef, ids *SoundIDs) []string {
 		return []string{fmt.Sprintf("%s: invalid or missing 'type' (got %q, valid: %v)", name, def.Type, ids.types.names())}
 	}
 
+	// Removed with the sound state machine: it stops the player itself before an alert and
+	// then queues the announcement and the alert, so a sound needs no such switch.
+	if def.Preempt {
+		errs = append(errs, fmt.Sprintf("%s: 'preempt' was removed — the low level stops the player "+
+			"itself before an alert (delete it)", name))
+	}
 	if def.Volume < 0 || def.Volume > 100 {
 		errs = append(errs, fmt.Sprintf("%s: 'volume' must be 0..100 (got %d)", name, def.Volume))
 	}

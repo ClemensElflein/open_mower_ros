@@ -64,10 +64,11 @@ renumbered id would silently address a different sound.
 |   24 | `AREA_RECORDING_MODE` | entering the area-recording mode                       |
 |   25 | `RAIN_DETECTED`       | rain, heading back to the station                      |
 |   26 | `LIFT_TRIGGERED`      | wheel-lift sensor triggered an emergency               |
-|   27 | `COLLISION_TRIGGERED` | collision sensor triggered an emergency                |
-|   28 | `MOWER_BLOCKED`       | the mower motor is blocked (RPM limit/timeout)         |
-|   29 | `STOP_BUTTON`         | the stop button was pressed                            |
-|   30 | `RECOVERED`           | a recovery manoeuvre finished                          |
+|   27 | `STOP_BUTTON`         | the stop button was pressed                            |
+|   28 | `COLLISION_TRIGGERED` | collision sensor triggered an emergency                |
+|   29 | `MOWER_RPM_TIMEOUT`   | the blade never reached its speed                      |
+|   30 | `MOWER_RPM_LIMIT`     | the blade RPM went over the safe limit                 |
+|   31 | `RECOVERED`           | a recovery manoeuvre finished                          |
 
 Ids the high level fills in carry **no ROM sound**: they stay silent until
 `sounds_<lang>.yaml` defines an announcement (TTS text or recording), so a trigger that
@@ -147,15 +148,15 @@ fingerprint: `soundctl tts --force` re-rolls an announcement after a model updat
 Every mp3 sound lists its takes under `variants`: a plain string is a tts text,
 `{file: x.mp3}` an existing recording. A tts variant is stored as
 `<language>_<sound>_<n>.mp3`. The low level picks one take per playback
-(`pick: random` (default) | `rotate` | `first`); until its firmware knows the
-list it plays the first take, while all of them are already rendered and
-uploaded.
+(`pick: random` (default) | `rotate` | `first`), from a small store that `sync`
+uploads together with the definitions.
 
 `every` and `chance` let the *low level* decide whether a background sound plays
 at all: `every: 120s` evaluates once per interval, `chance: 0.25` plays it with
 25 % probability (a sound without `every` only plays when the high level asks for
-it). soundctl validates both and puts them into the definitions blob; the
-playback itself is a firmware feature that is still to come.
+it). soundctl validates both and puts them into the definitions blob; the state
+machine below rolls them.
+
 ## Runtime
 
 - Image: this directory at `/opt/open_mower_ros/sounds/`

@@ -62,11 +62,38 @@ func TestConfigBlob(t *testing.T) {
 	if sounds.Warning.Tone != nil {
 		t.Fatalf("warning.tone should be omitted, got %+v", sounds.Warning.Tone)
 	}
-	// preempt is per sound: it must survive the blob and stay off for normal sounds.
-	if !sounds.Emergency.Preempt {
-		t.Fatalf("emergency.preempt must be set, got %+v", sounds.Emergency)
+	if sounds.Emergency.Preempt || sounds.Warning.Preempt || sounds.BootComplete.Preempt {
+		t.Fatalf("preempt must not reach the firmware: %+v", sounds.Emergency)
 	}
-	if sounds.Warning.Preempt || sounds.BootComplete.Preempt {
-		t.Fatalf("preempt must not leak into other sounds: %+v / %+v", sounds.Warning, sounds.BootComplete)
+}
+
+// TestBlobCarriesTheDefaultPick pins the blob contract for take selection: the firmware
+// zeroes its persisted index ("first"), so a sound without an explicit `pick` has to be
+// sent as random — otherwise every sound with several takes would always play take 1.
+func TestBlobCarriesTheDefaultPick(t *testing.T) {
+	cfg := &Config{
+		Version:   1,
+		SoundPath: "/opt/open_mower_ros/sounds",
+		Sounds: map[string]SoundDef{
+			"boot_complete": {Type: "mp3", Volume: 90, Variants: []Variant{{TTS: "one"}, {TTS: "two"}}},
+			"ros_connected": {Type: "mp3", Volume: 90, Pick: PickRotate,
+				Variants: []Variant{{TTS: "a"}, {TTS: "b"}}},
+		},
+	}
+	raw, err := cfg.Blob()
+	if err != nil {
+		t.Fatalf("Blob: %v", err)
+	}
+	var blob struct {
+		Sounds map[string]SoundDef `json:"sounds"`
+	}
+	if err := json.Unmarshal(raw, &blob); err != nil {
+		t.Fatalf("blob is not JSON: %v", err)
+	}
+	if got := blob.Sounds["boot_complete"].Pick; got != PickRandom {
+		t.Errorf("boot_complete pick = %q, want the default %q", got, PickRandom)
+	}
+	if got := blob.Sounds["ros_connected"].Pick; got != PickRotate {
+		t.Errorf("ros_connected pick = %q, want the configured %q", got, PickRotate)
 	}
 }

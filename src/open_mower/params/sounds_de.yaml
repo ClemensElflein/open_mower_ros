@@ -48,13 +48,9 @@
 #   pause_after_ms  silence for that long after THIS sound ended, before the next
 #              queued sound starts, 0..65535 (0 = play through). For sounds that
 #              need a little room to breathe, e.g. an announcement that should not
-#              be followed by the next one right away. A preempting alert and
-#              `soundctl stop` cut it short; a repeating sound (repeat_ms) does not
-#              pause between its own iterations.
-#   preempt    true = alert: the firmware stops a running sound, drops the
-#              pending queue and plays this one immediately. The ROM default
-#              sets it for EMERGENCY, so an alert is never delayed behind an
-#              announcement. Everything else is queued in order.
+#              be followed by the next one right away. `stop()` (the state machine
+#              before an alert, or `soundctl stop`) cuts it short; a repeating
+#              sound (repeat_ms) does not pause between its own iterations.
 #   variants   mp3: the playable takes of this sound, one list entry per take
 #                - "text to speak"      a tts variant: soundctl renders it
 #                - {file: name.mp3}     an existing recording (below sound_path)
@@ -160,7 +156,7 @@ sounds:
   boot_complete:
     type: mp3
     volume: 90
-    pause_after_ms: 100
+    pause_after_ms: 500
     pick: random
     variants:
       - "Hallo, ich bin Dein intelligenter OpenMower Rasenmäher. Rasenpflege ist mein Beruf."
@@ -171,13 +167,22 @@ sounds:
   emergency:
     type: mp3
     volume: 100
-    preempt: true
     variants:
       - { file: zz_minion-fire-alarm.mp3 }
+  emergency_cleared:
+    type: mp3
+    volume: 90
+    pause_after_ms: 500
+    variants:
+      - "Alles wieder gut. Ich mache weiter."
+      - "Problem beseitigt. Freie Fahrt."
+      - "Kein Grund zur Sorge, es geht weiter."
+      - "Danke, ich fühle mich wieder frei."
+      - "Alles klar, ich kann weiterarbeiten."
   ros_connected:
     type: mp3
     volume: 90
-    pause_after_ms: 1000
+    pause_after_ms: 500
     variants:
       - "Das Roboter-Betriebssystem ist gestartet."
       - "Das Roboter-Betriebssystem ist gestartet. Der Verstand ist jetzt auch geladen."
@@ -185,11 +190,57 @@ sounds:
   ros_disconnected:
     type: mp3
     volume: 90
-    pause_after_ms: 1000
+    pause_after_ms: 500
     variants:
       - "Das Roboter-Betriebssystem wurde gestoppt."
       - "Das Roboter-Betriebssystem wurde gestoppt. Bis zum nächsten Mal."
       - "Das Roboter-Betriebssystem wurde gestoppt. Da hat das Gras heute aber Glück gehabt."
+  lift_triggered:
+    type: mp3
+    volume: 95
+    pause_after_ms: 500
+    variants:
+      - "Radhebe-Sensor ausgelöst. Bitte stell mich wieder auf den Rasen."
+      - "Ich wurde angehoben. Bitte setz mich ab."
+      - "Upps, da war wohl ein Maulwurfshügel."
+      - "Ich kann nicht fliegen. Bitte wieder absetzen."
+      - "Hochgehoben — ich brauche Bodenkontakt."
+  collision_triggered:
+    type: mp3
+    volume: 95
+    pause_after_ms: 500
+    variants:
+      - "Kollisionssensor ausgelöst."
+      - "Ich bin irgendwo angestoßen."
+      - "Upps, das hat wohl nicht gepasst."
+      - "Nächstes Mal hole ich mehr Schwung. Versprochen."
+      - "Autsch. Da lag wohl etwas im Weg."
+  mower_rpm_limit:
+    type: mp3
+    volume: 95
+    pause_after_ms: 500
+    variants:
+      - "Mähwerk zu schnell. Ich habe das Mähwerk gestoppt."
+      - "Die Drehzahl war zu hoch. Bitte prüf das Mähwerk."
+  mower_rpm_timeout:
+    type: mp3
+    volume: 95
+    pause_after_ms: 500
+    variants:
+      - "Mähwerk zu langsam. Bitte schau nach dem Messer."
+      - "Das Messer dreht zu langsam. Da klemmt etwas."
+      - "Ich komme nicht auf touren. Bitte befreie das Mähwerk."
+      - "Da hat sich wohl etwas verfangen. Ich kann nichts dafür."
+  stop_button:
+    type: mp3
+    volume: 90
+    pause_after_ms: 500
+    variants:
+      - "Stopp-Taste gedrückt."
+      - "Alles gestoppt, wie gewünscht."
+      - "Okay, ich halte an."
+      - "Ich stehe ja schon."
+      - "Upps, was ist los?"
 
   # Background effects while the mower works on its own. The low level rolls once
   # per `every` interval and plays one take with `chance` probability.

@@ -79,9 +79,10 @@ type SoundDef struct {
 	Waveform string `yaml:"waveform,omitempty" json:"waveform,omitempty"`
 	Unison   int    `yaml:"unison,omitempty" json:"unison,omitempty"`
 	DetuneHz int    `yaml:"detune_hz,omitempty" json:"detune_hz,omitempty"`
-	// Preempt marks alerts: the firmware stops a running sound, drops the pending
-	// queue and plays it immediately (the ROM default sets it for EMERGENCY).
-	Preempt bool `yaml:"preempt,omitempty" json:"preempt,omitempty"`
+	// Preempt was removed: the low level's sound state machine stops the player itself and
+	// then queues the announcement plus the alert, so a sound needs no "cut everything"
+	// property. The field only exists so validate() can name a YAML that still sets it.
+	Preempt bool `yaml:"preempt,omitempty" json:"-"`
 	// AttackMs/DecayMs are the per-note envelope of a sequence: a fade-in at the
 	// start of every note and a fade-out that turns a note into a "ping" instead of
 	// a hard-gated rectangle. Both are 0..255 ms; 0 = instant onset / hold the note.
@@ -93,9 +94,8 @@ type SoundDef struct {
 	RepeatMs int `yaml:"repeat_ms,omitempty" json:"repeat_ms,omitempty"`
 	// PauseAfterMs keeps the low level silent for that time after this sound ended,
 	// before the next queued sound starts (0 = play through). The pause belongs to
-	// this sound, so it works for every type; a preempting sound (preempt) and Stop
-	// cut it short, and a repeating sound (repeat_ms) does not pause between its own
-	// iterations.
+	// this sound, so it works for every type; stop() cuts it short, and a repeating
+	// sound (repeat_ms) does not pause between its own iterations.
 	PauseAfterMs int    `yaml:"pause_after_ms,omitempty" json:"pause_after_ms,omitempty"`
 	Tone         *Tone  `yaml:"tone,omitempty" json:"tone,omitempty"`
 	Sequence     []Note `yaml:"sequence,omitempty" json:"sequence,omitempty"`
@@ -552,6 +552,12 @@ func (c *Config) Blob() ([]byte, error) {
 				return nil, fmt.Errorf("%s: 'every' must be positive (got %q)", name, def.Every)
 			}
 			def.EveryMs = int(d.Milliseconds())
+		}
+		// The firmware starts with "first" for every sound (its persisted index is zeroed),
+		// so the documented default has to travel in the blob - otherwise a sound with
+		// several takes would always play take 1.
+		if def.Pick == "" {
+			def.Pick = PickRandom
 		}
 		sounds[name] = def
 	}

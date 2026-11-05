@@ -48,13 +48,9 @@
 #   pause_after_ms  silence for that long after THIS sound ended, before the next
 #              queued sound starts, 0..65535 (0 = play through). For sounds that
 #              need a little room to breathe, e.g. an announcement that should not
-#              be followed by the next one right away. A preempting alert and
-#              `soundctl stop` cut it short; a repeating sound (repeat_ms) does not
-#              pause between its own iterations.
-#   preempt    true = alert: the firmware stops a running sound, drops the
-#              pending queue and plays this one immediately. The ROM default
-#              sets it for EMERGENCY, so an alert is never delayed behind an
-#              announcement. Everything else is queued in order.
+#              be followed by the next one right away. `stop()` (the state machine
+#              before an alert, or `soundctl stop`) cuts it short; a repeating
+#              sound (repeat_ms) does not pause between its own iterations.
 #   variants   mp3: the playable takes of this sound, one list entry per take
 #                - "text to speak"      a tts variant: soundctl renders it
 #                - {file: name.mp3}     an existing recording (below sound_path)
@@ -172,7 +168,6 @@ sounds:
   emergency:
     type: mp3
     volume: 100
-    preempt: true
     variants:
       - { file: zz_minion-fire-alarm.mp3 }
   ros_connected:
