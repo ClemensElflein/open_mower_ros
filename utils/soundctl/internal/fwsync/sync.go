@@ -91,7 +91,12 @@ func Sync(ctx context.Context, opts Options) error {
 	// uploaded: the low level keeps the file it already has (it stays referenced in
 	// the blob), so an older announcement keeps playing instead of a mismatched one.
 	// That must never block the rest of the sync - `soundctl tts` is the fix.
-	stale := staleRenders(layout, cfg)
+	//
+	// A stale copy never hides a valid one further down the layout: the shipped
+	// image render is used when the overlay still holds a render of an older YAML
+	// (see Layout.FindRender), otherwise a leftover overlay file silences the
+	// announcement even though the image carries a matching one.
+	use, stale := resolveRenders(layout, cfg)
 
 	// Validate the requested master volume up front: an out-of-range value must
 	// fail the run before uploads, cleanup or SetDefinitions change the robot.
@@ -147,7 +152,7 @@ func Sync(ctx context.Context, opts Options) error {
 	slog.Info("FileService connected")
 
 	files := cfg.Files()
-	reportStorage(ctx, fs, layout, files)
+	reportStorage(ctx, fs, layout, use, files)
 	if len(files) == 0 {
 		slog.Info("no MP3 files in definition")
 	} else {
@@ -159,9 +164,12 @@ func Sync(ctx context.Context, opts Options) error {
 				slog.Warn("skipping a stale render", "file", file, "reason", reason)
 				continue
 			}
-			local, err := layout.Find(file)
-			if err != nil {
-				return err
+			local, ok := use[file]
+			if !ok {
+				var err error
+				if local, err = layout.Find(file); err != nil {
+					return err
+				}
 			}
 			if err := uploadFile(ctx, fs, local, file); err != nil {
 				return err
@@ -225,35 +233,37 @@ func applyDefinitions(ctx context.Context, cfg *Config, opts Options, ss *sounds
 	return nil
 }
 
-// staleRenders returns the rendered files whose sidecar does not match the
-// definition any more, with the reason. They are not uploaded and not deleted: the
-// low level keeps them referenced, so the previous announcement keeps playing.
-func staleRenders(layout Layout, cfg *Config) map[string]string {
-	stale := make(map[string]string)
+// resolveRenders maps every render job to the file to upload and, for the jobs with
+// no usable copy, to the reason. The copy that is uploaded is the most specific one
+// whose sidecar still matches (Layout.FindRender), so a stale overlay render falls
+// back to the render the image ships instead of silencing the announcement.
+//
+// Stale copies that were skipped in favour of a valid one are warned about: they
+// are the leftover of a definition change, and only `soundctl tts` (or deleting
+// them) cleans them up.
+func resolveRenders(layout Layout, cfg *Config) (use map[string]string, stale map[string]string) {
+	use = make(map[string]string)
+	stale = make(map[string]string)
 	for _, job := range cfg.RenderJobs() {
-		path, err := layout.Find(job.File)
-		if err != nil {
-			stale[job.File] = "no render on disk (run \"soundctl tts\")"
+		path, shadowed, reason := layout.FindRender(job.File, job.Identity)
+		if path == "" {
+			stale[job.File] = reason
 			continue
 		}
-		sc, err := ReadSidecar(path)
-		if err != nil {
-			stale[job.File] = fmt.Sprintf("no render metadata next to %s (%v) - run \"soundctl tts\"", path, err)
-			continue
+		for _, s := range shadowed {
+			slog.Warn("ignoring a stale render", "file", job.File, "path", s.Path, "reason", s.Reason,
+				"using", path, "hint", "run \"soundctl tts --force\" to refresh it, or delete the file")
 		}
-		if !sc.Matches(job.Identity) {
-			stale[job.File] = fmt.Sprintf("rendered as %s, expected %s - run \"soundctl tts\"",
-				sc.Fingerprint, job.Identity.Fingerprint())
-		}
+		use[job.File] = path
 	}
-	return stale
+	return use, stale
 }
 
 // reportStorage logs the low level's LittleFS usage and warns when the local sound
 // set is bigger than what is still free. It never fails the sync: files whose hash
 // already matches are not uploaded, so the real need is usually far smaller, and a
 // full flash surfaces as a FileWrite error anyway.
-func reportStorage(ctx context.Context, fs *fileservice.Client, layout Layout, files []string) {
+func reportStorage(ctx context.Context, fs *fileservice.Client, layout Layout, use map[string]string, files []string) {
 	raw, err := fs.FileStats(ctx)
 	if err != nil {
 		slog.Warn("could not read the low level's storage usage", "error", err)
@@ -268,10 +278,15 @@ func reportStorage(ctx context.Context, fs *fileservice.Client, layout Layout, f
 
 	var need uint64
 	for _, file := range files {
-		if path, err := layout.Find(file); err == nil {
-			if st, err := os.Stat(path); err == nil {
-				need += uint64(st.Size())
+		path, ok := use[file]
+		if !ok {
+			var err error
+			if path, err = layout.Find(file); err != nil {
+				continue
 			}
+		}
+		if st, err := os.Stat(path); err == nil {
+			need += uint64(st.Size())
 		}
 	}
 	if need > uint64(stats.FreeBytes) {

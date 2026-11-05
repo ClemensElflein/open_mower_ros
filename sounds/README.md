@@ -165,6 +165,15 @@ playback itself is a firmware feature that is still to come.
   A file is looked up in `<overlay>/<lang>`, `<sound_path>/<lang>`, `<overlay>`,
   `<sound_path>` — a customised file wins over the shipped one. Renders land in
   `<overlay>/<lang>/`; delete the `.json` sidecar (or edit the text) to re-render.
+  A *render* whose sidecar no longer matches the YAML (leftover of an older
+  definition) is skipped in favour of the next copy, so a stale overlay render
+  never mutes the announcement the image ships — the log names it as
+  `ignoring a stale render`.
+  The fallback only covers *unchanged* definitions: if an own YAML changes a text,
+  the voice or a tts setting, the shipped render belongs to a different identity and
+  is not played (it would say the old text). Such a file stays silent until
+  `soundctl tts` rendered it into the overlay — so a missing/failing key only costs
+  the announcements that were actually edited, not all of them.
 - The overlay is **not persistent on a stock robot**: the compose file mounts
   `/data/ros`, `/data/recordings` and `/data/params` individually, so `/data/sounds`
   lives in the container and starts empty after `openmower restart`. Playing the

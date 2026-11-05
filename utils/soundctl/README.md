@@ -165,7 +165,10 @@ If a render fails (API down, licence, no key), the previous file stays untouched
 - `soundctl sync` skips files whose sidecar no longer matches and logs the reason.
   They stay referenced in the definitions blob, so the low level keeps playing the
   file it already has - an old announcement instead of a mismatched one - and the
-  rest of the sounds still sync.
+  rest of the sounds still sync. A stale copy never hides a valid one further down
+  the lookup order (see below): if the overlay still holds a render of an older
+  YAML while the image ships a matching one, the shipped render is uploaded and the
+  ignored copy is named in a warning (`ignoring a stale render`).
 - The image build renders best effort (`continue-on-error`), so an API problem
   never blocks the image; the step is marked failed in the run and `tts --check`
   names what is stale.
@@ -195,7 +198,10 @@ that also means no glibc version of the build host leaks in.
   empty after the next restart — fine for the shipped sounds (they are read from
   the image), relevant only for customisations (see `sounds/README.md`).
 - File resolution order: `<overlay>/<lang>`, `<sound_path>/<lang>`, `<overlay>`,
-  `<sound_path>`.
+  `<sound_path>`. A *render* (anything with a `.json` sidecar) is resolved by
+  `Layout.FindRender`: the first copy whose sidecar still matches the YAML wins, so
+  a leftover overlay render from an older definition does not mute the announcement
+  the image ships (it is warned about as `ignoring a stale render`).
 - An xbot service advertises every 1 s only while unclaimed and younger than
   60 s, afterwards every 10 s — hence `sync --wait` defaults to 30 s and the
   discovery errors list what was actually advertised.

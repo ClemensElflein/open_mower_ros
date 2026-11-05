@@ -58,8 +58,10 @@ func (o Options) logf(format string, args ...any) {
 func Pending(cfg *fwsync.Config, layout fwsync.Layout) []string {
 	var out []string
 	for _, job := range cfg.RenderJobs() {
-		path, err := layout.Find(job.File)
-		if err != nil || !upToDate(path, job.Identity) {
+		// Any copy counts, not just the most specific one: a stale overlay render
+		// must not report a render as pending when the image ships a matching one.
+		path, _, _ := layout.FindRender(job.File, job.Identity)
+		if path == "" || !upToDate(path, job.Identity) {
 			out = append(out, job.Label)
 		}
 	}
@@ -116,9 +118,14 @@ func Render(cfg *fwsync.Config, layout fwsync.Layout, eng Engine, enc Encoder, o
 		dst := filepath.Join(outDir, job.File)
 
 		// Prefer an up-to-date copy wherever the layout finds it: a render that
-		// already sits in the image does not have to be duplicated into the overlay.
-		if existing, err := layout.Find(job.File); err == nil && !opts.Force && upToDate(existing, job.Identity) {
-			opts.logf("[%d/%d] %-24s up to date (%s)", i+1, len(jobs), job.Label, existing)
+		// already sits in the image does not have to be duplicated into the overlay,
+		// and a stale overlay copy must not hide it (see Layout.FindRender).
+		if existing, shadowed, _ := layout.FindRender(job.File, job.Identity); existing != "" && !opts.Force && upToDate(existing, job.Identity) {
+			note := ""
+			if len(shadowed) > 0 {
+				note = fmt.Sprintf(", ignoring stale %s (use --force to refresh it)", shadowed[0].Path)
+			}
+			opts.logf("[%d/%d] %-24s up to date (%s%s)", i+1, len(jobs), job.Label, existing, note)
 			results = append(results, Result{Name: job.Label, File: job.File, Path: existing, Skipped: true})
 			continue
 		}

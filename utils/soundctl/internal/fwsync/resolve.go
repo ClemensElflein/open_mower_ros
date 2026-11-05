@@ -63,6 +63,52 @@ func (l Layout) Find(file string) (string, error) {
 	return "", fmt.Errorf("%s not found (looked in %s)", file, strings.Join(cands, ", "))
 }
 
+// Shadowed is a candidate that was not used because its sidecar does not match the
+// definition any more - typically a customised overlay render left over from an
+// older YAML. It is reported (not silently dropped) so the user can re-render or
+// delete it.
+type Shadowed struct {
+	Path   string
+	Reason string // why the copy was skipped; the path is reported separately
+}
+
+// FindRender resolves a render job: it returns the most specific candidate whose
+// sidecar was rendered from id.
+//
+// Unlike Find, a stale candidate does not shadow a valid one further down the
+// list. That case is not theoretical: the overlay keeps an old render of a changed
+// announcement while the image ships a fresh one, and treating the stale overlay
+// copy as "the file" left the mower silent - sync skipped it and never looked at
+// the shipped render. The skipped copies are returned so the caller can name the
+// file that needs `soundctl tts`.
+//
+// When nothing matches, path is empty and reason says what is wrong with the most
+// specific candidate that does exist (or that none exists at all).
+func (l Layout) FindRender(file string, id TTSIdentity) (path string, shadowed []Shadowed, reason string) {
+	for _, p := range l.Candidates(file) {
+		st, err := os.Stat(p)
+		if err != nil || !st.Mode().IsRegular() {
+			continue
+		}
+		sc, err := ReadSidecar(p)
+		switch {
+		case err != nil:
+			shadowed = append(shadowed, Shadowed{Path: p,
+				Reason: fmt.Sprintf("no render metadata next to it (%v)", err)})
+		case !sc.Matches(id):
+			shadowed = append(shadowed, Shadowed{Path: p,
+				Reason: fmt.Sprintf("rendered as %s, expected %s", sc.Fingerprint, id.Fingerprint())})
+		default:
+			return p, shadowed, ""
+		}
+	}
+	if len(shadowed) > 0 {
+		// Name the copy and the fix: the caller logs the reason without a path.
+		return "", shadowed, fmt.Sprintf("%s: %s - run \"soundctl tts\"", shadowed[0].Path, shadowed[0].Reason)
+	}
+	return "", nil, fmt.Sprintf("%s not found (looked in %s)", file, strings.Join(l.Candidates(file), ", "))
+}
+
 // OutDir is where generated files for the definition's language are written:
 // the overlay if one is configured (so renders survive an image update), else
 // the image's own language directory.

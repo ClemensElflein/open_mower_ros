@@ -2,6 +2,7 @@ package tts
 
 import (
 	"errors"
+	"hash/crc32"
 	"os"
 	"path/filepath"
 	"strings"
@@ -107,6 +108,82 @@ func TestRenderTextWithEngine(t *testing.T) {
 	// An ad-hoc render must not leave a cache sidecar behind.
 	if _, err := os.Stat(dst + ".json"); err == nil {
 		t.Error("RenderText wrote a sidecar; ad-hoc renders are not cached")
+	}
+}
+
+// TestPendingIgnoresStaleOverlayCopy pins the --check side of the overlay fallback:
+// a stale copy in the overlay must not report the render as pending while the image
+// ships a matching one. That is the mower case that kept every German announcement
+// silent - an ElevenLabs render in /data/sounds under a Cartesia definition.
+func TestPendingIgnoresStaleOverlayCopy(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "sounds_en.yaml")
+	doc := `version: 1
+language: en
+sound_path: /nonexistent
+tts:
+  engine: elevenlabs
+  elevenlabs:
+    voice: voice-id
+sounds:
+  boot_complete:
+    type: mp3
+    volume: 100
+    variants:
+      - "one"
+`
+	if err := os.WriteFile(cfgPath, []byte(doc), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := fwsync.LoadConfig(cfgPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	jobs := cfg.RenderJobs()
+	if len(jobs) != 1 {
+		t.Fatalf("RenderJobs() = %d, want 1", len(jobs))
+	}
+	job := jobs[0]
+	layout := fwsync.Layout{
+		SoundPath: filepath.Join(dir, "image"),
+		Overlay:   filepath.Join(dir, "overlay"),
+		Language:  "en",
+	}
+
+	writeRender := func(base string, id fwsync.TTSIdentity) {
+		t.Helper()
+		langDir := filepath.Join(base, "en")
+		if err := os.MkdirAll(langDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		mp3 := filepath.Join(langDir, job.File)
+		data := []byte("mp3 rendered from " + id.Fingerprint())
+		if err := os.WriteFile(mp3, data, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		info := fwsync.MP3Info{SampleRate: 16000, Channels: 1, BitrateKbps: 32, CBR: true}
+		if err := fwsync.WriteSidecar(mp3,
+			fwsync.NewSidecar(id, info, int64(len(data)), crc32.ChecksumIEEE(data))); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	stale := job.Identity
+	stale.Text = "an older text"
+	writeRender(layout.Overlay, stale)
+	writeRender(layout.SoundPath, job.Identity)
+
+	if got := Pending(cfg, layout); len(got) != 0 {
+		t.Fatalf("Pending = %v, want none (the image carries a matching render)", got)
+	}
+
+	// Without the shipped copy only the stale overlay render is left, and that one
+	// has to be reported.
+	if err := os.RemoveAll(layout.SoundPath); err != nil {
+		t.Fatal(err)
+	}
+	if got := Pending(cfg, layout); len(got) != 1 {
+		t.Fatalf("Pending = %v, want the stale render reported", got)
 	}
 }
 
