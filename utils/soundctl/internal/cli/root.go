@@ -18,10 +18,19 @@ var version = "dev"
 
 // Execute runs the root command.
 func Execute() error {
-	return newRootCmd().Execute()
+	root := newRootCmd()
+	// SilenceErrors keeps cobra from printing, so the one error line goes through the
+	// (possibly prefixed) writer like every other line.
+	err := root.Execute()
+	if err != nil {
+		printError(root, err)
+	}
+	return err
 }
 
 func newRootCmd() *cobra.Command {
+	var logOpts logOptions
+
 	root := &cobra.Command{
 		Use:   "soundctl",
 		Short: "Manage the OpenMower HW v2 sound definitions and MP3 files",
@@ -38,7 +47,13 @@ func newRootCmd() *cobra.Command {
 			"--sound-ids when running outside the container.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
+		// The flags are parsed at this point, so this is the first place the log
+		// format can be applied - and the last one before a command prints anything.
+		PersistentPreRun: func(cmd *cobra.Command, _ []string) {
+			logOpts.apply(cmd)
+		},
 	}
+	logOpts.register(root)
 	root.AddCommand(newSyncCmd(), newStorageCmd(), newValidateCmd(), newTTSCmd(), newVersionCmd(), newPlayCmd(), newStopCmd(), newDiscoverCmd(), newSayCmd())
 	return root
 }

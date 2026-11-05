@@ -202,6 +202,11 @@ that also means no glibc version of the build host leaks in.
   `Layout.FindRender`: the first copy whose sidecar still matches the YAML wins, so
   a leftover overlay render from an older definition does not mute the announcement
   the image ships (it is warned about as `ignoring a stale render`).
+- Log format: `--log-time=false` drops the CLI's own date/time and
+  `--log-prefix '[soundctl] '` prefixes every line — log lines *and* the progress
+  lines a command prints itself. `sound_sync` uses both, because the ROS log already
+  stamps each line: `[soundctl sync] INFO uploading file=de_x.mp3`. A manual run
+  keeps the timestamp and no prefix.
 - An xbot service advertises every 1 s only while unclaimed and younger than
   60 s, afterwards every 10 s — hence `sync --wait` defaults to 30 s and the
   discovery errors list what was actually advertised.

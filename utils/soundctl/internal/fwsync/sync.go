@@ -75,7 +75,9 @@ func Sync(ctx context.Context, opts Options) error {
 	}
 	if errs := cfg.Validate(ids); len(errs) > 0 {
 		for _, e := range errs {
-			slog.Error("invalid config", "error", e)
+			// Message, not an attribute: the reason is what a user reads, and a
+			// quoted value would escape every quote inside it.
+			slog.Error("invalid config: " + e)
 		}
 		return fmt.Errorf("invalid config: %d error(s)", len(errs))
 	}
@@ -130,7 +132,7 @@ func Sync(ctx context.Context, opts Options) error {
 	}
 	defer func() { _ = ss.Close() }()
 	slog.Info("SoundService available", "addr", ss.Endpoint(),
-		"hint", "pass it to \"soundctl play --addr\" for instant playback")
+		"hint", "pass it to 'soundctl play --addr' for instant playback")
 
 	// The FileService is always present, so connecting to it doubles as the "LL is
 	// up" gate: its discovery waits out the boot/update window (--wait). Connecting
@@ -252,7 +254,7 @@ func resolveRenders(layout Layout, cfg *Config) (use map[string]string, stale ma
 		}
 		for _, s := range shadowed {
 			slog.Warn("ignoring a stale render", "file", job.File, "path", s.Path, "reason", s.Reason,
-				"using", path, "hint", "run \"soundctl tts --force\" to refresh it, or delete the file")
+				"using", path, "hint", "run 'soundctl tts --force' to refresh it, or delete the file")
 		}
 		use[job.File] = path
 	}

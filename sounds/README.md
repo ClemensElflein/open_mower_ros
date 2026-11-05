@@ -187,6 +187,9 @@ playback itself is a firmware feature that is still to come.
      the FileService to `/sounds/<file>`, deletes orphaned files from `/sounds/`,
      pushes the `sounds:` map (heatshrink) to the SoundService and optionally sets
      the master volume (`--volume`; without it the firmware value stays).
+  Both run with `--log-time=false --log-prefix '[soundctl tts|sync] '`: the ROS log
+  already stamps every line, so the CLI's own date/time would be a duplicate, and
+  the prefix keeps a line attributable in the node's log.
 - Boards without an amplifier: the SoundService (SID 13) never starts, the sync
   stops after the probe (`--sound-check-timeout`, 10 s) without uploading. The
   FileService (SID 12) is always there.

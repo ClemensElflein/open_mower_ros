@@ -18,6 +18,12 @@ constexpr const char* kCommand = "soundctl";
 constexpr int kAttempts = 3;
 constexpr auto kRetryDelay = std::chrono::seconds(20);
 
+/// Log format for the piped runs: the ROS log already stamps every line
+/// ("[INFO] [1793893786.077...]: ...") and names the node, so soundctl's own
+/// date/time would be a duplicate. The prefix keeps a line attributable when the
+/// output of the two commands is interleaved in that log.
+constexpr const char* kLogFlags = "--log-time=false ";
+
 struct Settings {
   bool enabled = true;
   std::string config_file;
@@ -59,8 +65,10 @@ std::string BuildCommand() {
   // --keep-going: try every variant instead of stopping at the first failure, so a
   // missing key or an API error leaves as much as possible rendered. The sync below
   // then skips whatever is still stale (the low level keeps its previous file).
-  std::string command = "timeout 300 " + std::string(kCommand) + " tts --keep-going --config " + config +
-                        "; timeout 300 " + std::string(kCommand) + " sync --config " + config + " --wait 30s";
+  std::string command = "timeout 300 " + std::string(kCommand) + " tts " + kLogFlags +
+                        "--log-prefix '[soundctl tts] ' --keep-going --config " + config + "; timeout 300 " +
+                        std::string(kCommand) + " sync " + kLogFlags + "--log-prefix '[soundctl sync] ' --config " +
+                        config + " --wait 30s";
   if (settings.volume >= 0) {
     command += " --volume " + std::to_string(settings.volume);
   }

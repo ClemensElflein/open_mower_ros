@@ -57,7 +57,7 @@ func ParseBitrate(s string) (int, error) {
 	v = strings.TrimSuffix(strings.TrimSpace(v), "k")
 	n, err := strconv.Atoi(v)
 	if err != nil {
-		return 0, fmt.Errorf("invalid bitrate %q (use e.g. \"64k\")", s)
+		return 0, fmt.Errorf("invalid bitrate %q (use e.g. '64k')", s)
 	}
 	if !slices.Contains(mpeg2Layer3Bitrates, n) {
 		return 0, fmt.Errorf("bitrate %q is not a 16 kHz mono MP3 bitrate (valid: %s)", s, BitrateList())

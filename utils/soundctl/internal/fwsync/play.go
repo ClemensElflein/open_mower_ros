@@ -139,7 +139,7 @@ func connect(ctx context.Context, opts PlayOptions) (*soundservice.Client, error
 // serviceAt connects to "ip:port" without discovery or claim.
 func serviceAt(addr string) (*soundservice.Client, error) {
 	if _, portStr, err := net.SplitHostPort(addr); err != nil {
-		return nil, fmt.Errorf("bad endpoint %q (want \"ip:port\"): %w", addr, err)
+		return nil, fmt.Errorf("bad endpoint %q (want 'ip:port'): %w", addr, err)
 	} else if port, err := strconv.Atoi(portStr); err != nil || port <= 0 || port > 65535 {
 		return nil, fmt.Errorf("bad endpoint %q: invalid port", addr)
 	}

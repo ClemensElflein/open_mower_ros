@@ -83,7 +83,7 @@ func sayText(args []string, stdin io.Reader) (string, error) {
 func playerCommand(player, file string) (string, []string, error) {
 	fields := strings.Fields(player)
 	if len(fields) == 0 {
-		return "", nil, errors.New("no player configured (use --player, e.g. \"ffplay -nodisp -autoexit\")")
+		return "", nil, errors.New("no player configured (use --player, e.g. 'ffplay -nodisp -autoexit')")
 	}
 	return fields[0], append(fields[1:], file), nil
 }
@@ -96,7 +96,7 @@ func playFile(cmd *cobra.Command, player, file string) error {
 		return err
 	}
 	if _, err := exec.LookPath(bin); err != nil {
-		return fmt.Errorf("player %q not found (install ffmpeg or pass --player, e.g. \"mpg123 -q\")", bin)
+		return fmt.Errorf("player %q not found (install ffmpeg or pass --player, e.g. 'mpg123 -q')", bin)
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "  %-24s playing with %s\n", "say", bin)
 	c := exec.Command(bin, args...)

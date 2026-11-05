@@ -21,7 +21,7 @@ func DialFileService(ctx context.Context, opts Options) (*fileservice.Client, er
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return nil, ctxErr
 		}
-		return nil, fmt.Errorf("FileService not reachable (run \"soundctl discover\" to see what the LL advertises): %w", err)
+		return nil, fmt.Errorf("FileService not reachable (run 'soundctl discover' to see what the LL advertises): %w", err)
 	}
 	return fs, nil
 }

@@ -104,7 +104,7 @@ func (l Layout) FindRender(file string, id TTSIdentity) (path string, shadowed [
 	}
 	if len(shadowed) > 0 {
 		// Name the copy and the fix: the caller logs the reason without a path.
-		return "", shadowed, fmt.Sprintf("%s: %s - run \"soundctl tts\"", shadowed[0].Path, shadowed[0].Reason)
+		return "", shadowed, fmt.Sprintf("%s: %s - run 'soundctl tts'", shadowed[0].Path, shadowed[0].Reason)
 	}
 	return "", nil, fmt.Sprintf("%s not found (looked in %s)", file, strings.Join(l.Candidates(file), ", "))
 }

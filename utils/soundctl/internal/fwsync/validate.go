@@ -74,7 +74,7 @@ func ValidateTTSSettings(set TTSSettings) []string {
 	switch set.Engine {
 	case TTSEngineCartesia:
 		if strings.TrimSpace(set.Model) == "" {
-			errs = append(errs, "tts.cartesia.model must not be empty (a Sonic model id, e.g. \"sonic-3.6\")")
+			errs = append(errs, "tts.cartesia.model must not be empty (a Sonic model id, e.g. 'sonic-3.6')")
 		}
 		if strings.TrimSpace(set.Voice) == "" {
 			errs = append(errs, "tts.cartesia.voice must not be empty (a Cartesia voice id; `soundctl tts voices --engine cartesia` lists them)")
@@ -86,7 +86,7 @@ func ValidateTTSSettings(set TTSSettings) []string {
 		return append(errs, fmt.Sprintf("tts.engine %q is not supported (use %q or %q)", set.Engine, TTSEngineElevenLabs, TTSEngineCartesia))
 	}
 	if strings.TrimSpace(set.Model) == "" {
-		errs = append(errs, "tts.elevenlabs.model must not be empty (e.g. \"eleven_v4\")")
+		errs = append(errs, "tts.elevenlabs.model must not be empty (e.g. 'eleven_v4')")
 	}
 	if strings.TrimSpace(set.Voice) == "" {
 		errs = append(errs, "tts.elevenlabs.voice must not be empty (an ElevenLabs voice id; `soundctl tts voices` lists them)")
@@ -105,7 +105,7 @@ func ValidateLanguage(lang string) []string { return validateLanguage(lang) }
 // sub directory and therefore has to be a safe path component.
 func validateLanguage(lang string) []string {
 	if lang == "" {
-		return []string{"top-level 'language' is required when 'tts' texts are present (e.g. \"en\")"}
+		return []string{"top-level 'language' is required when 'tts' texts are present (e.g. 'en')"}
 	}
 	if len(lang) > 12 {
 		return []string{fmt.Sprintf("language %q is too long (max 12 characters)", lang)}
@@ -187,7 +187,7 @@ func validateSound(name string, def SoundDef, ids *SoundIDs) []string {
 
 	// The single-source form was replaced by variants.
 	if def.LegacyFile != "" || def.LegacyTTS != "" {
-		errs = append(errs, fmt.Sprintf("%s: 'file'/'tts' at sound level was replaced by 'variants' (e.g. variants: [\"text to speak\"], variants: [{file: \"x.mp3\"}])", name))
+		errs = append(errs, fmt.Sprintf("%s: 'file'/'tts' at sound level was replaced by 'variants' (e.g. variants: ['text to speak'], variants: [{file: 'x.mp3'}])", name))
 	}
 	if def.Type != "mp3" && len(def.Variants) > 0 {
 		errs = append(errs, fmt.Sprintf("%s: 'variants' only apply to type: mp3 (got %q)", name, def.Type))
@@ -228,7 +228,7 @@ func validateSound(name string, def SoundDef, ids *SoundIDs) []string {
 func validateMP3(name string, def SoundDef) []string {
 	var errs []string
 	if len(def.Variants) == 0 {
-		return []string{fmt.Sprintf("%s: mp3 entry needs 'variants' (e.g. variants: [\"text to speak\"] or variants: [{file: \"x.mp3\"}])", name)}
+		return []string{fmt.Sprintf("%s: mp3 entry needs 'variants' (e.g. variants: ['text to speak'] or variants: [{file: 'x.mp3'}])", name)}
 	}
 	for i, v := range def.Variants {
 		label := fmt.Sprintf("%s: variants[%d]", name, i+1)
@@ -254,7 +254,7 @@ func validateMP3(name string, def SoundDef) []string {
 	if def.Every != "" {
 		d, err := time.ParseDuration(def.Every)
 		if err != nil {
-			errs = append(errs, fmt.Sprintf("%s: 'every' is not a duration such as \"120s\" (%v)", name, err))
+			errs = append(errs, fmt.Sprintf("%s: 'every' is not a duration such as '120s' (%v)", name, err))
 		} else if d < time.Second {
 			errs = append(errs, fmt.Sprintf("%s: 'every' must be at least 1s (got %s)", name, d))
 		}
