@@ -78,6 +78,28 @@ work without any configuration:
 - `AUTONOMOUS_NOTICE` — the reversing alarm of lorries and forklifts.
 - `VOLUME_UP` / `VOLUME_DOWN` — a rising and a falling figure for the volume slider.
 
+### Who triggers what
+
+The **high level** decides what the robot does and reports it in
+`/high_level_status` (`HighLevelStatus`: IDLE / AUTONOMOUS / RECORDING plus the behaviour
+name `UNDOCKING`, `MOWING`, `PAUSED`, `DOCKING`, `AREA_RECORDING`). The firmware's sound
+state machine turns that into the announcements, so a definition needs no high-level code:
+
+| high-level state change | sound |
+| --- | --- |
+| → `MOWING` | `MOWING_START` (or `MOWING_RESUMED` when it was paused) |
+| `MOWING` → `PAUSED` | `MOWING_PAUSED` |
+| `MOWING` / `PAUSED` → `DOCKING` | `MOWING_COMPLETE` |
+| anything → `DOCKING` | `DOCKING_START` |
+| anything → `AREA_RECORDING` | `AREA_RECORDING_MODE` |
+| `UNDOCKING` / `DOCKING` while it lasts | `AUTONOMOUS_NOTICE` (the warning device; its `repeat_ms` keeps the cadence) |
+
+The manoeuvres get the warning device because they drive the robot through the garden;
+mowing deliberately does not (it runs for hours and has the ambience sounds instead).
+Undocking and docking start and stop it, and `repeat_ms` in the definition keeps the
+cadence (so a definition may choose its own rate). A repeating sound ends as soon as
+another sound plays, hence the firmware re-starts the pattern after an announcement.
+
 `MOWING_AMBIENCE` is the odd one out: the high level never triggers it. Its definition
 carries `every`/`chance`/`pick`, and the **low level** rolls on its own once per interval
 and plays a random take — but only while its state machine is mowing (that condition is

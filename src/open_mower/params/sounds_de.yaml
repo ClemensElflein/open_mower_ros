@@ -195,6 +195,25 @@ sounds:
       - "Das Roboter-Betriebssystem wurde gestoppt."
       - "Das Roboter-Betriebssystem wurde gestoppt. Bis zum nächsten Mal."
       - "Das Roboter-Betriebssystem wurde gestoppt. Da hat das Gras heute aber Glück gehabt."
+  charging_start:
+    type: mp3
+    volume: 90
+    variants:
+      - "Ladevorgang gestartet."
+      - "Ladestation erreicht. Ich tanke jetzt Strom."
+      - "Ich bin an der Ladestation. Strom statt Gras — auch mal ganz nett."
+      - "Angedockt. Ich lade. Das ist der langweiligste Teil meines Berufs."
+      - "Ladestation erreicht. Ich mache jetzt Pause — beruflich bedingt."
+  charging_done:
+    type: mp3
+    volume: 90
+    variants:
+      - "Akku 'voll'. Ladevorgang abgeschlossen."
+      - "Akku 'voll'. Ich bin wieder hungrig — auf Gras."
+      - "Akku 'voll'. Ich fühle mich wie neu."
+      - "Vollgetankt. Ich bin bereit für die nächste Runde."
+      - "Vollgeladen. Das war's mit der Ruhe."
+      - "Ich bin wieder voll, [amused]aber nicht so voll das ich den Weg nicht finden würde."
   lift_triggered:
     type: mp3
     volume: 95
