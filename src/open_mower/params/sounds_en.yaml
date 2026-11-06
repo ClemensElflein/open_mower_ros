@@ -186,6 +186,112 @@ sounds:
       - "The robot operating system has stopped."
       - "The robot operating system has stopped. Until next time."
       - "The robot operating system has stopped. The grass got lucky today."
+  emergency_cleared:
+    type: mp3
+    volume: 90
+    pause_after_ms: 500
+    variants:
+      - "All good again. Carrying on."
+      - "Problem solved. Clear run."
+      - "No need to worry, I'm moving on."
+      - "Thanks, I feel free again."
+      - "All right, back to work."
+  charging_start:
+    type: mp3
+    volume: 90
+    variants:
+      - "Charging started."
+      - "Charging station reached. Filling up with electricity now."
+      - "I'm at the charging station. Power instead of grass - makes a nice change."
+      - "Docked. Charging. The most boring part of my job."
+      - "Charging station reached. Taking a break now - professionally speaking."
+  charging_done:
+    type: mp3
+    volume: 90
+    variants:
+      - "Battery 'full'. Charging complete."
+      - "Battery 'full'. I'm hungry again - for grass."
+      - "Battery 'full'. I feel like new."
+      - "Tanked up. Ready for the next round."
+      - "Fully charged. So much for the peace and quiet."
+      - "I'm full again, [amused]but not so full that I couldn't find my way."
+  lift_triggered:
+    type: mp3
+    volume: 95
+    pause_after_ms: 500
+    variants:
+      - "Lift sensor triggered. Please put me back on the lawn."
+      - "I've been lifted. Please set me down."
+      - "Oops, must have been a molehill."
+      - "I can't fly. Please put me down again."
+      - "Lifted up - I need ground contact."
+  collision_triggered:
+    type: mp3
+    volume: 95
+    pause_after_ms: 500
+    variants:
+      - "Collision sensor triggered."
+      - "I bumped into something."
+      - "Oops, that didn't quite fit."
+      - "Next time I'll take a bigger run-up. Promise."
+      - "Ouch. There must have been something in the way."
+  mower_rpm_limit:
+    type: mp3
+    volume: 95
+    pause_after_ms: 500
+    variants:
+      - "Blade spinning too fast. I stopped the mower deck."
+      - "The speed was too high. Please check the mower deck."
+  mower_rpm_timeout:
+    type: mp3
+    volume: 95
+    pause_after_ms: 500
+    variants:
+      - "Blade spinning too slowly. Please check the blade."
+      - "The blade is turning too slowly. Something is stuck."
+      - "I can't get up to speed. Please free the mower deck."
+      - "Something got caught in there. Not my fault."
+  stop_button:
+    type: mp3
+    volume: 90
+    pause_after_ms: 500
+    variants:
+      - "Stop button pressed."
+      - "Everything stopped, as requested."
+      - "Okay, I'm stopping."
+      - "I'm already standing still."
+      - "Oops, what's going on?"
+
+  # Theme songs: the low level picks a random take per playback (pick: random),
+  # so starting a job and going home don't sound the same every time.
+  #   mowing_start  - transition to MOWING (after undocking, off to the first area)
+  #   docking_start - transition to DOCKING (lawn done, battery low, rain, ...)
+  mowing_start:
+    type: mp3
+    volume: 80
+    pick: random
+    variants:
+      - { file: zz_pink-panther.mp3 }
+      - { file: zz_highway-to-hell.mp3 }
+  docking_start:
+    type: mp3
+    volume: 80
+    pick: random
+    variants:
+      - { file: zz_coming-home.mp3 }
+      - { file: zz_coming-home-remix.mp3 }
+      - { file: zz_sweet-home-alabama.mp3 }
+  # Rain instead of lawn done / battery low. Not triggered yet: the low level has
+  # no rain input, the reason comes from the high level (docking reason) - the
+  # sound only plays once the HL sends it. Until then docking_start stays.
+  rain_detected:
+    type: mp3
+    volume: 80
+    pick: random
+    variants:
+      - { file: zz_rain-singing.mp3 }
+      - { file: zz_rain-supertramp.mp3 }
+      - { file: zz_rain-garbage.mp3 }
 
   # Background effects while the mower works on its own. The low level rolls once
   # per `every` interval and plays one take with `chance` probability - the same

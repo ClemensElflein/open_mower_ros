@@ -261,6 +261,37 @@ sounds:
       - "Ich stehe ja schon."
       - "Upps, was ist los?"
 
+  # Themensongs: der Low Level zieht bei jeder Wiedergabe zufällig eine Variante
+  # (pick: random), damit Job-Start und Heimweg nicht jedes Mal gleich klingen.
+  #   mowing_start  - Übergang nach MOWING (nach dem Andocken los zur ersten Fläche)
+  #   docking_start - Übergang nach DOCKING (Rasen fertig, Akku leer, Regen, ...)
+  mowing_start:
+    type: mp3
+    volume: 80
+    pick: random
+    variants:
+      - { file: zz_pink-panther.mp3 }
+      - { file: zz_highway-to-hell.mp3 }
+  docking_start:
+    type: mp3
+    volume: 80
+    pick: random
+    variants:
+      - { file: zz_coming-home.mp3 }
+      - { file: zz_coming-home-remix.mp3 }
+      - { file: zz_sweet-home-alabama.mp3 }
+  # Regen statt Rasen fertig/leer. Noch nicht ausgelöst: der Low Level hat keinen
+  # Regen-Eingang, der Grund kommt aus dem High Level (Docking-Grund) - der Ton
+  # läuft also erst, wenn der HL ihn schickt. Bis dahin bleibt es bei docking_start.
+  rain_detected:
+    type: mp3
+    volume: 80
+    pick: random
+    variants:
+      - { file: zz_rain-singing.mp3 }
+      - { file: zz_rain-supertramp.mp3 }
+      - { file: zz_rain-garbage.mp3 }
+
   # Background effects while the mower works on its own. The low level rolls once
   # per `every` interval and plays one take with `chance` probability.
   mowing_ambience:

@@ -18,6 +18,25 @@ A definition references a file by bare name (`file: zz_ping.mp3`); its
 **Format:** MP3, 16 kHz mono, CBR — the firmware decodes at 16 kHz and does *not*
 resample. `soundctl validate --check-mp3` checks it.
 
+## Origins of the effect files
+
+The songs and alarms were taken over from the HW v1 firmware
+(`OpenMower/Firmware/LowLevel/soundfiles/mp3/`) and converted to 16 kHz mono
+CBR 32 kbps with the same two-pass loudness normalisation as the TTS renders
+(`-16 LUFS`, `-1.5 dBTP`), so music and speech sit at the same level.
+Rights are *unclear* for most of them — check before shipping a build:
+
+| file today                | source file (v1)                 | origin / licence                                                       |
+| ------------------------- | -------------------------------- | ---------------------------------------------------------------------- |
+| `zz_pink-panther.mp3`     | `0012_Pink-Panther.mp3`          | free ringtone, klingeltonekostenlos.de                                 |
+| `zz_highway-to-hell.mp3`  | `0013_Highway-to-Hell.mp3`       | cover, Philbert Audio (SoundCloud)                                     |
+| `zz_coming-home.mp3`      | `0300_MamaImComingHome_Demo.mp3` | shortened public demo (Spotify)                                        |
+| `zz_coming-home-remix.mp3`| `0301_ComingHome_Remix.mp3`      | free remix, reverbnation (n3xg3nmusik)                                 |
+| `zz_sweet-home-alabama.mp3` | `0302_SweetHomeAlabama.mp3`    | Internet Archive (`lynyrd.-skynyrd.2`)                                 |
+| `zz_rain-singing.mp3`     | `0100_SingingInTheRain_Remix.mp3`| The Bangerz remix (SoundCloud, exit33)                                 |
+| `zz_rain-supertramp.mp3`  | `0101_ItsRainingAgain_Supertramp.mp3` | Internet Archive (`supertramp-music`)                             |
+| `zz_rain-garbage.mp3`     | `0102_OnlyHappyWhenItRains_Cover.mp3` | cover by Giulio Peruch (SoundCloud)                              |
+
 **Announcements with a `tts:` text are not checked in.** `sounds/<language>/` is
 generated (see `.gitignore`) and rendered by `soundctl tts` in CI before the image
 build - but only for a language whose engine key is configured. Without one (a
@@ -55,14 +74,14 @@ renumbered id would silently address a different sound.
 |   15 | `CHARGING_START`      | charging started                                       |
 |   16 | `CHARGING_DONE`       | battery full                                           |
 |   17 | `SHUTDOWN_SAFE`       | the Pi is down, safe to power off                      |
-|   18 | `MOWING_START`        | starting to mow                                        |
+|   18 | `MOWING_START`        | starting to mow (the theme song, one take at random)    |
 |   19 | `MOWING_PAUSED`       | mowing paused (state `PAUSED`)                         |
 |   20 | `MOWING_RESUMED`      | mowing continues                                       |
 |   21 | `MOWING_COMPLETE`     | done, heading back to the station                      |
 |   22 | `MOWING_AMBIENCE`     | background effects while mowing (rolled by the LL)     |
-|   23 | `DOCKING_START`       | heading back to the charging station                   |
+|   23 | `DOCKING_START`       | heading back when the reason is not "lawn done"        |
 |   24 | `AREA_RECORDING_MODE` | entering the area-recording mode                       |
-|   25 | `RAIN_DETECTED`       | rain, heading back to the station                      |
+|   25 | `RAIN_DETECTED`       | rain, heading back: defined, but not triggered yet (no rain input, see below) |
 |   26 | `LIFT_TRIGGERED`      | wheel-lift sensor triggered an emergency               |
 |   27 | `STOP_BUTTON`         | the stop button was pressed                            |
 |   28 | `COLLISION_TRIGGERED` | collision sensor triggered an emergency                |
@@ -87,18 +106,51 @@ state machine turns that into the announcements, so a definition needs no high-l
 
 | high-level state change | sound |
 | --- | --- |
-| → `MOWING` | `MOWING_START` (or `MOWING_RESUMED` when it was paused) |
+| → `MOWING` | `MOWING_START` (or `MOWING_RESUMED` when it was paused) - the theme song, uninterrupted (mowing is no manoeuvre, so no warning device) |
 | `MOWING` → `PAUSED` | `MOWING_PAUSED` |
-| `MOWING` / `PAUSED` → `DOCKING` | `MOWING_COMPLETE` |
-| anything → `DOCKING` | `DOCKING_START` |
+| `MOWING` / `PAUSED` → `DOCKING` | `MOWING_COMPLETE` (why it goes home) |
+| anything → `DOCKING` | `DOCKING_START` (a random "coming home" song) |
 | anything → `AREA_RECORDING` | `AREA_RECORDING_MODE` |
 | `UNDOCKING` / `DOCKING` while it lasts | `AUTONOMOUS_NOTICE` (the warning device; its `repeat_ms` keeps the cadence) |
+
+### Why the theme songs do not fight the warning device
+
+The two long sounds sit on opposite sides of the manoeuvre logic:
+
+- `MOWING_START` fires when the robot *starts mowing* - not a manoeuvre, so the song
+  plays through (25-31 s) with no notice on top.
+- `DOCKING_START` fires when docking starts for a reason other than "lawn done" (also
+  battery empty, manual dock). Docking *is* a manoeuvre, so the notice comes first, the
+  song second, and the cadence continues afterwards.
+- `RAIN_DETECTED` needs the docking reason in the low level. It has none: the firmware
+  reports `rain_detected = false` (no sensor, see `mower_service.cpp`), and the high
+  level decides the reason from that very flag. The sound is defined and the MP3s are
+  there - it plays once the HL tells the LL why it docks.
+
+### Debugging a silent mower
+
+The firmware logs **every change of a sound input**, with or without a sound:
+
+```
+Sound: input link: 1 -> 0
+Sound: input hl: IDLE -> UNDOCKING
+Sound: input blade: 0 -> 1
+Sound: input emergency: NONE -> STOP
+Sound: input emergency_latched: 0 -> 1
+Sound: announced 'lift_triggered' (alert=EMERGENCY hl=DOCKING charging=0 blade=0, queued)
+```
+
+So `grep 'Sound:'` in the ROS log tells the whole story of an announcement: what the
+firmware saw, when it changed and what it played. `Sound: input …` lines appear only on a
+change, so a steady robot is silent in the log.
 
 The manoeuvres get the warning device because they drive the robot through the garden;
 mowing deliberately does not (it runs for hours and has the ambience sounds instead).
 Undocking and docking start and stop it, and `repeat_ms` in the definition keeps the
 cadence (so a definition may choose its own rate). A repeating sound ends as soon as
-another sound plays, hence the firmware re-starts the pattern after an announcement.
+another sound plays, so a manoeuvre that also announces something is ordered **warn,
+then announce, then warn again**: the notice has to be heard before the robot drives
+off, and an announcement may well be a half minute theme song.
 
 `MOWING_AMBIENCE` is the odd one out: the high level never triggers it. Its definition
 carries `every`/`chance`/`pick`, and the **low level** rolls on its own once per interval
