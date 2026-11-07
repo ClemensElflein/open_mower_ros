@@ -262,10 +262,16 @@ sounds:
       - "I'm already standing still."
       - "Oops, what's going on?"
 
-  # Theme songs: the low level picks a random take per playback (pick: random),
-  # so starting a job and going home don't sound the same every time.
-  #   mowing_start  - transition to MOWING (after undocking, off to the first area)
-  #   docking_start - transition to DOCKING (lawn done, battery low, rain, ...)
+  autonomous_notice:
+    type: mp3
+    volume: 90
+    pick: random
+    variants:
+      - "Stay back, autonomous robot mower in use."
+      - "Caution, I'm mowing now. Please keep clear."
+      - "I'm starting my mowing job. Please step aside."
+      - "Robot mower in use. Please stay off the lawn."
+
   mowing_start:
     type: mp3
     volume: 80
@@ -273,6 +279,16 @@ sounds:
     variants:
       - { file: zz_pink-panther.mp3 }
       - { file: zz_highway-to-hell.mp3 }
+  mowing_complete:
+    type: mp3
+    volume: 80
+    pause_after_ms: 1500
+    pick: random
+    variants:
+      - "The lawn is finished. I'm heading back to the charging station."
+      - "Mowing complete. I'm on my way home."
+      - "I'm done mowing and going to charge now."
+      - "Work's done. I'm heading back to recharge."
   docking_start:
     type: mp3
     volume: 80

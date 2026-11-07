@@ -156,7 +156,7 @@ sounds:
   boot_complete:
     type: mp3
     volume: 90
-    pause_after_ms: 500
+    pause_after_ms: 1000
     pick: random
     variants:
       - "Hallo, ich bin Dein intelligenter OpenMower Rasenmäher. Rasenpflege ist mein Beruf."
@@ -261,6 +261,16 @@ sounds:
       - "Ich stehe ja schon."
       - "Upps, was ist los?"
 
+  autonomous_notice:
+    type: mp3
+    volume: 90
+    pick: random
+    variants:
+      - "Achtung, der Mähroboter fährt jetzt los. Bitte Abstand halten."
+      - "Vorsicht, ich mähe jetzt. Bitte nicht im Weg stehen."
+      - "Ich starte meinen Mähauftrag. Bitte geh einen Schritt zur Seite."
+      - "Mähroboter im Einsatz. Bitte bleib außerhalb der Mähfläche."
+
   # Themensongs: der Low Level zieht bei jeder Wiedergabe zufällig eine Variante
   # (pick: random), damit Job-Start und Heimweg nicht jedes Mal gleich klingen.
   #   mowing_start  - Übergang nach MOWING (nach dem Andocken los zur ersten Fläche)
@@ -272,6 +282,16 @@ sounds:
     variants:
       - { file: zz_pink-panther.mp3 }
       - { file: zz_highway-to-hell.mp3 }
+  mowing_complete:
+    type: mp3
+    volume: 80
+    pause_after_ms: 1500
+    pick: random
+    variants:
+      - "Der Rasen ist fertig. Ich fahre zurück zur Ladestation."
+      - "Mähauftrag abgeschlossen. Ich mache mich auf den Heimweg."
+      - "Ich bin fertig mit Mähen und fahre jetzt laden."
+      - "Feierabend. Ich fahre zurück und tanke Strom."
   docking_start:
     type: mp3
     volume: 80
