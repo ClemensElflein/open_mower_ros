@@ -1,26 +1,30 @@
 name: Build
 
+# See soundctl.yaml: without `run-name`, every run in the Actions list carries
+# the PR or commit title instead of the workflow name.
+run-name: Build (${{ github.head_ref || github.ref_name }})
+
 # Controls when the workflow will run
 on:
   workflow_dispatch:
     inputs:
       clean_build:
-        description: 'Clean build without cache'
+        description: "Clean build without cache"
         default: false
         type: boolean
       variant:
-        description: 'Which variant to build (default/legacy or all)'
+        description: "Which variant to build (default/legacy or all)"
         required: true
-        default: 'all'
+        default: "all"
         type: choice
         options:
           - all
           - default
           - legacy
       arch:
-        description: 'Which architecture to build (amd64/arm64 or all)'
+        description: "Which architecture to build (amd64/arm64 or all)"
         required: true
-        default: 'all'
+        default: "all"
         type: choice
         options:
           - all
@@ -28,14 +32,14 @@ on:
           - arm64
   push:
     branches:
-      - 'main'
-      - 'releases/**'
-      - 'v2'
+      - "main"
+      - "releases/**"
+      - "v2"
     tags:
-      - 'v*'
+      - "v*"
   pull_request:
     branches:
-      - 'main'
+      - "main"
 
 # Allow stopping obsolete workflows
 concurrency:
@@ -47,7 +51,171 @@ permissions:
   packages: write
 
 jobs:
+  # One render for the whole run. Every build job consumes its artifact, so a definition
+  # change costs its TTS requests exactly once - and the render cache above it keeps every
+  # unchanged file, so an unchanged definition costs nothing at all.
+  #
+  # Why a separate job: three places used to render (this build, its second architecture,
+  # and the soundctl check), each with its own request. Rendering is the only step that
+  # spends money, so it happens here once and everything else copies the result.
+  render:
+    runs-on: ubuntu-latest
+    # A legacy-only rebuild has no announcements to render: do not spend a request on it.
+    if: github.event_name != 'workflow_dispatch' || inputs.variant != 'legacy'
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          # services/sound_service.json (the shared definition) is a submodule.
+          submodules: "recursive"
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: utils/soundctl/go.mod
+          cache-dependency-path: utils/soundctl/go.sum
+
+      # The render encodes the announcements (EBU R128 + MP3) with ffmpeg, which the image
+      # has but the runner does not.
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg
+          ffmpeg -version | head -1
+
+      # The renders are their own cache: soundctl writes a .json sidecar next to every MP3
+      # and only re-renders a variant whose fingerprint (engine, model, voice, voice
+      # settings, bitrate, language, text, see fwsync.TTSIdentity.Key) changed.
+      #
+      # ⚠️  A cache entry is immutable per key: the *first* save wins, and a later save for
+      # the same key fails silently ("Unable to reserve cache"). A key derived from the
+      # inputs alone therefore pins whatever the first run produced — one run whose TTS key
+      # ran out of quota poisons that key for good: every later run restores the stale
+      # renders, spends the API requests again and cannot store the result. So the save key
+      # is unique per run and the restore only uses the shared prefix: any entry is a valid
+      # seed, and the sidecars decide what still has to be rendered.
+      - name: Restore the rendered announcements
+        id: tts_cache
+        uses: actions/cache/restore@v6
+        with:
+          # Only the per-language render directories: the tracked recordings
+          # (zz_*.mp3, README.md) come from the checkout, not from a cache.
+          path: |
+            sounds/en
+            sounds/de
+          key: tts-renders-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: tts-renders-
+
+      # A step's `if` cannot read a secret directly, so detect it in its own step.
+      - name: Check for the TTS keys
+        id: tts_key
+        env:
+          ELEVEN: ${{ secrets.ELEVENLABS_API_KEY }}
+          CARTESIA: ${{ secrets.CARTESIA_API_KEY }}
+        run: |
+          if [ -n "${ELEVEN}" ] || [ -n "${CARTESIA}" ]; then
+            echo "available=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "available=false" >> "${GITHUB_OUTPUT}"
+            echo "::notice::No ELEVENLABS_API_KEY / CARTESIA_API_KEY secret - this build ships without the announcements (the robot renders them with its own key)."
+          fi
+
+      # Best effort on purpose: a failed render (API down, licence, rate limit) keeps the
+      # previous file and must not stop the image build. The job still reports it below,
+      # `soundctl tts --check` names what is stale, and at runtime `soundctl sync` skips
+      # those files - so the low level keeps playing what it already has.
+      - name: Render the announcements
+        id: render
+        if: steps.tts_key.outputs.available == 'true'
+        continue-on-error: true
+        working-directory: utils/soundctl
+        env:
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          CARTESIA_API_KEY: ${{ secrets.CARTESIA_API_KEY }}
+        run: |
+          set -euo pipefail
+          go build -o "${RUNNER_TEMP}/soundctl" ./cmd/soundctl
+          # Each language renders with the engine its file names, and each engine has its
+          # own secret: skip a language whose key is missing so it cannot hide the other.
+          declare -A secret=([elevenlabs]="${ELEVENLABS_API_KEY:-}" [cartesia]="${CARTESIA_API_KEY:-}")
+          failed=0
+          for lang in en de; do
+            cfg="../../src/open_mower/params/sounds_${lang}.yaml"
+            engine=$(sed -n 's/^[[:space:]]*engine:[[:space:]]*\([a-z]*\).*/\1/p' "${cfg}" | head -1)
+            if [ -z "${engine}" ]; then
+              echo "::error::could not read tts.engine from ${cfg}"
+              failed=1
+              continue
+            fi
+            if [ -z "${secret[${engine}]:-}" ]; then
+              echo "::notice::sounds_${lang}.yaml uses '${engine}', but its key is not set - skipping the ${lang} render."
+              continue
+            fi
+            args=(--config "${cfg}"
+                  --sound-ids ../../services/sound_service.json
+                  --sound-path ../../sounds
+                  --sounds-dir ../../sounds)
+            # --keep-going: try every variant, so the log names all failures instead of
+            # stopping at the first one.
+            "${RUNNER_TEMP}/soundctl" tts --keep-going "${args[@]}" || failed=1
+            # Nothing may be left stale, and every render must be 16 kHz mono.
+            "${RUNNER_TEMP}/soundctl" tts --check "${args[@]}" || failed=1
+            "${RUNNER_TEMP}/soundctl" validate --check-mp3 "${args[@]}" || failed=1
+          done
+          exit "${failed}"
+
+      # Without a key nothing was rendered: drop whatever the cache restored. An image with
+      # audio from an older definition looks fine and only fails much later - `soundctl sync`
+      # refuses to upload a stale render, so the robot stays silent instead of playing
+      # something that is not in the YAML.
+      - name: Drop restored renders when there is no key
+        if: steps.tts_key.outputs.available != 'true'
+        run: rm -rf sounds/en sounds/de
+
+      # Save even when the render failed: whatever is there is what the next run reuses, so
+      # an unchanged definition costs no TTS request. The key is the one the restore step
+      # reported, i.e. unique per run (a deterministic key would only ever store the first
+      # attempt, see the restore step above).
+      - name: Save the rendered announcements
+        if: ${{ !cancelled() && steps.tts_key.outputs.available == 'true' }}
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            sounds/en
+            sounds/de
+          key: ${{ steps.tts_cache.outputs.cache-primary-key }}
+
+      # The artifact is the hand-over to the build jobs: they all wait for this job and
+      # unpack it into sounds/, so exactly one render per run reaches every image.
+      - name: Upload the rendered announcements
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: sounds
+          path: |
+            sounds/en
+            sounds/de
+          # No key, no renders: the artifact is simply empty and the build jobs tolerate
+          # that (the robot renders the announcements itself).
+          if-no-files-found: ignore
+          retention-days: 3
+
+      # A red step inside a green job is easy to miss, and the PR image is only pushed for a
+      # successful build - so the failure is also stated as a check annotation.
+      - name: Report an incomplete render
+        if: steps.render.outcome == 'failure'
+        run: |
+          echo "::warning title=Announcements not rendered::The render failed (see the step above); the image ships whatever the cache had."
+          echo "Some announcements could not be rendered - the image ships what the cache had." >> "${GITHUB_STEP_SUMMARY}"
+
   build:
+    needs: render
+    # An incomplete render must not block the image (it ships whatever was cached, and the
+    # robot copes with stale files): only a cancelled run skips the build.
+    if: ${{ always() && needs.render.result != 'cancelled' }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -71,7 +239,7 @@ jobs:
     steps:
       - name: Prepare
         env:
-          REPOSITORY: '${{ github.repository }}'
+          REPOSITORY: "${{ github.repository }}"
         run: |
           build_arch=${{ matrix.docker_build_arch }}
           echo "BUILD_ARCH=${build_arch//\//-}" >> ${GITHUB_ENV}
@@ -80,9 +248,9 @@ jobs:
 
       # Get the repository's code
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
-          submodules: 'recursive'
+          submodules: "recursive"
           # Full history + tags so `git describe` can resolve the real version below.
           fetch-depth: 0
           persist-credentials: false
@@ -96,11 +264,23 @@ jobs:
           echo "version=${version}" >> ${GITHUB_OUTPUT}
           echo "Software version: ${version}"
 
+      # The announcements come from the single render job above, as an artifact: no build
+      # job spends a TTS request (see the cache note there). Without a TTS secret the job
+      # uploads nothing and the image ships without announcements - the robot renders them
+      # itself with the user's own key.
+      - name: Download the rendered announcements
+        if: matrix.variant == 'default'
+        uses: actions/download-artifact@v4
+        with:
+          name: sounds
+          path: sounds
+        continue-on-error: true
+
       # Setup Python 3
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3'
+          python-version: "3"
 
       - uses: pre-commit/action@v3.0.1
 
@@ -216,7 +396,7 @@ jobs:
     steps:
       - name: Prepare
         env:
-          REPOSITORY: '${{ github.repository }}'
+          REPOSITORY: "${{ github.repository }}"
         run: |
           echo "REPOSITORY_LC=${REPOSITORY,,}" >> ${GITHUB_ENV}
 
