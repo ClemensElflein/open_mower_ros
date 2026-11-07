@@ -5,37 +5,20 @@ MP3 files for the HW v2 sound system, plus the `sounds_<lang>.yaml` definitions
 
 ## Files
 
-Flat in this directory, prefixed so that a listing groups them:
+The effects and music sit flat in this directory; the generated announcements sit in one
+subdirectory per language:
 
-| prefix    | what it is                                                   | example                |
-| --------- | ------------------------------------------------------------ | ---------------------- |
-| `zz_`     | effect / background sound, sorts last                        | `zz_ping.mp3`          |
-| `<lang>_` | one language's version of an announcement (render/recording) | `de_boot_complete.mp3` |
+| what                                                   | example                     |
+| ------------------------------------------------------ | --------------------------- |
+| `zz_*.mp3` - effect / background sound, sorts last     | `zz_ping.mp3`               |
+| `<language>/<language>_<sound>_<n>.mp3` - a tts render | `de/de_boot_complete_1.mp3` |
 
-A definition references a file by bare name (`file: zz_ping.mp3`); its
-`sound_path` points here.
+A definition references a file by bare name (`file: zz_ping.mp3`), a tts render derives its
+name from language and sound id. The lookup adds the language subdirectory by itself (see
+[Runtime](#runtime)).
 
 **Format:** MP3, 16 kHz mono, CBR — the firmware decodes at 16 kHz and does *not*
 resample. `soundctl validate --check-mp3` checks it.
-
-## Origins of the effect files
-
-The songs and alarms were taken over from the HW v1 firmware
-(`OpenMower/Firmware/LowLevel/soundfiles/mp3/`) and converted to 16 kHz mono
-CBR 32 kbps with the same two-pass loudness normalisation as the TTS renders
-(`-16 LUFS`, `-1.5 dBTP`), so music and speech sit at the same level.
-Rights are *unclear* for most of them — check before shipping a build:
-
-| file today                | source file (v1)                 | origin / licence                                                       |
-| ------------------------- | -------------------------------- | ---------------------------------------------------------------------- |
-| `zz_pink-panther.mp3`     | `0012_Pink-Panther.mp3`          | free ringtone, klingeltonekostenlos.de                                 |
-| `zz_highway-to-hell.mp3`  | `0013_Highway-to-Hell.mp3`       | cover, Philbert Audio (SoundCloud)                                     |
-| `zz_coming-home.mp3`      | `0300_MamaImComingHome_Demo.mp3` | shortened public demo (Spotify)                                        |
-| `zz_coming-home-remix.mp3`| `0301_ComingHome_Remix.mp3`      | free remix, reverbnation (n3xg3nmusik)                                 |
-| `zz_sweet-home-alabama.mp3` | `0302_SweetHomeAlabama.mp3`    | Internet Archive (`lynyrd.-skynyrd.2`)                                 |
-| `zz_rain-singing.mp3`     | `0100_SingingInTheRain_Remix.mp3`| The Bangerz remix (SoundCloud, exit33)                                 |
-| `zz_rain-supertramp.mp3`  | `0101_ItsRainingAgain_Supertramp.mp3` | Internet Archive (`supertramp-music`)                             |
-| `zz_rain-garbage.mp3`     | `0102_OnlyHappyWhenItRains_Cover.mp3` | cover by Giulio Peruch (SoundCloud)                              |
 
 **Announcements with a `tts:` text are not checked in.** `sounds/<language>/` is
 generated (see `.gitignore`) and rendered by `soundctl tts` in CI before the image
@@ -159,13 +142,12 @@ firmware logic, not a definition field).
 
 ## Engine and voices
 
-The engine is picked per language file, so one language can use ElevenLabs and
-another Cartesia:
-
-| language | engine       | voice                                              | model       |
-| -------- | ------------ | -------------------------------------------------- | ----------- |
-| English  | `elevenlabs` | `TX3LPaxmHKxFdv7VOQHJ` (Liam)                      | `eleven_v4` |
-| German   | `cartesia`   | `b7187e84-fe22-4344-ba4a-bc013fcb533e` (Sebastian) | `sonic-3.6` |
+The engine is picked per language file, so one language can use ElevenLabs and another
+Cartesia. Both language files currently use **ElevenLabs** with the voice
+`TX3LPaxmHKxFdv7VOQHJ` ("Liam", `eleven_v4`). The `cartesia` block is kept alongside so that
+one language can be switched to `engine: cartesia` (voice
+`b7187e84-fe22-4344-ba4a-bc013fcb533e`, "Sebastian", `sonic-3.6`) without touching anything
+else.
 
 ```yaml
 # ElevenLabs (sounds_en.yaml)

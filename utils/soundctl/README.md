@@ -118,10 +118,13 @@ documented in [`sounds/README.md`](../../sounds/README.md). From the CLI:
   `https://api.eu.residency.elevenlabs.io`.
 - Every voice setting is part of the render cache key: changing one re-renders the
   announcements on the next `tts` run, which costs one API request per file.
-- Licences: the *voice* is licensed by ElevenLabs (and the voice owner), the
+- Licences: the *voice* is licensed by the provider (and the voice owner), the
   generated audio by the plan you booked - check both before shipping the files
-  in a public image. The API also logs the requests unless zero-retention (an
-  enterprise feature) is enabled; the texts are generic announcements.
+  in a public image. [`sounds/LICENSE.md`](../../sounds/LICENSE.md) records the
+  licence of what this repository ships. The API also logs the requests unless
+  zero-retention (an enterprise feature) is enabled; the texts are generic
+  announcements.
+
 ## Layout
 
 ```
