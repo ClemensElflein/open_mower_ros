@@ -279,21 +279,14 @@ sounds:
     variants:
       - { file: zz_pink-panther.mp3 }
       - { file: zz_highway-to-hell.mp3 }
-  mowing_complete:
-    type: mp3
-    volume: 80
-    pause_after_ms: 1500
-    pick: random
-    variants:
-      - "The lawn is finished. I'm heading back to the charging station."
-      - "Mowing complete. I'm on my way home."
-      - "I'm done mowing and going to charge now."
-      - "Work's done. I'm heading back to recharge."
   docking_start:
     type: mp3
     volume: 80
     pick: random
     variants:
+      - "Mowing complete. I'm on my way home."
+      - "I'm done mowing and going to charge now."
+      - "Work's done. I'm heading back to recharge."
       - { file: zz_coming-home.mp3 }
       - { file: zz_coming-home-remix.mp3 }
       - { file: zz_sweet-home-alabama.mp3 }

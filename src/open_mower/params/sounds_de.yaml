@@ -282,21 +282,14 @@ sounds:
     variants:
       - { file: zz_pink-panther.mp3 }
       - { file: zz_highway-to-hell.mp3 }
-  mowing_complete:
-    type: mp3
-    volume: 80
-    pause_after_ms: 1500
-    pick: random
-    variants:
-      - "Der Rasen ist fertig. Ich fahre zurück zur Ladestation."
-      - "Mähauftrag abgeschlossen. Ich mache mich auf den Heimweg."
-      - "Ich bin fertig mit Mähen und fahre jetzt laden."
-      - "Feierabend. Ich fahre zurück und tanke Strom."
   docking_start:
     type: mp3
     volume: 80
     pick: random
     variants:
+      - "Mähauftrag abgeschlossen. Ich mache mich auf den Heimweg."
+      - "Feierabend. Ich fahre zurück und tanke Strom."
+      - "Ich bin fertig mit Mähen und fahre jetzt laden."
       - { file: zz_coming-home.mp3 }
       - { file: zz_coming-home-remix.mp3 }
       - { file: zz_sweet-home-alabama.mp3 }
