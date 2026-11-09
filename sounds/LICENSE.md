@@ -35,21 +35,27 @@ on the robot - but they still end up in the image, which is why they are covered
 
 ## 2. Effects and music (`zz_*.mp3`)
 
-| file                        | where it came from                                                                                                   |
-| --------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `zz_pink-panther.mp3`       | free ringtone from [klingeltonekostenlos.de](https://klingeltonekostenlos.de/pink-panther-1/); the theme is © MGM/UA |
-| `zz_highway-to-hell.mp3`    | fan cover by [Philbert Audio](https://soundcloud.com/simonpvo/acdc-highway-to-hell); the song is © J. Albert & Son   |
-| `zz_coming-home.mp3`        | shortened public demo ([Spotify](https://open.spotify.com/intl-de/track/1yQiYwG2N8WiWHlhj3CX3T))                     |
-| `zz_coming-home-remix.mp3`  | free remix, [ReverbNation](https://www.reverbnation.com/n3xg3nmusik/song/9300198-diddy-dirty-money-coming-home-zouk) |
-| `zz_sweet-home-alabama.mp3` | uploaded to the [Internet Archive](https://archive.org/details/lynyrd.-skynyrd.2/)                                   |
-| `zz_rain-singing.mp3`       | [The Bangerz remix](https://soundcloud.com/exit33/singing-in-the-rain-the-bangerz-remix)                             |
-| `zz_rain-supertramp.mp3`    | uploaded to the [Internet Archive](https://archive.org/details/supertramp-music/)                                    |
-| `zz_rain-garbage.mp3`       | [cover by Giulio Peruch](https://soundcloud.com/giulio-peruch/garbage-only-happy-when-it-rains-cover)                |
+| file                                        | where it came from                                                                                                   |
+| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `zz_pink-panther.mp3`                       | free ringtone from [klingeltonekostenlos.de](https://klingeltonekostenlos.de/pink-panther-1/); the theme is © MGM/UA |
+| `zz_highway-to-hell.mp3`                    | fan cover by [Philbert Audio](https://soundcloud.com/simonpvo/acdc-highway-to-hell); the song is © J. Albert & Son   |
+| `zz_coming-home.mp3`                        | shortened public demo ([Spotify](https://open.spotify.com/intl-de/track/1yQiYwG2N8WiWHlhj3CX3T))                     |
+| `zz_coming-home-remix.mp3`                  | free remix, [ReverbNation](https://www.reverbnation.com/n3xg3nmusik/song/9300198-diddy-dirty-money-coming-home-zouk) |
+| `zz_sweet-home-alabama.mp3`                 | uploaded to the [Internet Archive](https://archive.org/details/lynyrd.-skynyrd.2/)                                   |
+| `zz_rain-singing.mp3`                       | [The Bangerz remix](https://soundcloud.com/exit33/singing-in-the-rain-the-bangerz-remix)                             |
+| `zz_rain-supertramp.mp3`                    | uploaded to the [Internet Archive](https://archive.org/details/supertramp-music/)                                    |
+| `zz_rain-garbage.mp3`                       | [cover by Giulio Peruch](https://soundcloud.com/giulio-peruch/garbage-only-happy-when-it-rains-cover)                |
+| `zz_gps-rtk-fix.mp3`, `zz_gps-rtk-lost.mp3` | Pixabay audio, used under the [Pixabay Content License](https://pixabay.com/de/service/license-summary/)             |
 
 These are fan recordings, remixes and archive uploads of music that is somebody else's work -
 a "free" download link describes the download, not the rights. Each is a short excerpt (15 to
 30 seconds, used as an intro, never a whole track), which explains the length but is no
 licence. None of it is covered by the GPL.
+
+The two Pixabay GPS files are different: they may be used commercially and non-commercially
+without attribution, but the licence still forbids redistributing them as standalone content
+(for example as a stock sound collection); they are included here only as part of the robot's
+sound library.
 
 The remaining effects, like `zz_ping`, `zz_burp`, `zz_cow`, `zz_sheep`, `zz_fart-wet`,
 `zz_fart-vegan`, `zz_minion-fire-alarm`, `zz_minion-fart`, are short samples and
