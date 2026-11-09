@@ -55,8 +55,22 @@ jobs:
   # change costs its TTS requests exactly once - and the render cache above it keeps every
   # unchanged file, so an unchanged definition costs nothing at all.
   #
-  # Why a separate job: rendering is the only step that spends money, so it happens here
-  # once and every build job copies the result instead of requesting it again.
+  # Keep it in THIS workflow. Moving it to soundctl.yaml (where the rest of the tool's
+  # checks live) looks tidier, but it either costs money or does not work:
+  #   - `needs:` only links jobs of the same run, so a render in another workflow is only
+  #     reachable via `workflow_call`. That works, but it drags this file's
+  #     gofmt/vet/test/validate into every image build, and a sound-only PR renders twice
+  #     (its own `paths:` trigger plus the call).
+  #   - The artifact is bound to one run_id: it has to be produced in the run that consumes
+  #     it. A cache is no substitute - a partial or poisoned entry looks like a full one
+  #     until the sidecars are checked.
+  #   - This job reads `inputs.variant` (a legacy-only rebuild skips the render). A called
+  #     workflow does not see the caller's inputs.
+  #
+  # Nor does it need a second, separately triggered render job "to prove the cache works":
+  # the `tts --check` further down is that proof (see there), costs no API request, and a
+  # real second render would spend the whole corpus precisely when the fingerprints are
+  # broken.
   render:
     runs-on: ubuntu-latest
     # A legacy-only rebuild has no announcements to render: do not spend a request on it.
@@ -160,6 +174,11 @@ jobs:
             # --keep-going: try every variant, so the log names all failures instead of
             # stopping at the first one.
             "${RUNNER_TEMP}/soundctl" tts --keep-going "${args[@]}" || failed=1
+            # This is the idempotency assertion, not just a format check: `--check` walks
+            # the same upToDate() the render loop skips on (render.go), so a green result
+            # here means a second `tts` run would render nothing - the sidecars describe
+            # every file and the cache works. It needs no API key and spends no request.
+            # (A real second render would prove the same thing and cost the whole corpus.)
             # Nothing may be left stale, and every render must be 16 kHz mono.
             "${RUNNER_TEMP}/soundctl" tts --check "${args[@]}" || failed=1
             "${RUNNER_TEMP}/soundctl" validate --check-mp3 "${args[@]}" || failed=1

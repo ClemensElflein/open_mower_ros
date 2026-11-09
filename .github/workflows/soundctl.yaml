@@ -92,3 +92,16 @@ jobs:
               --sound-path ../../sounds \
               --check-mp3
           done
+
+  # This workflow has deliberately no render job: producing the audio is the `render` job in
+  # build-image.yaml, the single place that renders (its artifact feeds every image build
+  # and its cache keeps the unchanged files). Moving it here, or calling it from
+  # build-image.yaml, either costs money or does not work:
+  #   - `needs:` links jobs of one run only, so the two options are `workflow_call` or
+  #     `workflow_run`.
+  #   - `workflow_call` works, but it would run this file's gofmt/vet/test/validate on every
+  #     image build (they have nothing to do with an image), and a sound-only PR would render
+  #     twice: once from this file's own `paths:` trigger, once from the call.
+  #   - `workflow_run` only fires on the default branch and never for a pull request.
+  # The real reason to want a render here would be to prove that a second run renders
+  # nothing - and `tts --check` already asserts exactly that, for free (see build-image.yaml).
