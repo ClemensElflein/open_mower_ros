@@ -171,10 +171,11 @@ cross-check next to our own frame walk), `golang.org/x/term` (is stdout a
 terminal, the only thing that turns colour on) and, tests only, `google/go-cmp`.
 The protocol modules above come on top.
 
-The Go toolchain is **1.27**: the `go` directive, the `golang:1.27` builder stage
-in `docker/Dockerfile` and CI (`actions/setup-go` reads the directive) are kept in
-step, so no `golang.org/x/*` module has to be held back at an old release to stay
-buildable. The module has no cgo, so the same source cross-compiles for the mower.
+The Go toolchain lives in one place: the `go` directive of `go.mod`. CI
+(`actions/setup-go`) reads it, so bumping it there is a one-line change. Only the
+`gobuild` stage in `docker/Dockerfile` pins its own `golang:<version>` tag and has
+to be bumped alongside it. Nothing else holds a `golang.org/x/*` release back, and
+since there is no cgo the same source cross-compiles for the mower.
 
 ### What happens when a render fails
 
