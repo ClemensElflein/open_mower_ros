@@ -20,9 +20,11 @@ services:
     # chmod dirs to 777 (so uid 1000 can create/write regardless of host uid) but
     # files to 666 - a blanket `chmod -R 777` would flag every data file executable
     # on each startup, which churns git status and is wrong for plain data files.
-    # The TTS key files are excluded: they are secrets and keep the 600 mode the
-    # docs ask for.
-    command: sh -c "mkdir -p /data/ros /data/recordings /data/params /data/sounds && find /data/ros /data/recordings /data/params /data/sounds -type d -exec chmod 777 {} + && find /data/ros /data/recordings /data/params /data/sounds -type f ! -name '.elevenlabs.key' ! -name '.cartesia.key' -exec chmod 666 {} +"
+    # The TTS key files are secrets: they keep their host owner, get group 1000 (the
+    # container user) and mode 640. Leaving them at a plain 600 would make them
+    # unreadable inside the container whenever the host user is not uid 1000; 666
+    # would make the key world-readable.
+    command: sh -c "mkdir -p /data/ros /data/recordings /data/params /data/sounds && find /data/ros /data/recordings /data/params /data/sounds -type d -exec chmod 777 {} + && find /data/ros /data/recordings /data/params /data/sounds -type f ! -name '.elevenlabs.key' ! -name '.cartesia.key' -exec chmod 666 {} + && find /data/sounds -maxdepth 1 -type f \( -name '.elevenlabs.key' -o -name '.cartesia.key' \) -exec chgrp 1000 {} + -exec chmod 640 {} +"
     volumes:
       - ./data/ros:/data/ros
       - ./data/recordings:/data/recordings

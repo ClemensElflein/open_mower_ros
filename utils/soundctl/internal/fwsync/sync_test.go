@@ -5,7 +5,24 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
+
+// TestReconnectTimeoutSpansSeveralAdvertisements: the reconnect that follows the
+// definitions transaction has to survive a lost UDP packet. A claimed service
+// advertises only every 10 s, so its budget must be a multiple of the probe budget -
+// using the probe budget itself loses the master volume to one dropped packet.
+func TestReconnectTimeoutSpansSeveralAdvertisements(t *testing.T) {
+	probe := soundCheckTimeout(Options{})
+	if got, want := reconnectTimeout(Options{}), 3*probe; got < want {
+		t.Fatalf("reconnectTimeout = %s, want at least %s (several advertisement periods)", got, want)
+	}
+	// An explicit --sound-check-timeout scales it too, so raising the probe budget
+	// never silently yields a shorter reconnect.
+	if got := reconnectTimeout(Options{SoundCheckTimeout: 5 * time.Second}); got != 15*time.Second {
+		t.Fatalf("reconnectTimeout(--sound-check-timeout 5s) = %s, want 15s", got)
+	}
+}
 
 // TestResolveRendersFallsBackToTheShippedRender: a stale overlay render must not
 // hide the copy the image ships. The shipped render is uploaded, not skipped.

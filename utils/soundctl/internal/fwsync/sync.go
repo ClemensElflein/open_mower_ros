@@ -51,14 +51,21 @@ type Options struct {
 // should not be so long that a soundless robot wastes the whole --wait window.
 const defaultSoundCheckTimeout = 10 * time.Second
 
-// soundCheckTimeout is the probe budget, also used for the reconnect that follows
-// the definitions transaction: a service that does not answer must not turn a
-// successful sync into a hang.
+// soundCheckTimeout is the probe budget: a service that does not answer must not
+// turn a successful sync into a hang.
 func soundCheckTimeout(opts Options) time.Duration {
 	if opts.SoundCheckTimeout > 0 {
 		return opts.SoundCheckTimeout
 	}
 	return defaultSoundCheckTimeout
+}
+
+// reconnectTimeout is the budget for the reconnect that follows the definitions
+// transaction. It spans several advertisement periods on purpose: the firmware has
+// just restarted the service, and a claimed service advertises only every 10 s, so
+// the probe budget would lose the master volume to a single dropped UDP packet.
+func reconnectTimeout(opts Options) time.Duration {
+	return 3 * soundCheckTimeout(opts)
 }
 
 // Sync uploads the MP3 files the definition references but the firmware is
@@ -213,7 +220,7 @@ func applyDefinitions(ctx context.Context, cfg *Config, opts Options, ss *sounds
 		return nil
 	}
 
-	reconnectCtx, cancel := context.WithTimeout(ctx, soundCheckTimeout(opts))
+	reconnectCtx, cancel := context.WithTimeout(ctx, reconnectTimeout(opts))
 	ss, err = soundservice.Dial(reconnectCtx, xbot.Options{NoClaim: true, BindIP: opts.BindIP})
 	cancel()
 	if err != nil {

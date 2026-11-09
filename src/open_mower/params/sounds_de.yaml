@@ -18,14 +18,18 @@
 # /data/ros, /data/recordings and /data/params individually, so /data/sounds lives
 # in the container and is gone after `openmower restart`. That is harmless for the
 # shipped sounds (they are re-rendered), but it also drops your own MP3s and the
-# Cartesia key file. To keep both, mount the directory from the host:
+# key file of the engine this file names. To keep both, mount the directory from
+# the host:
 #
 #   openmower@openmower:~ $ mkdir ~/sounds
 #   openmower@openmower:~ $ nano /opt/stacks/openmower/compose.yaml
 #   and add a `- /home/openmower/sounds:/data/sounds` next to the other volumes.
-#   openmower@openmower:~ $ echo 'sk_car_...' > ~/sounds/.cartesia.key
-#   openmower@openmower:~ $ chmod 600 ~/sounds/.cartesia.key
+#   openmower@openmower:~ $ echo 'sk-...' > ~/sounds/.elevenlabs.key
+#   openmower@openmower:~ $ chmod 600 ~/sounds/.elevenlabs.key
 #   openmower@openmower:~ $ openmower restart
+#
+# Switching this file to `engine: cartesia` means writing ~/sounds/.cartesia.key
+# (`sk_car_...`) instead.
 # ---------------------------------------------------------------------------
 #
 # Per-sound fields (all optional except type/volume):
