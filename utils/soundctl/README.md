@@ -108,7 +108,7 @@ Which voice speaks which language, and the `tts:` block of a definition, are
 documented in [`sounds/README.md`](../../sounds/README.md). From the CLI:
 
 - `soundctl tts` renders with the engine the YAML names (`elevenlabs` or
-  `cartesia`; the offline engines were removed). `soundctl say` takes the same
+  `cartesia`; those are the only two). `soundctl say` takes the same
   ElevenLabs settings as flags: `--voice`, `--model`, `--stability`,
   `--similarity-boost`, `--style`, `--speaker-boost`.
 - `--voice` is the ElevenLabs voice **id** (20 characters, e.g.
@@ -129,11 +129,22 @@ documented in [`sounds/README.md`](../../sounds/README.md). From the CLI:
 
 ```
 cmd/soundctl      main
-internal/cli      cobra commands (flags only, no logic)
-internal/fwsync   domain layer: config, validation, MP3 parser, layout/overlay,
-                  sidecar cache, sync + play
-internal/tts      ElevenLabs + Cartesia engines, ffmpeg encoder, render pipeline (sidecar cache)
+internal/cli      cobra commands (flags only, no logic) + output formatting
+internal/settings deployment policy: where the API keys and the writable sound
+                  overlay live, and how a tts block becomes an engine
+internal/fwsync   domain layer: config, TTS settings, render identity, render
+                  jobs, validation, MP3 parser, layout/overlay, sidecar cache,
+                  sync + play
+internal/tts      ElevenLabs + Cartesia engines on a shared HTTP layer, ffmpeg
+                  encoder, render pipeline (sidecar cache)
 ```
+
+`internal/cli` stays thin on purpose: a command turns flags into the arguments of
+a `fwsync`/`tts`/`settings` call and prints the result. Everything testable lives
+below it. The split inside `fwsync` follows the concepts: `config.go` (YAML),
+`ttssettings.go` (the resolved `tts:` block), `identity.go` (the render cache key),
+`renderjobs.go` (what to render + the definitions blob), `validate.go`, `mp3.go`,
+`resolve.go`/`sidecar.go` (file lookup + cache), `sync.go`, `play.go`.
 
 The protocol (discovery, claim, heartbeat, RPC calls, DATA and configuration
 transactions, heatshrink), lives in the xbot_framework Go module
@@ -152,6 +163,18 @@ for the service clients, `github.com/xtech/xbot_framework/xbot_service_interface
 for the protocol). A schema change means: regenerate the clients in the
 definitions repository, release it, and bump the `require` here - nothing in this
 tool has to change.
+
+The other dependencies are deliberately few and each earns its place:
+`spf13/cobra` (commands), `go.yaml.in/yaml/v3` (the YAML definitions — the
+maintained home of `gopkg.in/yaml.v3`), `hajimehoshi/go-mp3` (decodability
+cross-check next to our own frame walk), `golang.org/x/term` (is stdout a
+terminal, the only thing that turns colour on) and, tests only, `google/go-cmp`.
+The protocol modules above come on top.
+
+The Go toolchain is **1.27**: the `go` directive, the `golang:1.27` builder stage
+in `docker/Dockerfile` and CI (`actions/setup-go` reads the directive) are kept in
+step, so no `golang.org/x/*` module has to be held back at an old release to stay
+buildable. The module has no cgo, so the same source cross-compiles for the mower.
 
 ### What happens when a render fails
 
@@ -210,6 +233,14 @@ that also means no glibc version of the build host leaks in.
   lines a command prints itself. `sound_sync` uses both, because the ROS log already
   stamps each line: `[soundctl sync] INFO uploading file=de_x.mp3`. A manual run
   keeps the timestamp and no prefix.
+- Colour: `validate`, `tts --check`, `discover` and the error line colour their
+  status markers **only when stdout/stderr is a terminal** (`golang.org/x/term`) and
+  neither `--no-color`, `$NO_COLOR` nor `TERM=dumb` says otherwise. That is what
+  keeps the ROS log clean: `sound_sync` reads the CLI through `popen()`, i.e. a
+  pipe, and a redirected log is a pipe too — so no escape sequence ever reaches a
+  log file. The level token of a log line is coloured at the writer of the `log`
+  package, so the line format itself is unchanged. `sound_sync` passes
+  `--no-color` on top, so even a hand-run binary cannot colour its output.
 - An xbot service advertises every 1 s only while unclaimed and younger than
   60 s, afterwards every 10 s — hence `sync --wait` defaults to 30 s and the
   discovery errors list what was actually advertised.

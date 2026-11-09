@@ -35,11 +35,12 @@ func newValidateCmd() *cobra.Command {
 				return err
 			}
 
+			st := styleFor(cmd)
 			var errs []string
 			report := func(format string, args ...any) {
 				e := fmt.Sprintf(format, args...)
 				errs = append(errs, e)
-				fmt.Fprintln(cmd.ErrOrStderr(), "  [error]", e)
+				fmt.Fprintln(cmd.ErrOrStderr(), "  "+st.error("[error]"), e)
 			}
 
 			for _, e := range cfg.Validate(ids) {
@@ -59,7 +60,7 @@ func newValidateCmd() *cobra.Command {
 						path, err := layout.Find(file)
 						if err != nil {
 							if rendered[file] {
-								fmt.Fprintf(cmd.OutOrStdout(), "  pending: %s (rendered by 'soundctl tts')\n", file)
+								fmt.Fprintf(cmd.OutOrStdout(), "  %s %s (rendered by 'soundctl tts')\n", st.warn("pending:"), file)
 								continue
 							}
 							report("%s: %v", file, err)
@@ -73,7 +74,7 @@ func newValidateCmd() *cobra.Command {
 						if !info.Is16kMono() {
 							report("%s: not 16 kHz mono (rate=%d channels=%d)", file, info.SampleRate, info.Channels)
 						} else {
-							fmt.Fprintf(cmd.OutOrStdout(), "  ok: %s (%s)\n", file, info)
+							fmt.Fprintf(cmd.OutOrStdout(), "  %s %s (%s)\n", st.ok("ok:"), file, info)
 						}
 					}
 				}
@@ -82,7 +83,7 @@ func newValidateCmd() *cobra.Command {
 			if len(errs) > 0 {
 				return fmt.Errorf("%d error(s)", len(errs))
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "OK: %s\n", config)
+			fmt.Fprintf(cmd.OutOrStdout(), "%s %s\n", st.ok("OK:"), config)
 			return nil
 		},
 	}

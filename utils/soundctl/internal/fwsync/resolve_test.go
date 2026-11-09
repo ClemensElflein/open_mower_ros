@@ -164,9 +164,8 @@ func renderFixture(t *testing.T, dir, name string, id TTSIdentity) string {
 	return mp3
 }
 
-// TestLayoutFindRenderUsesTheValidCopy pins the fix for a silent mower: the overlay
-// still holding a render of an older definition (other engine, other text) must not
-// hide the render the image ships.
+// TestLayoutFindRenderUsesTheValidCopy: an overlay render of an older definition
+// (other engine, other text) must not hide the render the image ships.
 func TestLayoutFindRenderUsesTheValidCopy(t *testing.T) {
 	sound, overlay := t.TempDir(), t.TempDir()
 	old := renderIdentity

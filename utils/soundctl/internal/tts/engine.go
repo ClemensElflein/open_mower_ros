@@ -1,13 +1,13 @@
 // Package tts renders the "tts:" texts of sounds_*.yaml into the 16 kHz mono
 // MP3 files the firmware plays.
 //
-// The text is synthesised by the ElevenLabs cloud engine (elevenlabs.go) and
-// encoded by ffmpeg (loudness normalisation, resampling, MP3). The Go build stays
-// CGO-free: no model runs on the mower, which is what makes the image ~330 MB
-// smaller than the offline engines it replaced.
+// A hosted engine (elevenlabs.go, cartesia.go) synthesises the text and ffmpeg
+// normalises the loudness, resamples and encodes the MP3. Nothing runs locally, so
+// the build stays CGO-free and the image carries no model.
 package tts
 
 import (
+	"context"
 	"strings"
 	"time"
 
@@ -21,8 +21,9 @@ type Engine interface {
 	// touch the network: it runs on every start, also on the mower at boot.
 	Available() error
 	// Synthesize writes the spoken text to wav (16-bit PCM) and returns how long
-	// the engine took.
-	Synthesize(id fwsync.TTSIdentity, wav string) (time.Duration, error)
+	// the engine took. ctx aborts the request and the retry backoff, so a render
+	// in flight ends on SIGTERM instead of with the next request.
+	Synthesize(ctx context.Context, id fwsync.TTSIdentity, wav string) (time.Duration, error)
 	// Describe renders the voice/settings of one synthesis for the log line.
 	Describe(id fwsync.TTSIdentity) string
 }

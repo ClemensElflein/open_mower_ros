@@ -1,10 +1,8 @@
 package fwsync
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
-	"io"
 	"os"
 	"slices"
 	"strconv"
@@ -258,36 +256,4 @@ func id3v2Len(data []byte) int {
 		return len(data)
 	}
 	return total
-}
-
-// mpegFrameHeader locates the first MPEG audio frame and returns its sample
-// rate and channel count.
-func mpegFrameHeader(r io.Reader) (int, int, error) {
-	br := bufio.NewReader(r)
-
-	// Skip an optional ID3v2 tag.
-	if head, _ := br.Peek(10); len(head) >= 10 && string(head[:3]) == "ID3" {
-		size := int(head[6]&0x7F)<<21 | int(head[7]&0x7F)<<14 | int(head[8]&0x7F)<<7 | int(head[9]&0x7F)
-		if _, err := br.Discard(10 + size); err != nil {
-			return 0, 0, err
-		}
-	}
-
-	// Scan for a valid frame header, one byte at a time.
-	for {
-		b, err := br.ReadByte()
-		if err != nil {
-			return 0, 0, fmt.Errorf("no MPEG frame found: %w", err)
-		}
-		if b != 0xFF {
-			continue
-		}
-		rest, err := br.Peek(3)
-		if err != nil {
-			return 0, 0, fmt.Errorf("no MPEG frame found: %w", err)
-		}
-		if h, ok := decodeFrameHeader([4]byte{0xFF, rest[0], rest[1], rest[2]}); ok {
-			return h.sampleRate, h.channels, nil
-		}
-	}
 }

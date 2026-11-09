@@ -3,6 +3,7 @@ package fwsync
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 )
@@ -36,20 +37,7 @@ func (c *Config) Validate(ids *SoundIDs) []string {
 		errs = append(errs, validateLanguage(c.Language)...)
 		errs = append(errs, ValidateTTSSettings(c.TTSSettings())...)
 	}
-	// The offline engines were removed; a leftover block would silently voice the
-	// texts with ElevenLabs, so name it instead of ignoring the values.
-	if c.TTS.Supertonic.Model != "" || c.TTS.Supertonic.Sid != nil || c.TTS.Supertonic.Threads != 0 {
-		errs = append(errs, "the 'supertonic' engine was removed: delete tts.supertonic (engine: elevenlabs)")
-	}
-	if c.TTS.Piper.Voice != "" || c.TTS.Piper.SentenceSilence != nil {
-		errs = append(errs, "the 'piper' engine was removed: delete tts.piper (engine: elevenlabs)")
-	}
-	if c.TTS.Speed != nil {
-		errs = append(errs, "tts.speed was removed (ElevenLabs's speaking rate is not used by this tool)")
-	}
-	if c.TTS.LegacySid != nil {
-		errs = append(errs, "tts.sid was removed, use tts.elevenlabs.voice")
-	}
+	errs = append(errs, c.validateTTSBlock()...)
 	for name, def := range c.Sounds {
 		if !ids.Has(name) {
 			errs = append(errs, fmt.Sprintf("unknown sound id %q (valid: %v)", name, ids.Names()))
@@ -59,6 +47,43 @@ func (c *Config) Validate(ids *SoundIDs) []string {
 	}
 
 	errs = append(errs, c.validateFiles()...)
+	return errs
+}
+
+// ttsKeys are the keys the "tts:" block defines. Everything else lands in
+// TTSConfig.Unknown and is reported by validateTTSBlock.
+var ttsKeys = []string{"engine", "bitrate", "loudnorm", "elevenlabs", "cartesia"}
+
+// removedTTSKeys explains the keys of engines this tool no longer renders with, so
+// a definition from an older checkout gets a fix instead of a bare "unknown key".
+var removedTTSKeys = map[string]string{
+	"supertonic": "the sherpa-onnx offline engine was removed — only the cloud engines (" +
+		TTSEngineElevenLabs + ", " + TTSEngineCartesia + ") remain",
+	"piper": "the Piper offline engine was removed — only the cloud engines (" +
+		TTSEngineElevenLabs + ", " + TTSEngineCartesia + ") remain",
+	"speed": "the speaking rate is not used by this tool",
+	"sid":   "use tts.elevenlabs.voice",
+}
+
+// validateTTSBlock names every key of the tts block this tool does not know.
+// yaml.v3 drops unknown keys silently, so without this check a leftover block
+// from an older definition would change nothing and the texts would quietly be
+// voiced by whichever engine the file names now.
+func (c *Config) validateTTSBlock() []string {
+	keys := make([]string, 0, len(c.TTS.Unknown))
+	for key := range c.TTS.Unknown {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	var errs []string
+	for _, key := range keys {
+		if hint, ok := removedTTSKeys[key]; ok {
+			errs = append(errs, fmt.Sprintf("tts.%s: %s", key, hint))
+			continue
+		}
+		errs = append(errs, fmt.Sprintf("tts.%s is not a known key (valid: %s)", key, strings.Join(ttsKeys, ", ")))
+	}
 	return errs
 }
 
@@ -81,7 +106,7 @@ func ValidateTTSSettings(set TTSSettings) []string {
 		}
 		return errs
 	case TTSEngineElevenLabs:
-		// checked below
+		// The voice settings are checked below, after this switch.
 	default:
 		return append(errs, fmt.Sprintf("tts.engine %q is not supported (use %q or %q)", set.Engine, TTSEngineElevenLabs, TTSEngineCartesia))
 	}
@@ -185,7 +210,7 @@ func validateVolume(v int) error {
 func validateSound(name string, def SoundDef, ids *SoundIDs) []string {
 	errs := validateHeader(name, def, ids)
 
-	// The single-source form was replaced by variants.
+	// file/tts belong on a variant, not on the sound itself.
 	if def.LegacyFile != "" || def.LegacyTTS != "" {
 		errs = append(errs, fmt.Sprintf("%s: 'file'/'tts' at sound level was replaced by 'variants' (e.g. variants: ['text to speak'], variants: [{file: 'x.mp3'}])", name))
 	}
@@ -280,8 +305,8 @@ func validateHeader(name string, def SoundDef, ids *SoundIDs) []string {
 		return []string{fmt.Sprintf("%s: invalid or missing 'type' (got %q, valid: %v)", name, def.Type, ids.types.names())}
 	}
 
-	// Removed with the sound state machine: it stops the player itself before an alert and
-	// then queues the announcement and the alert, so a sound needs no such switch.
+	// The low level stops the player itself before an alert and then queues the
+	// announcement and the alert, so a sound needs no such switch.
 	if def.Preempt {
 		errs = append(errs, fmt.Sprintf("%s: 'preempt' was removed — the low level stops the player "+
 			"itself before an alert (delete it)", name))

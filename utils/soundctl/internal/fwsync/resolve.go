@@ -76,11 +76,10 @@ type Shadowed struct {
 // sidecar was rendered from id.
 //
 // Unlike Find, a stale candidate does not shadow a valid one further down the
-// list. That case is not theoretical: the overlay keeps an old render of a changed
-// announcement while the image ships a fresh one, and treating the stale overlay
-// copy as "the file" left the mower silent - sync skipped it and never looked at
-// the shipped render. The skipped copies are returned so the caller can name the
-// file that needs `soundctl tts`.
+// list: the overlay can hold a render of an older definition while the image ships
+// a matching one, and treating the stale copy as "the file" would silence the
+// announcement. The skipped copies are returned so the caller can name the file
+// that needs `soundctl tts`.
 //
 // When nothing matches, path is empty and reason says what is wrong with the most
 // specific candidate that does exist (or that none exists at all).

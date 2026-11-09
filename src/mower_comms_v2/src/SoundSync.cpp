@@ -22,7 +22,11 @@ constexpr auto kRetryDelay = std::chrono::seconds(20);
 /// ("[INFO] [1793893786.077...]: ...") and names the node, so soundctl's own
 /// date/time would be a duplicate. The prefix keeps a line attributable when the
 /// output of the two commands is interleaved in that log.
-constexpr const char* kLogFlags = "--log-time=false ";
+///
+/// --no-color: soundctl colours its output only on a terminal, and popen() gives it
+/// a pipe, so this is belt and braces - but it means an escape sequence can never
+/// reach the ROS log, not even if someone later runs the binary by hand.
+constexpr const char* kLogFlags = "--log-time=false --no-color ";
 
 struct Settings {
   bool enabled = true;

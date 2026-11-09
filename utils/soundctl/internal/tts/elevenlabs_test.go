@@ -1,6 +1,7 @@
 package tts
 
 import (
+	"context"
 	"encoding/binary"
 	"encoding/json"
 	"io"
@@ -70,7 +71,7 @@ func TestSynthesizeRequest(t *testing.T) {
 	defer srv.Close()
 
 	dst := filepath.Join(t.TempDir(), "speech.wav")
-	took, err := ElevenLabs{APIKey: testKey, BaseURL: srv.URL}.Synthesize(testIdentityForEngine(), dst)
+	took, err := ElevenLabs{APIKey: testKey, BaseURL: srv.URL}.Synthesize(context.Background(), testIdentityForEngine(), dst)
 	if err != nil {
 		t.Fatalf("Synthesize: %v", err)
 	}
@@ -125,7 +126,7 @@ func TestSynthesizeRetriesOn429(t *testing.T) {
 
 	dst := filepath.Join(t.TempDir(), "speech.wav")
 	eng := ElevenLabs{APIKey: testKey, BaseURL: srv.URL, RetryDelay: time.Millisecond}
-	if _, err := eng.Synthesize(testIdentityForEngine(), dst); err != nil {
+	if _, err := eng.Synthesize(context.Background(), testIdentityForEngine(), dst); err != nil {
 		t.Fatalf("Synthesize after a 429: %v", err)
 	}
 	if got := atomic.LoadInt32(&calls); got != 2 {
@@ -144,7 +145,7 @@ func TestSynthesizeDoesNotRetryAuthErrors(t *testing.T) {
 
 	dst := filepath.Join(t.TempDir(), "speech.wav")
 	eng := ElevenLabs{APIKey: testKey, BaseURL: srv.URL, RetryDelay: time.Millisecond}
-	err := func() error { _, err := eng.Synthesize(testIdentityForEngine(), dst); return err }()
+	err := func() error { _, err := eng.Synthesize(context.Background(), testIdentityForEngine(), dst); return err }()
 	if err == nil {
 		t.Fatal("expected an error for a 401")
 	}
@@ -167,7 +168,7 @@ func TestSynthesizeRejectsNonWAV(t *testing.T) {
 
 	dst := filepath.Join(t.TempDir(), "speech.wav")
 	eng := ElevenLabs{APIKey: testKey, BaseURL: srv.URL}
-	if _, err := eng.Synthesize(testIdentityForEngine(), dst); err == nil {
+	if _, err := eng.Synthesize(context.Background(), testIdentityForEngine(), dst); err == nil {
 		t.Fatal("expected an error for a non-WAV response")
 	}
 	if _, err := os.Stat(dst); err == nil {
@@ -214,7 +215,7 @@ func TestVoicesListsAndPaginates(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	voices, err := ElevenLabs{APIKey: testKey, BaseURL: srv.URL}.Voices("default")
+	voices, err := ElevenLabs{APIKey: testKey, BaseURL: srv.URL}.Voices(context.Background(), "default")
 	if err != nil {
 		t.Fatalf("Voices: %v", err)
 	}
@@ -236,7 +237,7 @@ func TestVoicesRejectsBadStatus(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	if _, err := (ElevenLabs{APIKey: testKey, BaseURL: srv.URL}).Voices("default"); err == nil {
+	if _, err := (ElevenLabs{APIKey: testKey, BaseURL: srv.URL}).Voices(context.Background(), "default"); err == nil {
 		t.Fatal("expected an error for a 401")
 	} else if !strings.Contains(err.Error(), "401") {
 		t.Errorf("error = %v, want the status code", err)

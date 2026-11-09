@@ -4,9 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -42,9 +39,7 @@ func newDiscoverCmd() *cobra.Command {
 			"  soundctl discover --bind 172.16.78.1",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-			defer stop()
-			ctx, cancel := context.WithTimeout(ctx, wait)
+			ctx, cancel := context.WithTimeout(cmd.Context(), wait)
 			defer cancel()
 
 			services, err := xbot.Discover(ctx, bind)
@@ -59,14 +54,14 @@ func newDiscoverCmd() *cobra.Command {
 			if err != nil && !errors.Is(err, context.DeadlineExceeded) {
 				return err
 			}
-			fmt.Fprintln(out, "SID TYPE                           VER ENDPOINT")
+			fmt.Fprintln(out, styleFor(cmd).head("SID TYPE                           VER ENDPOINT"))
 			for _, svc := range services {
 				fmt.Fprintln(out, svc)
 			}
 			if !hasService(services, fileservice.ServiceID) {
 				fmt.Fprintf(cmd.ErrOrStderr(),
-					"note: the FileService (SID %d) was not advertised — \"soundctl sync\" cannot upload MP3s\n"+
-						"      until the LL firmware implements it.\n", fileservice.ServiceID)
+					"%s the FileService (SID %d) was not advertised — \"soundctl sync\" cannot upload MP3s\n"+
+						"      until the LL firmware implements it.\n", styleFor(cmd).warn("note:"), fileservice.ServiceID)
 			}
 			return nil
 		},

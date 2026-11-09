@@ -2,8 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 	"text/tabwriter"
@@ -11,92 +9,14 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/ClemensElflein/open_mower_ros/utils/soundctl/internal/fwsync"
+	"github.com/ClemensElflein/open_mower_ros/utils/soundctl/internal/settings"
 	"github.com/ClemensElflein/open_mower_ros/utils/soundctl/internal/tts"
 )
 
-// dataDir is the writable data partition of the mower (a mount in the OS image,
-// ./data in docker-simulation) and soundsDirName the overlay below it.
-const dataDir = "/data"
-const soundsDirName = "sounds"
-
-// defaultSoundsDir returns the writable overlay: $OPENMOWER_SOUNDS_DIR, else
-// /data/sounds when the data partition exists, else "" (image only).
-func defaultSoundsDir() string {
-	if d := os.Getenv("OPENMOWER_SOUNDS_DIR"); d != "" {
-		return d
-	}
-	isDir := func(p string) bool {
-		st, err := os.Stat(p)
-		return err == nil && st.IsDir()
-	}
-	return dataSoundsDir(dataDir, isDir)
-}
-
-// dataSoundsDir is the /data part of defaultSoundsDir. Only the data partition
-// has to exist: the overlay directory itself is created by the first render
-// (`soundctl tts`), so a mower with a fresh data partition still gets its
-// announcements instead of writing into the read-only image.
-func dataSoundsDir(data string, isDir func(string) bool) string {
-	if !isDir(data) {
-		return ""
-	}
-	return filepath.Join(data, soundsDirName)
-}
-
-// DefaultAPIKeyFile is where the mower keeps the ElevenLabs key. The sounds
-// overlay is the one directory every user who customises sounds mounts anyway,
-// and it lives on the data partition, so the key needs no extra volume and
-// survives image updates. It is never uploaded (sync only sends the files named
-// in sounds_*.yaml) and never deleted (cleanup compares the low level's listing
-// against those names) - hence the dot-file name.
-const DefaultAPIKeyFile = "/data/sounds/.elevenlabs.key"
-
-// DefaultCartesiaAPIKeyFile is the same trick for the Cartesia key.
-const DefaultCartesiaAPIKeyFile = "/data/sounds/.cartesia.key"
-
-// apiKey resolves the key of an engine: explicit flag, explicit file, then
-// $ELEVENLABS_API_KEY, then the default file. The environment is what CI (a
-// repository secret) and a dev shell use; the file is what the mower uses.
-func apiKey(engine, explicit, explicitFile string) (string, error) {
-	if v := strings.TrimSpace(explicit); v != "" {
-		return v, nil
-	}
-	if explicitFile != "" {
-		return readKeyFile(explicitFile)
-	}
-	env, file := apiKeySource(engine)
-	if v := strings.TrimSpace(os.Getenv(env)); v != "" {
-		return v, nil
-	}
-	if v, err := readKeyFile(file); err == nil && v != "" {
-		return v, nil
-	}
-	return "", fmt.Errorf("no %s API key: pass --api-key/--api-key-file, set $%s, or write %s", engine, env, file)
-}
-
-// apiKeySource names the environment variable and the default file of an engine.
-// The environment is what CI (a repository secret) and a dev shell use; the file
-// is what the mower uses.
-func apiKeySource(engine string) (env, file string) {
-	if engine == fwsync.TTSEngineCartesia {
-		return "CARTESIA_API_KEY", DefaultCartesiaAPIKeyFile
-	}
-	return "ELEVENLABS_API_KEY", DefaultAPIKeyFile
-}
-
-// readKeyFile reads a key file. Editors append a newline, so the value is
-// trimmed; anything else (a missing file included) is an error.
-func readKeyFile(path string) (string, error) {
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		return "", fmt.Errorf("read API key file: %w", err)
-	}
-	key := strings.TrimSpace(string(raw))
-	if key == "" {
-		return "", fmt.Errorf("%s is empty", path)
-	}
-	return key, nil
-}
+// defaultSoundsDir is the flag default of --sounds-dir. The policy behind it (where
+// the overlay lives and why) is in internal/settings, so it is testable there
+// without a cobra command.
+func defaultSoundsDir() string { return settings.SoundsDir() }
 
 // ttsFlags are the flags of the tts command.
 type ttsFlags struct {
@@ -120,7 +40,7 @@ func (f *ttsFlags) register(cmd *cobra.Command) {
 	fl.StringVar(&f.soundsDir, "sounds-dir", defaultSoundsDir(), "writable overlay with customised/rendered MP3s (empty: only sound_path)")
 	layoutFlag(cmd, &f.soundPathOv)
 	fl.StringVar(&f.apiKey, "api-key", "", "API key of the engine (instead of the file/environment); never put it in sounds_*.yaml")
-	fl.StringVar(&f.apiKeyFile, "api-key-file", "", "file holding the API key of the engine (default: $ELEVENLABS_API_KEY / "+DefaultAPIKeyFile+", or $CARTESIA_API_KEY / "+DefaultCartesiaAPIKeyFile+")")
+	fl.StringVar(&f.apiKeyFile, "api-key-file", "", "file holding the API key of the engine (default: $ELEVENLABS_API_KEY / "+settings.DefaultElevenLabsKeyFile+", or $CARTESIA_API_KEY / "+settings.DefaultCartesiaKeyFile+")")
 	fl.StringVar(&f.apiURL, "api-url", "", "API root (default: "+tts.DefaultElevenLabsURL+" for elevenlabs - e.g. the EU host - and "+tts.DefaultCartesiaURL+" for cartesia)")
 	fl.StringVar(&f.ffmpeg, "ffmpeg", "ffmpeg", "ffmpeg binary used for encoding")
 	fl.BoolVar(&f.force, "force", false, "re-render even if the sidecar says the file is up to date")
@@ -128,23 +48,11 @@ func (f *ttsFlags) register(cmd *cobra.Command) {
 	fl.BoolVar(&f.keepGoing, "keep-going", false, "continue with the other variants when one fails (its previous file is kept, exit code stays non-zero)")
 }
 
-// engineFor builds the engine a definition asks for. The same factory serves
-// `soundctl tts` (engine from the YAML) and `soundctl say` (engine from flags),
-// so both always use the same engine.
+// engineFor builds the engine the definition asks for. The construction itself
+// (and the API key resolution) is settings.NewEngine, because `soundctl say` needs
+// exactly the same factory from flags.
 func (f *ttsFlags) engineFor(set fwsync.TTSSettings) (tts.Engine, error) {
-	key, err := apiKey(set.Engine, f.apiKey, f.apiKeyFile)
-	if err != nil {
-		return nil, err
-	}
-	switch set.Engine {
-	case fwsync.TTSEngineCartesia:
-		return tts.Cartesia{APIKey: key, BaseURL: f.apiURL}, nil
-	case fwsync.TTSEngineElevenLabs:
-		return tts.ElevenLabs{APIKey: key, BaseURL: f.apiURL}, nil
-	default:
-		return nil, fmt.Errorf("tts.engine %q is not supported (use %q or %q)", set.Engine,
-			fwsync.TTSEngineElevenLabs, fwsync.TTSEngineCartesia)
-	}
+	return settings.NewEngine(set, f.apiKey, f.apiKeyFile, f.apiURL)
 }
 
 func (f *ttsFlags) run(cmd *cobra.Command) error {
@@ -157,14 +65,16 @@ func (f *ttsFlags) run(cmd *cobra.Command) error {
 		return err
 	}
 	if errs := cfg.Validate(ids); len(errs) > 0 {
+		st := styleFor(cmd)
 		for _, e := range errs {
-			fmt.Fprintln(cmd.ErrOrStderr(), "  [error]", e)
+			fmt.Fprintln(cmd.ErrOrStderr(), "  "+st.error("[error]"), e)
 		}
 		return fmt.Errorf("%s: %d error(s)", f.config, len(errs))
 	}
 
 	layout := newLayout(cfg, f.soundPathOv, f.soundsDir)
 	out := cmd.OutOrStdout()
+	st := styleFor(cmd)
 	jobs := cfg.RenderJobs()
 
 	if f.check {
@@ -174,11 +84,11 @@ func (f *ttsFlags) run(cmd *cobra.Command) error {
 		}
 		pending := tts.Pending(cfg, layout)
 		if len(pending) == 0 {
-			fmt.Fprintf(out, "OK: %d tts render(s) up to date\n", len(jobs))
+			fmt.Fprintf(out, "%s %d tts render(s) up to date\n", st.ok("OK:"), len(jobs))
 			return nil
 		}
 		for _, label := range pending {
-			fmt.Fprintf(out, "stale: %s\n", label)
+			fmt.Fprintf(out, "%s %s\n", st.warn("stale:"), label)
 		}
 		return fmt.Errorf("%d of %d tts render(s) missing or stale", len(pending), len(jobs))
 	}
@@ -200,7 +110,7 @@ func (f *ttsFlags) run(cmd *cobra.Command) error {
 		return err
 	}
 
-	results, err := tts.Render(cfg, layout, eng, enc, tts.Options{
+	results, err := tts.Render(cmd.Context(), cfg, layout, eng, enc, tts.Options{
 		OutDir:    layout.OutDir(),
 		Force:     f.force,
 		KeepGoing: f.keepGoing,
@@ -262,14 +172,14 @@ func newTTSVoicesCmd() *cobra.Command {
 			"  soundctl tts voices --engine cartesia --language de",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			key, err := apiKey(engine, apiKeyVal, apiKeyFile)
+			key, err := settings.APIKey(engine, apiKeyVal, apiKeyFile)
 			if err != nil {
 				return err
 			}
 			out := cmd.OutOrStdout()
 
 			if engine == fwsync.TTSEngineCartesia {
-				voices, err := tts.Cartesia{APIKey: key, BaseURL: apiURL}.Voices()
+				voices, err := tts.Cartesia{APIKey: key, BaseURL: apiURL}.Voices(cmd.Context())
 				if err != nil {
 					return err
 				}
@@ -298,7 +208,7 @@ func newTTSVoicesCmd() *cobra.Command {
 			if all {
 				filter = ""
 			}
-			voices, err := tts.ElevenLabs{APIKey: key, BaseURL: apiURL}.Voices(filter)
+			voices, err := tts.ElevenLabs{APIKey: key, BaseURL: apiURL}.Voices(cmd.Context(), filter)
 			if err != nil {
 				return err
 			}
@@ -367,8 +277,8 @@ func newTTSCmd() *cobra.Command {
 			"The engine comes from the definition's tts.engine (a hosted API): the text\n" +
 			"is sent to it and the returned 16 kHz audio is normalised and encoded by\n" +
 			"ffmpeg. The key is resolved per engine: --api-key, --api-key-file,\n" +
-			"$ELEVENLABS_API_KEY / " + DefaultAPIKeyFile + ", or\n" +
-			"$CARTESIA_API_KEY / " + DefaultCartesiaAPIKeyFile + ".\n" +
+			"$ELEVENLABS_API_KEY / " + settings.DefaultElevenLabsKeyFile + ", or\n" +
+			"$CARTESIA_API_KEY / " + settings.DefaultCartesiaKeyFile + ".\n" +
 			"\n" +
 			"Runs once per ROS start inside the container; \"tts --check\" only reports\n" +
 			"what would be rendered (it needs no key), and sync refuses to upload a\n" +

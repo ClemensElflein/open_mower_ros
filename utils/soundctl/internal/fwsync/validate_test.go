@@ -276,23 +276,30 @@ func TestValidateRejectsBadTTSSettings(t *testing.T) {
 			name: "removed piper engine",
 			doc: "version: 1\nlanguage: en\nsound_path: /opt/open_mower_ros/sounds\n" +
 				"tts:\n  engine: elevenlabs\n  elevenlabs:\n    voice: abc\n  piper:\n    voice: en_US-bryce-medium\n" + sound,
-			want: "the 'piper' engine was removed",
+			want: "tts.piper: the Piper offline engine was removed",
 		},
 		{
 			name: "removed supertonic engine",
 			doc: "version: 1\nlanguage: en\nsound_path: /opt/open_mower_ros/sounds\n" +
 				"tts:\n  engine: elevenlabs\n  elevenlabs:\n    voice: abc\n  supertonic:\n    sid: 5\n" + sound,
-			want: "the 'supertonic' engine was removed",
+			want: "tts.supertonic: the sherpa-onnx offline engine was removed",
 		},
 		{
 			name: "removed speed",
 			doc:  "version: 1\nlanguage: en\nsound_path: /opt/open_mower_ros/sounds\ntts:\n  speed: 1.2\n  elevenlabs:\n    voice: abc\n" + sound,
-			want: "tts.speed was removed",
+			want: "tts.speed: the speaking rate is not used",
 		},
 		{
 			name: "removed sid",
 			doc:  "version: 1\nlanguage: en\nsound_path: /opt/open_mower_ros/sounds\ntts:\n  sid: 5\n  elevenlabs:\n    voice: abc\n" + sound,
-			want: "tts.sid was removed",
+			want: "tts.sid: use tts.elevenlabs.voice",
+		},
+		{
+			// Any other key is refused too, so a typo cannot silently do nothing.
+			name: "unknown tts key",
+			doc: "version: 1\nlanguage: en\nsound_path: /opt/open_mower_ros/sounds\n" +
+				"tts:\n  engine: elevenlabs\n  elevenlabs:\n    voice: abc\n  loudnes: true\n" + sound,
+			want: "tts.loudnes is not a known key",
 		},
 	}
 	for _, c := range cases {

@@ -17,8 +17,8 @@ const TargetSampleRate = 16000
 
 // Loudness target. -16 LUFS / -1.5 dBTP / 11 LU is the EBU R128 streaming
 // profile: the same level the rest of the corpus has, with a true-peak limit
-// that leaves the amplifier headroom. Measured: raw Supertonic output is ~9 dB
-// quieter and varies by up to 3 LU between sentences.
+// that leaves the amplifier headroom. Raw engine output is ~9 dB quieter and
+// varies by up to 3 LU between sentences, which is audible over the mower.
 const (
 	LoudnessTargetI   = -16.0
 	LoudnessTargetTP  = -1.5

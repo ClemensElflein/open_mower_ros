@@ -92,8 +92,3 @@ jobs:
               --sound-path ../../sounds \
               --check-mp3
           done
-
-  # The end-to-end render check (render every language with the engine its YAML names and
-  # assert the result is 16 kHz mono) lives in build-image.yaml now: it is one job there,
-  # whose artifact feeds every image build. Rendering here as well would spend the same TTS
-  # requests twice - see the cache note in that workflow.

@@ -1,6 +1,7 @@
 package tts
 
 import (
+	"context"
 	"errors"
 	"hash/crc32"
 	"os"
@@ -49,7 +50,7 @@ type fakeEngine struct{}
 
 func (fakeEngine) Available() error { return nil }
 
-func (fakeEngine) Synthesize(fwsync.TTSIdentity, string) (time.Duration, error) {
+func (fakeEngine) Synthesize(context.Context, fwsync.TTSIdentity, string) (time.Duration, error) {
 	return 0, errors.New("fake engine must not run")
 }
 
@@ -58,7 +59,7 @@ func (fakeEngine) Describe(fwsync.TTSIdentity) string { return "fake" }
 // TestRenderTextNeedsText pins the only branch of RenderText that does not need
 // the external engine.
 func TestRenderTextNeedsText(t *testing.T) {
-	if _, err := RenderText("   \n", fwsync.TTSIdentity{}, filepath.Join(t.TempDir(), "none.mp3"), fakeEngine{}, Encoder{}, nil); err == nil {
+	if _, err := RenderText(context.Background(), "   \n", fwsync.TTSIdentity{}, filepath.Join(t.TempDir(), "none.mp3"), fakeEngine{}, Encoder{}, nil); err == nil {
 		t.Fatal("an empty text must be rejected before the engine runs")
 	}
 }
@@ -95,7 +96,7 @@ func TestRenderTextWithEngine(t *testing.T) {
 		Style:           fwsync.DefaultTTSStyle,
 		UseSpeakerBoost: fwsync.DefaultTTSUseSpeakerBoost,
 	}
-	res, err := RenderText("Hallo Welt.", id, dst, eng, enc, t.Logf)
+	res, err := RenderText(context.Background(), "Hallo Welt.", id, dst, eng, enc, t.Logf)
 	if err != nil {
 		t.Fatalf("RenderText: %v", err)
 	}
@@ -226,7 +227,7 @@ sounds:
 		t.Fatal(err)
 	}
 
-	results, err := Render(cfg, layout, fakeEngine{}, Encoder{FFmpeg: "ffmpeg"}, Options{
+	results, err := Render(context.Background(), cfg, layout, fakeEngine{}, Encoder{FFmpeg: "ffmpeg"}, Options{
 		OutDir:    layout.OutDir(),
 		KeepGoing: true,
 		Log:       func(string, ...any) {},
@@ -251,7 +252,7 @@ sounds:
 	}
 
 	// The default is fail-fast.
-	if _, err := Render(cfg, layout, fakeEngine{}, Encoder{FFmpeg: "ffmpeg"}, Options{
+	if _, err := Render(context.Background(), cfg, layout, fakeEngine{}, Encoder{FFmpeg: "ffmpeg"}, Options{
 		OutDir: layout.OutDir(),
 		Log:    func(string, ...any) {},
 	}); err == nil {

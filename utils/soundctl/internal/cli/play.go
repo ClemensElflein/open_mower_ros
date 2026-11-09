@@ -3,10 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
-	"os"
-	"os/signal"
 	"strconv"
-	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -40,9 +37,9 @@ func (f *playFlags) options() fwsync.PlayOptions {
 	}
 }
 
-func (f *playFlags) run(opts fwsync.PlayOptions) error {
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
+// run plays with the command's context (the signal context from Execute) and the
+// discovery budget as its deadline.
+func (f *playFlags) run(ctx context.Context, opts fwsync.PlayOptions) error {
 	ctx, cancel := context.WithTimeout(ctx, f.discoveryWait)
 	defer cancel()
 	return fwsync.Play(ctx, opts)
@@ -108,7 +105,7 @@ func newPlayCmd() *cobra.Command {
 			opts := f.options()
 			opts.Preempt = preempt
 			opts.Tone = &fwsync.ToneSpec{Freq: freq, DurationMs: dur, Volume: volume}
-			return f.run(opts)
+			return f.run(cmd.Context(), opts)
 		},
 	}
 	tone.Flags().IntVar(&volume, "volume", 80, "per-definition volume 0..100")
@@ -150,7 +147,7 @@ func newPlayCmd() *cobra.Command {
 				DecayMs:  decay,
 				RepeatMs: repeat,
 			}
-			return f.run(opts)
+			return f.run(cmd.Context(), opts)
 		},
 	}
 	sequence.Flags().IntVar(&volume, "volume", 80, "per-definition volume 0..100")
@@ -173,7 +170,7 @@ func newPlayCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts := f.options()
 			opts.Sound = args[0]
-			return f.run(opts)
+			return f.run(cmd.Context(), opts)
 		},
 	}
 
@@ -189,7 +186,7 @@ func newPlayCmd() *cobra.Command {
 			opts := f.options()
 			opts.Preempt = preempt
 			opts.Mp3Path = args[0]
-			return f.run(opts)
+			return f.run(cmd.Context(), opts)
 		},
 	}
 	mp3.Flags().BoolVar(&preempt, "preempt", false, "stop a running sound, clear the queue and play now")
@@ -211,7 +208,7 @@ func newStopCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts := f.options()
 			opts.Stop = true
-			return f.run(opts)
+			return f.run(cmd.Context(), opts)
 		},
 	}
 	f.add(cmd)

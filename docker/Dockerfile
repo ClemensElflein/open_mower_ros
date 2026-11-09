@@ -63,7 +63,7 @@ RUN --mount=type=bind,source=src,target=src \
 # Build the soundctl Go binary. OM_SOFTWARE_VERSION is injected so that
 # `soundctl version` and the "generator" field of the tts sidecars name the image
 # they came from (the assemble stage declares the same build arg, CI passes it once).
-FROM golang:1.23 AS gobuild
+FROM golang:1.27 AS gobuild
 ARG OM_SOFTWARE_VERSION=dev
 WORKDIR /src
 COPY utils/soundctl/go.mod utils/soundctl/go.sum ./

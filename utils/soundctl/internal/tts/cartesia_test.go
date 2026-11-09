@@ -1,6 +1,7 @@
 package tts
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -47,7 +48,7 @@ func TestCartesiaSynthesizeRequest(t *testing.T) {
 
 	wav := filepath.Join(t.TempDir(), "out.wav")
 	engine := Cartesia{APIKey: testCartesiaKey, BaseURL: srv.URL}
-	if _, err := engine.Synthesize(cartesiaIdentity(), wav); err != nil {
+	if _, err := engine.Synthesize(context.Background(), cartesiaIdentity(), wav); err != nil {
 		t.Fatalf("Synthesize: %v", err)
 	}
 
@@ -91,7 +92,7 @@ func TestCartesiaRetriesOn429(t *testing.T) {
 
 	wav := filepath.Join(t.TempDir(), "out.wav")
 	engine := Cartesia{APIKey: testCartesiaKey, BaseURL: srv.URL, RetryDelay: time.Millisecond}
-	if _, err := engine.Synthesize(cartesiaIdentity(), wav); err != nil {
+	if _, err := engine.Synthesize(context.Background(), cartesiaIdentity(), wav); err != nil {
 		t.Fatalf("Synthesize after retry: %v", err)
 	}
 	if got := atomic.LoadInt32(&calls); got != 2 {
@@ -108,7 +109,7 @@ func TestCartesiaDoesNotRetryPaymentRequired(t *testing.T) {
 	defer srv.Close()
 
 	engine := Cartesia{APIKey: testCartesiaKey, BaseURL: srv.URL, RetryDelay: time.Millisecond}
-	_, err := engine.Synthesize(cartesiaIdentity(), filepath.Join(t.TempDir(), "out.wav"))
+	_, err := engine.Synthesize(context.Background(), cartesiaIdentity(), filepath.Join(t.TempDir(), "out.wav"))
 	if err == nil {
 		t.Fatal("expected an error for 402")
 	}
@@ -127,7 +128,7 @@ func TestCartesiaRejectsNonWAV(t *testing.T) {
 	defer srv.Close()
 
 	engine := Cartesia{APIKey: testCartesiaKey, BaseURL: srv.URL}
-	if _, err := engine.Synthesize(cartesiaIdentity(), filepath.Join(t.TempDir(), "out.wav")); err == nil {
+	if _, err := engine.Synthesize(context.Background(), cartesiaIdentity(), filepath.Join(t.TempDir(), "out.wav")); err == nil {
 		t.Fatal("a non-WAV body must be rejected")
 	}
 }
@@ -164,7 +165,7 @@ func TestCartesiaVoicesPaginate(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	voices, err := Cartesia{APIKey: testCartesiaKey, BaseURL: srv.URL}.Voices()
+	voices, err := Cartesia{APIKey: testCartesiaKey, BaseURL: srv.URL}.Voices(context.Background())
 	if err != nil {
 		t.Fatalf("Voices: %v", err)
 	}
@@ -179,7 +180,7 @@ func TestCartesiaVoicesRejectBadStatus(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	if _, err := (Cartesia{APIKey: testCartesiaKey, BaseURL: srv.URL}).Voices(); err == nil {
+	if _, err := (Cartesia{APIKey: testCartesiaKey, BaseURL: srv.URL}).Voices(context.Background()); err == nil {
 		t.Fatal("a 401 must be reported")
 	}
 }

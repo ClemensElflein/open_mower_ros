@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/ClemensElflein/open_mower_ros/utils/soundctl/internal/fwsync"
+	"github.com/ClemensElflein/open_mower_ros/utils/soundctl/internal/settings"
 	"github.com/ClemensElflein/open_mower_ros/utils/soundctl/internal/tts"
 )
 
@@ -188,7 +189,7 @@ func newSayCmd() *cobra.Command {
 				Style:           set.Style,
 				UseSpeakerBoost: set.UseSpeakerBoost,
 			}
-			res, err := tts.RenderText(text, id, dst, eng, enc, func(format string, args ...any) {
+			res, err := tts.RenderText(cmd.Context(), text, id, dst, eng, enc, func(format string, args ...any) {
 				fmt.Fprintf(out, format+"\n", args...)
 			})
 			if err != nil {
@@ -214,7 +215,7 @@ func newSayCmd() *cobra.Command {
 	fl.StringVar(&f.bitrate, "bitrate", fwsync.DefaultTTSBitrate, "MP3 bitrate, CBR 16 kHz mono (e.g. 32k, 48k, 64k)")
 	fl.BoolVar(&f.loudNorm, "loudnorm", true, "EBU R128 normalise to -16 LUFS (--loudnorm=false for the raw level)")
 	fl.StringVar(&f.apiKey, "api-key", "", "ElevenLabs API key (instead of the file/environment)")
-	fl.StringVar(&f.apiKeyFile, "api-key-file", "", "file holding the ElevenLabs API key (default: environment, then "+DefaultAPIKeyFile+")")
+	fl.StringVar(&f.apiKeyFile, "api-key-file", "", "file holding the ElevenLabs API key (default: environment, then "+settings.DefaultElevenLabsKeyFile+")")
 	fl.StringVar(&f.apiURL, "api-url", "", "ElevenLabs API root (default: "+tts.DefaultElevenLabsURL+")")
 	fl.StringVar(&f.ffmpeg, "ffmpeg", "ffmpeg", "ffmpeg binary used for encoding")
 	fl.StringVar(&f.out, "out", "", "keep the rendered MP3 here (default: temp file, removed after playback)")

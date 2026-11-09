@@ -1,10 +1,6 @@
 package cli
 
 import (
-	"context"
-	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -45,13 +41,11 @@ func newSyncCmd() *cobra.Command {
 			"\"soundctl discover\" to see the full list.",
 		Example: "  soundctl sync --volume 80",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Signals only: the wait budget is applied by the domain layer, so that
-			// the FileService window starts when the wait starts and not when the
+			// The wait budget is applied by the domain layer, so that the
+			// FileService window starts when the wait starts and not when the
 			// process does (a render or the sound probe must not eat into it).
-			ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-			defer stop()
-
-			return fwsync.Sync(ctx, fwsync.Options{
+			// The signal context comes from Execute.
+			return fwsync.Sync(cmd.Context(), fwsync.Options{
 				ConfigPath:        config,
 				SoundIDsPath:      soundIDs,
 				BindIP:            bind,

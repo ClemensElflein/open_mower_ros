@@ -3,9 +3,6 @@ package cli
 import (
 	"context"
 	"fmt"
-	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -36,12 +33,10 @@ func newStorageCmd() *cobra.Command {
 			"  soundctl storage --wait 40s",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Signals only: the wait budget is applied below, so a slow discovery does
-			// not eat into the time a caller gave us.
-			ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-			defer stop()
-
-			waitCtx, cancel := context.WithTimeout(ctx, wait)
+			// The wait budget is applied here, so a slow discovery does not eat
+			// into the time a caller gave us; the signal context comes from
+			// Execute (cmd.Context()).
+			waitCtx, cancel := context.WithTimeout(cmd.Context(), wait)
 			defer cancel()
 
 			stats, err := fwsync.Storage(waitCtx, fwsync.Options{

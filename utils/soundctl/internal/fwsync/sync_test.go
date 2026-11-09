@@ -7,10 +7,8 @@ import (
 	"testing"
 )
 
-// TestResolveRendersFallsBackToTheShippedRender pins the fix for the silent mower at
-// the sync layer: the overlay still held a render of an older definition (the
-// ElevenLabs files from Oct 30 under a Cartesia YAML) while the image shipped a
-// matching one. The shipped render has to be uploaded, not skipped.
+// TestResolveRendersFallsBackToTheShippedRender: a stale overlay render must not
+// hide the copy the image ships. The shipped render is uploaded, not skipped.
 func TestResolveRendersFallsBackToTheShippedRender(t *testing.T) {
 	doc := "version: 1\nlanguage: de\nsound_path: /nonexistent\n" + validTTS +
 		"sounds:\n  boot_complete:\n    type: mp3\n    volume: 80\n    variants:\n      - \"Hallo Welt.\"\n"

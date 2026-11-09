@@ -4,24 +4,18 @@
 package fwsync
 
 import (
-	"encoding/json"
 	"fmt"
-	"hash/crc32"
 	"os"
 	"sort"
-	"strconv"
-	"strings"
-	"time"
 
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 )
 
 // TTS defaults. They are part of the render cache key (see TTSIdentity), so
 // changing one of them re-renders every announcement on the next tts run.
 const (
 	// DefaultTTSEngine is what a definition gets when it does not name one: the
-	// ElevenLabs cloud API. The offline engines (Supertonic, Piper) were removed;
-	// an older definition that still names one fails with "unsupported tts engine".
+	// ElevenLabs cloud API.
 	DefaultTTSEngine = TTSEngineElevenLabs
 	// TTSEngineElevenLabs and TTSEngineCartesia are the cloud engines. The engine is
 	// chosen per file (sounds_<lang>.yaml), so one language can use ElevenLabs and
@@ -79,9 +73,9 @@ type SoundDef struct {
 	Waveform string `yaml:"waveform,omitempty" json:"waveform,omitempty"`
 	Unison   int    `yaml:"unison,omitempty" json:"unison,omitempty"`
 	DetuneHz int    `yaml:"detune_hz,omitempty" json:"detune_hz,omitempty"`
-	// Preempt was removed: the low level's sound state machine stops the player itself and
-	// then queues the announcement plus the alert, so a sound needs no "cut everything"
-	// property. The field only exists so validate() can name a YAML that still sets it.
+	// Preempt is only decoded so validate() can refuse it: the low level's sound
+	// state machine stops the player itself and then queues the announcement plus
+	// the alert, so a sound needs no "cut everything" switch.
 	Preempt bool `yaml:"preempt,omitempty" json:"-"`
 	// AttackMs/DecayMs are the per-note envelope of a sequence: a fade-in at the
 	// start of every note and a fade-out that turns a note into a "ping" instead of
@@ -104,9 +98,9 @@ type SoundDef struct {
 	// `soundctl tts` renders, or an existing MP3. Every sound (even one with a
 	// single take) uses this list, so there is only one code path.
 	Variants []Variant `yaml:"variants,omitempty" json:"variants,omitempty"`
-	// File is the file the LL plays today: the first variant. It is derived in
-	// normalize (never set in the YAML) and stays in the blob for the firmware's
-	// single-file field.
+	// File is the file the LL plays: the first variant. It is derived in normalize
+	// (never set in the YAML) and stays in the blob for the firmware's single-file
+	// field.
 	File string `yaml:"-" json:"file,omitempty"`
 	// Pick selects a variant: random (the default when empty), rotate or first.
 	// It is a hint for the firmware; soundctl only carries it.
@@ -121,9 +115,8 @@ type SoundDef struct {
 	// duration strings). Filled in by Blob.
 	EveryMs int `yaml:"-" json:"every_ms,omitempty"`
 
-	// Legacy inputs: the single-source form (file/tts directly on the sound) was
-	// replaced by variants. They are decoded only so the validator can name them
-	// instead of silently ignoring the value.
+	// LegacyFile and LegacyTTS are decoded only so the validator can refuse a
+	// definition that puts file/tts on the sound instead of on a variant.
 	LegacyFile string `yaml:"file,omitempty" json:"-"`
 	LegacyTTS  string `yaml:"tts,omitempty" json:"-"`
 }
@@ -152,86 +145,6 @@ func (v *Variant) UnmarshalYAML(node *yaml.Node) error {
 	}
 	*v = Variant(p)
 	return nil
-}
-
-// TTSConfig is the top-level "tts:" block: the defaults for every sound with a
-// tts variant.
-//
-// Engine-agnostic options are flat (bitrate, loudnorm), everything that belongs
-// to ElevenLabs sits in the "elevenlabs:" block. Selecting an engine therefore
-// stays a one-liner, and a future engine is another block next to it.
-//
-//	bitrate  MP3 bitrate of the encoder (ffmpeg)
-//	loudnorm EBU R128 normalisation in ffmpeg
-type TTSConfig struct {
-	Engine   string `yaml:"engine"`
-	Bitrate  string `yaml:"bitrate"`
-	LoudNorm *bool  `yaml:"loudnorm"`
-
-	// ElevenLabs is used when engine is "elevenlabs" (the cloud engine).
-	ElevenLabs ElevenLabsConfig `yaml:"elevenlabs"`
-
-	// Cartesia is used when engine is "cartesia" (the other cloud engine).
-	Cartesia CartesiaConfig `yaml:"cartesia"`
-
-	// Deprecated inputs of the removed offline engines. They are decoded only so
-	// the validator can refuse an old file instead of silently voicing it with a
-	// different engine.
-	Supertonic SupertonicConfig `yaml:"supertonic"`
-	Piper      PiperConfig      `yaml:"piper"`
-	Speed      *float64         `yaml:"speed"`
-	LegacySid  *int             `yaml:"sid"`
-}
-
-// ElevenLabsConfig is the engine block of the ElevenLabs cloud engine.
-type ElevenLabsConfig struct {
-	// Model is the ElevenLabs model id ("" = DefaultTTSModel, i.e. eleven_v4).
-	Model string `yaml:"model"`
-	// Voice is the ElevenLabs voice *id* (not a name); `soundctl tts voices`
-	// lists the ids of the account.
-	Voice string `yaml:"voice"`
-	// Stability, SimilarityBoost and Style are 0..1, UseSpeakerBoost is a
-	// switch. They are sent with every request and are part of the render cache
-	// key, so changing one re-renders the announcements.
-	Stability       *float64 `yaml:"stability"`
-	SimilarityBoost *float64 `yaml:"similarity_boost"`
-	Style           *float64 `yaml:"style"`
-	UseSpeakerBoost *bool    `yaml:"use_speaker_boost"`
-}
-
-// CartesiaConfig is used when tts.engine is "cartesia".
-type CartesiaConfig struct {
-	// Model is a Cartesia model id ("" = DefaultCartesiaModel, the sonic-3.6
-	// release alias, i.e. the newest stable 3.6 build). A dated id pins one build.
-	// Cartesia does not render bit-identically, so pinning only keeps the voice
-	// character; the model is part of the render fingerprint, so changing the id
-	// re-renders the whole set.
-	Model string `yaml:"model"`
-	// Voice is the Cartesia voice *id* (not a name);
-	// `soundctl tts voices --engine cartesia` lists the ids of the account.
-	Voice string `yaml:"voice"`
-}
-
-// SupertonicConfig is the engine block of the sherpa-onnx Supertonic engine.
-type SupertonicConfig struct {
-	// Model is the directory below <tts-dir>/models ("" = DefaultTTSModel).
-	Model string `yaml:"model"`
-	// Sid is the speaker id (0..9; the model ships 10 speakers).
-	Sid *int `yaml:"sid"`
-	// Threads is the ONNX thread count (0 = engine default).
-	Threads int `yaml:"threads"`
-}
-
-// PiperConfig is the engine block of Piper.
-type PiperConfig struct {
-	// Voice is the voice name below <piper-dir> (e.g. "en_US-bryce-medium") or a
-	// path to the .onnx file. It decides the language and the timber; there is no
-	// speaker id for the single-speaker voices.
-	Voice string `yaml:"voice"`
-	// SentenceSilence is seconds of silence after each sentence (0 = none; the
-	// binaries default to 0.2 (standalone) or 0 (piper1-gpl), so being explicit
-	// keeps the output identical whichever binary renders).
-	SentenceSilence *float64 `yaml:"sentence_silence"`
 }
 
 // Config is the parsed sounds_*.yaml file.
@@ -342,226 +255,4 @@ func (c *Config) TTSSounds() []string {
 		}
 	}
 	return names
-}
-
-// TTSSettings is the resolved (i.e. defaulted) tts block. The resolved values are
-// part of the render cache key, so a change in the YAML or in the defaults above
-// invalidates the previously rendered MP3s.
-type TTSSettings struct {
-	Engine          string
-	Bitrate         string
-	LoudNorm        bool
-	Model           string // engine model id (ElevenLabs or Cartesia)
-	Voice           string // engine voice id
-	Stability       float64
-	SimilarityBoost float64
-	Style           float64
-	UseSpeakerBoost bool
-}
-
-// TTSSettings resolves the top-level tts block, applying the package defaults.
-func (c *Config) TTSSettings() TTSSettings {
-	s := TTSSettings{
-		Engine:  DefaultTTSEngine,
-		Bitrate: DefaultTTSBitrate,
-		// Loudness normalisation is on by default: raw engine output is ~9 dB
-		// quieter than the rest of the corpus and varies by up to 3 LU between
-		// sentences, which is audible over the mower.
-		LoudNorm: true,
-	}
-	if c.TTS.Engine != "" {
-		s.Engine = c.TTS.Engine
-	}
-	if c.TTS.Bitrate != "" {
-		s.Bitrate = c.TTS.Bitrate
-	}
-	if c.TTS.LoudNorm != nil {
-		s.LoudNorm = *c.TTS.LoudNorm
-	}
-
-	if s.Engine == TTSEngineCartesia {
-		// Cartesia has no counterpart of the ElevenLabs voice knobs, so they stay
-		// zero - which also keeps them out of the render identity.
-		s.Model = DefaultCartesiaModel
-		if c.TTS.Cartesia.Model != "" {
-			s.Model = c.TTS.Cartesia.Model
-		}
-		s.Voice = c.TTS.Cartesia.Voice
-		return s
-	}
-
-	el := c.TTS.ElevenLabs
-	s.Model = DefaultTTSModel
-	if el.Model != "" {
-		s.Model = el.Model
-	}
-	s.Voice = el.Voice
-	s.Stability = DefaultTTSStability
-	s.SimilarityBoost = DefaultTTSSimilarityBoost
-	s.Style = DefaultTTSStyle
-	s.UseSpeakerBoost = DefaultTTSUseSpeakerBoost
-	if el.Stability != nil {
-		s.Stability = *el.Stability
-	}
-	if el.SimilarityBoost != nil {
-		s.SimilarityBoost = *el.SimilarityBoost
-	}
-	if el.Style != nil {
-		s.Style = *el.Style
-	}
-	if el.UseSpeakerBoost != nil {
-		s.UseSpeakerBoost = *el.UseSpeakerBoost
-	}
-	return s
-}
-
-// TTSIdentity is everything that determines *which audio* a sound should have:
-// the text, the voice and the encoder settings. It is the cache key of a render.
-//
-// The values are the *request*: a cloud engine may return different audio for the
-// same identity when it updates a model, which is what `tts --force` is for.
-// Everything that goes into the request is part of the key, so changing a voice
-// setting re-renders the announcements.
-type TTSIdentity struct {
-	Engine          string
-	Model           string // engine model id (ElevenLabs or Cartesia)
-	Voice           string // engine voice id
-	Language        string
-	Text            string
-	Bitrate         string
-	LoudNorm        bool
-	Stability       float64
-	SimilarityBoost float64
-	Style           float64
-	UseSpeakerBoost bool
-}
-
-// ttsKeyVersion is bumped whenever Key changes shape, so old caches miss.
-// tts3: the ElevenLabs engine replaced the offline engines (supertonic/piper).
-const ttsKeyVersion = "tts3"
-
-// Key is the canonical string the fingerprint hashes. Keep it stable: it is the
-// cache key that lives in the sidecar files on the robot.
-func (t TTSIdentity) Key() string {
-	return strings.Join([]string{
-		ttsKeyVersion,
-		t.Engine,
-		t.Model,
-		t.Voice,
-		t.Language,
-		strconv.FormatFloat(t.Stability, 'f', 2, 64),
-		strconv.FormatFloat(t.SimilarityBoost, 'f', 2, 64),
-		strconv.FormatFloat(t.Style, 'f', 2, 64),
-		strconv.FormatBool(t.UseSpeakerBoost),
-		strconv.FormatBool(t.LoudNorm),
-		t.Bitrate,
-		t.Text,
-	}, "|")
-}
-
-// Fingerprint is a short, stable hash of Key (used in logs and in the sidecar).
-func (t TTSIdentity) Fingerprint() string {
-	return fmt.Sprintf("%08x", crc32.ChecksumIEEE([]byte(t.Key())))
-}
-
-// String renders the identity for log output, without the (long) text.
-func (t TTSIdentity) String() string {
-	loud := "raw"
-	if t.LoudNorm {
-		loud = "loudnorm"
-	}
-	if t.Engine == TTSEngineCartesia {
-		return fmt.Sprintf("%s %s voice=%s %s %s %s", t.Engine, t.Model, t.Voice, t.Bitrate, loud, t.Language)
-	}
-	boost := "noboost"
-	if t.UseSpeakerBoost {
-		boost = "boost"
-	}
-	return fmt.Sprintf("%s %s voice=%s stability=%.2f style=%.2f %s %s %s %s",
-		t.Engine, t.Model, t.Voice, t.Stability, t.Style, boost, t.Bitrate, loud, t.Language)
-}
-
-// RenderJob is one MP3 that `soundctl tts` has to produce.
-type RenderJob struct {
-	Sound   string // sound id in the YAML ("boot_complete")
-	Variant int    // 1-based number within the sound
-	Label   string // "boot_complete" or "boot_complete[2]", for logs and --check
-	File    string // MP3 file name in /sounds/
-	// Identity is the render cache key of this variant.
-	Identity TTSIdentity
-}
-
-// RenderJobs lists the variants that need a render, in a stable order. A variant
-// with a file but without a tts text is a ready-made recording: there is nothing
-// to synthesise, so it is not listed.
-func (c *Config) RenderJobs() []RenderJob {
-	set := c.TTSSettings()
-	var jobs []RenderJob
-	for _, name := range c.Names() {
-		def := c.Sounds[name]
-		if def.Type != "mp3" {
-			continue
-		}
-		for i, v := range def.Variants {
-			if v.TTS == "" {
-				continue
-			}
-			label := name
-			if len(def.Variants) > 1 {
-				label = fmt.Sprintf("%s[%d]", name, i+1)
-			}
-			jobs = append(jobs, RenderJob{
-				Sound:   name,
-				Variant: i + 1,
-				Label:   label,
-				File:    v.File,
-				Identity: TTSIdentity{
-					Engine:          set.Engine,
-					Model:           set.Model,
-					Voice:           set.Voice,
-					Language:        c.Language,
-					Text:            v.TTS,
-					Bitrate:         set.Bitrate,
-					LoudNorm:        set.LoudNorm,
-					Stability:       set.Stability,
-					SimilarityBoost: set.SimilarityBoost,
-					Style:           set.Style,
-					UseSpeakerBoost: set.UseSpeakerBoost,
-				},
-			})
-		}
-	}
-	return jobs
-}
-
-// Blob marshals the sound overrides into the JSON blob that is sent to the
-// SoundService ("Sound Definitions" register). Only the "sounds" map is sent;
-// the HL-only top-level fields (version, language, sound_path, tts) are
-// stripped, exactly like the Input-Configs path strips name/actions.
-func (c *Config) Blob() ([]byte, error) {
-	// every_ms is derived here (the firmware does not parse duration strings);
-	// copy the map so a second Blob call starts from the YAML values again.
-	sounds := make(map[string]SoundDef, len(c.Sounds))
-	for name, def := range c.Sounds {
-		if def.Every != "" {
-			d, err := time.ParseDuration(def.Every)
-			if err != nil {
-				return nil, fmt.Errorf("%s: invalid 'every' %q: %w", name, def.Every, err)
-			}
-			if d <= 0 {
-				return nil, fmt.Errorf("%s: 'every' must be positive (got %q)", name, def.Every)
-			}
-			def.EveryMs = int(d.Milliseconds())
-		}
-		// The firmware starts with "first" for every sound (its persisted index is zeroed),
-		// so the documented default has to travel in the blob - otherwise a sound with
-		// several takes would always play take 1.
-		if def.Pick == "" {
-			def.Pick = PickRandom
-		}
-		sounds[name] = def
-	}
-	return json.Marshal(struct {
-		Sounds map[string]SoundDef `json:"sounds"`
-	}{Sounds: sounds})
 }

@@ -93,11 +93,6 @@ func Sync(ctx context.Context, opts Options) error {
 	// uploaded: the low level keeps the file it already has (it stays referenced in
 	// the blob), so an older announcement keeps playing instead of a mismatched one.
 	// That must never block the rest of the sync - `soundctl tts` is the fix.
-	//
-	// A stale copy never hides a valid one further down the layout: the shipped
-	// image render is used when the overlay still holds a render of an older YAML
-	// (see Layout.FindRender), otherwise a leftover overlay file silences the
-	// announcement even though the image carries a matching one.
 	use, stale := resolveRenders(layout, cfg)
 
 	// Validate the requested master volume up front: an out-of-range value must

@@ -224,8 +224,6 @@ func dispatchPlay(ctx context.Context, svc *soundservice.Client, opts PlayOption
 func sent(_ uint8, err error) error { return err }
 
 // preemptByte converts the Preempt option to the uint8_t the schema uses for it.
-// (Not called "flag": the package must stay free to import the stdlib flag
-// package for test switches.)
 func preemptByte(v bool) uint8 {
 	if v {
 		return 1

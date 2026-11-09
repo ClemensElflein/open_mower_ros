@@ -6,61 +6,51 @@ import (
 	"testing"
 )
 
-func TestMPEGHeader16kMono(t *testing.T) {
-	// MPEG2 Layer III, 16 kHz, mono.
-	frame := []byte{0xFF, 0xF2, 0x88, 0xC0, 0, 0, 0, 0}
-	rate, ch, err := mpegFrameHeader(bytes.NewReader(frame))
-	if err != nil {
-		t.Fatal(err)
+// TestParseMP3SampleRatesAndChannels pins the formats the firmware can decode: the
+// 16 kHz mono requirement and the 24 kHz sample sounds.
+func TestParseMP3SampleRatesAndChannels(t *testing.T) {
+	cases := []struct {
+		name         string
+		frame        synthFrame
+		wantRate     int
+		wantChannels int
+	}{
+		// MPEG-2 Layer III, 16 kHz, mono - the firmware requirement.
+		{"16 kHz mono", synthFrame{version: 2, brIdx: 4, srIdx: 2, mono: true}, 16000, 1},
+		// MPEG-2 Layer III, 24 kHz, mono (matches some of the sample sounds).
+		{"24 kHz mono", synthFrame{version: 2, brIdx: 4, srIdx: 1, mono: true}, 24000, 1},
+		// Same frame but channel mode 00 (stereo).
+		{"16 kHz stereo", synthFrame{version: 2, brIdx: 4, srIdx: 2, mono: false}, 16000, 2},
 	}
-	if rate != 16000 {
-		t.Fatalf("rate = %d, want 16000", rate)
-	}
-	if ch != 1 {
-		t.Fatalf("channels = %d, want 1", ch)
-	}
-}
-
-func TestMPEGHeader24kMono(t *testing.T) {
-	// MPEG2 Layer III, 24 kHz, mono (matches the sample sounds).
-	frame := []byte{0xFF, 0xF2, 0x84, 0xC0, 0, 0, 0, 0}
-	rate, ch, err := mpegFrameHeader(bytes.NewReader(frame))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if rate != 24000 {
-		t.Fatalf("rate = %d, want 24000", rate)
-	}
-	if ch != 1 {
-		t.Fatalf("channels = %d, want 1", ch)
-	}
-}
-
-func TestMPEGHeaderStereo(t *testing.T) {
-	// Same frame but channel mode = 00 (stereo).
-	frame := []byte{0xFF, 0xF2, 0x88, 0x00, 0, 0, 0, 0}
-	_, ch, err := mpegFrameHeader(bytes.NewReader(frame))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if ch != 2 {
-		t.Fatalf("channels = %d, want 2", ch)
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			info, err := ParseMP3(joinFrames(c.frame.bytes(), c.frame.bytes()))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if info.SampleRate != c.wantRate || info.Channels != c.wantChannels {
+				t.Fatalf("rate/ch = %d/%d, want %d/%d", info.SampleRate, info.Channels, c.wantRate, c.wantChannels)
+			}
+		})
 	}
 }
 
-func TestMPEGHeaderSkipsID3v2(t *testing.T) {
+// A leading ID3v2 tag must not stop the frame walk. Editors and every ffmpeg
+// build can write one, and the firmware skips it too.
+func TestParseMP3SkipsID3v2Tag(t *testing.T) {
 	// 10-byte ID3v2 header with a 10-byte synchsafe size, then a 16 kHz mono frame.
-	id3 := []byte{'I', 'D', '3', 4, 0, 0, 0, 0, 0, 10} // size=10, no extended header
+	id3 := []byte{'I', 'D', '3', 4, 0, 0, 0, 0, 0, 10}
 	pad := make([]byte, 10)
-	frame := []byte{0xFF, 0xF2, 0x88, 0xC0, 0, 0, 0, 0}
-	data := append(append(append([]byte{}, id3...), pad...), frame...)
-
-	rate, ch, err := mpegFrameHeader(bytes.NewReader(data))
+	frame := mpeg2Frame16k(32, "").bytes()
+	info, err := ParseMP3(joinFrames(id3, pad, frame, frame))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if rate != 16000 || ch != 1 {
-		t.Fatalf("rate=%d ch=%d, want 16000/1", rate, ch)
+	if info.SampleRate != 16000 || info.Channels != 1 {
+		t.Fatalf("rate=%d ch=%d, want 16000/1", info.SampleRate, info.Channels)
+	}
+	if info.Frames != 2 {
+		t.Fatalf("frames = %d, want 2", info.Frames)
 	}
 }
 
@@ -132,8 +122,8 @@ func joinFrames(frames ...[]byte) []byte {
 }
 
 // LAME writes a Xing/Info metadata frame as the very first frame of every
-// stream, encoded at a different bitrate and carrying no audio. Counting it made
-// every CBR file report as VBR - the bug this test pins down.
+// stream, encoded at a different bitrate and carrying no audio. Counting it would
+// report every CBR file as VBR, so it is skipped.
 func TestParseMP3SkipsLeadingInfoFrame(t *testing.T) {
 	// Info frame at 24 kbps, then four 32 kbps audio frames.
 	data := joinFrames(

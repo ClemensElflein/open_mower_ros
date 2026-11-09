@@ -55,9 +55,8 @@ jobs:
   # change costs its TTS requests exactly once - and the render cache above it keeps every
   # unchanged file, so an unchanged definition costs nothing at all.
   #
-  # Why a separate job: three places used to render (this build, its second architecture,
-  # and the soundctl check), each with its own request. Rendering is the only step that
-  # spends money, so it happens here once and everything else copies the result.
+  # Why a separate job: rendering is the only step that spends money, so it happens here
+  # once and every build job copies the result instead of requesting it again.
   render:
     runs-on: ubuntu-latest
     # A legacy-only rebuild has no announcements to render: do not spend a request on it.

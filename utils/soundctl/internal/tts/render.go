@@ -1,6 +1,7 @@
 package tts
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"hash/crc32"
@@ -97,7 +98,7 @@ func ensureWritableDir(dir string) error {
 // Render synthesises and encodes every tts variant of the config into the
 // overlay's language directory and writes the sidecar cache next to each file.
 // Renders whose sidecar already matches are skipped (unless opts.Force).
-func Render(cfg *fwsync.Config, layout fwsync.Layout, eng Engine, enc Encoder, opts Options) ([]Result, error) {
+func Render(ctx context.Context, cfg *fwsync.Config, layout fwsync.Layout, eng Engine, enc Encoder, opts Options) ([]Result, error) {
 	jobs := cfg.RenderJobs()
 	if len(jobs) == 0 {
 		return nil, nil
@@ -135,7 +136,7 @@ func Render(cfg *fwsync.Config, layout fwsync.Layout, eng Engine, enc Encoder, o
 			continue
 		}
 
-		res, err := renderOne(job, dst, eng, enc, opts)
+		res, err := renderOne(ctx, job, dst, eng, enc, opts)
 		if err != nil {
 			if !opts.KeepGoing {
 				return results, fmt.Errorf("%s: %w", job.Label, err)
@@ -163,7 +164,7 @@ type encodeResult struct {
 // shared core of `soundctl tts` (YAML definitions, cached via a sidecar) and
 // `soundctl say` (ad-hoc text, no cache), so a local test hears exactly what the
 // mower would play. label only shapes the log lines.
-func encode(label string, id fwsync.TTSIdentity, dst string, eng Engine, enc Encoder, logf Logf) (encodeResult, error) {
+func encode(ctx context.Context, label string, id fwsync.TTSIdentity, dst string, eng Engine, enc Encoder, logf Logf) (encodeResult, error) {
 	var res encodeResult
 
 	kbps, err := fwsync.ParseBitrate(id.Bitrate)
@@ -178,7 +179,7 @@ func encode(label string, id fwsync.TTSIdentity, dst string, eng Engine, enc Enc
 	defer os.RemoveAll(tmpDir)
 
 	wav := filepath.Join(tmpDir, "speech.wav")
-	synthTime, err := eng.Synthesize(id, wav)
+	synthTime, err := eng.Synthesize(ctx, id, wav)
 	if err != nil {
 		return res, err
 	}
@@ -229,14 +230,14 @@ func encode(label string, id fwsync.TTSIdentity, dst string, eng Engine, enc Enc
 // the same engine call, loudness normalisation, encoder and format checks as
 // `soundctl tts`, but without a YAML definition and without a sidecar cache (an
 // ad-hoc text has no definition to cache against).
-func RenderText(text string, id fwsync.TTSIdentity, dst string, eng Engine, enc Encoder, logf Logf) (Result, error) {
+func RenderText(ctx context.Context, text string, id fwsync.TTSIdentity, dst string, eng Engine, enc Encoder, logf Logf) (Result, error) {
 	text = strings.TrimSpace(text)
 	if text == "" {
 		return Result{}, errors.New("no text to speak")
 	}
 	id.Text = text
 	res := Result{Name: "say", File: filepath.Base(dst), Path: dst}
-	r, err := encode("say", id, dst, eng, enc, logf)
+	r, err := encode(ctx, "say", id, dst, eng, enc, logf)
 	if err != nil {
 		return res, err
 	}
@@ -247,10 +248,10 @@ func RenderText(text string, id fwsync.TTSIdentity, dst string, eng Engine, enc 
 }
 
 // renderOne renders, verifies, installs and caches one variant.
-func renderOne(job fwsync.RenderJob, dst string, eng Engine, enc Encoder, opts Options) (Result, error) {
+func renderOne(ctx context.Context, job fwsync.RenderJob, dst string, eng Engine, enc Encoder, opts Options) (Result, error) {
 	res := Result{Name: job.Label, File: filepath.Base(dst), Path: dst}
 
-	r, err := encode(job.Label, job.Identity, dst, eng, enc, opts.logf)
+	r, err := encode(ctx, job.Label, job.Identity, dst, eng, enc, opts.logf)
 	if err != nil {
 		return res, err
 	}

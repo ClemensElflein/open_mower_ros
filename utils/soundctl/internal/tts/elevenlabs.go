@@ -1,13 +1,12 @@
 package tts
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 
@@ -44,10 +43,6 @@ const (
 	// DefaultElevenLabsTimeout bounds one synthesis request. A short announcement
 	// takes about a second; the timeout is generous for a slow uplink.
 	DefaultElevenLabsTimeout = 60 * time.Second
-	// DefaultRetryDelay is the first backoff step before a retry.
-	DefaultRetryDelay = 2 * time.Second
-	// maxElevenLabsAttempts bounds the retries on 429/5xx and network errors.
-	maxElevenLabsAttempts = 3
 )
 
 // Available reports why the engine cannot be used (nil = it can). It never
@@ -63,6 +58,23 @@ func (e ElevenLabs) Available() error {
 
 // Describe renders the voice/settings for the log line.
 func (e ElevenLabs) Describe(id fwsync.TTSIdentity) string { return id.String() }
+
+// api is the shared HTTP plumbing (api.go), configured for ElevenLabs: the key
+// travels in the xi-api-key header.
+func (e ElevenLabs) api() apiClient {
+	key := strings.TrimSpace(e.APIKey)
+	return apiClient{
+		Name:       "elevenlabs",
+		BaseURL:    e.BaseURL,
+		DefaultURL: DefaultElevenLabsURL,
+		Auth: func(req *http.Request) {
+			req.Header.Set("xi-api-key", key)
+		},
+		Client:     e.Client,
+		Timeout:    DefaultElevenLabsTimeout,
+		RetryDelay: e.RetryDelay,
+	}
+}
 
 // elevenLabsRequest is the JSON body of a synthesis request. Only the settings
 // that are part of the render identity are sent; the server defaults fill the
@@ -83,7 +95,7 @@ type elevenLabsVoiceSettings struct {
 
 // Synthesize requests the spoken text and writes the returned WAV to wav. It
 // returns the wall time of the request (retries included).
-func (e ElevenLabs) Synthesize(id fwsync.TTSIdentity, wav string) (time.Duration, error) {
+func (e ElevenLabs) Synthesize(ctx context.Context, id fwsync.TTSIdentity, wav string) (time.Duration, error) {
 	payload, err := json.Marshal(elevenLabsRequest{
 		Text:    id.Text,
 		ModelID: id.Model,
@@ -95,99 +107,30 @@ func (e ElevenLabs) Synthesize(id fwsync.TTSIdentity, wav string) (time.Duration
 		},
 	})
 	if err != nil {
-		return 0, fmt.Errorf("elevenlabs: encode request: %w", err)
+		return 0, e.api().errorf("encode request: %w", err)
 	}
 
 	start := time.Now()
-	attempts := maxElevenLabsAttempts
-	var lastErr error
-	for attempt := 0; attempt < attempts; attempt++ {
-		if attempt > 0 {
-			time.Sleep(e.retryDelay() << (attempt - 1))
-		}
-		err := e.request(id, payload, wav)
-		if err == nil {
-			return time.Since(start), nil
-		}
-		lastErr = err
-		if !retryable(err) {
-			break
-		}
-	}
-	return time.Since(start), lastErr
-}
-
-// retryableError marks a failure that is worth another attempt (429, 5xx and
-// transport errors); a 401/422 will not get better by retrying.
-type retryableError struct{ error }
-
-func retryable(err error) bool {
-	var r retryableError
-	return errors.As(err, &r)
-}
-
-func (e ElevenLabs) retryDelay() time.Duration {
-	if e.RetryDelay > 0 {
-		return e.RetryDelay
-	}
-	return DefaultRetryDelay
-}
-
-// request performs one synthesis call and writes the WAV.
-func (e ElevenLabs) request(id fwsync.TTSIdentity, payload []byte, wav string) error {
-	endpoint := strings.TrimRight(e.baseURL(), "/") + "/v1/text-to-speech/" +
-		url.PathEscape(strings.TrimSpace(id.Voice)) + "?output_format=" + ElevenLabsOutputFormat
-
-	req, err := http.NewRequest(http.MethodPost, endpoint, strings.NewReader(string(payload)))
+	body, err := e.api().do(ctx, apiRequest{
+		Method: http.MethodPost,
+		Path: "/v1/text-to-speech/" + url.PathEscape(strings.TrimSpace(id.Voice)) +
+			"?output_format=" + ElevenLabsOutputFormat,
+		Body:   payload,
+		Accept: "audio/wav",
+	})
 	if err != nil {
-		return fmt.Errorf("elevenlabs: build request: %w", err)
-	}
-	req.Header.Set("xi-api-key", strings.TrimSpace(e.APIKey))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "audio/wav")
-
-	resp, err := e.client().Do(req)
-	if err != nil {
-		return retryableError{fmt.Errorf("elevenlabs: request: %w", err)}
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	body, readErr := io.ReadAll(io.LimitReader(resp.Body, 32<<20))
-	if resp.StatusCode != http.StatusOK {
-		err := fmt.Errorf("elevenlabs: %s: %s", resp.Status, errorText(body))
-		if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode >= 500 {
-			return retryableError{err}
-		}
-		return err
-	}
-	if readErr != nil {
-		return retryableError{fmt.Errorf("elevenlabs: read response: %w", readErr)}
+		return time.Since(start), err
 	}
 	if !isWAV(body) {
-		return fmt.Errorf("elevenlabs: response is not a WAV (%d bytes: %s)", len(body), errorText(body))
+		return time.Since(start), e.api().errorf("response is not a WAV (%d bytes: %s)",
+			len(body), errorText(body))
 	}
-	_ = os.Remove(wav)
-	if err := os.WriteFile(wav, body, 0o644); err != nil {
-		return fmt.Errorf("elevenlabs: write %s: %w", wav, err)
+	if err := writeWAV(e.api().Name, wav, body); err != nil {
+		return time.Since(start), err
 	}
-	return nil
+	return time.Since(start), nil
 }
 
-func (e ElevenLabs) baseURL() string {
-	if strings.TrimSpace(e.BaseURL) != "" {
-		return e.BaseURL
-	}
-	return DefaultElevenLabsURL
-}
-
-func (e ElevenLabs) client() *http.Client {
-	if e.Client != nil {
-		return e.Client
-	}
-	return &http.Client{Timeout: DefaultElevenLabsTimeout}
-}
-
-// Voice is one entry of GET /v2/voices.
 type Voice struct {
 	VoiceID  string            `json:"voice_id"`
 	Name     string            `json:"name"`
@@ -205,7 +148,7 @@ type voicesPage struct {
 // Voices lists the voices of the account. voiceType filters server side:
 // "default" are the built-in premade voices (the only ones a free plan may use
 // through the API), "community" the Voice Library ones, "" everything.
-func (e ElevenLabs) Voices(voiceType string) ([]Voice, error) {
+func (e ElevenLabs) Voices(ctx context.Context, voiceType string) ([]Voice, error) {
 	if err := e.Available(); err != nil {
 		return nil, err
 	}
@@ -221,7 +164,12 @@ func (e ElevenLabs) Voices(voiceType string) ([]Voice, error) {
 		if page > 0 && token != "" {
 			query.Set("next_page_token", token)
 		}
-		body, err := e.get("/v2/voices?" + query.Encode())
+		body, err := e.api().do(ctx, apiRequest{
+			Method:  http.MethodGet,
+			Path:    "/v2/voices?" + query.Encode(),
+			Accept:  "application/json",
+			MaxBody: 8 << 20,
+		})
 		if err != nil {
 			return nil, err
 		}
@@ -236,48 +184,4 @@ func (e ElevenLabs) Voices(voiceType string) ([]Voice, error) {
 		token = resp.NextPageToken
 		page++
 	}
-}
-
-// get performs a GET against the API and returns the body.
-func (e ElevenLabs) get(pathAndQuery string) ([]byte, error) {
-	endpoint := strings.TrimRight(e.baseURL(), "/") + pathAndQuery
-	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
-	if err != nil {
-		return nil, fmt.Errorf("elevenlabs: build request: %w", err)
-	}
-	req.Header.Set("xi-api-key", strings.TrimSpace(e.APIKey))
-	req.Header.Set("Accept", "application/json")
-
-	resp, err := e.client().Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("elevenlabs: request: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-	body, readErr := io.ReadAll(io.LimitReader(resp.Body, 8<<20))
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("elevenlabs: %s: %s", resp.Status, errorText(body))
-	}
-	if readErr != nil {
-		return nil, fmt.Errorf("elevenlabs: read response: %w", readErr)
-	}
-	return body, nil
-}
-
-// isWAV checks the RIFF/WAVE magic: the encoder would fail on anything else, but
-// with a much less helpful message.
-func isWAV(b []byte) bool {
-	return len(b) > 12 && string(b[0:4]) == "RIFF" && string(b[8:12]) == "WAVE"
-}
-
-// errorText shortens and flattens an error body for the log line. The API key is
-// sent in a header, never in the body, so nothing secret can leak here.
-func errorText(body []byte) string {
-	s := strings.Join(strings.Fields(string(body)), " ")
-	if s == "" {
-		return "no body"
-	}
-	if len(s) > 300 {
-		s = s[:300] + "..."
-	}
-	return s
 }

@@ -1,13 +1,12 @@
 package tts
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 
@@ -44,8 +43,6 @@ const (
 	CartesiaSampleRate = 16000
 	// DefaultCartesiaTimeout bounds one synthesis request.
 	DefaultCartesiaTimeout = 60 * time.Second
-	// maxCartesiaAttempts bounds the retries on 429/5xx and network errors.
-	maxCartesiaAttempts = 3
 )
 
 // Available reports why the engine cannot be used (nil = it can). It never
@@ -60,6 +57,24 @@ func (c Cartesia) Available() error {
 
 // Describe renders the voice/settings for the log line.
 func (c Cartesia) Describe(id fwsync.TTSIdentity) string { return id.String() }
+
+// api is the shared HTTP plumbing (api.go), configured for Cartesia: a Bearer
+// token plus the dated API version header the request format is written against.
+func (c Cartesia) api() apiClient {
+	key := strings.TrimSpace(c.APIKey)
+	return apiClient{
+		Name:       "cartesia",
+		BaseURL:    c.BaseURL,
+		DefaultURL: DefaultCartesiaURL,
+		Auth: func(req *http.Request) {
+			req.Header.Set("Authorization", "Bearer "+key)
+			req.Header.Set("Cartesia-Version", CartesiaAPIVersion)
+		},
+		Client:     c.Client,
+		Timeout:    DefaultCartesiaTimeout,
+		RetryDelay: c.RetryDelay,
+	}
+}
 
 // cartesiaRequest is the JSON body of a synthesis request. Only what belongs to
 // the render identity is sent; the server defaults fill the rest, and a changed
@@ -81,7 +96,7 @@ type cartesiaOutputFormat struct {
 
 // Synthesize requests the spoken text and writes the returned WAV to wav. It
 // returns the wall time of the request (retries included).
-func (c Cartesia) Synthesize(id fwsync.TTSIdentity, wav string) (time.Duration, error) {
+func (c Cartesia) Synthesize(ctx context.Context, id fwsync.TTSIdentity, wav string) (time.Duration, error) {
 	payload, err := json.Marshal(cartesiaRequest{
 		ModelID:    id.Model,
 		Transcript: id.Text,
@@ -94,86 +109,27 @@ func (c Cartesia) Synthesize(id fwsync.TTSIdentity, wav string) (time.Duration, 
 		},
 	})
 	if err != nil {
-		return 0, fmt.Errorf("cartesia: encode request: %w", err)
+		return 0, c.api().errorf("encode request: %w", err)
 	}
 
 	start := time.Now()
-	var lastErr error
-	for attempt := 0; attempt < maxCartesiaAttempts; attempt++ {
-		if attempt > 0 {
-			time.Sleep(c.retryDelay() << (attempt - 1))
-		}
-		err := c.request(payload, wav)
-		if err == nil {
-			return time.Since(start), nil
-		}
-		lastErr = err
-		if !retryable(err) {
-			break
-		}
-	}
-	return time.Since(start), lastErr
-}
-
-func (c Cartesia) retryDelay() time.Duration {
-	if c.RetryDelay > 0 {
-		return c.RetryDelay
-	}
-	return DefaultRetryDelay
-}
-
-// request performs one synthesis call and writes the WAV.
-func (c Cartesia) request(payload []byte, wav string) error {
-	endpoint := strings.TrimRight(c.baseURL(), "/") + "/tts/bytes"
-	req, err := http.NewRequest(http.MethodPost, endpoint, strings.NewReader(string(payload)))
+	body, err := c.api().do(ctx, apiRequest{
+		Method: http.MethodPost,
+		Path:   "/tts/bytes",
+		Body:   payload,
+		Accept: "audio/wav",
+	})
 	if err != nil {
-		return fmt.Errorf("cartesia: build request: %w", err)
-	}
-	req.Header.Set("Authorization", "Bearer "+strings.TrimSpace(c.APIKey))
-	req.Header.Set("Cartesia-Version", CartesiaAPIVersion)
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "audio/wav")
-
-	resp, err := c.client().Do(req)
-	if err != nil {
-		return retryableError{fmt.Errorf("cartesia: request: %w", err)}
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	body, readErr := io.ReadAll(io.LimitReader(resp.Body, 32<<20))
-	if resp.StatusCode != http.StatusOK {
-		err := fmt.Errorf("cartesia: %s: %s", resp.Status, errorText(body))
-		// 429 and 5xx may pass; 400/401/402 will not get better by retrying.
-		if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode >= 500 {
-			return retryableError{err}
-		}
-		return err
-	}
-	if readErr != nil {
-		return retryableError{fmt.Errorf("cartesia: read response: %w", readErr)}
+		return time.Since(start), err
 	}
 	if !isWAV(body) {
-		return fmt.Errorf("cartesia: response is not a WAV (%d bytes: %s)", len(body), errorText(body))
+		return time.Since(start), c.api().errorf("response is not a WAV (%d bytes: %s)",
+			len(body), errorText(body))
 	}
-	_ = os.Remove(wav)
-	if err := os.WriteFile(wav, body, 0o644); err != nil {
-		return fmt.Errorf("cartesia: write %s: %w", wav, err)
+	if err := writeWAV(c.api().Name, wav, body); err != nil {
+		return time.Since(start), err
 	}
-	return nil
-}
-
-func (c Cartesia) baseURL() string {
-	if strings.TrimSpace(c.BaseURL) != "" {
-		return c.BaseURL
-	}
-	return DefaultCartesiaURL
-}
-
-func (c Cartesia) client() *http.Client {
-	if c.Client != nil {
-		return c.Client
-	}
-	return &http.Client{Timeout: DefaultCartesiaTimeout}
+	return time.Since(start), nil
 }
 
 // CartesiaVoice is one entry of GET /voices.
@@ -193,7 +149,7 @@ type cartesiaVoicesPage struct {
 }
 
 // Voices lists the voices this key can use (id, name, language, description).
-func (c Cartesia) Voices() ([]CartesiaVoice, error) {
+func (c Cartesia) Voices(ctx context.Context) ([]CartesiaVoice, error) {
 	if err := c.Available(); err != nil {
 		return nil, err
 	}
@@ -205,7 +161,12 @@ func (c Cartesia) Voices() ([]CartesiaVoice, error) {
 		if cursor != "" {
 			query.Set("starting_after", cursor)
 		}
-		body, err := c.get("/voices?" + query.Encode())
+		body, err := c.api().do(ctx, apiRequest{
+			Method:  http.MethodGet,
+			Path:    "/voices?" + query.Encode(),
+			Accept:  "application/json",
+			MaxBody: 8 << 20,
+		})
 		if err != nil {
 			return nil, err
 		}
@@ -219,30 +180,4 @@ func (c Cartesia) Voices() ([]CartesiaVoice, error) {
 		}
 		cursor = page.NextPage
 	}
-}
-
-// get performs one GET against the API and returns the body.
-func (c Cartesia) get(pathAndQuery string) ([]byte, error) {
-	endpoint := strings.TrimRight(c.baseURL(), "/") + pathAndQuery
-	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
-	if err != nil {
-		return nil, fmt.Errorf("cartesia: build request: %w", err)
-	}
-	req.Header.Set("Authorization", "Bearer "+strings.TrimSpace(c.APIKey))
-	req.Header.Set("Cartesia-Version", CartesiaAPIVersion)
-
-	resp, err := c.client().Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("cartesia: request: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	body, readErr := io.ReadAll(io.LimitReader(resp.Body, 8<<20))
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("cartesia: %s: %s", resp.Status, errorText(body))
-	}
-	if readErr != nil {
-		return nil, fmt.Errorf("cartesia: read response: %w", readErr)
-	}
-	return body, nil
 }

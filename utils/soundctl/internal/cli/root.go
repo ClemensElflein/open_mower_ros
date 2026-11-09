@@ -1,7 +1,14 @@
 // Package cli contains the soundctl command-line interface.
 package cli
 
-import "github.com/spf13/cobra"
+import (
+	"context"
+	"os"
+	"os/signal"
+	"syscall"
+
+	"github.com/spf13/cobra"
+)
 
 const (
 	// Container paths inside the open_mower_ros image. Both can be overridden with
@@ -19,9 +26,17 @@ var version = "dev"
 // Execute runs the root command.
 func Execute() error {
 	root := newRootCmd()
+
+	// One signal context for the whole run. Commands take it from cmd.Context(),
+	// so Ctrl-C or SIGTERM also aborts what they are waiting for - a discovery
+	// window, an upload chunk or a retry sleep - instead of only ending the
+	// process between two steps.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
 	// SilenceErrors keeps cobra from printing, so the one error line goes through the
 	// (possibly prefixed) writer like every other line.
-	err := root.Execute()
+	err := root.ExecuteContext(ctx)
 	if err != nil {
 		printError(root, err)
 	}

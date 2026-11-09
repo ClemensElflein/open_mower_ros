@@ -37,78 +37,51 @@ The value is wire format **and** the key of the overrides the low level persists
 so from now on values are only ever **appended**, never renumbered or reordered — a
 renumbered id would silently address a different sound.
 
-|   id | name                  | when                                                   |
-| ---: | --------------------- | ------------------------------------------------------ |
-|    0 | `BOOT_PING`           | stage 2 waits for ROS (repeats every 2 s)              |
-|    1 | `BOOT_COMPLETE`       | the firmware is up                                     |
-|    2 | `SUCCESS`             | generic positive ack                                   |
-|    3 | `WARNING`             | generic warning                                        |
-|    4 | `ERROR`               | generic error                                          |
-|    5 | `EMERGENCY`           | an audible emergency was latched (preempts everything) |
-|    6 | `EMERGENCY_CLEARED`   | the emergency is over                                  |
-|    7 | `ROS_CONNECTED`       | the high level is up                                   |
-|    8 | `ROS_DISCONNECTED`    | the high level heartbeat stopped                       |
-|    9 | `GPS_RTK_FIX`         | RTK fix acquired                                       |
-|   10 | `GPS_RTK_LOST`        | RTK fix lost                                           |
-|   11 | `AUTONOMOUS_NOTICE`   | "stay back, autonomous mower at work"                  |
-|   12 | `VOLUME_UP`           | one step louder                                        |
-|   13 | `VOLUME_DOWN`         | one step quieter                                       |
-|   14 | `LOW_BATTERY`         | battery is low                                         |
-|   15 | `CHARGING_START`      | charging started                                       |
-|   16 | `CHARGING_DONE`       | battery full                                           |
-|   17 | `SHUTDOWN_SAFE`       | the Pi is down, safe to power off                      |
-|   18 | `MOWING_START`        | starting to mow (the theme song, one take at random)    |
-|   19 | `MOWING_PAUSED`       | mowing paused (state `PAUSED`)                         |
-|   20 | `MOWING_RESUMED`      | mowing continues                                       |
-|   21 | `MOWING_COMPLETE`     | done, heading back to the station                      |
-|   22 | `MOWING_AMBIENCE`     | background effects while mowing (rolled by the LL)     |
-|   23 | `DOCKING_START`       | heading back when the reason is not "lawn done"        |
-|   24 | `AREA_RECORDING_MODE` | entering the area-recording mode                       |
+|   id | name                  | when                                                                          |
+| ---: | --------------------- | ----------------------------------------------------------------------------- |
+|    0 | `BOOT_PING`           | stage 2 waits for ROS (repeats every 2 s)                                     |
+|    1 | `BOOT_COMPLETE`       | the firmware is up                                                            |
+|    2 | `SUCCESS`             | generic positive ack                                                          |
+|    3 | `WARNING`             | generic warning                                                               |
+|    4 | `ERROR`               | generic error                                                                 |
+|    5 | `EMERGENCY`           | an audible emergency was latched (preempts everything)                        |
+|    6 | `EMERGENCY_CLEARED`   | the emergency is over                                                         |
+|    7 | `ROS_CONNECTED`       | the high level is up                                                          |
+|    8 | `ROS_DISCONNECTED`    | the high level heartbeat stopped                                              |
+|    9 | `GPS_RTK_FIX`         | RTK fix acquired                                                              |
+|   10 | `GPS_RTK_LOST`        | RTK fix lost                                                                  |
+|   11 | `AUTONOMOUS_NOTICE`   | "stay back, autonomous mower at work"                                         |
+|   12 | `VOLUME_UP`           | one step louder                                                               |
+|   13 | `VOLUME_DOWN`         | one step quieter                                                              |
+|   14 | `LOW_BATTERY`         | battery is low                                                                |
+|   15 | `CHARGING_START`      | charging started                                                              |
+|   16 | `CHARGING_DONE`       | battery full                                                                  |
+|   17 | `SHUTDOWN_SAFE`       | the Pi is down, safe to power off                                             |
+|   18 | `MOWING_START`        | starting to mow (the theme song, one take at random)                          |
+|   19 | `MOWING_PAUSED`       | mowing paused (state `PAUSED`)                                                |
+|   20 | `MOWING_RESUMED`      | mowing continues                                                              |
+|   21 | `MOWING_COMPLETE`     | Not yet used to to missing progress data                                      |
+|   22 | `MOWING_AMBIENCE`     | background effects while mowing (rolled by the LL)                            |
+|   23 | `DOCKING_START`       | heading back when the reason is not "lawn done"                               |
+|   24 | `AREA_RECORDING_MODE` | entering the area-recording mode                                              |
 |   25 | `RAIN_DETECTED`       | rain, heading back: defined, but not triggered yet (no rain input, see below) |
-|   26 | `LIFT_TRIGGERED`      | wheel-lift sensor triggered an emergency               |
-|   27 | `STOP_BUTTON`         | the stop button was pressed                            |
-|   28 | `COLLISION_TRIGGERED` | collision sensor triggered an emergency                |
-|   29 | `MOWER_RPM_TIMEOUT`   | the blade never reached its speed                      |
-|   30 | `MOWER_RPM_LIMIT`     | the blade RPM went over the safe limit                 |
-|   31 | `RECOVERED`           | a recovery manoeuvre finished                          |
+|   26 | `LIFT_TRIGGERED`      | wheel-lift sensor triggered an emergency                                      |
+|   27 | `STOP_BUTTON`         | the stop button was pressed                                                   |
+|   28 | `COLLISION_TRIGGERED` | collision sensor triggered an emergency                                       |
+|   29 | `MOWER_RPM_TIMEOUT`   | the blade never reached its speed                                             |
+|   30 | `MOWER_RPM_LIMIT`     | the blade RPM went over the safe limit                                        |
+|   31 | `RECOVERED`           | Not yet used                                                                  |
 
 Ids the high level fills in carry **no ROM sound**: they stay silent until
 `sounds_<lang>.yaml` defines an announcement (TTS text or recording), so a trigger that
-has no definition yet cannot beep by accident. Two exceptions carry a real ROM sound and
-work without any configuration:
-
-- `AUTONOMOUS_NOTICE` — the reversing alarm of lorries and forklifts.
-- `VOLUME_UP` / `VOLUME_DOWN` — a rising and a falling figure for the volume slider.
+has no definition yet cannot beep by accident.
 
 ### Who triggers what
 
 The **high level** decides what the robot does and reports it in
 `/high_level_status` (`HighLevelStatus`: IDLE / AUTONOMOUS / RECORDING plus the behaviour
 name `UNDOCKING`, `MOWING`, `PAUSED`, `DOCKING`, `AREA_RECORDING`). The firmware's sound
-state machine turns that into the announcements, so a definition needs no high-level code:
-
-| high-level state change | sound |
-| --- | --- |
-| → `MOWING` | `MOWING_START` (or `MOWING_RESUMED` when it was paused) - the theme song, uninterrupted (mowing is no manoeuvre, so no warning device) |
-| `MOWING` → `PAUSED` | `MOWING_PAUSED` |
-| `MOWING` / `PAUSED` → `DOCKING` | `MOWING_COMPLETE` (why it goes home) |
-| anything → `DOCKING` | `DOCKING_START` (a random "coming home" song) |
-| anything → `AREA_RECORDING` | `AREA_RECORDING_MODE` |
-| `UNDOCKING` / `DOCKING` while it lasts | `AUTONOMOUS_NOTICE` (the warning device; its `repeat_ms` keeps the cadence) |
-
-### Why the theme songs do not fight the warning device
-
-The two long sounds sit on opposite sides of the manoeuvre logic:
-
-- `MOWING_START` fires when the robot *starts mowing* - not a manoeuvre, so the song
-  plays through (25-31 s) with no notice on top.
-- `DOCKING_START` fires when docking starts for a reason other than "lawn done" (also
-  battery empty, manual dock). Docking *is* a manoeuvre, so the notice comes first, the
-  song second, and the cadence continues afterwards.
-- `RAIN_DETECTED` needs the docking reason in the low level. It has none: the firmware
-  reports `rain_detected = false` (no sensor, see `mower_service.cpp`), and the high
-  level decides the reason from that very flag. The sound is defined and the MP3s are
-  there - it plays once the HL tells the LL why it docks.
+state machine turns that into the announcements, so a definition needs no high-level code.|
 
 ### Debugging a silent mower
 
@@ -126,19 +99,6 @@ Sound: announced 'lift_triggered' (alert=EMERGENCY hl=DOCKING charging=0 blade=0
 So `grep 'Sound:'` in the ROS log tells the whole story of an announcement: what the
 firmware saw, when it changed and what it played. `Sound: input …` lines appear only on a
 change, so a steady robot is silent in the log.
-
-The manoeuvres get the warning device because they drive the robot through the garden;
-mowing deliberately does not (it runs for hours and has the ambience sounds instead).
-Undocking and docking start and stop it, and `repeat_ms` in the definition keeps the
-cadence (so a definition may choose its own rate). A repeating sound ends as soon as
-another sound plays, so a manoeuvre that also announces something is ordered **warn,
-then announce, then warn again**: the notice has to be heard before the robot drives
-off, and an announcement may well be a half minute theme song.
-
-`MOWING_AMBIENCE` is the odd one out: the high level never triggers it. Its definition
-carries `every`/`chance`/`pick`, and the **low level** rolls on its own once per interval
-and plays a random take — but only while its state machine is mowing (that condition is
-firmware logic, not a definition field).
 
 ## Engine and voices
 
@@ -173,22 +133,8 @@ tts:
     voice: b7187e84-fe22-4344-ba4a-bc013fcb533e
 ```
 
-Cartesia has no counterpart of the ElevenLabs voice settings (stability, style,
-speaker boost). Both engines are asked for 16 kHz audio, which is the rate the
-firmware plays.
 
-The German definition uses the release alias `sonic-3.6` and therefore follows
-the newest stable 3.6 build; a dated id (`sonic-3.6-2026-08-27`) pins one build
-instead, and `GET /models` lists only the aliases. Cartesia does not render
-bit-identically - two identical requests return different bytes - so pinning
-buys the voice *character*, not the bytes. What stays untouched is a file that
-is already rendered: its `.json` sidecar records text, voice and model, and
-`soundctl tts` only re-renders on a mismatch, so the whole set is rendered from
-one model in one go. A single variant re-rendered later (after a text change)
-may sound slightly different from its unchanged neighbours - that is the price
-of the alias.
-
-The text goes to the selected engine and the returned 16 kHz audio is normalised
+The text goes to the selected engine and the returned audio is converted to 16 kHz, get normalised
 and encoded by ffmpeg. Nothing runs locally.
 The API key never belongs in these files: it
 comes from `--api-key`, `--api-key-file`, `$ELEVENLABS_API_KEY` /
@@ -244,9 +190,11 @@ machine below rolls them.
      the FileService to `/sounds/<file>`, deletes orphaned files from `/sounds/`,
      pushes the `sounds:` map (heatshrink) to the SoundService and optionally sets
      the master volume (`--volume`; without it the firmware value stays).
-  Both run with `--log-time=false --log-prefix '[soundctl tts|sync] '`: the ROS log
-  already stamps every line, so the CLI's own date/time would be a duplicate, and
-  the prefix keeps a line attributable in the node's log.
+  Both run with `--log-time=false --no-color --log-prefix '[soundctl tts|sync] '`:
+  the ROS log already stamps every line, so the CLI's own date/time would be a
+  duplicate, and the prefix keeps a line attributable in the node's log. Colour is
+  off on a pipe anyway (see the soundctl README) — `--no-color` only makes sure an
+  escape sequence can never reach the log.
 - Boards without an amplifier: the SoundService (SID 13) never starts, the sync
   stops after the probe (`--sound-check-timeout`, 10 s) without uploading. The
   FileService (SID 12) is always there.
@@ -255,19 +203,6 @@ machine below rolls them.
   window starts after the sound probe. If a sync reports `FileService not
   reachable`, run `soundctl discover --wait 25s` in the container: SID 12 listed →
   retry; empty list → the LL is not up (or not on this interface).
-
-## Measured on development mower (CM5)
-
-| step                                                 | time                        |
-| ---------------------------------------------------- | --------------------------- |
-| render one announcement (ElevenLabs + ffmpeg)        | 1–2 s (API round trip)      |
-| SoundService probe (multicast)                       | 3–10 s                      |
-| FileService discovery (10 s advertisement period)    | ≤ 10 s typical, 30 s window |
-| upload, per MP3 (256-byte RPC chunks + flash commit) | 3–5 s (19 kB)               |
-
-With the pre-renders in the image (an image built with a TTS key) a start only
-pays discovery plus uploads (`0 rendered, x up to date`) — rendering is the
-exception (new/changed text).
 
 ## Tooling
 
