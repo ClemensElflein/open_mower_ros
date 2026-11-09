@@ -261,7 +261,6 @@ sounds:
       - "Okay, I'm stopping."
       - "I'm already standing still."
       - "Oops, what's going on?"
-
   autonomous_notice:
     type: mp3
     volume: 90
@@ -271,7 +270,6 @@ sounds:
       - "Caution, I'm mowing now. Please keep clear."
       - "I'm starting my mowing job. Please step aside."
       - "Robot mower in use. Please stay off the lawn."
-
   mowing_start:
     type: mp3
     volume: 80
@@ -290,9 +288,6 @@ sounds:
       - { file: zz_coming-home.mp3 }
       - { file: zz_coming-home-remix.mp3 }
       - { file: zz_sweet-home-alabama.mp3 }
-  # Rain instead of lawn done / battery low. Not triggered yet: the low level has
-  # no rain input, the reason comes from the high level (docking reason) - the
-  # sound only plays once the HL sends it. Until then docking_start stays.
   rain_detected:
     type: mp3
     volume: 80
@@ -301,6 +296,18 @@ sounds:
       - { file: zz_rain-singing.mp3 }
       - { file: zz_rain-supertramp.mp3 }
       - { file: zz_rain-garbage.mp3 }
+  gps_rtk_fix:
+    type: mp3
+    volume: 100
+    pause_after_ms: 500
+    variants:
+      - { file: zz_gps-rtk-fix.mp3 }
+  gps_rtk_lost:
+    type: mp3
+    volume: 100
+    pause_after_ms: 500
+    variants:
+      - { file: zz_gps-rtk-lost.mp3 }
 
   # Background effects while the mower works on its own. The low level rolls once
   # per `every` interval and plays one take with `chance` probability - the same
