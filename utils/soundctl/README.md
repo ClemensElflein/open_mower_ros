@@ -12,7 +12,7 @@ including how to run it against a checkout (see *Local use*).
 
 | command         | purpose                                                                                                                                                                                                                                                                       |
 | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `validate`      | check `sounds_*.yaml` against `services/sound_service.json` (ids, types, ranges) and, with `--check-mp3`, that every referenced MP3 is 16 kHz mono                                                                                                                            |
+| `validate`      | check `sounds_*.yaml` against `services/sound_service.json` (ids, types, ranges) and, with `--check-mp3`, that every referenced MP3 is 16 kHz mono (a `tts:` render nobody has produced yet counts as `pending`, not as an error - `tts --check` reports those)                                                                                                                            |
 | `tts`           | render the tts variants into 16 kHz mono CBR MP3s (the engine the YAML names: ElevenLabs or Cartesia, then ffmpeg); a `.json` sidecar per file is the cache; `--check` reports missing/stale renders and needs no key, `--keep-going` renders the rest when one variant fails |
 | `tts voices`    | list the voices of an engine (`--engine`, default ElevenLabs; `--all` also shows its Voice Library, which needs a paid plan)                                                                                                                                                  |
 | `say`           | render **one** ad-hoc text with the same chain and play it on this machine — no YAML, no cache. ElevenLabs only (no engine flag); the way to audition a text before it goes into a definition                                                                                 |
@@ -225,10 +225,12 @@ that also means no glibc version of the build host leaks in.
   empty after the next restart — fine for the shipped sounds (they are read from
   the image), relevant only for customisations (see `sounds/README.md`).
 - File resolution order: `<overlay>/<lang>`, `<sound_path>/<lang>`, `<overlay>`,
-  `<sound_path>`. A *render* (anything with a `.json` sidecar) is resolved by
+  `<sound_path>`. A *render* - a variant with a `tts:` text - is resolved by
   `Layout.FindRender`: the first copy whose sidecar still matches the YAML wins, so
   a leftover overlay render from an older definition does not mute the announcement
-  the image ships (it is warned about as `ignoring a stale render`).
+  the image ships (it is warned about as `ignoring a stale render`). A hand-made
+  recording is therefore a `file:` variant **without** a `tts:` text: it is not a
+  render, has no sidecar, and is uploaded as-is.
 - Log format: `--log-time=false` drops the CLI's own date/time and
   `--log-prefix '[soundctl] '` prefixes every line — log lines *and* the progress
   lines a command prints itself. `sound_sync` uses both, because the ROS log already

@@ -28,13 +28,18 @@ jobs:
             let deleted = 0;
             // Delete page by page and re-list after every page: deleting changes the
             // listing, and the API returns at most 100 entries per request.
+            //
+            // `key` is a server-side prefix filter. Filtering the page here instead
+            // would give up as soon as the newest 100 caches do not match - even when
+            // older matching entries exist.
             for (;;) {
               const list = await github.rest.actions.getActionsCacheList({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
+                key: prefix,
                 per_page: 100,
               });
-              const caches = list.data.actions_caches.filter((c) => c.key.startsWith(prefix));
+              const caches = list.data.actions_caches;
               if (caches.length === 0) {
                 break;
               }

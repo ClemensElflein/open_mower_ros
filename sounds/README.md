@@ -60,7 +60,7 @@ renumbered id would silently address a different sound.
 |   18 | `MOWING_START`        | starting to mow (the theme song, one take at random)                          |
 |   19 | `MOWING_PAUSED`       | mowing paused (state `PAUSED`)                                                |
 |   20 | `MOWING_RESUMED`      | mowing continues                                                              |
-|   21 | `MOWING_COMPLETE`     | Not yet used to to missing progress data                                      |
+|   21 | `MOWING_COMPLETE`     | not yet used, due to missing progress data                                    |
 |   22 | `MOWING_AMBIENCE`     | background effects while mowing (rolled by the LL)                            |
 |   23 | `DOCKING_START`       | heading back when the reason is not "lawn done"                               |
 |   24 | `AREA_RECORDING_MODE` | entering the area-recording mode                                              |
@@ -81,7 +81,7 @@ has no definition yet cannot beep by accident.
 The **high level** decides what the robot does and reports it in
 `/high_level_status` (`HighLevelStatus`: IDLE / AUTONOMOUS / RECORDING plus the behaviour
 name `UNDOCKING`, `MOWING`, `PAUSED`, `DOCKING`, `AREA_RECORDING`). The firmware's sound
-state machine turns that into the announcements, so a definition needs no high-level code.|
+state machine turns that into the announcements, so a definition needs no high-level code.
 
 ### Debugging a silent mower
 
@@ -134,13 +134,13 @@ tts:
 ```
 
 
-The text goes to the selected engine and the returned audio is converted to 16 kHz, get normalised
-and encoded by ffmpeg. Nothing runs locally.
-The API key never belongs in these files: it
-comes from `--api-key`, `--api-key-file`, `$ELEVENLABS_API_KEY` /
-`$CARTESIA_API_KEY` or `/data/sounds/.elevenlabs.key` /
-`/data/sounds/.cartesia.key`, one chain per engine (see
-`utils/soundctl/README.md`).
+The text goes to the selected engine; the returned audio is converted to 16 kHz mono,
+normalised and encoded by ffmpeg. Nothing runs locally.
+
+The API key never belongs in these files: it comes from `--api-key`,
+`--api-key-file`, `$ELEVENLABS_API_KEY` / `$CARTESIA_API_KEY` or
+`/data/sounds/.elevenlabs.key` / `/data/sounds/.cartesia.key`, one chain per engine
+(see `utils/soundctl/README.md`).
 
 Because a hosted model can change, the render fingerprint is a *request*
 fingerprint: `soundctl tts --force` re-rolls an announcement after a model update.

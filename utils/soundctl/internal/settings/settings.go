@@ -8,7 +8,9 @@
 package settings
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -74,10 +76,30 @@ func APIKey(engine, explicit, explicitFile string) (string, error) {
 	if v := strings.TrimSpace(os.Getenv(env)); v != "" {
 		return v, nil
 	}
-	if v, err := ReadKeyFile(file); err == nil && v != "" {
-		return v, nil
+	key, ok, err := defaultKeyFromFile(file)
+	switch {
+	case err != nil:
+		return "", err
+	case ok:
+		return key, nil
 	}
 	return "", fmt.Errorf("no %s API key: pass --api-key/--api-key-file, set $%s, or write %s", engine, env, file)
+}
+
+// defaultKeyFromFile reads the engine's default key file. A missing file is not an
+// error - the caller names every way to provide a key - but an unreadable one is: a
+// mode-0600 file owned by another user, an I/O error or an empty file would all end up
+// as "no API key", telling the user to write a file that is already there.
+func defaultKeyFromFile(path string) (key string, ok bool, err error) {
+	v, err := ReadKeyFile(path)
+	switch {
+	case err == nil:
+		return v, true, nil
+	case errors.Is(err, fs.ErrNotExist):
+		return "", false, nil
+	default:
+		return "", false, err
+	}
 }
 
 // APIKeySource names the environment variable and the default file of an engine.

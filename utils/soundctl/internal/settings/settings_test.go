@@ -2,6 +2,7 @@ package settings
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -92,6 +93,21 @@ func TestReadKeyFileTrims(t *testing.T) {
 	}
 	if _, err := ReadKeyFile(path + ".missing"); err == nil {
 		t.Fatal("a missing key file must be an error")
+	}
+}
+
+// TestDefaultKeyFileDistinguishesMissingFromUnreadable: a key file that exists but
+// cannot be read must surface its own error. Reporting it as "no API key" would tell
+// the user to write a file that is already there - the case that actually bites in
+// the simulation, where a mode-0600 file can belong to another uid.
+func TestDefaultKeyFileDistinguishesMissingFromUnreadable(t *testing.T) {
+	if _, ok, err := defaultKeyFromFile(filepath.Join(t.TempDir(), "absent.key")); err != nil || ok {
+		t.Fatalf("a missing file = ok:%v err:%v, want ok:false err:nil", ok, err)
+	}
+	// A directory exists but os.ReadFile fails on it - a portable stand-in for
+	// "present, but unreadable" (chmod 000 would not work when the test runs as root).
+	if _, ok, err := defaultKeyFromFile(t.TempDir()); err == nil || ok {
+		t.Fatalf("an unreadable path = ok:%v err:%v, want a real error", ok, err)
 	}
 }
 
