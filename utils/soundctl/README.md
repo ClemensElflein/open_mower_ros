@@ -160,9 +160,13 @@ declares it as opaque bytes) and defines the 256 byte `FileWrite` chunk size.
 
 `go.mod` pins both released modules (`github.com/xtech/definitions-open-mower/golang`
 for the service clients, `github.com/xtech/xbot_framework/xbot_service_interface_go`
-for the protocol). A schema change means: regenerate the clients in the
-definitions repository, release it, and bump the `require` here - nothing in this
-tool has to change.
+for the protocol). The submodule pointer in this repository and the `require` here
+must name the **same** release: the firmware compiles the submodule, the CLI downloads
+the module, and a pointer that is ahead of the module means the low level speaks a
+protocol the CLI does not. Nothing fails at build time - only on the robot. A schema
+change therefore means: regenerate the clients in the definitions repository, tag it,
+point the submodule at that tag, and bump the `require` here. Nothing in this tool
+itself has to change.
 
 The other dependencies are deliberately few and each earns its place:
 `spf13/cobra` (commands), `go.yaml.in/yaml/v3` (the YAML definitions — the
