@@ -272,14 +272,29 @@ sounds:
       - "Robot mower in use. Please stay off the lawn."
   mowing_start:
     type: mp3
-    volume: 80
+    volume: 90
     pick: random
     variants:
       - { file: zz_pink-panther.mp3 }
       - { file: zz_highway-to-hell.mp3 }
+  mowing_paused:
+    type: mp3
+    volume: 90
+    pick: random
+    variants:
+      - "Mowing job paused. I'll wait for further instructions."
+      - "Mowing job paused. Time for a little nap."
+  mowing_resumed:
+    type: mp3
+    volume: 90
+    pick: random
+    variants:
+      - "And off we go again."
+      - "Mowing job resumed. I'm back at work."
+      - "Ready to roll ... yep, the robot mower is mowing again."
   docking_start:
     type: mp3
-    volume: 80
+    volume: 90
     pick: random
     variants:
       - "Mowing complete. I'm on my way home."
@@ -290,7 +305,7 @@ sounds:
       - { file: zz_sweet-home-alabama.mp3 }
   rain_detected:
     type: mp3
-    volume: 80
+    volume: 90
     pick: random
     variants:
       - { file: zz_rain-singing.mp3 }
@@ -309,6 +324,14 @@ sounds:
     variants:
       - { file: zz_gps-rtk-lost.mp3 }
 
+  area_recording_mode:
+    type: mp3
+    volume: 90
+    pick: random
+    variants:
+      - "Recording mode active. Show me what to mow."
+      - "I'm learning the area now. Please drive along the boundary."
+
   # Background effects while the mower works on its own. The low level rolls once
   # per `every` interval and plays one take with `chance` probability - the same
   # statistics the old firmware had (~35 % per minute, with a minimum pause in
@@ -317,10 +340,10 @@ sounds:
   # is MOWING - hence the name.
   mowing_ambience:
     type: mp3
-    volume: 80
+    volume: 90
     pick: random
     every: 60s
-    chance: 0.25
+    chance: 0.3
     variants:
       - { file: zz_cow.mp3 }
       - { file: zz_sheep.mp3 }

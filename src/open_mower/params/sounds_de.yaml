@@ -275,14 +275,29 @@ sounds:
       - "Mähroboter im Einsatz. Bitte bleib außerhalb der Mähfläche."
   mowing_start:
     type: mp3
-    volume: 80
+    volume: 90
     pick: random
     variants:
       - { file: zz_pink-panther.mp3 }
       - { file: zz_highway-to-hell.mp3 }
+  mowing_paused:
+    type: mp3
+    volume: 90
+    pick: random
+    variants:
+      - "Mähauftrag pausiert. Ich warte auf weitere Anweisungen."
+      - "Mähauftrag pausiert. Zeit für'n Schlummerchen."
+  mowing_resumed:
+    type: mp3
+    volume: 90
+    pick: random
+    variants:
+      - "Und weiter gehts."
+      - "Mähauftrag fortgesetzt. Ich bin wieder im Einsatz."
+      - "Zicke zacke Hühner... nee, Mähroboter! Ich mähe weiter."
   docking_start:
     type: mp3
-    volume: 80
+    volume: 90
     pick: random
     variants:
       - "Mähauftrag abgeschlossen. Ich mache mich auf den Heimweg."
@@ -293,7 +308,7 @@ sounds:
       - { file: zz_sweet-home-alabama.mp3 }
   rain_detected:
     type: mp3
-    volume: 80
+    volume: 90
     pick: random
     variants:
       - { file: zz_rain-singing.mp3 }
@@ -312,14 +327,22 @@ sounds:
     variants:
       - { file: zz_gps-rtk-lost.mp3 }
 
+  area_recording_mode:
+    type: mp3
+    volume: 90
+    pick: random
+    variants:
+      - "Aufzeichnungsmodus aktiv. Dann zeig mir mal was ich mähen soll."
+      - "Ich lerne jetzt die Fläche. Bitte fahre den Rand ab."
+
   # Background effects while the mower works on its own. The low level rolls once
   # per `every` interval and plays one take with `chance` probability.
   mowing_ambience:
     type: mp3
-    volume: 80
+    volume: 90
     pick: random
     every: 60s
-    chance: 0.25
+    chance: 0.3
     variants:
       - { file: zz_cow.mp3 }
       - { file: zz_sheep.mp3 }
