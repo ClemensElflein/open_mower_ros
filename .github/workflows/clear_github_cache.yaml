@@ -1,8 +1,17 @@
 name: Clear cache
 
+# Manual helper: deletes the repository's Actions caches. Without a prefix everything is
+# removed - including the render cache, which then has to be rebuilt with TTS requests
+# (see the render job in build-image.yaml), so use the prefix to clear a single family.
 on:
   workflow_dispatch:
+    inputs:
+      prefix:
+        description: "Only delete keys that start with this text (empty: every cache)"
+        required: false
+        default: ""
 
+# Deletes caches, so it needs write permission on actions.
 permissions:
   actions: write
 
@@ -11,20 +20,37 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Clear cache
-        uses: actions/github-script@v6
+        uses: actions/github-script@v8
         with:
           script: |
-            console.log("About to clear")
-            const caches = await github.rest.actions.getActionsCacheList({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-            })
-            for (const cache of caches.data.actions_caches) {
-              console.log(cache)
-              github.rest.actions.deleteActionsCacheById({
+            const prefix = context.payload.inputs?.prefix ?? "";
+            console.log(`About to clear caches${prefix ? ` starting with '${prefix}'` : ""}`);
+            let deleted = 0;
+            // Delete page by page and re-list after every page: deleting changes the
+            // listing, and the API returns at most 100 entries per request.
+            //
+            // `key` is a server-side prefix filter. Filtering the page here instead
+            // would give up as soon as the newest 100 caches do not match - even when
+            // older matching entries exist.
+            for (;;) {
+              const list = await github.rest.actions.getActionsCacheList({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                cache_id: cache.id,
-              })
+                key: prefix,
+                per_page: 100,
+              });
+              const caches = list.data.actions_caches;
+              if (caches.length === 0) {
+                break;
+              }
+              for (const cache of caches) {
+                await github.rest.actions.deleteActionsCacheById({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  cache_id: cache.id,
+                });
+                deleted++;
+                console.log(`deleted ${cache.key}`);
+              }
             }
-            console.log("Clear completed")
+            console.log(`Clear completed: ${deleted} cache(s)`);

@@ -5,6 +5,9 @@ data/ros/*
 
 data/recordings/
 
+# Generated sound overlay: TTS renders + customised MP3s written by `soundctl tts`.
+data/sounds/
+
 # Editor swap files
 *.swp
 *.swo

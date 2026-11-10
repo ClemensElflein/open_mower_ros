@@ -109,3 +109,6 @@ Copy the settings for **Build directory** and **CMake options**. Everything else
 # License
 
 This work is licensed under the [GNU General Public License version 3](https://www.gnu.org/licenses/gpl-3.0.html). See the [LICENSE](LICENSE) file for details.
+
+**Not covered by the GPL:** the audio files in [`sounds/`](sounds/), which carry their own
+(partly third-party) licences - see [`sounds/LICENSE.md`](sounds/LICENSE.md).

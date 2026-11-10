@@ -184,6 +184,8 @@ add_executable(mower_comms_v2
         src/HighLevelServiceInterface.h
         src/MetaServiceInterface.cpp
         src/MetaServiceInterface.h
+        src/SoundSync.cpp
+        src/SoundSync.h
 )
 
 target_add_service_interface(mower_comms_v2 ImuServiceInterface ${CMAKE_CURRENT_SOURCE_DIR}/../../services/imu_service.json)
