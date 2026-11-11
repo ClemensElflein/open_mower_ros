@@ -114,11 +114,11 @@ jobs:
         id: tts_cache
         uses: actions/cache/restore@v6
         with:
-          # Only the per-language render directories: the tracked recordings
+          # Every per-language render directory, matched as a glob so a language added
+          # to the loop below is cached without a second edit. The tracked recordings
           # (zz_*.mp3, README.md) come from the checkout, not from a cache.
           path: |
-            sounds/en
-            sounds/de
+            sounds/*/
           key: tts-renders-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: tts-renders-
 
@@ -155,7 +155,11 @@ jobs:
           # own secret: skip a language whose key is missing so it cannot hide the other.
           declare -A secret=([elevenlabs]="${ELEVENLABS_API_KEY:-}" [cartesia]="${CARTESIA_API_KEY:-}")
           failed=0
-          for lang in en de; do
+          # One entry per shipped definition. Adding a language here is deliberate: its
+          # first render costs one API request per announcement, after that the cache
+          # above keeps it. A language that is not listed ships without pre-rendered
+          # audio and is rendered by the robot itself.
+          for lang in en de fr nl pl sv; do
             cfg="../../src/open_mower/params/sounds_${lang}.yaml"
             engine=$(sed -n 's/^[[:space:]]*engine:[[:space:]]*\([a-z]*\).*/\1/p' "${cfg}" | head -1)
             if [ -z "${engine}" ]; then
@@ -191,7 +195,7 @@ jobs:
       # something that is not in the YAML.
       - name: Drop restored renders when there is no key
         if: steps.tts_key.outputs.available != 'true'
-        run: rm -rf sounds/en sounds/de
+        run: rm -rf sounds/*/
 
       # Save even when the render failed: whatever is there is what the next run reuses, so
       # an unchanged definition costs no TTS request. The key is the one the restore step
@@ -201,9 +205,9 @@ jobs:
         if: ${{ !cancelled() && steps.tts_key.outputs.available == 'true' }}
         uses: actions/cache/save@v6
         with:
+          # Same glob as the restore step, so it always covers what the render produced.
           path: |
-            sounds/en
-            sounds/de
+            sounds/*/
           key: ${{ steps.tts_cache.outputs.cache-primary-key }}
 
       # The artifact is the hand-over to the build jobs: they all wait for this job and
@@ -213,9 +217,16 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: sounds
+          # Listed explicitly rather than as a glob: a silently empty artifact would ship
+          # an image without announcements, which is far harder to spot than a missing
+          # line here.
           path: |
             sounds/en
             sounds/de
+            sounds/fr
+            sounds/nl
+            sounds/pl
+            sounds/sv
           # No key, no renders: the artifact is simply empty and the build jobs tolerate
           # that (the robot renders the announcements itself).
           if-no-files-found: ignore
