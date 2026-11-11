@@ -85,7 +85,10 @@ jobs:
       # (they are rendered on the mower), so no ffmpeg/engine is needed here.
       - name: validate the shipped sound definitions
         run: |
-          for lang in en de; do
+          # One entry per shipped definition; keep in lockstep with the render loop in
+          # build-image.yaml. No API key and no ffmpeg needed, `--check-mp3` reports the
+          # announcements that only a `tts:` text produces as "pending".
+          for lang in en de fr nl pl sv; do
             go run ./cmd/soundctl validate \
               --config "../../src/open_mower/params/sounds_${lang}.yaml" \
               --sound-ids ../../services/sound_service.json \
