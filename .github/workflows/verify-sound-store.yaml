@@ -1,0 +1,91 @@
+name: Verify sound store
+
+# Read-only check of ghcr.io/<repo>/tts-sounds: pull every language tag, restore it into
+# sounds/ and ask soundctl whether the sidecars match the definitions.
+#
+# This is the same assertion the render job makes (`tts --check` walks the same upToDate()
+# the render loop skips on), but without an API key and without rendering - so it answers
+# "would a build need to spend TTS requests?" for zero cost.
+#
+# Why the `push` trigger: workflow_dispatch is only listed once this file is on the default
+# branch. Filtered to this very file, it also runs from a feature branch. Remove that block
+# once this landed on main.
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/verify-sound-store.yaml"
+
+permissions:
+  contents: read
+  packages: read
+
+env:
+  SOUNDS_PACKAGE: ${{ github.repository }}/tts-sounds
+  # One entry per shipped definition; keep in step with render-sounds.yaml.
+  SOUND_LANGUAGES: en de fr nl pl sv
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          # services/sound_service.json (the shared definition) is a submodule.
+          submodules: "recursive"
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: utils/soundctl/go.mod
+          cache-dependency-path: utils/soundctl/go.sum
+
+      - name: Set up oras
+        uses: oras-project/setup-oras@v1
+
+      - name: Log in to ghcr.io
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "${GH_TOKEN}" | oras login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
+
+      - name: Restore every language from the store
+        run: |
+          set -euo pipefail
+          pkg=$(echo "${SOUNDS_PACKAGE}" | tr '[:upper:]' '[:lower:]')
+          echo "package: ${pkg}"
+          echo "tags in the store:"
+          oras repo tags "ghcr.io/${pkg}" || echo "::warning::could not list tags"
+          mkdir -p sounds
+          for lang in ${SOUND_LANGUAGES}; do
+            ref="ghcr.io/${pkg}:${lang}"
+            out="${RUNNER_TEMP}/restore-${lang}"
+            if oras pull "${ref}" -o "${out}" 2>/dev/null; then
+              tar -C sounds -xzf "${out}/${lang}.tgz"
+              echo "restored ${lang}: $(find "sounds/${lang}" -type f | wc -l) files, $(du -sh "sounds/${lang}" | cut -f1)"
+            else
+              echo "::error::no tag '${lang}' in ${pkg} - a build would render this language from scratch"
+            fi
+          done
+
+      - name: Check the restored renders against the definitions
+        run: |
+          set -euo pipefail
+          ( cd utils/soundctl && go build -o "${RUNNER_TEMP}/soundctl" ./cmd/soundctl )
+          failed=0
+          for lang in ${SOUND_LANGUAGES}; do
+            args=(--config "../../src/open_mower/params/sounds_${lang}.yaml"
+                  --sound-ids ../../services/sound_service.json
+                  --sound-path ../../sounds
+                  --sounds-dir ../../sounds)
+            if ( cd utils/soundctl && "${RUNNER_TEMP}/soundctl" tts --check "${args[@]}" ); then
+              echo "${lang}: up to date"
+            else
+              echo "::error::${lang}: the store does not match sounds_${lang}.yaml - a build would re-render these"
+              failed=1
+            fi
+            ( cd utils/soundctl && "${RUNNER_TEMP}/soundctl" validate --check-mp3 "${args[@]}" ) || failed=1
+          done
+          exit "${failed}"
