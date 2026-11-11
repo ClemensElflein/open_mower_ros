@@ -20,6 +20,7 @@ func newSyncCmd() *cobra.Command {
 		soundCheck time.Duration
 		soundsDir  string
 		soundPath  string
+		check      bool
 	)
 	cmd := &cobra.Command{
 		Use:   "sync",
@@ -56,6 +57,7 @@ func newSyncCmd() *cobra.Command {
 				SoundsDir:         soundsDir,
 				SoundPath:         soundPath,
 				Wait:              wait,
+				Check:             check,
 			})
 		},
 	}
@@ -68,6 +70,7 @@ func newSyncCmd() *cobra.Command {
 	cmd.Flags().IntVar(&volume, "volume", -1, "master volume 0..100 to set (default: leave firmware value unchanged)")
 	cmd.Flags().DurationVar(&soundCheck, "sound-check-timeout", 10*time.Second, "how long to wait for the SoundService (soundless boards skip)")
 	cmd.Flags().StringVar(&soundsDir, "sounds-dir", defaultSoundsDir(), "writable overlay with customised/rendered MP3s (wins over sound_path)")
+	cmd.Flags().BoolVar(&check, "check", false, "only report what would be uploaded (compares the CRC of every file, writes nothing)")
 	layoutFlag(cmd, &soundPath)
 	return cmd
 }

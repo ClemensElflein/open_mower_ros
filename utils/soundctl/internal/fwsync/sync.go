@@ -44,6 +44,12 @@ type Options struct {
 	// perfectly healthy LL — and a budget shared with the probe makes it worse.
 	// Zero waits as long as the caller's context allows.
 	Wait time.Duration
+
+	// Check reports what would be uploaded and changes nothing: no upload, no
+	// definitions, no cleanup. It exists to answer "did the last sync arrive?"
+	// (the per-file CRC is logged, which can be compared with the low level's own
+	// `File: exists … (hash=…)` line).
+	Check bool
 }
 
 // defaultSoundCheckTimeout bounds the SoundService probe when not overridden. It
@@ -175,10 +181,15 @@ func Sync(ctx context.Context, opts Options) error {
 					return err
 				}
 			}
-			if err := uploadFile(ctx, fs, local, file); err != nil {
+			if err := uploadFile(ctx, fs, local, file, opts.Check); err != nil {
 				return err
 			}
 		}
+	}
+
+	if opts.Check {
+		slog.Info("check only: nothing was uploaded, no definitions sent, nothing removed")
+		return nil
 	}
 
 	// Apply the new definitions before removing orphaned files: if SetDefinitions
@@ -299,7 +310,11 @@ func reportStorage(ctx context.Context, fs *fileservice.Client, layout Layout, u
 	}
 }
 
-func uploadFile(ctx context.Context, fs *fileservice.Client, localPath, remoteName string) error {
+// crcHex renders the CRC the way the low level logs it (`%#010x`), so the two values
+// can be compared by eye.
+func crcHex(crc uint32) string { return fmt.Sprintf("%#010x", crc) }
+
+func uploadFile(ctx context.Context, fs *fileservice.Client, localPath, remoteName string, check bool) error {
 	data, err := os.ReadFile(localPath)
 	if err != nil {
 		return fmt.Errorf("read %s: %w", localPath, err)
@@ -322,11 +337,18 @@ func uploadFile(ctx context.Context, fs *fileservice.Client, localPath, remoteNa
 		return fmt.Errorf("FileExists(%s): %w", remote, err)
 	}
 	if exists == 1 {
-		slog.Info("up to date", "file", remoteName)
+		slog.Info("up to date", "file", remoteName, "crc", crcHex(crc))
+		return nil
+	}
+	if check {
+		// The low level says "no such file, or the hash differs". Its own log line
+		// ("File: exists '<path>' -> 0 (hash=…)") shows which of the two, and the
+		// crc here is what we compared against.
+		slog.Info("would upload", "file", remoteName, "bytes", len(data), "crc", crcHex(crc))
 		return nil
 	}
 
-	slog.Info("uploading", "file", remoteName, "bytes", len(data))
+	slog.Info("uploading", "file", remoteName, "bytes", len(data), "crc", crcHex(crc))
 	for off := 0; off < len(data); off += fileServiceChunkSize {
 		end := off + fileServiceChunkSize
 		if end > len(data) {
