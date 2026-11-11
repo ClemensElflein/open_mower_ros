@@ -74,6 +74,8 @@ jobs:
           set -euo pipefail
           force="${INPUT_FORCE:-false}"
           pkg=$(echo "${SOUNDS_PACKAGE}" | tr '[:upper:]' '[:lower:]')
+          echo "oras: $(oras version | head -1)"
+          echo "package: ${pkg}"
           stored=0
           skipped=0
           missing=0
@@ -91,9 +93,24 @@ jobs:
             fi
             # Deterministic tar: identical content gives an identical blob digest, so a
             # second seed of the same content uploads nothing.
-            tar --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner \
-              -cf - -C "${RUNNER_TEMP}/sounds" "${lang}" | gzip -n > "${RUNNER_TEMP}/${lang}.tgz"
-            oras push "${ref}" "${RUNNER_TEMP}/${lang}.tgz:application/vnd.oci.image.layer.v1.tar+gzip"
+            if ! tar --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner \
+                   -cf - -C "${RUNNER_TEMP}/sounds" "${lang}" | gzip -n > "${RUNNER_TEMP}/${lang}.tgz"; then
+              echo "::error::packing sounds/${lang} into a tarball failed"
+              exit 1
+            fi
+            echo "packed sounds/${lang}: $(find "${RUNNER_TEMP}/sounds/${lang}" -type f | wc -l) files, $(du -h "${RUNNER_TEMP}/${lang}.tgz" | cut -f1)"
+            # Relative path on purpose: oras rejects an absolute one ("absolute file path
+            # detected"), because the name it records becomes the blob title, and a title
+            # like /home/runner/... would be a path when it is pulled again. From
+            # RUNNER_TEMP the title is just "<lang>.tgz", which is what the render job
+            # expects when it restores this tag.
+            # A registry failure is otherwise only visible in the login-protected log.
+            # Annotations are readable without signing in, so state the reason there.
+            if ! out=$(cd "${RUNNER_TEMP}" && oras push "${ref}" "${lang}.tgz:application/vnd.oci.image.layer.v1.tar+gzip" 2>&1); then
+              echo "::error::oras push ${ref} failed: $(echo "${out}" | tr '\n' ' ' | cut -c1-2000)"
+              exit 1
+            fi
+            echo "${out}"
             stored=$((stored + 1))
           done
           echo "::notice::seeded ${stored}, kept ${skipped}, missing ${missing}"
