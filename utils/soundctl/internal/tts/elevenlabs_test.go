@@ -94,6 +94,9 @@ func TestSynthesizeRequest(t *testing.T) {
 	if gotBody.Text != "The robot operating system has started." || gotBody.ModelID != "eleven_v4" {
 		t.Errorf("body = %+v, want text and model_id from the identity", gotBody)
 	}
+	if gotBody.LanguageCode != "en" {
+		t.Errorf("language_code = %q, want the identity language", gotBody.LanguageCode)
+	}
 	if gotBody.VoiceSettings == nil {
 		t.Fatal("voice_settings missing in the request")
 	} else {

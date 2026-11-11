@@ -18,7 +18,7 @@ type TTSIdentity struct {
 	Engine          string
 	Model           string // engine model id (ElevenLabs or Cartesia)
 	Voice           string // engine voice id
-	Language        string
+	Language        string // ISO 639-1; sent to the engine and used as sounds/<lang>/
 	Text            string
 	Bitrate         string
 	LoudNorm        bool

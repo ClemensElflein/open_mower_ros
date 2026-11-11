@@ -79,9 +79,15 @@ func (e ElevenLabs) api() apiClient {
 // elevenLabsRequest is the JSON body of a synthesis request. Only the settings
 // that are part of the render identity are sent; the server defaults fill the
 // rest, and a changed setting re-renders because it changes the identity.
+//
+// language_code is the identity's Language (ISO 639-1). Without it the model
+// guesses the language from the text, which is unreliable for the short
+// announcements. The field is advisory: the API ignores a
+// code the model does not support, and multilingual_v2 does not accept it at all.
 type elevenLabsRequest struct {
 	Text          string                   `json:"text"`
 	ModelID       string                   `json:"model_id"`
+	LanguageCode  string                   `json:"language_code,omitempty"`
 	VoiceSettings *elevenLabsVoiceSettings `json:"voice_settings,omitempty"`
 }
 
@@ -97,8 +103,9 @@ type elevenLabsVoiceSettings struct {
 // returns the wall time of the request (retries included).
 func (e ElevenLabs) Synthesize(ctx context.Context, id fwsync.TTSIdentity, wav string) (time.Duration, error) {
 	payload, err := json.Marshal(elevenLabsRequest{
-		Text:    id.Text,
-		ModelID: id.Model,
+		Text:         id.Text,
+		ModelID:      id.Model,
+		LanguageCode: id.Language,
 		VoiceSettings: &elevenLabsVoiceSettings{
 			Stability:       id.Stability,
 			SimilarityBoost: id.SimilarityBoost,

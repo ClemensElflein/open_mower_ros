@@ -12,7 +12,7 @@ including how to run it against a checkout (see *Local use*).
 
 | command         | purpose                                                                                                                                                                                                                                                                       |
 | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `validate`      | check `sounds_*.yaml` against `services/sound_service.json` (ids, types, ranges) and, with `--check-mp3`, that every referenced MP3 is 16 kHz mono (a `tts:` render nobody has produced yet counts as `pending`, not as an error - `tts --check` reports those)                                                                                                                            |
+| `validate`      | check `sounds_*.yaml` against `services/sound_service.json` (ids, types, ranges) and, with `--check-mp3`, that every referenced MP3 is 16 kHz mono (a `tts:` render nobody has produced yet counts as `pending`, not as an error - `tts --check` reports those)               |
 | `tts`           | render the tts variants into 16 kHz mono CBR MP3s (the engine the YAML names: ElevenLabs or Cartesia, then ffmpeg); a `.json` sidecar per file is the cache; `--check` reports missing/stale renders and needs no key, `--keep-going` renders the rest when one variant fails |
 | `tts voices`    | list the voices of an engine (`--engine`, default ElevenLabs; `--all` also shows its Voice Library, which needs a paid plan)                                                                                                                                                  |
 | `say`           | render **one** ad-hoc text with the same chain and play it on this machine — no YAML, no cache. ElevenLabs only (no engine flag); the way to audition a text before it goes into a definition                                                                                 |
@@ -118,6 +118,8 @@ documented in [`sounds/README.md`](../../sounds/README.md). From the CLI:
   `https://api.eu.residency.elevenlabs.io`.
 - Every voice setting is part of the render cache key: changing one re-renders the
   announcements on the next `tts` run, which costs one API request per file.
+- The `language` of a definition is also the language hint for the engine.
+  It saves the model from guessing a language off a two-word announcement.
 - Licences: the *voice* is licensed by the provider (and the voice owner), the
   generated audio by the plan you booked - check both before shipping the files
   in a public image. [`sounds/LICENSE.md`](../../sounds/LICENSE.md) records the

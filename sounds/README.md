@@ -103,8 +103,9 @@ change, so a steady robot is silent in the log.
 ## Engine and voices
 
 The engine is picked per language file, so one language can use ElevenLabs and another
-Cartesia. Both language files currently use **ElevenLabs** with the voice
-`TX3LPaxmHKxFdv7VOQHJ` ("Liam", `eleven_v4`). The `cartesia` block is kept alongside so that
+Cartesia. Every language file currently uses **ElevenLabs** with the voice
+`TX3LPaxmHKxFdv7VOQHJ` ("Liam", `eleven_v4`); the definition's `language` travels with the
+request as the language hint, so a two-word announcement is not left to the model's language detection. The `cartesia` block is kept alongside so that
 one language can be switched to `engine: cartesia` (voice
 `b7187e84-fe22-4344-ba4a-bc013fcb533e`, "Sebastian", `sonic-3.6`) without touching anything
 else.

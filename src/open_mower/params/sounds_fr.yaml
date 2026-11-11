@@ -84,7 +84,12 @@
 #             writable overlay).
 #
 # language: subdirectory of sound_path/the overlay that holds the renders of
-#           this language (sounds/<language>/). Its texts are in this language.
+#           this language (sounds/<language>/), and the language hint handed to
+#           the engine (`language_code` for ElevenLabs, `language` for Cartesia)
+#           so it does not have to guess from a three-word announcement -
+#           Swedish/Danish/Norwegian and Dutch/German/Afrikaans are close enough
+#           for a wrong guess. Its texts are in this language. It is part of the
+#           render cache key, so changing it re-renders this file.
 #
 # tts:      how the tts variants of THIS file are spoken. Engine-agnostic options
 #           are flat, everything that belongs to ElevenLabs sits in the
@@ -138,7 +143,7 @@ tts:
 
   elevenlabs:
     model: eleven_v4
-    voice: TODO_FRENCH_VOICE_ID # TODO replace before use: `soundctl tts voices --language fr`
+    voice: TX3LPaxmHKxFdv7VOQHJ # Liam
     stability: 0.5 # 0..1, lower = more expressive
     similarity_boost: 0.75 # 0..1
     style: 0.0 # 0..1, 0 = the voice's own delivery
@@ -155,8 +160,7 @@ sounds:
     repeat_ms: 4000
     variants:
       - { file: zz_ping.mp3 }
-  # FW stage2 boot completed. Two takes: the firmware picks one per playback
-  # (pick: random), so the greeting varies.
+  # FW stage2 boot completed.
   boot_complete:
     type: mp3
     volume: 90
