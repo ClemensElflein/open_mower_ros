@@ -354,3 +354,9 @@ sounds:
       - { file: zz_fart-wet.mp3 }
       - { file: zz_fart-vegan.mp3 }
       - { file: zz_minion-fart.mp3 }
+
+  recovered:
+    type: mp3
+    volume: 90
+    variants:
+      - "Test"
