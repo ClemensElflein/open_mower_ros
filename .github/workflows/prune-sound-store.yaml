@@ -100,12 +100,12 @@ jobs:
           fi
           printf '%s\n' "${keep}" > "${work}/keep.txt"
 
-          # Branch tags: the same sanitisation as render-sounds.yaml, so a tag can be mapped
-          # back to the branch that produced it. Keep the two in step.
+          # Branch tags: the sanitiser is shared with render-sounds.yaml (same truncation and
+          # hash), otherwise a long branch name could never be mapped back to its tag and the
+          # prune would delete the stand of a branch that still exists.
           gh api --paginate "repos/${GITHUB_REPOSITORY}/branches?per_page=100" --jq '.[].name' \
             | while IFS= read -r branch; do
-                printf '%s' "${branch}" | tr '/' '-' | tr -c 'a-zA-Z0-9._-' '-'
-                printf '\n'
+                sh .github/scripts/branch-suffix.sh "${branch}"
               done > "${work}/branches.txt"
           echo "branches still alive: $(wc -l < "${work}/branches.txt")"
           echo "keeping:$(cat "${work}/keep.txt")"
@@ -125,7 +125,11 @@ jobs:
           cutoff=$(date -u -d "${days} days ago" +%Y-%m-%dT%H:%M:%SZ)
           echo "cutoff: ${cutoff} (${days} days), dry_run=${dry}"
 
-          pkg="${SOUNDS_PACKAGE,,}"
+          # The REST package_name carries no owner: for ghcr.io/<owner>/<repo>/<name> it is
+          # "<repo>/<name>", url-encoded. Including the owner targets a package that does not
+          # exist, and every request would 404.
+          pkg="${SOUNDS_PACKAGE#*/}"
+          pkg="${pkg,,}"
           pkg="${pkg//\//%2F}"
           gh api --paginate "user/packages/container/${pkg}/versions?per_page=100" \
               --jq '.[] | [.id, .updated_at, (.metadata.container.tags // [] | join(","))] | @tsv' \
@@ -144,6 +148,8 @@ jobs:
           } >> "${GITHUB_STEP_SUMMARY}"
 
           deleted=0
+          candidates=0
+          failed=0
           kept=0
           while IFS=$'\t' read -r id updated tags; do
             display="${tags:-<untagged>}"
@@ -180,16 +186,18 @@ jobs:
             fi
 
             if [ -z "${decision}" ]; then
-              decision="delete"
-              deleted=$((deleted + 1))
-              if [ "${dry}" != "true" ]; then
-                if gh api -X DELETE "user/packages/container/${pkg}/versions/${id}"; then
-                  echo "deleted ${display} (${updated})"
-                else
-                  echo "::warning::could not delete ${display} (${updated})"
-                fi
-              else
+              candidates=$((candidates + 1))
+              if [ "${dry}" = "true" ]; then
+                decision="would delete"
                 echo "would delete ${display} (${updated})"
+              elif gh api -X DELETE "user/packages/container/${pkg}/versions/${id}"; then
+                decision="deleted"
+                deleted=$((deleted + 1))
+                echo "deleted ${display} (${updated})"
+              else
+                decision="delete failed"
+                failed=$((failed + 1))
+                echo "::error::could not delete ${display} (${updated})"
               fi
             else
               kept=$((kept + 1))
@@ -197,6 +205,14 @@ jobs:
             echo "| ${id} | ${updated} | ${display} | ${decision} |" >> "${GITHUB_STEP_SUMMARY}"
           done < "${work}/versions.tsv"
 
-          verb="would delete"
-          [ "${dry}" = "true" ] || verb="deleted"
-          echo "::notice::prune: kept ${kept}, ${verb} ${deleted} (dry_run=${dry}, max_age=${days}d)"
+          if [ "${dry}" = "true" ]; then
+            echo "::notice::prune (dry run): kept ${kept}, would delete ${candidates} (max_age=${days}d)"
+          else
+            echo "::notice::prune: kept ${kept}, deleted ${deleted} of ${candidates} (max_age=${days}d)"
+            # A version that could not be deleted is a failure, not a warning: the caller
+            # asked for it and the store is still dirty afterwards.
+            if [ "${failed}" -ne 0 ]; then
+              echo "::error::${failed} version(s) could not be deleted"
+              exit 1
+            fi
+          fi

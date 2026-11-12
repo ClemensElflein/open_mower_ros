@@ -134,16 +134,11 @@ jobs:
             # and not the branch it came from. The branch is what this tag stands for, so
             # prefer GITHUB_HEAD_REF and fall back to the ref name (a dispatch or a push on
             # a branch has no head ref).
+            #
+            # The sanitiser lives in .github/scripts/branch-suffix.sh because
+            # prune-sound-store.yaml has to recognise the tag again from the branch list.
             ref="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
-            # printf, not echo: a trailing newline would be sanitised into a "-" as well.
-            clean=$(printf '%s' "${ref}" | tr '/' '-' | tr -c 'a-zA-Z0-9._-' '-')
-            # An OCI tag is limited to 128 characters and "<language>-" takes some of it. On
-            # truncation append a short hash of the full ref, so two long branch names that
-            # share a prefix cannot end up under the same tag.
-            if [ "${#clean}" -gt 80 ]; then
-              clean="$(printf '%s' "${clean}" | cut -c1-71 | sed 's/-*$//')-$(printf '%s' "${ref}" | sha256sum | cut -c1-8)"
-            fi
-            own="-${clean}"
+            own="-$(sh .github/scripts/branch-suffix.sh "${ref}")"
             echo "own=${own}" >> "${GITHUB_OUTPUT}"
             echo "::notice::branch run on ${ref} writes '<lang>${own}'; the base tags stay untouched"
           fi
