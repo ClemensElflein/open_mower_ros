@@ -205,6 +205,36 @@ machine below rolls them.
   reachable`, run `soundctl discover --wait 25s` in the container: SID 12 listed →
   retry; empty list → the LL is not up (or not on this interface).
 
+## Where the renders live
+
+CI renders the `tts:` variants and keeps them in the container registry, one
+package per repository:
+
+```
+ghcr.io/<owner>/<repo>/tts-sounds:<tag>
+```
+
+Three kinds of tag per language, read in this order (most specific first):
+
+| tag               | what                                                         |
+| ----------------- | ------------------------------------------------------------ |
+| `<lang>-<hash>`   | exactly these definitions - `soundctl tts --print-store-key` |
+| `<lang>-<branch>` | the last stand that branch produced                          |
+| `<lang>`          | base stand, written by `main`, `releases/**`, `v2` and tags  |
+
+The render job pulls them and then lets the sidecars decide what is missing, so
+a build normally costs no TTS request: `<lang>-<hash>` is the exact match, the
+branch tag survives a text edit within a branch, and the base tag is the
+fallback for a new branch. A branch that changes a text writes a new
+`<lang>-<hash>` tag and leaves the others alone, so `main` is never affected by
+a branch - and after the merge `main` has the same definitions, therefore the
+same hash, and reuses what the branch already paid for.
+
+The package is public: any branch and any pull request, forks included, can
+read it, but only this repository can write it. Old stands are pruned by
+`prune-sound-store.yaml` (dry run by default); base tags are never deleted,
+because they are the fallback for a branch that finds neither of the others.
+
 ## Tooling
 
 The engines, the renderer and the checks live in `soundctl`:
