@@ -1,9 +1,46 @@
 package fwsync
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
+
+// TestRenderJobsRoundVoiceSettingsToTheKeyPrecision pins the fix for a real staleness bug:
+// Key() formats the voice settings with two decimals, so the request has to carry the same
+// precision - otherwise "stability: 0.504" changed the request while the fingerprint still
+// said 0.50 and the old render was kept as up to date.
+func TestRenderJobsRoundVoiceSettingsToTheKeyPrecision(t *testing.T) {
+	doc := "version: 1\nlanguage: de\nsound_path: /opt/open_mower_ros/sounds\n" +
+		"tts:\n" +
+		"  engine: elevenlabs\n" +
+		"  bitrate: 32k\n" +
+		"  loudnorm: true\n" +
+		"  elevenlabs:\n" +
+		"    model: eleven_v4\n" +
+		"    voice: abc123\n" +
+		"    stability: %s\n" +
+		"    similarity_boost: 0.754\n" +
+		"    style: 0.008\n" +
+		"sounds:\n" +
+		"  boot_complete:\n" +
+		"    type: mp3\n" +
+		"    volume: 90\n" +
+		"    variants:\n" +
+		"      - \"Ein Text\"\n"
+
+	plain := loadFixture(t, fmt.Sprintf(doc, "0.5"))
+	odd := loadFixture(t, fmt.Sprintf(doc, "0.504"))
+
+	id := odd.RenderJobs()[0].Identity
+	if id.Stability != 0.5 || id.SimilarityBoost != 0.75 || id.Style != 0.01 {
+		t.Errorf("identity = stability %v, similarity %v, style %v; want them rounded to two decimals",
+			id.Stability, id.SimilarityBoost, id.Style)
+	}
+	if a, b := plain.StoreKey(), odd.StoreKey(); a != b {
+		t.Errorf("0.5 and 0.504 give different store keys (%s vs %s): the request would change without the key", a, b)
+	}
+}
 
 // storeKeyDoc builds a minimal definition; only the parts that reach the render identity
 // are parameterised, because those are the ones the key has to follow.

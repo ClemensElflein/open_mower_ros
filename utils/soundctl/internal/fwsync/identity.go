@@ -3,9 +3,26 @@ package fwsync
 import (
 	"fmt"
 	"hash/crc32"
+	"math"
 	"strconv"
 	"strings"
 )
+
+// Round2 rounds a voice setting to the two decimals that Key() encodes.
+//
+// The render request and the cache key have to agree on the precision. They did not: Key()
+// formatted the values with two decimals while the request sent the raw float, so a
+// definition with "stability: 0.504" asked the engine for 0.504 and kept a sidecar whose
+// fingerprint still said 0.50 - the render looked up to date and the new setting was never
+// applied.
+//
+// Rounding here rather than widening Key() is deliberate: every shipped definition uses
+// 0.5 / 0.75 / 0.0, so this changes no fingerprint and re-renders nothing. Widening the key
+// would invalidate every stored stand at once (ttsKeyVersion bump) for a precision that
+// ElevenLabs' knobs do not audibly resolve.
+func Round2(v float64) float64 {
+	return math.Round(v*100) / 100
+}
 
 // TTSIdentity is everything that determines *which audio* a sound should have:
 // the text, the voice and the encoder settings. It is the cache key of a render.
@@ -14,6 +31,9 @@ import (
 // same identity when it updates a model, which is what `tts --force` is for.
 // Everything that goes into the request is part of the key, so changing a voice
 // setting re-renders the announcements.
+//
+// The voice settings carry the two decimals of Key() (see Round2), so the key, the request
+// and the sidecar always describe the same audio.
 type TTSIdentity struct {
 	Engine          string
 	Model           string // engine model id (ElevenLabs or Cartesia)
