@@ -1,0 +1,304 @@
+name: Render sounds
+
+# Reusable: build-image.yaml calls this as its `render` job. It stays a separate file
+# because rendering is a sound concern (it belongs next to soundctl.yaml), but it must
+# run inside the calling run - the artifact it produces is run-scoped, and the build
+# jobs order themselves behind it with `needs:`, which only works within one run.
+#
+# Storage: ghcr.io/<repo>/tts-sounds. Three kinds of tag per language, from most to least
+# specific:
+#   de-<hash>     the exact stand of these definitions - Config.StoreKey, which is the
+#                 language plus a hash over every render identity (texts, engine, voice,
+#                 settings, bitrate), so the name always matches the tarball it points at
+#   de-<branch>   the last stand a branch produced
+#   de            the base stand, written by main / releases/** / v2 / tags
+#
+# Why a registry and not actions/cache:
+#   - actions/cache is evicted (7 days unused, 10 GB per repo, LRU) and scoped per git ref,
+#     so a cache written by a PR is invisible to main and vice versa. Both were observed: a
+#     run found "Cache not found for input keys: tts-renders-…" and spent the whole corpus
+#     (~370 TTS requests) again.
+#   - A tag lives until we delete it and is visible to every branch, because tags are not
+#     scoped to a git ref. It costs nothing - a tag is a pointer, and the second name of a
+#     stand (`<lang>-<branch>` next to `<lang>-<hash>`) points at the same manifest. What
+#     costs space is the stand itself: ~750 kB per language, per version.
+#   - The package is public: every branch and every pull request, forks included, can read
+#     it without a token. Only this repository can write it - a fork's GITHUB_TOKEN carries
+#     packages: write for its own namespace, so a fork's pushes land in ghcr.io/<fork>/…
+#     and never here.
+#
+# Why three kinds:
+#   The render cache is decided per file (a .json sidecar next to every MP3, re-rendered only
+#   when its fingerprint changes), so the tags are only transport - they must be *available*,
+#   not *current*. The content tag names a stand, which gives three properties for free:
+#   a branch cannot hide main's stand (main never re-renders because of a branch), a merge
+#   reuses what the branch paid for (same definitions, same key), and undoing an edit is free
+#   (the previous key is still tagged).
+#   The owner tag covers what the key cannot: a text edit changes the key, so without it a
+#   branch would lose its own previous renders on every edit. The base tag covers a new
+#   branch or a new language, where neither of the other two exists yet.
+
+on:
+  workflow_call:
+    secrets:
+      ELEVENLABS_API_KEY:
+        required: false
+      CARTESIA_API_KEY:
+        required: false
+
+# The calling job must grant these; a called workflow can only narrow them.
+permissions:
+  contents: read
+  packages: write
+
+env:
+  # ghcr.io requires a lowercase repository path.
+  SOUNDS_PACKAGE: ${{ github.repository }}/tts-sounds
+  # One entry per shipped definition - the single place to add a language for this
+  # workflow. `docker/Dockerfile` and soundctl.yaml carry their own copy for their own
+  # loops; keep them in step.
+  SOUND_LANGUAGES: en de fr nl pl sv
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          # services/sound_service.json (the shared definition) is a submodule.
+          submodules: "recursive"
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: utils/soundctl/go.mod
+          cache-dependency-path: utils/soundctl/go.sum
+
+      # The render encodes the announcements (EBU R128 + MP3) with ffmpeg, which the image
+      # has but the runner does not.
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg
+          ffmpeg -version | head -1
+
+      - name: Set up oras
+        uses: oras-project/setup-oras@v1
+
+      # A freshly pushed ghcr.io package is private until someone flips it. Logging in with
+      # the workflow token keeps pull and push working either way, and fork PRs still fail
+      # softly: their token is read-only, so they read (if the package is public) and never
+      # write.
+      - name: Log in to ghcr.io
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "${GH_TOKEN}" | oras login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
+
+      # A step's `if` cannot read a secret directly, so detect it in its own step.
+      - name: Check for the TTS keys
+        id: tts_key
+        env:
+          ELEVEN: ${{ secrets.ELEVENLABS_API_KEY }}
+          CARTESIA: ${{ secrets.CARTESIA_API_KEY }}
+        run: |
+          if [ -n "${ELEVEN}" ] || [ -n "${CARTESIA}" ]; then
+            echo "available=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "available=false" >> "${GITHUB_OUTPUT}"
+            echo "::notice::No ELEVENLABS_API_KEY / CARTESIA_API_KEY secret (a fork PR?) - this build reuses the stored announcements only, and ships without them where they do not match."
+          fi
+
+      # The stand is namespaced three ways, from most to least specific:
+      #   de-<hash>     exactly these definitions (Config.StoreKey, texts included)
+      #   de-<branch>   the last stand this branch produced
+      #   de            the base stand, owned by main / releases/** / v2 / tags
+      #
+      # Consequence: a branch cannot make main's stand unreachable, so main never re-renders
+      # because of a branch. And once a branch's definitions are merged, main computes the
+      # same hash and finds the renders the branch already paid for. Undoing a text edit is
+      # free for the same reason - the previous hash is still tagged.
+      - name: Resolve the store tags
+        id: store
+        run: |
+          set -euo pipefail
+          # Base runs own the plain tags; a branch owns <lang>-<branch>.
+          if [ "${GITHUB_REF}" = "refs/heads/main" ] || [ "${GITHUB_REF_NAME}" = "v2" ] \
+             || [[ "${GITHUB_REF_NAME}" == releases/* ]] || [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            echo "own=" >> "${GITHUB_OUTPUT}"
+            echo "::notice::${GITHUB_REF_NAME} owns the base tags (de, en, ...)"
+          else
+            own="-$(echo "${GITHUB_REF_NAME}" | tr '/' '-' | tr -c 'a-zA-Z0-9._-' '-' | cut -c1-80)"
+            echo "own=${own}" >> "${GITHUB_OUTPUT}"
+            echo "::notice::branch run on ${GITHUB_REF_NAME} writes '<lang>${own}'; the base tags stay untouched"
+          fi
+
+      # Config.StoreKey is the CI's name for a stand, so soundctl is built once and reused by
+      # the restore step (which asks for the tag) and by the render step (which pushes it).
+      - name: Build soundctl
+        working-directory: utils/soundctl
+        run: go build -o "${RUNNER_TEMP}/soundctl" ./cmd/soundctl
+
+      # Try the tags from most to least specific. Best effort: a stand that is not there - a
+      # new language, a first push - only means more rendering, never wrong audio.
+      - name: Restore the rendered announcements
+        env:
+          STORE_OWN: ${{ steps.store.outputs.own }}
+        run: |
+          set -euo pipefail
+          mkdir -p sounds
+          {
+            echo "| language | restored from | files |"
+            echo "| --- | --- | --- |"
+          } >> "${GITHUB_STEP_SUMMARY}"
+          lookup=""
+          for lang in ${SOUND_LANGUAGES}; do
+            cfg="src/open_mower/params/sounds_${lang}.yaml"
+            storetag=$("${RUNNER_TEMP}/soundctl" tts --config "${cfg}" --print-store-key)
+            restored=""
+            # Most specific first. A base run has no owner tag, so <lang> would appear twice.
+            tags=("${storetag}")
+            if [ -n "${STORE_OWN}" ]; then
+              tags+=("${lang}${STORE_OWN}")
+            fi
+            tags+=("${lang}")
+            for tag in "${tags[@]}"; do
+              out="${RUNNER_TEMP}/restore-${tag}"
+              if oras pull "ghcr.io/${SOUNDS_PACKAGE,,}:${tag}" -o "${out}" 2>/dev/null; then
+                tar -C sounds -xzf "${out}/${lang}.tgz"
+                echo "restored ${lang} from :${tag}"
+                echo "| ${lang} | :${tag} | $(find "sounds/${lang}" -type f | wc -l) |" >> "${GITHUB_STEP_SUMMARY}"
+                lookup="${lookup} ${lang}<-${tag}"
+                restored=1
+                break
+              fi
+            done
+            if [ -z "${restored}" ]; then
+              echo "::notice::no stored render for '${lang}' (tried ${tags[*]}) - rendering it from scratch."
+              echo "| ${lang} | none (rendered from scratch) | - |" >> "${GITHUB_STEP_SUMMARY}"
+              lookup="${lookup} ${lang}<-none"
+            fi
+          done
+          echo "::notice::store lookup:${lookup}"
+
+      # Best effort on purpose: a failed render (API down, licence, rate limit) keeps the
+      # previous file and must not stop the image build. The job still reports it below,
+      # `tts --check` names what is stale, and at runtime `soundctl sync` skips those files
+      # - so the low level keeps playing what it already has.
+      - name: Render the announcements
+        id: render
+        continue-on-error: true
+        working-directory: utils/soundctl
+        env:
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          CARTESIA_API_KEY: ${{ secrets.CARTESIA_API_KEY }}
+          STORE_OWN: ${{ steps.store.outputs.own }}
+        run: |
+          set -euo pipefail
+          # Each language renders with the engine its file names, and each engine has its
+          # own secret: skip a language whose key is missing so it cannot hide the other.
+          declare -A secret=([elevenlabs]="${ELEVENLABS_API_KEY:-}" [cartesia]="${CARTESIA_API_KEY:-}")
+          failed=0
+          for lang in ${SOUND_LANGUAGES}; do
+            cfg="../../src/open_mower/params/sounds_${lang}.yaml"
+            engine=$(sed -n 's/^[[:space:]]*engine:[[:space:]]*\([a-z]*\).*/\1/p' "${cfg}" | head -1)
+            if [ -z "${engine}" ]; then
+              echo "::error::could not read tts.engine from ${cfg}"
+              failed=1
+              continue
+            fi
+            if [ -z "${secret[${engine}]:-}" ]; then
+              echo "::notice::sounds_${lang}.yaml uses '${engine}', but its key is not set - skipping the ${lang} render."
+              continue
+            fi
+            args=(--config "${cfg}"
+                  --sound-ids ../../services/sound_service.json
+                  --sound-path ../../sounds
+                  --sounds-dir ../../sounds)
+            # --keep-going: try every variant, so the log names all failures instead of
+            # stopping at the first one.
+            "${RUNNER_TEMP}/soundctl" tts --keep-going "${args[@]}" || failed=1
+            # This is the idempotency assertion, not just a format check: `--check` walks
+            # the same upToDate() the render loop skips on (render.go), so a green result
+            # here means a second `tts` run would render nothing - the sidecars describe
+            # every file and the store works. It needs no API key and spends no request.
+            # (A real second render would prove the same thing and cost the whole corpus.)
+            # Nothing may be left stale, and every render must be 16 kHz mono.
+            "${RUNNER_TEMP}/soundctl" tts --check "${args[@]}" || failed=1
+            "${RUNNER_TEMP}/soundctl" validate --check-mp3 "${args[@]}" || failed=1
+
+            # Store what is there, even after a partial failure: it is what the next run
+            # reuses. The tar is byte-identical for identical content (sorted, zeroed
+            # timestamps/ownership, gzip without name), so an unchanged language produces
+            # the same blob digest and costs no upload - only a manifest.
+            #
+            # Two names for one stand: the content tag (so the stand is reachable again from
+            # any branch, and free to reuse after a merge or an undone edit) and the owner
+            # tag - the base tag on main/releases, the branch tag on a branch.
+            #
+            # Pushed from RUNNER_TEMP with a relative name: oras rejects absolute paths
+            # ("absolute file path detected"), because the name becomes the blob title and
+            # is used as a path when the tag is restored.
+            storetag=$("${RUNNER_TEMP}/soundctl" tts --config "${cfg}" --print-store-key)
+            tar --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner \
+              -cf - -C ../../sounds "${lang}" | gzip -n > "${RUNNER_TEMP}/${lang}.tgz"
+            for tag in "${storetag}" "${lang}${STORE_OWN}"; do
+              ( cd "${RUNNER_TEMP}" && oras push "ghcr.io/${SOUNDS_PACKAGE,,}:${tag}" \
+                  "${lang}.tgz:application/vnd.oci.image.layer.v1.tar+gzip" ) || failed=1
+            done
+          done
+          exit "${failed}"
+
+      # Without a key nothing can be rendered, so what was restored has to match the
+      # definitions *exactly*. An image with audio from an older definition looks fine and
+      # only fails much later: `soundctl sync` refuses to upload a stale render, so the
+      # robot stays silent instead of playing something that is not in the YAML. When the
+      # set does match, keep it - a fork PR without secrets then still ships announcements.
+      - name: Drop restored renders that do not match
+        if: steps.tts_key.outputs.available != 'true'
+        run: |
+          set -euo pipefail
+          stale=0
+          for lang in ${SOUND_LANGUAGES}; do
+            ( cd utils/soundctl && "${RUNNER_TEMP}/soundctl" tts --check \
+                --config "../../src/open_mower/params/sounds_${lang}.yaml" \
+                --sound-ids ../../services/sound_service.json \
+                --sound-path ../../sounds \
+                --sounds-dir ../../sounds ) || stale=1
+          done
+          if [ "${stale}" -ne 0 ]; then
+            echo "::warning::No TTS key and the stored announcements do not match the definitions - shipping without them (the robot renders them with its own key)."
+            rm -rf sounds/*/
+          fi
+
+      # The artifact is the hand-over to the build jobs: they all wait for this job and
+      # unpack it into sounds/, so exactly one render per run reaches every image.
+      - name: Upload the rendered announcements
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: sounds
+          path: |
+            sounds/*/
+          # No key, no renders: the artifact is simply empty and the build jobs tolerate
+          # that (the robot renders the announcements itself).
+          if-no-files-found: ignore
+          retention-days: 3
+
+      # TODO(retention): prune old stands. Every edit leaves a <language>-<hash> tag behind,
+      # and ghcr.io keeps the manifest version even after the tag moves. The plan (decided
+      # later, deliberately not built yet): delete versions older than ~60 days that are not
+      # the current key and not a base tag, via
+      #   gh api /user/packages/container/<encoded>/versions   (id, updated_at, tags)
+      # and `gh api -X DELETE .../versions/<id>`, with continue-on-error so a wrong package
+      # path cannot fail the build. Until then the store grows by ~800 kB per edited stand,
+      # which is harmless for the test phase.
+
+      # A red step inside a green job is easy to miss, and the PR image is only pushed for a
+      # successful build - so the failure is also stated as a check annotation.
+      - name: Report an incomplete render
+        if: steps.render.outcome == 'failure'
+        run: |
+          echo "::warning title=Announcements not rendered::The render failed (see the step above); the image ships whatever the store had."
+          echo "Some announcements could not be rendered - the image ships what the store had." >> "${GITHUB_STEP_SUMMARY}"
