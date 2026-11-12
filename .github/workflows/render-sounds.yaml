@@ -19,9 +19,10 @@ name: Render sounds
 #     run found "Cache not found for input keys: tts-renders-…" and spent the whole corpus
 #     (~370 TTS requests) again.
 #   - A tag lives until we delete it and is visible to every branch, because tags are not
-#     scoped to a git ref. It costs nothing - a tag is a pointer, and the second name of a
-#     stand (`<lang>-<branch>` next to `<lang>-<hash>`) points at the same manifest. What
-#     costs space is the stand itself: ~750 kB per language, per version.
+#     scoped to a git ref. A tag costs nothing, and the second name of a stand
+#     (`<lang>-<branch>` next to `<lang>-<hash>`) costs no storage either: oras records a
+#     creation timestamp, so it is a separate manifest, but both point at the same layer
+#     blob. What costs space is a new stand: ~750 kB per language.
 #   - The package is public: every branch and every pull request, forks included, can read
 #     it without a token. Only this repository can write it - a fork's GITHUB_TOKEN carries
 #     packages: write for its own namespace, so a fork's pushes land in ghcr.io/<fork>/…
