@@ -71,12 +71,13 @@ func storeKeyDoc(text, voice, bitrate string) string {
 		"      - {file: zz_ping.mp3}\n"
 }
 
-// TestStoreKeyIsStable pins the key of a definition: the CI puts it in a registry tag, so
-// a change here means every stored stand becomes unreachable (a full re-render).
-func TestStoreKeyIsStable(t *testing.T) {
+// TestStoreKeyIsDeterministic: the CI computes the key in one job and pushes under it in
+// another run, so the same definition must always give the same "<language>-<12 hex>" tag.
+// (A deliberate format change is harmless: old content tags miss once and the CI falls back
+// to the branch and base tags - so no golden value is pinned here.)
+func TestStoreKeyIsDeterministic(t *testing.T) {
 	cfg := loadFixture(t, storeKeyDoc("Ein Text", "abc123", "32k"))
 	first := cfg.StoreKey()
-	// "<language>-<12 hex>"
 	if !strings.HasPrefix(first, "de-") || len(first) != len("de-")+12 {
 		t.Fatalf("StoreKey() = %q, want de-<12 hex characters>", first)
 	}
@@ -141,6 +142,8 @@ func TestStoreKeyIgnoresNonRenderFields(t *testing.T) {
 		t.Errorf("volume/pick changed the store key (%q -> %q); a stand would be forked for nothing", base, got)
 	}
 }
+
+// TestStoreKeyCountsVariants: adding a variant adds a file to the stand.
 func TestStoreKeyCountsVariants(t *testing.T) {
 	one := loadFixture(t, "version: 1\nlanguage: de\nsound_path: /opt/open_mower_ros/sounds\n"+
 		"tts:\n  engine: elevenlabs\n  bitrate: 32k\n  loudnorm: true\n"+
@@ -154,5 +157,22 @@ func TestStoreKeyCountsVariants(t *testing.T) {
 
 	if one.StoreKey() == two.StoreKey() {
 		t.Errorf("a definition with one and one with two variants share the key %q", one.StoreKey())
+	}
+}
+
+// TestStoreKeyFollowsTheFileNames: the stand is a set of files, so the same texts under
+// different names are a different stand. Swapping two variants keeps every identity but
+// moves the texts to the other file - the key has to change, or the "exact" content tag
+// would hand back files whose sidecars all mismatch.
+func TestStoreKeyFollowsTheFileNames(t *testing.T) {
+	doc := storeKeyDoc("Ein Text", "abc123", "32k")
+	swapped := strings.Replace(doc,
+		"      - \"Ein Text\"\n      - \"Ein zweiter Text\"\n",
+		"      - \"Ein zweiter Text\"\n      - \"Ein Text\"\n", 1)
+	if swapped == doc {
+		t.Fatal("the fixture changed shape - update this test")
+	}
+	if a, b := loadFixture(t, doc).StoreKey(), loadFixture(t, swapped).StoreKey(); a == b {
+		t.Errorf("swapping two variants left the store key at %q", a)
 	}
 }

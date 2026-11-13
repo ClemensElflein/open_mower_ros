@@ -94,10 +94,10 @@ go run ./cmd/soundctl tts --sound-ids ../../services/sound_service.json \
   --sound-path ../../sounds --config ../../src/open_mower/params/sounds_en.yaml --sounds-dir /tmp/sounds --check
 
 # the registry tag of this definition's render stand: "<language>-<hash>", where the hash
-# covers every render identity (texts, engine, voice, settings, bitrate). It needs no key,
-# no ffmpeg and no overlay - only the YAML is read.
+# covers every render job (file name, text, engine, voice, settings, bitrate). It needs no
+# key, no ffmpeg and no overlay - only the YAML is read.
 go run ./cmd/soundctl tts --config ../../src/open_mower/params/sounds_en.yaml --print-store-key
-# en-c8547f084165
+# en-fbcec9dabc7b
 
 # every language into the build context, exactly like CI
 for lang in en de fr nl pl sv; do

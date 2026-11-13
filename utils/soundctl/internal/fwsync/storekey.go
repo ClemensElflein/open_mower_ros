@@ -7,40 +7,34 @@ import (
 	"strings"
 )
 
-// StoreKey is the registry tag of a definition's render stand: "<language>-<hash>", where
-// the hash covers every render identity of the file (texts, engine, voice, settings,
-// bitrate - everything that goes into the audio), sorted, plus their count.
+// StoreKey is the registry tag of a definition's render stand: "<language>-<hash>". The
+// hash covers every render job of the file - the MP3 name it writes plus the full render
+// identity (texts, engine, voice, settings, bitrate: everything that goes into the audio).
+// The CI uses it to find the stand of exactly these definitions from any branch; see
+// sounds/README.md ("Where the renders live").
 //
-// The name is derived from the content and not from a branch or a run, which gives three
-// properties for free:
-//   - a text/voice/settings edit produces a new tag, so the previous stand stays reachable
-//     under its own name: undoing an edit costs nothing;
-//   - a branch cannot overwrite main's stand, so main never re-renders because of a branch;
-//   - after a merge main has the same definitions and therefore the same tag, so it finds
-//     the renders the branch already paid for.
+// The input is the full TTSIdentity.Key, not its CRC32 Fingerprint: hashing CRC32s would
+// cap the whole key at CRC32 strength. The file name is part of it because the stand is a
+// set of files: two definitions that put the same texts under different names (e.g. two
+// variants swapped) are different stands.
 //
-// The language comes first because it is the one thing the hash must not encode twice: the
-// tarball it names is sounds/<language>.tgz, and a tag that claimed a different language
-// than the definitions inside would restore the wrong files.
+// The language comes first because the tag names the tarball sounds/<language>.tgz.
 //
-// SHA-256 truncated to 12 hex characters, not the CRC32 of TTSIdentity.Fingerprint: a
-// collision there would hand back a stand for 62 files at once - all sidecars would
-// mismatch and the whole language would be billed again - so the cheap hash is fine per
-// file and too weak here.
+// A change of this format is cheap: the old content tags simply miss once, and the CI falls
+// back to the branch and base tags, whose sidecars still match.
 func (c *Config) StoreKey() string {
 	jobs := c.RenderJobs()
-	ids := make([]string, 0, len(jobs))
+	entries := make([]string, 0, len(jobs))
 	for _, job := range jobs {
-		ids = append(ids, job.Identity.Fingerprint())
+		entries = append(entries, job.File+"\t"+job.Identity.Key())
 	}
-	sort.Strings(ids)
+	sort.Strings(entries)
 
 	h := sha256.New()
-	// The count is part of the input: adding or removing a variant must change the key even
-	// in the (hypothetical) case where the remaining fingerprints hash to the same value.
-	fmt.Fprintf(h, "%d\n", len(ids))
-	for _, id := range ids {
-		fmt.Fprintln(h, id)
+	for _, e := range entries {
+		// NUL-terminated: unambiguous for any text without a NUL, which a spoken text has no
+		// reason to contain.
+		fmt.Fprintf(h, "%s\x00", e)
 	}
 	sum := fmt.Sprintf("%x", h.Sum(nil)[:6])
 
