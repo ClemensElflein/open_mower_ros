@@ -787,10 +787,59 @@ nlohmann::json planArea(const nlohmann::json& params) {
   return result;
 }
 
+// The ids of the mowing areas in the map, in the order they get mowed.
+std::vector<std::string> mowingAreaIds() {
+  ros::NodeHandle n;
+  auto client = n.serviceClient<mower_map::GetMowingAreaSrv>("mower_map_service/get_mowing_area");
+  std::vector<std::string> ids;
+  mower_map::GetMowingAreaSrv srv;
+  for (srv.request.index = 0; client.call(srv); srv.request.index++) ids.push_back(srv.response.area.id);
+  return ids;
+}
+
+// Starts mowing like the start_mowing action, optionally only some of the mowing areas in a given order ("areas":
+// list of ids). The others are left out, also after a break for charging or a restart, until the job is done. A job
+// that got interrupted carries on in its area if the list has it, otherwise with the first one of the list.
+nlohmann::json startMowing(const nlohmann::json& params) {
+  std::vector<std::string> areas;
+  if (!params.is_null()) {
+    if (!params.is_object()) invalidParam("parameters must be an object");
+    if (params.contains("areas")) {
+      if (!params["areas"].is_array()) invalidParam("parameter is not a list of area ids: areas");
+      const auto known = mowingAreaIds();
+      for (const auto& a : params["areas"]) {
+        if (!a.is_string()) invalidParam("parameter is not a list of area ids: areas");
+        if (std::find(known.begin(), known.end(), a.get<std::string>()) == known.end()) {
+          invalidParam("no mowing area with id: " + a.get<std::string>());
+        }
+        if (std::find(areas.begin(), areas.end(), a.get<std::string>()) != areas.end()) {
+          invalidParam("area listed twice: " + a.get<std::string>());
+        }
+        areas.push_back(a.get<std::string>());
+      }
+      if (areas.empty()) invalidParam("no areas given, leave out \"areas\" to mow all of them");
+    }
+  }
+  Behavior* behavior = currentBehavior;
+  if (behavior != &IdleBehavior::INSTANCE && behavior != &IdleBehavior::DOCKED_INSTANCE) {
+    invalidParam("the mower can only start while idle");
+  }
+  MowingBehavior::INSTANCE.set_job_areas(areas);
+  behavior->command_start();
+  return {{"areas", areas}};
+}
+
 // clang-format off
 xbot_mqtt::RpcProvider rpc_provider("mower_logic", {{
   RPC_METHOD("mowing.plan", {
     return planArea(params);
+  }),
+  RPC_METHOD("mowing.start", {
+    return startMowing(params);
+  }),
+  // the area list of the current job and where it is in it, areas empty when it mows all of them
+  RPC_METHOD("mowing.job", {
+    return MowingBehavior::INSTANCE.get_job();
   }),
 }});
 // clang-format on
@@ -812,6 +861,7 @@ bool highLevelCommand(mower_msgs::HighLevelControlSrvRequest& req, mower_msgs::H
       break;
     case mower_msgs::HighLevelControlSrvRequest::COMMAND_START:
       ROS_INFO_STREAM("COMMAND_START");
+      if (!MowingBehavior::INSTANCE.has_unfinished_job()) MowingBehavior::INSTANCE.set_job_areas({});
       if (currentBehavior) {
         currentBehavior->command_start();
       }
