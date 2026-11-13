@@ -177,7 +177,13 @@ func newTTSVoicesCmd() *cobra.Command {
 			"\n" +
 			"For ElevenLabs the default filter shows the premade voices (category premade),\n" +
 			"which a free plan may use through the API; \"--all\" also shows the Voice\n" +
-			"Library (community) voices, which need a paid plan for API use.",
+			"Library (community) voices, which need a paid plan for API use.\n" +
+			"\n" +
+			"The LANGUAGE column is the language of the reference recording, followed in\n" +
+			"parentheses by the other languages the voice is verified for (\"en (de, pl)\").\n" +
+			"A voice speaks every language its model supports, but one it is not verified\n" +
+			"for keeps the accent of the reference recording - so \"--language fr\" lists the\n" +
+			"voices whose French is verified, not just the ones labelled French.",
 		Example: "  soundctl tts voices\n" +
 			"  soundctl tts voices --all --language de\n" +
 			"  soundctl tts voices --search steve\n" +
@@ -232,11 +238,10 @@ func newTTSVoicesCmd() *cobra.Command {
 				if search != "" && !strings.Contains(strings.ToLower(v.Name), strings.ToLower(search)) {
 					continue
 				}
-				lang := v.Labels["language"]
-				if language != "" && !strings.Contains(strings.ToLower(lang), strings.ToLower(language)) {
+				if language != "" && !voiceSpeaksLanguage(v, language) {
 					continue
 				}
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", v.VoiceID, v.Category, lang, v.Name, voiceLabels(v))
+				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", v.VoiceID, v.Category, voiceLanguages(v), v.Name, voiceLabels(v))
 				shown++
 			}
 			if err := w.Flush(); err != nil {
@@ -254,12 +259,53 @@ func newTTSVoicesCmd() *cobra.Command {
 		fwsync.TTSEngineElevenLabs+" or "+fwsync.TTSEngineCartesia)
 	fl.StringVar(&voiceType, "type", "default", "voice_type filter: default (premade), community (Voice Library), personal, workspace")
 	fl.BoolVar(&all, "all", false, "no voice_type filter (everything the account can see)")
-	fl.StringVar(&language, "language", "", "only voices labelled with this language (e.g. de)")
+	fl.StringVar(&language, "language", "", "only voices labelled or verified for this language (e.g. de)")
 	fl.StringVar(&search, "search", "", "substring match on the voice name")
 	fl.StringVar(&apiKeyVal, "api-key", "", "API key of the engine (instead of the file/environment)")
 	fl.StringVar(&apiKeyFile, "api-key-file", "", "file holding the API key of the engine")
 	fl.StringVar(&apiURL, "api-url", "", "API root (default: "+tts.DefaultElevenLabsURL+" for elevenlabs, "+tts.DefaultCartesiaURL+" for cartesia)")
 	return cmd
+}
+
+// voiceLanguages renders the LANGUAGE column: the language of the reference recording,
+// followed in parentheses by the other languages the voice is verified for, e.g.
+// "en (de, pl)". A voice without verified languages is just its label.
+func voiceLanguages(v tts.Voice) string {
+	native := v.Labels["language"]
+	others := make([]string, 0, len(v.VerifiedLanguages))
+	for _, vl := range v.VerifiedLanguages {
+		lang := strings.TrimSpace(vl.Language)
+		if lang == "" || lang == native {
+			continue
+		}
+		others = append(others, lang)
+	}
+	sort.Strings(others)
+	if len(others) == 0 {
+		return native
+	}
+	return native + " (" + strings.Join(others, ", ") + ")"
+}
+
+// voiceSpeaksLanguage reports whether the voice is labelled with lang or verified for it.
+// The label alone would be misleading: it names the language of the reference recording,
+// while a multilingual model speaks every language it supports - verified or not. A voice
+// that is not verified for a language still speaks it, but with the accent of the
+// reference recording, which is why this only decides what the listing shows.
+func voiceSpeaksLanguage(v tts.Voice, lang string) bool {
+	lang = strings.ToLower(strings.TrimSpace(lang))
+	if lang == "" {
+		return true
+	}
+	if strings.Contains(strings.ToLower(v.Labels["language"]), lang) {
+		return true
+	}
+	for _, vl := range v.VerifiedLanguages {
+		if strings.Contains(strings.ToLower(vl.Language), lang) {
+			return true
+		}
+	}
+	return false
 }
 
 // voiceLabels renders the label map in a stable order.

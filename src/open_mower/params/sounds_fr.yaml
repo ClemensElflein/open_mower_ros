@@ -5,6 +5,10 @@
 #
 # This file only lists the sounds that shall REPLACE a ROM default.
 #
+# Register: every announcement addresses the owner formally with "vous"
+# (Veuillez … / votre … / vos …), never with "tu" — keep it that way when
+# adding or rephrasing a text.
+#
 # ---------------------------------------------------------------------------
 # CUSTOMISING SOUNDS — READ THIS FIRST (nothing to do otherwise)
 # ---------------------------------------------------------------------------
@@ -143,7 +147,7 @@ tts:
 
   elevenlabs:
     model: eleven_v4
-    voice: TX3LPaxmHKxFdv7VOQHJ # Liam
+    voice: pqHfZKP75CvOlQylNhV4 # Bill (fr supported voice)
     stability: 0.5 # 0..1, lower = more expressive
     similarity_boost: 0.75 # 0..1
     style: 0.0 # 0..1, 0 = the voice's own delivery
@@ -190,7 +194,7 @@ sounds:
   ros_connected:
     type: mp3
     volume: 90
-    pause_after_ms: 500
+    pause_after_ms: 1000
     variants:
       - "Le système d'exploitation du robot a démarré."
       - "Le système d'exploitation du robot a démarré. L'esprit est maintenant chargé lui aussi."
@@ -198,7 +202,7 @@ sounds:
   ros_disconnected:
     type: mp3
     volume: 90
-    pause_after_ms: 500
+    pause_after_ms: 1000
     variants:
       - "Le système d'exploitation du robot a été arrêté."
       - "Le système d'exploitation du robot a été arrêté. À la prochaine."

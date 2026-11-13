@@ -190,7 +190,7 @@ sounds:
   ros_connected:
     type: mp3
     volume: 90
-    pause_after_ms: 500
+    pause_after_ms: 1000
     variants:
       - "Das Roboter-Betriebssystem ist gestartet."
       - "Das Roboter-Betriebssystem ist gestartet. Der Verstand ist jetzt auch geladen."
@@ -198,7 +198,7 @@ sounds:
   ros_disconnected:
     type: mp3
     volume: 90
-    pause_after_ms: 500
+    pause_after_ms: 1000
     variants:
       - "Das Roboter-Betriebssystem wurde gestoppt."
       - "Das Roboter-Betriebssystem wurde gestoppt. Bis zum nächsten Mal."
