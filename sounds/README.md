@@ -205,6 +205,77 @@ machine below rolls them.
   reachable`, run `soundctl discover --wait 25s` in the container: SID 12 listed →
   retry; empty list → the LL is not up (or not on this interface).
 
+## Where the renders live
+
+CI renders the `tts:` variants (`.github/workflows/render-sounds.yaml`, called by
+the image build) and keeps them in the container registry, one package per
+repository:
+
+```
+ghcr.io/<owner>/<repo>/tts-sounds:<tag>
+```
+
+Each tag holds one *stand*: a tarball of `sounds/<lang>/` (MP3s plus sidecars).
+Three kinds of tag per language, read in this order:
+
+| tag             | what                                                                      | written by  |
+| --------------- | ------------------------------------------------------------------------- | ----------- |
+| `<lang>-<hash>` | content tag: exactly these definitions (`soundctl tts --print-store-key`) | every run   |
+| `<lang>-<ref>`  | owner tag: the last stand of a branch, pull request or release tag        | that ref    |
+| `<lang>`        | base tag: the fallback for a ref that finds neither of the others         | `main` only |
+
+The first tag that exists is restored, then the sidecars decide per file what
+still has to be rendered - the tags are transport, the sidecars are the cache.
+Why three:
+
+- The content tag makes a stand reachable from every branch: a branch whose
+  definitions match main's reuses main's renders, after a merge main finds what
+  the branch paid for, and undoing an edit is free (the old key is still there).
+- A text edit changes the key, so the owner tag keeps a branch's own earlier
+  renders across edits. That matters most for a new language, which has no base
+  tag yet: without it every text tweak would re-render the whole language.
+- The base tag covers the first run of a branch whose definitions already differ
+  from main's.
+
+How a run writes:
+
+- It pushes its stand under the content tag and points its owner tag at the
+  same manifest. Tarball and manifest are byte-identical for identical content,
+  so an unchanged stand uploads nothing and adds no package version.
+- Outside `main`, a stand restored from the content tag may only be completed
+  (files added). A run that changed one of its files - another
+  encoder, a `--force` - keeps that result under its owner tag only, because
+  `main` and release builds restore the content tag first.
+- Nothing is ever removed from a stand: the render of a removed or renamed
+  variant stays (it is small, and the text may come back).
+
+What a run never does:
+
+- Render a language whose store could not be read (network, registry error -
+  anything but "does not exist"). Rendering it from scratch would pay for every
+  announcement again; the language is skipped with an error instead.
+- Spend more than `TTS_RENDER_BUDGET` TTS requests (repository variable,
+  default 150, `0` = no limit). A language that would exceed it is skipped with
+  an error, and the next run continues from what this one stored. Raise it for
+  a deliberate full re-render.
+- Ship stored renders it did not render itself (no key - e.g. a fork PR - or a
+  skipped language) unless they match the definitions exactly; such a language
+  ships without announcements and the robot renders them with its own key.
+
+Why a registry and not `actions/cache`: the cache is evicted after 7 days
+unused and by LRU above 10 GB per repository - which the image build's Docker
+layer cache fills on its own - and a cache written by a pull request is
+invisible to `main`. A registry tag lives until it is deleted and every ref can
+read it.
+
+The package is public: any branch and any pull request, forks included, can
+read it; only workflows of this repository can write it. Old stands are pruned
+by `prune-sound-store.yaml` (manual, dry run by default; the rules are at the
+top of that file). Base tags are never deleted.
+
+The languages are the `src/open_mower/params/sounds_<lang>.yaml` files; the tag
+naming rules live in `.github/scripts/sound-store.sh`.
+
 ## Tooling
 
 The engines, the renderer and the checks live in `soundctl`:

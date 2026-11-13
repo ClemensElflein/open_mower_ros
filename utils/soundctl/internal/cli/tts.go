@@ -31,6 +31,7 @@ type ttsFlags struct {
 	force       bool
 	check       bool
 	keepGoing   bool
+	storeKey    bool
 }
 
 func (f *ttsFlags) register(cmd *cobra.Command) {
@@ -46,6 +47,7 @@ func (f *ttsFlags) register(cmd *cobra.Command) {
 	fl.BoolVar(&f.force, "force", false, "re-render even if the sidecar says the file is up to date")
 	fl.BoolVar(&f.check, "check", false, "render nothing, only report missing/stale renders (exit 1 if any)")
 	fl.BoolVar(&f.keepGoing, "keep-going", false, "continue with the other variants when one fails (its previous file is kept, exit code stays non-zero)")
+	fl.BoolVar(&f.storeKey, "print-store-key", false, "print the registry tag of this definition's render stand (<language>-<hash>) and exit")
 }
 
 // engineFor builds the engine the definition asks for. The construction itself
@@ -60,6 +62,16 @@ func (f *ttsFlags) run(cmd *cobra.Command) error {
 	if err != nil {
 		return err
 	}
+
+	// The store key names the render stand in the registry (see Config.StoreKey). It is a
+	// property of the definition alone - no shared definition, no API key, no ffmpeg and no
+	// overlay - which is what makes it usable as the first step of a CI job that pulls a
+	// stand (and as a quick local answer to "which tag does this YAML correspond to?").
+	if f.storeKey {
+		fmt.Fprintln(cmd.OutOrStdout(), cfg.StoreKey())
+		return nil
+	}
+
 	ids, err := fwsync.LoadSoundIDs(f.soundIDs)
 	if err != nil {
 		return err

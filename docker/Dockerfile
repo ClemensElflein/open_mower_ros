@@ -93,17 +93,15 @@ COPY --link --from=gobuild /out/soundctl /usr/local/bin/soundctl
 
 # Gate the shipped definitions here rather than on the mower: ids/types/ranges
 # against services/sound_service.json and 16 kHz mono for every referenced MP3.
-# The image carries no TTS engine: build-image.yaml renders the announcements
-# into sounds/ (the build context) when a TTS secret is configured, and the
-# robot renders whatever is still missing at startup with its own key. A render
-# that is absent is reported as "pending", not as an error.
-# `set -e`: a loop's status is the last iteration's, so without it a failing `en`
-# would be masked by a passing `de`.
+# The image carries no TTS engine: render-sounds.yaml puts the announcements into
+# sounds/ (the build context), and the robot renders whatever is still missing at
+# startup with its own key - so a render that is absent is reported as "pending",
+# not as an error. Every sounds_*.yaml is a shipped definition.
+# `set -e`: a loop's status is the last iteration's, so without it a failing `de`
+# would be masked by a passing `sv`.
 RUN set -eu; \
-    for lang in en de; do \
-      soundctl validate \
-        --config "/opt/open_mower_ros/src/open_mower/params/sounds_${lang}.yaml" \
-        --check-mp3; \
+    for cfg in /opt/open_mower_ros/src/open_mower/params/sounds_*.yaml; do \
+      soundctl validate --config "${cfg}" --check-mp3; \
     done
 
 # delete prebuilt libs (so that they won't shadow the preinstalled ones)

@@ -13,7 +13,7 @@ including how to run it against a checkout (see *Local use*).
 | command         | purpose                                                                                                                                                                                                                                                                       |
 | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `validate`      | check `sounds_*.yaml` against `services/sound_service.json` (ids, types, ranges) and, with `--check-mp3`, that every referenced MP3 is 16 kHz mono (a `tts:` render nobody has produced yet counts as `pending`, not as an error - `tts --check` reports those)               |
-| `tts`           | render the tts variants into 16 kHz mono CBR MP3s (the engine the YAML names: ElevenLabs or Cartesia, then ffmpeg); a `.json` sidecar per file is the cache; `--check` reports missing/stale renders and needs no key, `--keep-going` renders the rest when one variant fails |
+| `tts`           | render the tts variants into 16 kHz mono CBR MP3s (the engine the YAML names: ElevenLabs or Cartesia, then ffmpeg); a `.json` sidecar per file is the cache; `--check` reports missing/stale renders and needs no key, `--keep-going` renders the rest when one variant fails, `--print-store-key` prints the registry tag of this definition's render stand |
 | `tts voices`    | list the voices of an engine (`--engine`, default ElevenLabs; `--all` also shows its Voice Library, which needs a paid plan)                                                                                                                                                  |
 | `say`           | render **one** ad-hoc text with the same chain and play it on this machine — no YAML, no cache. ElevenLabs only (no engine flag); the way to audition a text before it goes into a definition                                                                                 |
 | `sync`          | upload changed MP3s, push the definitions blob, remove orphans, optionally set the volume. `--check` only reports what would be uploaded and writes nothing (it compares the CRC of every file, which is logged alongside the low level's own `File: exists … (hash=…)` line) |
@@ -93,10 +93,16 @@ go run ./cmd/soundctl tts --sound-ids ../../services/sound_service.json \
 go run ./cmd/soundctl tts --sound-ids ../../services/sound_service.json \
   --sound-path ../../sounds --config ../../src/open_mower/params/sounds_en.yaml --sounds-dir /tmp/sounds --check
 
+# the registry tag of this definition's render stand: "<language>-<hash>", where the hash
+# covers every render job (file name, text, engine, voice, settings, bitrate). It needs no
+# key, no ffmpeg and no overlay - only the YAML is read.
+go run ./cmd/soundctl tts --config ../../src/open_mower/params/sounds_en.yaml --print-store-key
+# en-fbcec9dabc7b
+
 # every language into the build context, exactly like CI
-for lang in en de; do
+for cfg in ../../src/open_mower/params/sounds_*.yaml; do
   go run ./cmd/soundctl tts \
-    --config "../../src/open_mower/params/sounds_${lang}.yaml" \
+    --config "${cfg}" \
     --sound-ids ../../services/sound_service.json \
     --sound-path ../../sounds --sounds-dir ../../sounds
 done

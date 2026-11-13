@@ -1,0 +1,337 @@
+name: Render sounds
+
+# Reusable: build-image.yaml calls this as its `render` job. It renders the `tts:` variants
+# of every shipped definition and keeps them in ghcr.io/<repo>/tts-sounds, so an unchanged
+# definition costs no TTS request. It has to run inside the calling run: the artifact it
+# produces is run-scoped, and the build jobs order themselves behind it with `needs:`.
+#
+# What the tags mean, the order they are read in and who may write which:
+# sounds/README.md, "Where the renders live". The naming rules (languages, owner tag, tag
+# suffix) are in .github/scripts/sound-store.sh.
+
+on:
+  workflow_call:
+    secrets:
+      ELEVENLABS_API_KEY:
+        required: false
+      CARTESIA_API_KEY:
+        required: false
+
+# The calling job must grant these; a called workflow can only narrow them.
+permissions:
+  contents: read
+  packages: write
+
+env:
+  # Lowercased where it is used: ghcr.io requires a lowercase repository path.
+  SOUNDS_PACKAGE: ${{ github.repository }}/tts-sounds
+  # The most TTS requests one run may spend (0 = no limit). A language that would exceed it
+  # is skipped with an error; the next run continues from what this one stored. Raise it
+  # with the TTS_RENDER_BUDGET repository variable for a deliberate full re-render.
+  TTS_RENDER_BUDGET: ${{ vars.TTS_RENDER_BUDGET || '150' }}
+  # oras stamps the push time into every manifest by default, which turns each push of an
+  # unchanged stand into a new package version. A fixed value makes the manifest a function
+  # of the tarball alone: the same stand is the same digest, and a second tag on it is free.
+  STORE_CREATED: org.opencontainers.image.created=1970-01-01T00:00:00Z
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          # services/sound_service.json (the shared definition) is a submodule.
+          submodules: "recursive"
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: utils/soundctl/go.mod
+          cache-dependency-path: utils/soundctl/go.sum
+
+      # The render encodes the announcements (EBU R128 + MP3) with ffmpeg, which the image
+      # has but the runner does not.
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg
+          ffmpeg -version | head -1
+
+      # Pinned: the store relies on oras details (the created annotation above, the error
+      # texts the restore step tells apart, relative push paths).
+      - name: Set up oras
+        uses: oras-project/setup-oras@v1
+        with:
+          version: 1.3.0
+
+      # The package is public, but a fork's token cannot write it - so fork PRs read and
+      # never write.
+      - name: Log in to ghcr.io
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "${GH_TOKEN}" | oras login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
+
+      - name: Build soundctl
+        working-directory: utils/soundctl
+        run: go build -o "${RUNNER_TEMP}/soundctl" ./cmd/soundctl
+
+      - name: Resolve the store
+        run: |
+          set -euo pipefail
+          langs=$(sh .github/scripts/sound-store.sh languages)
+          own=$(sh .github/scripts/sound-store.sh owner)
+          {
+            echo "SOUND_LANGUAGES=${langs}"
+            echo "STORE_OWN=${own}"
+            echo "STORE_REPO=ghcr.io/${SOUNDS_PACKAGE,,}"
+            echo "STORE_STATE=${RUNNER_TEMP}/store"
+            echo "SOUNDCTL=${RUNNER_TEMP}/soundctl"
+          } >> "${GITHUB_ENV}"
+          if [ -z "${own}" ]; then
+            echo "::notice::main owns the base tags (${langs// /, })"
+          else
+            echo "::notice::this run owns '<lang>${own}'; the base tags stay untouched"
+          fi
+
+      # Most specific tag first: the content tag, the owner tag, the base tag. A tag that
+      # does not exist only means more rendering. A store that cannot be *read* is different:
+      # rendering from scratch would pay for every announcement of the language again, so that
+      # language is marked unreachable and the render step leaves it alone.
+      #
+      # One state line per language for the steps below: "<state> <restored tag> <tarball
+      # sha256> <content tag>", plus the checksums of the restored files when they came from
+      # the content tag (a branch may only add to such a stand, see the render step).
+      - name: Restore the rendered announcements
+        run: |
+          set -euo pipefail
+          mkdir -p sounds "${STORE_STATE}"
+          {
+            echo "| language | restored from | files |"
+            echo "| --- | --- | --- |"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+          # 0 = pulled, 1 = does not exist, 2 = could not be read (after retries)
+          pull() {
+            local tag="$1" out="$2" err attempt
+            for attempt in 1 2 3; do
+              if err=$(oras pull "${STORE_REPO}:${tag}" -o "${out}" 2>&1 >/dev/null); then
+                return 0
+              fi
+              case "${err}" in
+                # A missing tag is "not found"; ghcr.io answers "denied" for a package that
+                # does not exist yet (a fork's own CI before its first push).
+                *"not found"* | *"denied"*) return 1 ;;
+              esac
+              echo "::warning::pulling :${tag} failed (attempt ${attempt}/3): ${err}"
+              sleep $((attempt * 15))
+            done
+            return 2
+          }
+
+          for lang in ${SOUND_LANGUAGES}; do
+            storetag=$("${SOUNDCTL}" tts --config "src/open_mower/params/sounds_${lang}.yaml" --print-store-key)
+            # The tag names sounds/<lang>.tgz: a definition whose `language:` differs from its
+            # file name would store one language under the other's name.
+            if [ "${storetag#"${lang}"-}" = "${storetag}" ]; then
+              echo "::error::sounds_${lang}.yaml: the store key ${storetag} is not a ${lang} key - is 'language:' set to ${lang}?"
+              echo "unreachable - - ${storetag}" > "${STORE_STATE}/${lang}"
+              continue
+            fi
+            tags=("${storetag}")
+            if [ -n "${STORE_OWN}" ]; then
+              tags+=("${lang}${STORE_OWN}")
+            fi
+            tags+=("${lang}")
+
+            state=absent from=- sha=-
+            for tag in "${tags[@]}"; do
+              out="${RUNNER_TEMP}/restore-${tag}"
+              rc=0
+              pull "${tag}" "${out}" || rc=$?
+              if [ "${rc}" -eq 1 ]; then
+                continue
+              fi
+              if [ "${rc}" -eq 0 ] && tar -C sounds -xzf "${out}/${lang}.tgz"; then
+                state=restored from="${tag}"
+                sha=$(sha256sum "${out}/${lang}.tgz" | cut -d' ' -f1)
+              else
+                rm -rf "sounds/${lang}"
+                state=unreachable
+              fi
+              break
+            done
+            echo "${state} ${from} ${sha} ${storetag}" > "${STORE_STATE}/${lang}"
+
+            case "${state}" in
+              restored)
+                echo "restored ${lang} from :${from}"
+                echo "| ${lang} | :${from} | $(find "sounds/${lang}" -name '*.mp3' | wc -l) |" >> "${GITHUB_STEP_SUMMARY}"
+                if [ "${from}" = "${storetag}" ]; then
+                  ( cd sounds && find "${lang}" -type f -print0 | sort -z | xargs -0 -r sha256sum ) > "${STORE_STATE}/${lang}.sums"
+                fi
+                ;;
+              absent)
+                echo "::notice::no stored render for '${lang}' (tried ${tags[*]}) - rendering it from scratch."
+                echo "| ${lang} | none (rendered from scratch) | - |" >> "${GITHUB_STEP_SUMMARY}"
+                ;;
+              unreachable)
+                echo "::error::the store could not be read for '${lang}' - it is not rendered in this run."
+                echo "| ${lang} | **store unreachable** | - |" >> "${GITHUB_STEP_SUMMARY}"
+                ;;
+            esac
+          done
+
+      # Best effort on purpose: a failed render (API down, licence, rate limit) keeps the
+      # previous file and must not stop the image build. `tts --check` names what is stale,
+      # the step below reports it, and at runtime `soundctl sync` skips those files - so the
+      # low level keeps playing what it already has.
+      - name: Render the announcements
+        id: render
+        continue-on-error: true
+        working-directory: utils/soundctl
+        env:
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          CARTESIA_API_KEY: ${{ secrets.CARTESIA_API_KEY }}
+        run: |
+          set -euo pipefail
+          # Each language renders with the engine its file names, and each engine has its
+          # own secret: skip a language whose key is missing so it cannot hide the other.
+          declare -A secret=([elevenlabs]="${ELEVENLABS_API_KEY:-}" [cartesia]="${CARTESIA_API_KEY:-}")
+          budget="${TTS_RENDER_BUDGET}"
+          spent=0
+          failed=0
+          mkdir -p "${STORE_STATE}/rendered"
+
+          push() { # <tag> <lang>: the tarball in RUNNER_TEMP, by relative name (oras rejects
+                   # absolute paths, the name becomes the blob title)
+            ( cd "${RUNNER_TEMP}" && oras push --annotation "${STORE_CREATED}" "${STORE_REPO}:$1" \
+                "$2.tgz:application/vnd.oci.image.layer.v1.tar+gzip" )
+          }
+
+          # Store what is there, even after a partial failure: it is what the next run reuses.
+          # The tar is byte-identical for identical content (sorted, zeroed timestamps and
+          # ownership, gzip without a name) and so is the manifest (STORE_CREATED), so an
+          # unchanged stand uploads nothing and adds no package version.
+          store() { # <lang> <restored tag> <restored sha256> <content tag>
+            local lang="$1" from="$2" sha="$3" storetag="$4" own_tag now
+            own_tag="${lang}${STORE_OWN}"
+            # Called as `store ... || failed=1`, where `set -e` does not apply: check by hand.
+            [ -d "../../sounds/${lang}" ] || { echo "::error::${lang}: nothing to store"; return 1; }
+            if ! tar --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner \
+                -cf - -C ../../sounds "${lang}" | gzip -n > "${RUNNER_TEMP}/${lang}.tgz"; then
+              echo "::error::${lang}: could not pack the stand"
+              return 1
+            fi
+            now=$(sha256sum "${RUNNER_TEMP}/${lang}.tgz" | cut -d' ' -f1)
+
+            # The content tag already holds exactly this stand: only point the owner tag at it.
+            if [ "${from}" = "${storetag}" ] && [ "${now}" = "${sha}" ]; then
+              oras tag "${STORE_REPO}:${storetag}" "${own_tag}"
+              return
+            fi
+            # Main and every other ref share the content tag, and a build restores it first.
+            # So outside main a stand restored from it may only be *completed* (files added):
+            # a branch that changed one of its files - a different encoder, a `--force` -
+            # keeps that under its own tag, and main's builds never see it.
+            if [ -n "${STORE_OWN}" ] && [ "${from}" = "${storetag}" ] && [ -s "${STORE_STATE}/${lang}.sums" ] \
+               && ! ( cd ../../sounds && sha256sum --check --quiet "${STORE_STATE}/${lang}.sums" >/dev/null 2>&1 ); then
+              echo "::warning::${lang}: this run changed files of the stored stand :${storetag} - keeping the result under :${own_tag} only."
+              push "${own_tag}" "${lang}"
+              return
+            fi
+            push "${storetag}" "${lang}" && oras tag "${STORE_REPO}:${storetag}" "${own_tag}"
+          }
+
+          for lang in ${SOUND_LANGUAGES}; do
+            cfg="../../src/open_mower/params/sounds_${lang}.yaml"
+            read -r state from sha storetag < "${STORE_STATE}/${lang}"
+            if [ "${state}" = "unreachable" ]; then
+              echo "::error::${lang}: not rendered - the store could not be read (see the restore step), and a render from scratch would pay for every announcement again. Re-run the job."
+              failed=1
+              continue
+            fi
+            engine=$(sed -n 's/^[[:space:]]*engine:[[:space:]]*\([a-z]*\).*/\1/p' "${cfg}" | head -1)
+            if [ -z "${engine}" ]; then
+              echo "::error::could not read tts.engine from ${cfg}"
+              failed=1
+              continue
+            fi
+            if [ -z "${secret[${engine}]:-}" ]; then
+              echo "::notice::sounds_${lang}.yaml uses '${engine}', but its key is not set - skipping the ${lang} render."
+              continue
+            fi
+            args=(--config "${cfg}"
+                  --sound-ids ../../services/sound_service.json
+                  --sound-path ../../sounds
+                  --sounds-dir ../../sounds)
+
+            # What this language is going to cost, before anything is spent.
+            stale=$("${SOUNDCTL}" tts --check "${args[@]}" 2>/dev/null | grep -c 'stale:' || true)
+            if [ "${budget}" -gt 0 ] && [ $((spent + stale)) -gt "${budget}" ]; then
+              echo "::error::${lang}: ${stale} render(s) would exceed this run's budget of ${budget} TTS requests (${spent} already spent) - skipped. The next run continues from what was stored; for a deliberate full re-render raise the TTS_RENDER_BUDGET repository variable."
+              failed=1
+              continue
+            fi
+            spent=$((spent + stale))
+            touch "${STORE_STATE}/rendered/${lang}"
+
+            # --keep-going: try every variant, so the log names all failures instead of
+            # stopping at the first one.
+            "${SOUNDCTL}" tts --keep-going "${args[@]}" || failed=1
+            # The idempotency assertion, not just a format check: `--check` walks the same
+            # upToDate() the render loop skips on, so green here means a second run would
+            # render nothing. Nothing may be left stale, and every render must be 16 kHz mono.
+            "${SOUNDCTL}" tts --check "${args[@]}" || failed=1
+            "${SOUNDCTL}" validate --check-mp3 "${args[@]}" || failed=1
+
+            store "${lang}" "${from}" "${sha}" "${storetag}" || failed=1
+          done
+          echo "TTS requests in this run: at most ${spent} (budget ${budget})" >> "${GITHUB_STEP_SUMMARY}"
+          exit "${failed}"
+
+      # A language this run did not render (no key, skipped, unreachable) ships its stored
+      # announcements only if they match the definitions *exactly*. Audio from an older
+      # definition looks fine and only fails much later: `soundctl sync` refuses to upload a
+      # stale render, so the robot stays silent instead of playing something that is not in
+      # the YAML - better to ship nothing and let the robot render with its own key.
+      - name: Drop restored renders that do not match
+        if: ${{ !cancelled() }}
+        run: |
+          set -euo pipefail
+          for lang in ${SOUND_LANGUAGES}; do
+            if [ -e "${STORE_STATE}/rendered/${lang}" ] || [ ! -d "sounds/${lang}" ]; then
+              continue
+            fi
+            if ! ( cd utils/soundctl && "${SOUNDCTL}" tts --check \
+                --config "../../src/open_mower/params/sounds_${lang}.yaml" \
+                --sound-ids ../../services/sound_service.json \
+                --sound-path ../../sounds \
+                --sounds-dir ../../sounds ); then
+              echo "::warning::${lang} was not rendered in this run and the stored announcements do not match the definitions - shipping ${lang} without them (the robot renders them with its own key)."
+              rm -rf "sounds/${lang}"
+            fi
+          done
+
+      # The artifact is the hand-over to the build jobs: they all wait for this job and
+      # unpack it into sounds/, so exactly one render per run reaches every image.
+      - name: Upload the rendered announcements
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: sounds
+          path: |
+            sounds/*/
+          # No renders at all (no key and nothing matching in the store): the artifact is
+          # simply empty and the build jobs tolerate that (the robot renders them itself).
+          if-no-files-found: ignore
+          retention-days: 3
+
+      # A red step inside a green job is easy to miss, and the PR image is only pushed for a
+      # successful build - so the failure is also stated as a check annotation.
+      - name: Report an incomplete render
+        if: steps.render.outcome == 'failure'
+        run: |
+          echo "::warning title=Announcements not rendered::The render failed (see the step above); the image ships whatever the store had."
+          echo "Some announcements could not be rendered - the image ships what the store had." >> "${GITHUB_STEP_SUMMARY}"

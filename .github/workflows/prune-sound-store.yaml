@@ -1,0 +1,211 @@
+name: Prune sound store
+
+# Deletes old stands from ghcr.io/<repo>/tts-sounds. Dry run by default: a run only prints
+# what it would delete. What the tags mean: sounds/README.md, "Where the renders live".
+#
+# A package version (one manifest) is kept when any of its tags is protected, so the rules
+# are per version:
+#   1. protected   a base tag <lang>, or - when run from main - the current content key of a
+#                  shipped definition
+#   2. young       updated within max_age_days, tagged or not
+#   3. live owner  one of its tags is the owner tag of a branch that still exists (an old
+#                  stand of a live branch may still be its only one)
+#   otherwise deleted: old content stands, owner tags of deleted branches and of release
+#   tags, untagged leftovers.
+#
+# Deleting a manifest never loses audio that is still in use: ghcr.io reference-counts
+# blobs, so a layer shared with a kept manifest stays.
+#
+# The schedule is prepared but disabled - enable it once the store has run for a while:
+#   schedule:
+#     - cron: "17 4 1 * *"      # first of the month, 04:17 UTC
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Only report what would be deleted"
+        required: false
+        default: true
+        type: boolean
+      max_age_days:
+        description: "Delete stands older than this many days (base tags are never deleted)"
+        required: false
+        default: "60"
+        type: string
+
+# packages: write is needed for DELETE on package versions.
+permissions:
+  contents: read
+  packages: write
+
+env:
+  SOUNDS_PACKAGE: ${{ github.repository }}/tts-sounds
+
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          # services/sound_service.json is a submodule; soundctl needs it to load a definition.
+          submodules: "recursive"
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: utils/soundctl/go.mod
+          cache-dependency-path: utils/soundctl/go.sum
+
+      - name: Build soundctl
+        working-directory: utils/soundctl
+        run: go build -o "${RUNNER_TEMP}/soundctl" ./cmd/soundctl
+
+      # Which tags must survive, written to two files so the selection step stays a pure read:
+      #   keep.txt       tags that are never deleted
+      #   branches.txt   sanitised names of the branches that still exist
+      - name: Collect what has to survive
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          work="${RUNNER_TEMP}/prune"
+          mkdir -p "${work}"
+
+          # Base tags: the fallback for every branch, so they never go away.
+          langs=$(sh .github/scripts/sound-store.sh languages)
+          keep=" "
+          for lang in ${langs}; do
+            keep="${keep}${lang} "
+          done
+
+          # The current content keys, but only from main: on another ref these definitions
+          # are that ref's, and protecting their keys would say nothing about main's.
+          if [ -z "$(sh .github/scripts/sound-store.sh owner)" ]; then
+            for lang in ${langs}; do
+              key=$("${RUNNER_TEMP}/soundctl" tts --config "src/open_mower/params/sounds_${lang}.yaml" --print-store-key)
+              keep="${keep}${key} "
+            done
+          else
+            echo "::notice::not run from main - the current content keys are not protected (only the base tags are)"
+          fi
+          printf '%s\n' "${keep}" > "${work}/keep.txt"
+
+          # Owner tags: the suffix comes from the same script render-sounds.yaml uses, otherwise
+          # a long branch name could never be mapped back to its tag and the prune would delete
+          # the stand of a branch that still exists.
+          gh api --paginate "repos/${GITHUB_REPOSITORY}/branches?per_page=100" --jq '.[].name' \
+            | while IFS= read -r branch; do
+                sh .github/scripts/sound-store.sh suffix "${branch}"
+              done > "${work}/branches.txt"
+          echo "branches still alive: $(wc -l < "${work}/branches.txt")"
+          echo "keeping:$(cat "${work}/keep.txt")"
+
+      # The selection: read every manifest version (tagged or not), decide, delete what is
+      # neither protected nor young. Dry run prints the decisions and changes nothing.
+      - name: Prune old stands
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          MAX_AGE_DAYS: ${{ inputs.max_age_days }}
+        run: |
+          set -euo pipefail
+          work="${RUNNER_TEMP}/prune"
+          dry="${DRY_RUN:-true}"
+          days="${MAX_AGE_DAYS:-60}"
+          cutoff=$(date -u -d "${days} days ago" +%Y-%m-%dT%H:%M:%SZ)
+          echo "cutoff: ${cutoff} (${days} days), dry_run=${dry}"
+
+          # The REST package_name carries no owner: for ghcr.io/<owner>/<repo>/<name> it is
+          # "<repo>/<name>", url-encoded. Including the owner targets a package that does not
+          # exist, and every request would 404.
+          pkg="${SOUNDS_PACKAGE#*/}"
+          pkg="${pkg,,}"
+          pkg="${pkg//\//%2F}"
+          gh api --paginate "user/packages/container/${pkg}/versions?per_page=100" \
+              --jq '.[] | [.id, .updated_at, (.metadata.container.tags // [] | join(","))] | @tsv' \
+              > "${work}/versions.tsv"
+          echo "versions: $(wc -l < "${work}/versions.tsv")"
+
+          keep=$(cat "${work}/keep.txt")
+          branches=()
+          while IFS= read -r branch; do
+            branches+=("${branch}")
+          done < "${work}/branches.txt"
+
+          {
+            echo "| version | updated | tags | decision |"
+            echo "| --- | --- | --- | --- |"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+          deleted=0
+          candidates=0
+          failed=0
+          kept=0
+          while IFS=$'\t' read -r id updated tags; do
+            display="${tags:-<untagged>}"
+            decision=""
+
+            # 1. Bound to a tag that is never deleted: a base tag or the current key.
+            if [ -n "${tags}" ]; then
+              IFS=',' read -ra list <<< "${tags}"
+              for tag in "${list[@]}"; do
+                case "${keep}" in
+                  *" ${tag} "*) decision="keep (protected)"; break ;;
+                esac
+              done
+            fi
+
+            # 2. Young enough: inside the grace period everything stays, tagged or not.
+            if [ -z "${decision}" ] && [[ ! "${updated}" < "${cutoff}" ]]; then
+              decision="keep (young)"
+            fi
+
+            # 3. An owner tag whose branch still exists stays, even when it is old: the
+            #    branch may be alive with an overdue PR, and the tag is its only stand.
+            if [ -z "${decision}" ] && [ -n "${tags}" ]; then
+              IFS=',' read -ra list <<< "${tags}"
+              for tag in "${list[@]}"; do
+                suffix="${tag#*-}"
+                for branch in "${branches[@]}"; do
+                  if [ "${branch}" = "${suffix}" ]; then
+                    decision="keep (branch alive)"
+                    break 2
+                  fi
+                done
+              done
+            fi
+
+            if [ -z "${decision}" ]; then
+              candidates=$((candidates + 1))
+              if [ "${dry}" = "true" ]; then
+                decision="would delete"
+                echo "would delete ${display} (${updated})"
+              elif gh api -X DELETE "user/packages/container/${pkg}/versions/${id}"; then
+                decision="deleted"
+                deleted=$((deleted + 1))
+                echo "deleted ${display} (${updated})"
+              else
+                decision="delete failed"
+                failed=$((failed + 1))
+                echo "::error::could not delete ${display} (${updated})"
+              fi
+            else
+              kept=$((kept + 1))
+            fi
+            echo "| ${id} | ${updated} | ${display} | ${decision} |" >> "${GITHUB_STEP_SUMMARY}"
+          done < "${work}/versions.tsv"
+
+          if [ "${dry}" = "true" ]; then
+            echo "::notice::prune (dry run): kept ${kept}, would delete ${candidates} (max_age=${days}d)"
+          else
+            echo "::notice::prune: kept ${kept}, deleted ${deleted} of ${candidates} (max_age=${days}d)"
+            # A version that could not be deleted is a failure, not a warning: the caller
+            # asked for it and the store is still dirty afterwards.
+            if [ "${failed}" -ne 0 ]; then
+              echo "::error::${failed} version(s) could not be deleted"
+              exit 1
+            fi
+          fi

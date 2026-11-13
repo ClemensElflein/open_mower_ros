@@ -48,9 +48,9 @@ func (c *Config) RenderJobs() []RenderJob {
 					Text:            v.TTS,
 					Bitrate:         set.Bitrate,
 					LoudNorm:        set.LoudNorm,
-					Stability:       set.Stability,
-					SimilarityBoost: set.SimilarityBoost,
-					Style:           set.Style,
+					Stability:       Round2(set.Stability),
+					SimilarityBoost: Round2(set.SimilarityBoost),
+					Style:           Round2(set.Style),
 					UseSpeakerBoost: set.UseSpeakerBoost,
 				},
 			})

@@ -53,9 +53,9 @@ func (f *sayFlags) settings() fwsync.TTSSettings {
 		Voice:           f.voice,
 		Bitrate:         f.bitrate,
 		LoudNorm:        f.loudNorm,
-		Stability:       f.stability,
-		SimilarityBoost: f.similarityBoost,
-		Style:           f.style,
+		Stability:       fwsync.Round2(f.stability),
+		SimilarityBoost: fwsync.Round2(f.similarityBoost),
+		Style:           fwsync.Round2(f.style),
 		UseSpeakerBoost: f.speakerBoost,
 	}
 }
@@ -184,9 +184,9 @@ func newSayCmd() *cobra.Command {
 				Language:        f.lang,
 				Bitrate:         set.Bitrate,
 				LoudNorm:        set.LoudNorm,
-				Stability:       set.Stability,
-				SimilarityBoost: set.SimilarityBoost,
-				Style:           set.Style,
+				Stability:       fwsync.Round2(set.Stability),
+				SimilarityBoost: fwsync.Round2(set.SimilarityBoost),
+				Style:           fwsync.Round2(set.Style),
 				UseSpeakerBoost: set.UseSpeakerBoost,
 			}
 			res, err := tts.RenderText(cmd.Context(), text, id, dst, eng, enc, func(format string, args ...any) {
