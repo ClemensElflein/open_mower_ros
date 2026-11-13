@@ -143,7 +143,7 @@ tts:
 
   elevenlabs:
     model: eleven_v4
-    voice: TX3LPaxmHKxFdv7VOQHJ # Liam
+    voice: nPczCjzI2devNBz1zQrb # Brian (nl supported voice)
     stability: 0.5 # 0..1, lower = more expressive
     similarity_boost: 0.75 # 0..1
     style: 0.0 # 0..1, 0 = the voice's own delivery
@@ -169,7 +169,7 @@ sounds:
     variants:
       - "Hallo, ik ben uw intelligente OpenMower-grasmaaier. Grasonderhoud is mijn beroep."
       - "Hallo, ik ben uw intelligente OpenMower-grasmaaier. [enjoyable]Ik eet zo graag gras."
-      - "Hallo, ik ben uw intelligente OpenMower-grasmaaier. De firmware draait, ik ben net wakker aan het worden."
+      - "Hallo, ik ben uw intelligente OpenMower-grasmaaier. De firmware draait, ik word net wakker."
       - "Hallo, ik ben uw intelligente OpenMower-grasmaaier. Mijn brein start nog op… maar de basisfuncties werken."
       - "Hallo, ik ben uw intelligente OpenMower-grasmaaier. De hardware draait, het verstand wordt nog geladen."
   emergency:
@@ -183,8 +183,8 @@ sounds:
     pause_after_ms: 500
     variants:
       - "Alles is weer goed. Ik ga verder."
-      - "Probleem opgelost. Vrije baan."
-      - "Geen zorgen, het gaat verder."
+      - "Probleem opgelost. De weg is vrij."
+      - "Geen zorgen, ik ga verder."
       - "Bedankt, ik voel me weer vrij."
       - "In orde, ik kan verder werken."
   ros_connected:
@@ -210,7 +210,7 @@ sounds:
       - "Opladen gestart."
       - "Laadstation bereikt. Ik tank nu stroom."
       - "Ik ben bij het laadstation. Stroom in plaats van gras — ook wel eens fijn."
-      - "Vastgekoppeld. Ik laad. Dat is het saaiste deel van mijn beroep."
+      - "Gedockt. Ik laad. Dat is het saaiste deel van mijn beroep."
       - "Laadstation bereikt. Ik neem nu pauze — beroepshalve."
   charging_done:
     type: mp3
@@ -273,10 +273,10 @@ sounds:
     volume: 90
     pick: random
     variants:
-      - "Let op, de grasmaaierrobot gaat nu rijden. Houd afstand, alstublieft."
+      - "Let op, de robotgrasmaaier gaat nu rijden. Houd afstand, alstublieft."
       - "Voorzichtig, ik maai nu. Ga niet in de weg staan."
       - "Ik start mijn maaiopdracht. Doe een stap opzij, alstublieft."
-      - "Grasmaaierrobot in bedrijf. Blijf buiten het maaiveld."
+      - "Robotgrasmaaier in bedrijf. Blijf buiten de maaizone."
   mowing_start:
     type: mp3
     volume: 90
@@ -298,7 +298,7 @@ sounds:
     variants:
       - "En we gaan weer verder."
       - "Maaiopdracht hervat. Ik ben weer aan het werk."
-      - "Hup hup hup... nee, grasmaaierrobot! Ik maai verder."
+      - "Hup hup hup… nee, robotgrasmaaier! Ik maai verder."
   docking_start:
     type: mp3
     volume: 90
