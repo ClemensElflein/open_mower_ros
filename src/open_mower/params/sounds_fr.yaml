@@ -194,7 +194,7 @@ sounds:
   ros_connected:
     type: mp3
     volume: 90
-    pause_after_ms: 500
+    pause_after_ms: 1000
     variants:
       - "Le système d'exploitation du robot a démarré."
       - "Le système d'exploitation du robot a démarré. L'esprit est maintenant chargé lui aussi."
@@ -202,7 +202,7 @@ sounds:
   ros_disconnected:
     type: mp3
     volume: 90
-    pause_after_ms: 500
+    pause_after_ms: 1000
     variants:
       - "Le système d'exploitation du robot a été arrêté."
       - "Le système d'exploitation du robot a été arrêté. À la prochaine."

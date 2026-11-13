@@ -143,7 +143,7 @@ tts:
 
   elevenlabs:
     model: eleven_v4
-    voice: TX3LPaxmHKxFdv7VOQHJ # Liam
+    voice: TX3LPaxmHKxFdv7VOQHJ # Liam (pl supported voice)
     stability: 0.5 # 0..1, lower = more expressive
     similarity_boost: 0.75 # 0..1
     style: 0.0 # 0..1, 0 = the voice's own delivery
@@ -190,7 +190,7 @@ sounds:
   ros_connected:
     type: mp3
     volume: 90
-    pause_after_ms: 500
+    pause_after_ms: 1000
     variants:
       - "System operacyjny robota został uruchomiony."
       - "System operacyjny robota został uruchomiony. Rozum też jest już załadowany."
@@ -198,7 +198,7 @@ sounds:
   ros_disconnected:
     type: mp3
     volume: 90
-    pause_after_ms: 500
+    pause_after_ms: 1000
     variants:
       - "System operacyjny robota został zatrzymany."
       - "System operacyjny robota został zatrzymany. Do następnego razu."

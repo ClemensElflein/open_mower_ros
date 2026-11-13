@@ -190,7 +190,7 @@ sounds:
   ros_connected:
     type: mp3
     volume: 90
-    pause_after_ms: 500
+    pause_after_ms: 1000
     variants:
       - "Robotens operativsystem har startat."
       - "Robotens operativsystem har startat. Förståndet är också laddat nu."
@@ -198,7 +198,7 @@ sounds:
   ros_disconnected:
     type: mp3
     volume: 90
-    pause_after_ms: 500
+    pause_after_ms: 1000
     variants:
       - "Robotens operativsystem har stoppats."
       - "Robotens operativsystem har stoppats. Vi ses nästa gång."

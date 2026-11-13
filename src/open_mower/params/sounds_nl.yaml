@@ -190,7 +190,7 @@ sounds:
   ros_connected:
     type: mp3
     volume: 90
-    pause_after_ms: 500
+    pause_after_ms: 1000
     variants:
       - "Het besturingssysteem van de robot is gestart."
       - "Het besturingssysteem van de robot is gestart. Het verstand is nu ook geladen."
@@ -198,7 +198,7 @@ sounds:
   ros_disconnected:
     type: mp3
     volume: 90
-    pause_after_ms: 500
+    pause_after_ms: 1000
     variants:
       - "Het besturingssysteem van de robot is gestopt."
       - "Het besturingssysteem van de robot is gestopt. Tot de volgende keer."
