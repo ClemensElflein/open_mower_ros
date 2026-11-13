@@ -85,29 +85,17 @@ jobs:
       # (they are rendered on the mower), so no ffmpeg/engine is needed here.
       - name: validate the shipped sound definitions
         run: |
-          # One entry per shipped definition; keep in lockstep with SOUND_LANGUAGES in render-sounds.yaml.
-          # `--check-mp3` reports the announcements that only a `tts:` text produces as "pending".
-          for lang in en de fr nl pl sv; do
+          # Every shipped definition, the same set render-sounds.yaml renders.
+          for cfg in ../../src/open_mower/params/sounds_*.yaml; do
             go run ./cmd/soundctl validate \
-              --config "../../src/open_mower/params/sounds_${lang}.yaml" \
+              --config "${cfg}" \
               --sound-ids ../../services/sound_service.json \
               --sound-path ../../sounds \
               --check-mp3
           done
 
-  # This workflow deliberately has no render job. Producing the audio lives in
-  # render-sounds.yaml, a reusable workflow that build-image.yaml calls as its `render` job:
-  # the artifact it produces is bound to the run that consumes it, and `needs:` - which only
-  # links jobs of one run - then orders every build job behind the render.
-  #
-  # Not here, and not folded into build-image.yaml:
-  #   - a `workflow_call` of THIS file would drag gofmt/vet/test/validate into every image
-  #     build (they have nothing to do with an image), and a sound-only PR would render
-  #     twice: once from this file's own `paths:` trigger and once from the call. That is
-  #     why the render sits in its own file with a single job.
-  #   - `workflow_run` only fires on the default branch, never for a pull request, and
-  #     cannot guarantee that the build starts after the render.
-  #
-  # A second, separately triggered render job "to prove the store works" is unnecessary:
-  # the `tts --check` inside render-sounds.yaml asserts exactly that - it walks the same
-  # upToDate() the render loop skips on - and costs no API request.
+  # This workflow deliberately has no render job: rendering lives in render-sounds.yaml,
+  # which build-image.yaml calls (see the note there). A `workflow_call` of this file would
+  # drag gofmt/vet/test/validate into every image build, and a sound-only PR would render
+  # twice. A second render "to prove the store works" is unnecessary too: the `tts --check`
+  # in render-sounds.yaml walks the same upToDate() the render skips on, for free.

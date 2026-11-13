@@ -1,16 +1,17 @@
 name: Prune sound store
 
-# Deletes old stands from ghcr.io/<repo>/tts-sounds. Dry run by default: the first run only
-# prints what it would delete.
+# Deletes old stands from ghcr.io/<repo>/tts-sounds. Dry run by default: a run only prints
+# what it would delete. What the tags mean: sounds/README.md, "Where the renders live".
 #
-# What the tags mean is documented in render-sounds.yaml. The rules here:
-#   <lang>            base stand      never deleted - it is the fallback for every branch
-#   <lang>-<hash>     content stand   deleted when older than max_age_days and not the
-#                                     current key of the definitions
-#   <lang>-<branch>   branch stand    deleted when the branch no longer exists (a merge
-#                                     deletes it), or when the tag is older than max_age_days
-#                                     (a PR nobody came back to)
-#   anything else     leftovers       deleted when older than max_age_days
+# A package version (one manifest) is kept when any of its tags is protected, so the rules
+# are per version:
+#   1. protected   a base tag <lang>, or - when run from main - the current content key of a
+#                  shipped definition
+#   2. young       updated within max_age_days, tagged or not
+#   3. live owner  one of its tags is the owner tag of a branch that still exists (an old
+#                  stand of a live branch may still be its only one)
+#   otherwise deleted: old content stands, owner tags of deleted branches and of release
+#   tags, untagged leftovers.
 #
 # Deleting a manifest never loses audio that is still in use: ghcr.io reference-counts
 # blobs, so a layer shared with a kept manifest stays.
@@ -32,10 +33,6 @@ on:
         required: false
         default: "60"
         type: string
-  # Lets the workflow run from a feature branch before it lands on main; drop it afterwards.
-  push:
-    paths:
-      - ".github/workflows/prune-sound-store.yaml"
 
 # packages: write is needed for DELETE on package versions.
 permissions:
@@ -44,8 +41,6 @@ permissions:
 
 env:
   SOUNDS_PACKAGE: ${{ github.repository }}/tts-sounds
-  # One entry per shipped definition; keep in step with render-sounds.yaml.
-  SOUND_LANGUAGES: en de fr nl pl sv
 
 jobs:
   prune:
@@ -72,7 +67,6 @@ jobs:
       #   keep.txt       tags that are never deleted
       #   branches.txt   sanitised names of the branches that still exist
       - name: Collect what has to survive
-        id: keep
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -81,31 +75,30 @@ jobs:
           mkdir -p "${work}"
 
           # Base tags: the fallback for every branch, so they never go away.
+          langs=$(sh .github/scripts/sound-store.sh languages)
           keep=" "
-          for lang in ${SOUND_LANGUAGES}; do
+          for lang in ${langs}; do
             keep="${keep}${lang} "
           done
 
-          # The current content key, but only on a base run: on a branch these definitions
-          # are the branch's, and protecting its key would say nothing about main's.
-          if [ "${GITHUB_REF}" = "refs/heads/main" ] || [ "${GITHUB_REF_NAME}" = "v2" ] \
-             || [[ "${GITHUB_REF_NAME}" == releases/* ]] || [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-            echo "base=true" >> "${GITHUB_OUTPUT}"
-            for lang in ${SOUND_LANGUAGES}; do
+          # The current content keys, but only from main: on another ref these definitions
+          # are that ref's, and protecting their keys would say nothing about main's.
+          if [ -z "$(sh .github/scripts/sound-store.sh owner)" ]; then
+            for lang in ${langs}; do
               key=$("${RUNNER_TEMP}/soundctl" tts --config "src/open_mower/params/sounds_${lang}.yaml" --print-store-key)
               keep="${keep}${key} "
             done
           else
-            echo "base=false" >> "${GITHUB_OUTPUT}"
+            echo "::notice::not run from main - the current content keys are not protected (only the base tags are)"
           fi
           printf '%s\n' "${keep}" > "${work}/keep.txt"
 
-          # Branch tags: the sanitiser is shared with render-sounds.yaml (same truncation and
-          # hash), otherwise a long branch name could never be mapped back to its tag and the
-          # prune would delete the stand of a branch that still exists.
+          # Owner tags: the suffix comes from the same script render-sounds.yaml uses, otherwise
+          # a long branch name could never be mapped back to its tag and the prune would delete
+          # the stand of a branch that still exists.
           gh api --paginate "repos/${GITHUB_REPOSITORY}/branches?per_page=100" --jq '.[].name' \
             | while IFS= read -r branch; do
-                sh .github/scripts/branch-suffix.sh "${branch}"
+                sh .github/scripts/sound-store.sh suffix "${branch}"
               done > "${work}/branches.txt"
           echo "branches still alive: $(wc -l < "${work}/branches.txt")"
           echo "keeping:$(cat "${work}/keep.txt")"
@@ -170,7 +163,7 @@ jobs:
               decision="keep (young)"
             fi
 
-            # 3. A branch tag whose branch still exists stays, even when it is old: the
+            # 3. An owner tag whose branch still exists stays, even when it is old: the
             #    branch may be alive with an overdue PR, and the tag is its only stand.
             if [ -z "${decision}" ] && [ -n "${tags}" ]; then
               IFS=',' read -ra list <<< "${tags}"

@@ -100,9 +100,9 @@ go run ./cmd/soundctl tts --config ../../src/open_mower/params/sounds_en.yaml --
 # en-fbcec9dabc7b
 
 # every language into the build context, exactly like CI
-for lang in en de fr nl pl sv; do
+for cfg in ../../src/open_mower/params/sounds_*.yaml; do
   go run ./cmd/soundctl tts \
-    --config "../../src/open_mower/params/sounds_${lang}.yaml" \
+    --config "${cfg}" \
     --sound-ids ../../services/sound_service.json \
     --sound-path ../../sounds --sounds-dir ../../sounds
 done

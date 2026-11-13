@@ -51,23 +51,12 @@ permissions:
   packages: write
 
 jobs:
-  # The announcements are rendered and stored in ghcr.io/<repo>/tts-sounds by
-  # render-sounds.yaml, which this job calls. It is a reusable workflow and not a job in
-  # soundctl.yaml because the artifact it produces is bound to this run and the build jobs
-  # order themselves behind it with `needs:` - and `needs:` only links jobs of one run.
-  # Keeping the render in soundctl.yaml would need `workflow_call` (which drags that
-  # file's gofmt/vet/test/validate into every image build) or a cross-workflow wait via
-  # `workflow_run`, which cannot guarantee that the build starts after the render.
-  #
-  # The render is one step for the whole run: every build job consumes its artifact, so a
-  # definition change costs its TTS requests exactly once. The store keeps every unchanged
-  # file (one tag per language, the sidecars decide what is stale), so an unchanged
-  # definition costs nothing at all.
-  #
-  # Nor does it need a second, separately triggered render job "to prove the store works":
-  # the `tts --check` inside the called workflow is that proof, costs no API request, and a
-  # real second render would spend the whole corpus precisely when the fingerprints are
-  # broken.
+  # One render for the whole run: render-sounds.yaml renders the announcements, keeps them
+  # in ghcr.io/<repo>/tts-sounds and hands them to every build job as an artifact, so a
+  # definition change costs its TTS requests once and an unchanged one costs nothing. It is
+  # a reusable workflow rather than a job of soundctl.yaml because the artifact is bound to
+  # this run and `needs:` only links jobs of one run. See sounds/README.md, "Where the
+  # renders live".
   render:
     # A legacy-only rebuild has no announcements to render: do not spend a request on it.
     if: github.event_name != 'workflow_dispatch' || inputs.variant != 'legacy'
@@ -76,11 +65,13 @@ jobs:
       # Read and write the rendered announcements in ghcr.io.
       packages: write
     uses: ./.github/workflows/render-sounds.yaml
-    secrets: inherit
+    secrets:
+      ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+      CARTESIA_API_KEY: ${{ secrets.CARTESIA_API_KEY }}
 
   build:
     needs: render
-    # An incomplete render must not block the image (it ships whatever was cached, and the
+    # An incomplete render must not block the image (it ships whatever was stored, and the
     # robot copes with stale files): only a cancelled run skips the build.
     if: ${{ always() && needs.render.result != 'cancelled' }}
     runs-on: ${{ matrix.os }}
@@ -132,9 +123,9 @@ jobs:
           echo "Software version: ${version}"
 
       # The announcements come from the single render job above, as an artifact: no build
-      # job spends a TTS request (see the cache note there). Without a TTS secret the job
-      # uploads nothing and the image ships without announcements - the robot renders them
-      # itself with the user's own key.
+      # job spends a TTS request. Without a TTS secret only stored renders that match the
+      # definitions exactly are handed over; whatever is missing the robot renders itself
+      # with the user's own key.
       - name: Download the rendered announcements
         if: matrix.variant == 'default'
         uses: actions/download-artifact@v4
