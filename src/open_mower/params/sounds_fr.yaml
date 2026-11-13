@@ -5,6 +5,10 @@
 #
 # This file only lists the sounds that shall REPLACE a ROM default.
 #
+# Register: every announcement addresses the owner formally with "vous"
+# (Veuillez … / votre … / vos …), never with "tu" — keep it that way when
+# adding or rephrasing a text.
+#
 # ---------------------------------------------------------------------------
 # CUSTOMISING SOUNDS — READ THIS FIRST (nothing to do otherwise)
 # ---------------------------------------------------------------------------
