@@ -208,7 +208,7 @@ func TestVoicesListsAndPaginates(t *testing.T) {
 			if got := r.URL.Query().Get("next_page_token"); got != "" {
 				t.Errorf("first request carries next_page_token %q", got)
 			}
-			_, _ = io.WriteString(w, `{"voices":[{"voice_id":"v1","name":"Rachel","category":"premade","labels":{"language":"en"}}],"has_more":true,"next_page_token":"p2"}`)
+			_, _ = io.WriteString(w, `{"voices":[{"voice_id":"v1","name":"Rachel","category":"premade","labels":{"language":"en"},"verified_languages":[{"language":"en","model_id":"eleven_v4","accent":"american","locale":"en-US"},{"language":"de","model_id":"eleven_v4","accent":"german","locale":"de-DE"}]}],"has_more":true,"next_page_token":"p2"}`)
 			return
 		}
 		if got := r.URL.Query().Get("next_page_token"); got != "p2" {
@@ -227,6 +227,14 @@ func TestVoicesListsAndPaginates(t *testing.T) {
 	}
 	if voices[0].VoiceID != "v1" || voices[0].Name != "Rachel" || voices[0].Labels["language"] != "en" {
 		t.Errorf("first voice = %+v", voices[0])
+	}
+	// verified_languages decides whether a language is spoken without the accent of the
+	// reference recording, so the listing needs it - labels["language"] alone is misleading.
+	if len(voices[0].VerifiedLanguages) != 2 {
+		t.Fatalf("verified languages = %+v, want 2", voices[0].VerifiedLanguages)
+	}
+	if got := voices[0].VerifiedLanguages[1]; got.Language != "de" || got.Accent != "german" || got.Locale != "de-DE" {
+		t.Errorf("second verified language = %+v", got)
 	}
 	if voices[1].VoiceID != "v2" {
 		t.Errorf("second voice = %+v", voices[1])

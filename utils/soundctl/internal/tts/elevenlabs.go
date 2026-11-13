@@ -143,6 +143,20 @@ type Voice struct {
 	Name     string            `json:"name"`
 	Category string            `json:"category"`
 	Labels   map[string]string `json:"labels"`
+	// VerifiedLanguages lists the languages this voice is verified for, each with the
+	// accent it speaks them in. It is NOT the same as labels["language"]: that label is the
+	// language of the reference recording, while a multilingual model speaks every
+	// supported language with it. A language missing here is still spoken, but with the
+	// accent of the reference voice.
+	VerifiedLanguages []VerifiedVoiceLanguage `json:"verified_languages"`
+}
+
+// VerifiedVoiceLanguage is one entry of a voice's verified_languages.
+type VerifiedVoiceLanguage struct {
+	Language string `json:"language"`
+	ModelID  string `json:"model_id"`
+	Accent   string `json:"accent"`
+	Locale   string `json:"locale"`
 }
 
 // voicesPage is the paginated response of GET /v2/voices.
