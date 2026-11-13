@@ -143,7 +143,7 @@ tts:
 
   elevenlabs:
     model: eleven_v4
-    voice: TX3LPaxmHKxFdv7VOQHJ # Liam
+    voice: iP95p4xoKVk53GoZ742B # Chris (sv supported voice)
     stability: 0.5 # 0..1, lower = more expressive
     similarity_boost: 0.75 # 0..1
     style: 0.0 # 0..1, 0 = the voice's own delivery
@@ -169,7 +169,7 @@ sounds:
     variants:
       - "Hej, jag är din intelligenta OpenMower-gräsklippare. Gräsvård är mitt yrke."
       - "Hej, jag är din intelligenta OpenMower-gräsklippare. [enjoyable]Jag älskar att äta gräs."
-      - "Hej, jag är din intelligenta OpenMower-gräsklippare. Firmware kör, jag håller på att vakna."
+      - "Hej, jag är din intelligenta OpenMower-gräsklippare. Firmwaren kör, jag håller på att vakna."
       - "Hej, jag är din intelligenta OpenMower-gräsklippare. Hjärnan startar fortfarande… men grundfunktionerna fungerar."
       - "Hej, jag är din intelligenta OpenMower-gräsklippare. Hårdvaran kör, förståndet laddas fortfarande."
   emergency:
@@ -209,7 +209,7 @@ sounds:
     variants:
       - "Laddning startad."
       - "Laddstationen nådd. Jag tankar el nu."
-      - "Jag är vid laddstationen. El istället för gräs — det är också rätt skönt."
+      - "Jag är vid laddstationen. El i stället för gräs — det är också rätt skönt."
       - "Dockad. Jag laddar. Det är den tråkigaste delen av mitt yrke."
       - "Laddstationen nådd. Jag tar en paus — av yrkesmässiga skäl."
   charging_done:
@@ -227,7 +227,7 @@ sounds:
     volume: 95
     pause_after_ms: 500
     variants:
-      - "Lyftsensorn utlöst. Ställ tillbaka mig på gräsmattan, tack."
+      - "Lyftsensorn utlöst. Ställ mig tillbaka på gräsmattan, tack."
       - "Jag blev lyft. Sätt ner mig, tack."
       - "Oj, det var visst en mullvadshög."
       - "Jag kan inte flyga. Sätt ner mig igen, tack."
@@ -273,7 +273,7 @@ sounds:
     volume: 90
     pick: random
     variants:
-      - "Observera, robotgräsklipparen startar nu. Håll avstånd, tack."
+      - "Se upp, robotgräsklipparen startar nu. Håll avstånd, tack."
       - "Akta, jag klipper nu. Stå inte i vägen, tack."
       - "Jag startar mitt klippuppdrag. Ta ett steg åt sidan, tack."
       - "Robotgräsklippare i drift. Håll dig utanför klippytan, tack."
@@ -298,7 +298,7 @@ sounds:
     variants:
       - "Och så fortsätter vi."
       - "Klippuppdraget återupptaget. Jag är igång igen."
-      - "Hipp hipp hurra... nej, robotgräsklippare! Jag fortsätter klippa."
+      - "Hipp hipp hurra… nej, robotgräsklippare! Jag fortsätter klippa."
   docking_start:
     type: mp3
     volume: 90
