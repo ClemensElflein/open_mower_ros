@@ -4,11 +4,21 @@ import (
 	"encoding/binary"
 	"fmt"
 	"strings"
+
+	"github.com/xtech/xbot_framework/xbot_service_interface_go/xbot"
 )
 
-// fileServiceChunkSize is the fixed chunk size of the FileWrite RPC
-// (services/file_service.json: Data is a uint8_t[256]).
-const fileServiceChunkSize = 256
+// maxFileWriteChunk is the largest Data payload a FileWrite call can carry for this
+// path. One packet holds maxPacketSize - header bytes of RPC body; the call spends a
+// descriptor per parameter (path, offset, data, hash), the offset and the hash
+// themselves, and the path - which is a blob, so only its real length counts.
+func maxFileWriteChunk(path string) int {
+	const (
+		descriptors   = 4 * 8 // one DataDescriptor per parameter
+		offsetAndHash = 4 + 4
+	)
+	return xbot.MaxPacketSize - xbot.HeaderSize - descriptors - offsetAndHash - len(path)
+}
 
 // fileEntry is one entry of the /sounds/ listing returned by FileList.
 type fileEntry struct {

@@ -2,11 +2,37 @@ package fwsync
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"time"
 
 	"github.com/xtech/definitions-open-mower/golang/fileservice"
 	"github.com/xtech/xbot_framework/xbot_service_interface_go/xbot"
 )
+
+const (
+	busyRetries    = 3
+	busyRetryDelay = 2 * time.Millisecond
+)
+
+// busyRetry repeats an RPC a few times while the low level answers BUSY. A large return
+// value holds one of the pool blocks for a moment, and the low level handles one RPC at a
+// time, so the same call normally succeeds right after. Every other error is returned
+// unchanged - a real failure will not get better by asking again.
+func busyRetry[T any](call func() (T, error)) (T, error) {
+	var (
+		value T
+		err   error
+	)
+	for attempt := 0; attempt < busyRetries; attempt++ {
+		value, err = call()
+		if !errors.Is(err, xbot.ErrBusy) {
+			return value, err
+		}
+		time.Sleep(busyRetryDelay)
+	}
+	return value, err
+}
 
 // DialFileService connects to the FileService (SID 12) and claims it: the sync and
 // the storage report both need the service's answers, so neither may use a
@@ -36,7 +62,7 @@ func Storage(ctx context.Context, opts Options) (FileStats, error) {
 	}
 	defer func() { _ = fs.Close() }()
 
-	raw, err := fs.FileStats(ctx)
+	raw, err := busyRetry(func() ([]uint32, error) { return fs.FileStats(ctx) })
 	if err != nil {
 		return FileStats{}, fmt.Errorf("FileStats: %w", err)
 	}
