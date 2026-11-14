@@ -53,7 +53,6 @@ int main(int argc, char** argv) {
   ros::NodeHandle paramNh("~");
 
   reconfig_server = new dynamic_reconfigure::Server<mower_simulation::MowerSimulationConfig>(paramNh);
-  // reconfig_server->setCallback(reconfigureCB);
 
   docking_point_client = n.serviceClient<mower_map::GetDockingPointSrv>("mower_map_service/get_docking_point");
 
@@ -124,6 +123,13 @@ int main(int argc, char** argv) {
   sim_rpc.Start();
 
   robot.Start();
+
+  // Called right away with the initial values, so the mower_simulation section of the params
+  // (custom_params.yaml) applies at startup too, later changes come from params.set.
+  reconfig_server->setCallback([&robot](mower_simulation::MowerSimulationConfig& config, uint32_t) {
+    robot.SetBatteryDrainMinutes(config.battery_drain_minutes);
+    robot.SetBatteryChargeMinutes(config.battery_charge_minutes);
+  });
 
   ros::spin();
   delete (reconfig_server);

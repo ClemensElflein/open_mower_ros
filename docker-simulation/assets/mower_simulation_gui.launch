@@ -25,6 +25,10 @@
     leaves that transform solely to the real xbot_positioning.
 -->
 <launch>
+    <!-- The same params open_mower_ros loads, loaded here first so mower_simulation finds
+         its own section (battery_drain_minutes, ...) already at startup. -->
+    <rosparam file="/data/params/custom_params.yaml" command="load"/>
+
     <node pkg="mower_simulation" type="mower_simulation" name="mower_simulation" required="true">
         <param name="publish_tf" value="false"/>
     </node>
