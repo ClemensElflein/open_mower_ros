@@ -96,8 +96,23 @@ bool RunOnce() {
     while (!line.empty() && (line.back() == '\n' || line.back() == '\r')) {
       line.pop_back();
     }
-    if (!line.empty()) {
-      ROS_INFO("%s", line.c_str());  // as data, never as format string
+    if (line.empty()) {
+      continue;
+    }
+    // stdout and stderr share one pipe (the ordering matters for reading the log), so the
+    // severity has to come from the line itself: soundctl prefixes its slog lines with the
+    // level ("[soundctl sync] INFO ...", "... WARN ...") and cobra prints the fatal one as
+    // "Error: ...". Without this the one line that explains a failed sync was logged as
+    // info.
+    const bool is_error = line.find("] Error: ") != std::string::npos || line.find("] ERROR ") != std::string::npos ||
+                          line.rfind("Error: ", 0) == 0;
+    const bool is_warn = line.find("] WARN ") != std::string::npos;
+    if (is_error) {
+      ROS_ERROR("%s", line.c_str());  // as data, never as format string
+    } else if (is_warn) {
+      ROS_WARN("%s", line.c_str());
+    } else {
+      ROS_INFO("%s", line.c_str());
     }
   }
 
