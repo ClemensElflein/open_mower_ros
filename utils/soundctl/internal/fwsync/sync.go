@@ -348,7 +348,8 @@ func uploadFile(ctx context.Context, fs *fileservice.Client, localPath, remoteNa
 		return nil
 	}
 
-	chunkSize := maxFileWriteChunk(remote)
+	// The chunk size comes from the generated client: it knows the framing of the call.
+	chunkSize := fileservice.MaxFileWriteData([]byte(remote))
 	slog.Info("uploading", "file", remoteName, "bytes", len(data), "crc", crcHex(crc), "chunk", chunkSize)
 	for off := 0; off < len(data); off += chunkSize {
 		end := off + chunkSize

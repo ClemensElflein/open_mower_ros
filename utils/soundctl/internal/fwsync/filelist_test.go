@@ -4,8 +4,6 @@ import (
 	"encoding/binary"
 	"strings"
 	"testing"
-
-	"github.com/xtech/xbot_framework/xbot_service_interface_go/xbot"
 )
 
 // Mirror of the FileList wire layout (services/file_service.json): every entry is
@@ -15,23 +13,6 @@ const (
 	testListEntryLen  = testListPathLen + 4
 	testListHeaderLen = 8
 )
-
-func TestMaxFileWriteChunk(t *testing.T) {
-	// One packet: 1472 - 24 (header) - 32 (four descriptors) - 8 (offset, hash) - path.
-	path := "/sounds/zz_highway-to-hell.mp3" // 30 bytes
-	if got, want := maxFileWriteChunk(path), 1378; got != want {
-		t.Fatalf("maxFileWriteChunk(%q) = %d, want %d", path, got, want)
-	}
-
-	// Whatever the path is, the call still has to fit into one packet.
-	limit := xbot.MaxPacketSize - xbot.HeaderSize
-	for _, p := range []string{"/sounds/a.mp3", "/" + strings.Repeat("x", 127)} {
-		body := 4*8 + 4 + maxFileWriteChunk(p) + 4 + len(p)
-		if body > limit {
-			t.Errorf("path of %d bytes: body is %d, over the %d byte packet", len(p), body, limit)
-		}
-	}
-}
 
 func TestParseFileListPayload(t *testing.T) {
 	// Payload: total=2, count=1, one entry.
