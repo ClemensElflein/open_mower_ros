@@ -202,14 +202,14 @@ func dispatchPlay(ctx context.Context, svc *soundservice.Client, opts PlayOption
 			"volume", opts.Sequence.Volume, "unison", opts.Sequence.Unison, "detune_hz", opts.Sequence.DetuneHz,
 			"attack_ms", opts.Sequence.AttackMs, "decay_ms", opts.Sequence.DecayMs, "repeat_ms", opts.Sequence.RepeatMs,
 			"preempt", opts.Preempt)
-		return sent(svc.PlaySequence(ctx, opts.Sequence.Notes, soundservice.Waveform(waveform),
+		return sent(svc.PlaySequence(ctx, []byte(opts.Sequence.Notes), soundservice.Waveform(waveform),
 			uint8(opts.Sequence.Volume), uint8(opts.Sequence.Unison), uint16(opts.Sequence.DetuneHz),
 			uint8(opts.Sequence.AttackMs), uint8(opts.Sequence.DecayMs), preemptByte(opts.Preempt),
 			uint16(opts.Sequence.RepeatMs)))
 
 	case opts.Mp3Path != "":
 		slog.Info("playing mp3", "path", opts.Mp3Path, "preempt", opts.Preempt)
-		return sent(svc.PlayMP3(ctx, opts.Mp3Path, preemptByte(opts.Preempt)))
+		return sent(svc.PlayMP3(ctx, []byte(opts.Mp3Path), preemptByte(opts.Preempt)))
 
 	case opts.Sound != "":
 		id, _ := ids.Value(opts.Sound) // validated by validatePlay
