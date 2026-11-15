@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"log/slog"
 	"strings"
 	"sync"
 
@@ -25,6 +26,10 @@ type logOptions struct {
 	prefix string
 	// noColor disables the escape sequences even on a terminal.
 	noColor bool
+	// debug raises the level to slog.LevelDebug: the per-file progress (up to date,
+	// uploading, uploaded, removed orphan) is only interesting while investigating a
+	// sync, the summary of a run is INFO.
+	debug bool
 }
 
 // register adds the flags. They are persistent, so they work before or after the
@@ -36,6 +41,8 @@ func (o *logOptions) register(cmd *cobra.Command) {
 		"prefix every output line with this text, e.g. '[soundctl] ' (a missing space is added)")
 	cmd.PersistentFlags().BoolVar(&o.noColor, "no-color", false,
 		"never use colours, even on a terminal (also off for a piped/redirected run, $NO_COLOR and TERM=dumb)")
+	cmd.PersistentFlags().BoolVar(&o.debug, "debug", false,
+		"log per-file progress (up to date, uploading, uploaded, removed orphan) instead of the summary only")
 }
 
 // apply installs the requested output format. It must run after the flags are
@@ -52,6 +59,12 @@ func (o *logOptions) register(cmd *cobra.Command) {
 // So a piped run gets its prefix on both kinds of line and no escape sequences at
 // all, and a terminal run keeps its colours.
 func (o *logOptions) apply(cmd *cobra.Command) {
+	// 0. Level: the summary of a run is INFO, --debug adds the per-file progress. slog's
+	// default handler writes through the log package that step 2 configures.
+	if o.debug {
+		slog.SetLogLoggerLevel(slog.LevelDebug)
+	}
+
 	// 1. Colour, while the writers are still os.Stdout/os.Stderr.
 	st := style{
 		out: colorEnabled(cmd.OutOrStdout(), o.noColor),

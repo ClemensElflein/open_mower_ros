@@ -344,13 +344,13 @@ func uploadFile(ctx context.Context, fs *fileservice.Client, localPath, remoteNa
 		// The low level says "no such file, or the hash differs". Its own log line
 		// ("File: exists '<path>' -> 0 (hash=…)") shows which of the two, and the
 		// crc here is what we compared against.
-		slog.Info("would upload", "file", remoteName, "bytes", len(data), "crc", crcHex(crc))
+		slog.Debug("would upload", "file", remoteName, "bytes", len(data), "crc", crcHex(crc))
 		return nil
 	}
 
 	// The chunk size comes from the generated client: it knows the framing of the call.
 	chunkSize := fileservice.MaxFileWriteData([]byte(remote))
-	slog.Info("uploading", "file", remoteName, "bytes", len(data), "crc", crcHex(crc), "chunk", chunkSize)
+	slog.Debug("uploading", "file", remoteName, "bytes", len(data), "crc", crcHex(crc), "chunk", chunkSize)
 	for off := 0; off < len(data); off += chunkSize {
 		end := off + chunkSize
 		if end > len(data) {
@@ -407,7 +407,7 @@ func cleanup(ctx context.Context, fs *fileservice.Client, cfg *Config) error {
 		}
 	}
 	if len(orphans) == 0 {
-		slog.Info("no orphaned files")
+		slog.Debug("no orphaned files")
 		return nil
 	}
 
@@ -418,7 +418,7 @@ func cleanup(ctx context.Context, fs *fileservice.Client, cfg *Config) error {
 			return fmt.Errorf("FileRemove(%s): %w", o.Path, err)
 		}
 		if ok == 0 {
-			slog.Info("removed orphan", "path", o.Path)
+			slog.Debug("removed orphan", "path", o.Path)
 		} else {
 			return fmt.Errorf("FileRemove(%s): firmware reported failure", o.Path)
 		}
