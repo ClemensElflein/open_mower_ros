@@ -107,12 +107,24 @@ bool RunOnce() {
     const bool is_error = line.find("] Error: ") != std::string::npos || line.find("] ERROR ") != std::string::npos ||
                           line.rfind("Error: ", 0) == 0;
     const bool is_warn = line.find("] WARN ") != std::string::npos;
+    // The detection above needs soundctl's level token, but the ROS line already carries the
+    // severity - logging it as is reads "INFO ... INFO ..." or "ERROR ... ERROR ...". Drop the
+    // token from the text and keep the message.
+    std::string text = line;
+    for (const char* level : {"TRACE", "DEBUG", "INFO", "WARN", "ERROR"}) {
+      const std::string token = std::string("] ") + level + " ";
+      const auto pos = text.find(token);
+      if (pos != std::string::npos) {
+        text.erase(pos + 2, token.size() - 2);  // keep "] ", drop "LEVEL "
+        break;
+      }
+    }
     if (is_error) {
-      ROS_ERROR("%s", line.c_str());  // as data, never as format string
+      ROS_ERROR("%s", text.c_str());  // as data, never as format string
     } else if (is_warn) {
-      ROS_WARN("%s", line.c_str());
+      ROS_WARN("%s", text.c_str());
     } else {
-      ROS_INFO("%s", line.c_str());
+      ROS_INFO("%s", text.c_str());
     }
   }
 
