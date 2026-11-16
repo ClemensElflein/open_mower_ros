@@ -20,7 +20,9 @@
 #include <mower_msgs/HighLevelControlSrv.h>
 #include <mower_msgs/MowerControlSrv.h>
 #include <nmea_msgs/Sentence.h>
+#include <ros/callback_queue.h>
 #include <ros/ros.h>
+#include <ros/spinner.h>
 #include <rtcm_msgs/Message.h>
 #include <sensor_msgs/Imu.h>
 #include <spdlog/sinks/callback_sink.h>
@@ -269,7 +271,14 @@ int main(int argc, char** argv) {
   // ros::Subscriber high_level_status_sub = n.subscribe("/mower_logic/current_state", 0, highLevelStatusReceived);
   ros::Timer publish_timer = n.createTimer(ros::Duration(0.5), sendEmergencyHeartbeatTimerTask);
   ros::Timer publish_timer_2 = n.createTimer(ros::Duration(5.0), sendMowerEnabledTimerTask);
-  ros::Timer bms_info_timer = n.createTimer(ros::Duration(1.0), pollBmsInfoTimerTask);
+  // The device info poll blocks while it waits for the pack (up to one second), so it must not
+  // share the callback queue with cmd_vel and the emergency heartbeat: a dedicated queue and
+  // spinner keep the control callbacks dispatchable while the poll waits.
+  ros::CallbackQueue bms_info_queue;
+  ros::TimerOptions bms_info_options(ros::Duration(1.0), pollBmsInfoTimerTask, &bms_info_queue);
+  ros::Timer bms_info_timer = n.createTimer(bms_info_options);
+  ros::AsyncSpinner bms_info_spinner(1, &bms_info_queue);
+  bms_info_spinner.start();
   ros::Subscriber action_sub = n.subscribe("xbot/action", 0, actionReceived, ros::TransportHints().tcpNoDelay(true));
 
   ROS_INFO("All mower_comms_v2 services started");

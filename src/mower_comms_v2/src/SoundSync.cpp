@@ -79,6 +79,50 @@ std::string BuildCommand() {
   return command;
 }
 
+/// Forward one complete output line with the severity soundctl gave it.
+///
+/// stdout and stderr share one pipe (the ordering matters for reading the log), so the
+/// severity has to come from the line itself. soundctl prefixes its slog lines with a header
+/// ("[soundctl sync] INFO ...", "[soundctl tts] WARN ...") and cobra prints the fatal one as
+/// "Error: ..." at the start of the line. Only that header is inspected: a file name or a
+/// message that happens to contain "] ERROR " must not change the severity of the line.
+static void LogSoundctlLine(std::string line) {
+  while (!line.empty() && (line.back() == '\n' || line.back() == '\r')) {
+    line.pop_back();
+  }
+  if (line.empty()) {
+    return;
+  }
+
+  bool is_error = line.rfind("Error: ", 0) == 0;
+  bool is_warn = false;
+  std::string text = line;
+  const auto header_end = is_error ? std::string::npos : text.find("] ");
+  if (header_end != std::string::npos) {
+    const size_t level_at = header_end + 2;
+    for (const char* level : {"ERROR", "WARN", "INFO", "DEBUG", "TRACE"}) {
+      const std::string token = std::string(level) + " ";
+      if (text.compare(level_at, token.size(), token) != 0) {
+        continue;
+      }
+      is_error = std::string(level) == "ERROR";
+      is_warn = std::string(level) == "WARN";
+      // The ROS line already carries the severity, so the token is dropped from the text -
+      // logging it as is read "INFO ... INFO ..." or "ERROR ... ERROR ...".
+      text.erase(level_at, token.size());
+      break;
+    }
+  }
+
+  if (is_error) {
+    ROS_ERROR("%s", text.c_str());  // as data, never as format string
+  } else if (is_warn) {
+    ROS_WARN("%s", text.c_str());
+  } else {
+    ROS_INFO("%s", text.c_str());
+  }
+}
+
 /// One sync attempt. Every output line is forwarded to the ROS log.
 bool RunOnce() {
   const std::string command = BuildCommand();
@@ -90,43 +134,19 @@ bool RunOnce() {
     return false;
   }
 
+  // fgets() cuts a line at sizeof(buffer), and only the complete line carries the severity:
+  // a long error message would arrive in fragments and its tail would be logged as info.
   char buffer[512];
+  std::string pending;
   while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
-    std::string line(buffer);
-    while (!line.empty() && (line.back() == '\n' || line.back() == '\r')) {
-      line.pop_back();
+    pending += buffer;
+    if (pending.back() != '\n') {
+      continue;  // the rest of this line is still in the pipe
     }
-    if (line.empty()) {
-      continue;
-    }
-    // stdout and stderr share one pipe (the ordering matters for reading the log), so the
-    // severity has to come from the line itself: soundctl prefixes its slog lines with the
-    // level ("[soundctl sync] INFO ...", "... WARN ...") and cobra prints the fatal one as
-    // "Error: ...". Without this the one line that explains a failed sync was logged as
-    // info.
-    const bool is_error = line.find("] Error: ") != std::string::npos || line.find("] ERROR ") != std::string::npos ||
-                          line.rfind("Error: ", 0) == 0;
-    const bool is_warn = line.find("] WARN ") != std::string::npos;
-    // The detection above needs soundctl's level token, but the ROS line already carries the
-    // severity - logging it as is reads "INFO ... INFO ..." or "ERROR ... ERROR ...". Drop the
-    // token from the text and keep the message.
-    std::string text = line;
-    for (const char* level : {"TRACE", "DEBUG", "INFO", "WARN", "ERROR"}) {
-      const std::string token = std::string("] ") + level + " ";
-      const auto pos = text.find(token);
-      if (pos != std::string::npos) {
-        text.erase(pos + 2, token.size() - 2);  // keep "] ", drop "LEVEL "
-        break;
-      }
-    }
-    if (is_error) {
-      ROS_ERROR("%s", text.c_str());  // as data, never as format string
-    } else if (is_warn) {
-      ROS_WARN("%s", text.c_str());
-    } else {
-      ROS_INFO("%s", text.c_str());
-    }
+    LogSoundctlLine(std::move(pending));
+    pending.clear();
   }
+  LogSoundctlLine(std::move(pending));  // a last line without a newline
 
   const int status = pclose(pipe);
   if (status == -1) {
