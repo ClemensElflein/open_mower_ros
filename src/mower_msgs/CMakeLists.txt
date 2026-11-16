@@ -16,6 +16,7 @@ add_message_files(
         Emergency.msg
         Power.msg
         Bms.msg
+        BmsInfo.msg
         DockingSensor.msg
 )
 

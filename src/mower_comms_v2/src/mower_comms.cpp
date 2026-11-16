@@ -46,6 +46,7 @@ ros::Publisher status_pub;
 ros::Publisher nmea_pub;
 ros::Publisher power_pub;
 ros::Publisher bms_pub;
+ros::Publisher bms_info_pub;
 ros::Publisher gps_position_pub;
 ros::Publisher status_left_esc_pub;
 ros::Publisher status_right_esc_pub;
@@ -109,6 +110,10 @@ void actionReceived(const std_msgs::String::ConstPtr& action) {
 
 void sendMowerEnabledTimerTask(const ros::TimerEvent& e) {
   mower_service->Tick();
+}
+
+void pollBmsInfoTimerTask(const ros::TimerEvent&) {
+  if (bms_service) bms_service->PollDeviceInfo();
 }
 
 bool setMowEnabled(mower_msgs::MowerControlSrvRequest& req, mower_msgs::MowerControlSrvResponse& res) {
@@ -235,7 +240,9 @@ int main(int argc, char** argv) {
 
   // BMS service
   bms_pub = n.advertise<mower_msgs::Bms>("ll/bms", 1);
-  bms_service = std::make_unique<BmsServiceInterface>(xbot::service_ids::BMS, ctx, bms_pub);
+  // Latched: the device info is static for one pack, a late subscriber still gets it.
+  bms_info_pub = n.advertise<mower_msgs::BmsInfo>("ll/bms/info", 1, true);
+  bms_service = std::make_unique<BmsServiceInterface>(xbot::service_ids::BMS, ctx, bms_pub, bms_info_pub);
   bms_service->Start();
 
   // GPS service
@@ -262,6 +269,7 @@ int main(int argc, char** argv) {
   // ros::Subscriber high_level_status_sub = n.subscribe("/mower_logic/current_state", 0, highLevelStatusReceived);
   ros::Timer publish_timer = n.createTimer(ros::Duration(0.5), sendEmergencyHeartbeatTimerTask);
   ros::Timer publish_timer_2 = n.createTimer(ros::Duration(5.0), sendMowerEnabledTimerTask);
+  ros::Timer bms_info_timer = n.createTimer(ros::Duration(1.0), pollBmsInfoTimerTask);
   ros::Subscriber action_sub = n.subscribe("xbot/action", 0, actionReceived, ros::TransportHints().tcpNoDelay(true));
 
   ROS_INFO("All mower_comms_v2 services started");

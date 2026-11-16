@@ -32,6 +32,7 @@ extern ros::ServiceClient dockingPointClient;
 extern mower_msgs::Status getStatus();
 extern mower_msgs::Power getPower();
 extern mower_msgs::Bms getBms();
+extern bool isBmsDataValid();
 extern mower_logic::MowerLogicConfig getConfig();
 extern void setConfig(mower_logic::MowerLogicConfig);
 extern ll::PowerConfig getPowerConfig();
@@ -99,8 +100,8 @@ Behavior* IdleBehavior::execute() {
 
     // Use first valid sensor
     const auto last_bms = getBms();
-    const float last_battery_v =
-        utils::GetFirstValid({last_power.battery_voltage_adc, last_bms.voltage, last_power.battery_voltage});
+    const float last_battery_v = utils::GetFirstValid(
+        {last_power.battery_voltage_adc, isBmsDataValid() ? last_bms.voltage : 0.0f, last_power.battery_voltage});
     const float last_charge_v = utils::GetFirstValid({last_power.charge_voltage_adc, last_power.charge_voltage});
 
     const bool mower_ready = last_battery_v > last_power_config.battery_full_voltage &&
