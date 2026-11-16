@@ -6,8 +6,8 @@ require (
 	github.com/google/go-cmp v0.7.0
 	github.com/hajimehoshi/go-mp3 v0.3.4
 	github.com/spf13/cobra v1.10.2
-	github.com/xtech/definitions-open-mower/golang v0.5.1-0.20261115165027-18117b7a542b
-	github.com/xtech/xbot_framework/xbot_service_interface_go v1.1.2-0.20261115161356-f01e043fc681
+	github.com/xtech/definitions-open-mower/golang v0.5.1-0.20261116120441-1664fcfb8bc6
+	github.com/xtech/xbot_framework/xbot_service_interface_go v1.1.2-0.20261116113828-f9586357ba77
 	go.yaml.in/yaml/v3 v3.0.6
 	golang.org/x/term v0.47.0
 )

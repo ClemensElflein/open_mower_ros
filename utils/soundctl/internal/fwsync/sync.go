@@ -332,7 +332,7 @@ func uploadFile(ctx context.Context, fs *fileservice.Client, localPath, remoteNa
 	crc := crc32.ChecksumIEEE(data)
 	remote := "/sounds/" + remoteName
 
-	exists, err := busyRetry(func() (uint8, error) { return fs.FileExists(ctx, []byte(remote), crc) })
+	exists, err := busyRetry(func() (uint8, error) { return fs.FileExists(ctx, remote, crc) })
 	if err != nil {
 		return fmt.Errorf("FileExists(%s): %w", remote, err)
 	}
@@ -349,7 +349,7 @@ func uploadFile(ctx context.Context, fs *fileservice.Client, localPath, remoteNa
 	}
 
 	// The chunk size comes from the generated client: it knows the framing of the call.
-	chunkSize := fileservice.MaxFileWriteData([]byte(remote))
+	chunkSize := fileservice.MaxFileWriteData(remote)
 	slog.Debug("uploading", "file", remoteName, "bytes", len(data), "crc", crcHex(crc), "chunk", chunkSize)
 	for off := 0; off < len(data); off += chunkSize {
 		end := off + chunkSize
@@ -363,7 +363,7 @@ func uploadFile(ctx context.Context, fs *fileservice.Client, localPath, remoteNa
 			h = crc
 		}
 		n, err := busyRetry(func() (int32, error) {
-			return fs.FileWrite(ctx, []byte(remote), uint32(off), chunk, h)
+			return fs.FileWrite(ctx, remote, uint32(off), chunk, h)
 		})
 		if err != nil {
 			return fmt.Errorf("FileWrite(%s @%d): %w", remote, off, err)
@@ -373,7 +373,7 @@ func uploadFile(ctx context.Context, fs *fileservice.Client, localPath, remoteNa
 		}
 	}
 
-	ok, err := busyRetry(func() (uint8, error) { return fs.FileExists(ctx, []byte(remote), crc) })
+	ok, err := busyRetry(func() (uint8, error) { return fs.FileExists(ctx, remote, crc) })
 	if err != nil {
 		return fmt.Errorf("verify FileExists(%s): %w", remote, err)
 	}
@@ -413,7 +413,7 @@ func cleanup(ctx context.Context, fs *fileservice.Client, cfg *Config) error {
 
 	slog.Info("orphaned files", "count", len(orphans))
 	for _, o := range orphans {
-		ok, err := busyRetry(func() (uint8, error) { return fs.FileRemove(ctx, []byte(o.Path)) })
+		ok, err := busyRetry(func() (uint8, error) { return fs.FileRemove(ctx, o.Path) })
 		if err != nil {
 			return fmt.Errorf("FileRemove(%s): %w", o.Path, err)
 		}
@@ -431,7 +431,7 @@ func listAllFiles(ctx context.Context, fs *fileservice.Client) ([]fileEntry, err
 	var all []fileEntry
 	var offset uint32
 	for {
-		raw, err := busyRetry(func() ([]byte, error) { return fs.FileList(ctx, []byte("/sounds/"), offset) })
+		raw, err := busyRetry(func() ([]byte, error) { return fs.FileList(ctx, "/sounds/", offset) })
 		if err != nil {
 			return nil, err
 		}

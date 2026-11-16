@@ -209,7 +209,7 @@ func dispatchPlay(ctx context.Context, svc *soundservice.Client, opts PlayOption
 
 	case opts.Mp3Path != "":
 		slog.Info("playing mp3", "path", opts.Mp3Path, "preempt", opts.Preempt)
-		return sent(svc.PlayMP3(ctx, []byte(opts.Mp3Path), preemptByte(opts.Preempt)))
+		return sent(svc.PlayMP3(ctx, opts.Mp3Path, preemptByte(opts.Preempt)))
 
 	case opts.Sound != "":
 		id, _ := ids.Value(opts.Sound) // validated by validatePlay
