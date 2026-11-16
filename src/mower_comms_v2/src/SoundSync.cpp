@@ -100,6 +100,11 @@ static void LogSoundctlLine(std::string line) {
   const auto header_end = is_error ? std::string::npos : text.find("] ");
   if (header_end != std::string::npos) {
     const size_t level_at = header_end + 2;
+    // cobra's fatal output goes through the same prefix, so it arrives as
+    // "[soundctl sync] Error: ..." and not at the start of the line.
+    if (text.compare(level_at, 7, "Error: ") == 0) {
+      is_error = true;
+    }
     for (const char* level : {"ERROR", "WARN", "INFO", "DEBUG", "TRACE"}) {
       const std::string token = std::string(level) + " ";
       if (text.compare(level_at, token.size(), token) != 0) {
