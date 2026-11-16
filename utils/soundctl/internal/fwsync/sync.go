@@ -240,7 +240,7 @@ func applyDefinitions(ctx context.Context, cfg *Config, opts Options, ss *sounds
 	}
 	defer func() { _ = ss.Close() }()
 
-	if err := ss.SendVolume(uint8(opts.Volume)); err != nil {
+	if err := ss.SendVolume(int8(opts.Volume)); err != nil {
 		slog.Warn("could not send the master volume", "error", err)
 		return nil
 	}

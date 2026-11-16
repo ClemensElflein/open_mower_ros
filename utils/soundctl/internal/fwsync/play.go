@@ -95,7 +95,7 @@ func Play(ctx context.Context, opts PlayOptions) error {
 	defer func() { _ = svc.Close() }()
 
 	if opts.Volume >= 0 {
-		if err := svc.SendVolume(uint8(opts.Volume)); err != nil {
+		if err := svc.SendVolume(int8(opts.Volume)); err != nil {
 			return fmt.Errorf("set master volume: %w", err)
 		}
 		slog.Info("master volume set", "volume", opts.Volume)
