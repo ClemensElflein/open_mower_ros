@@ -66,12 +66,14 @@ func TestParseFileListPayloadTruncated(t *testing.T) {
 }
 
 func TestParseFileListPayloadLongPath(t *testing.T) {
-	// A path exactly at the 128-byte limit (no NUL padding).
+	// A path exactly at the schema limit of FileWrite.Path (128 characters), NUL terminated
+	// inside the 132-byte field: the 4 bytes behind it stay zero (terminator + alignment).
+	const maxPathChars = 128
 	payload := make([]byte, testListHeaderLen+testListEntryLen)
 	binary.LittleEndian.PutUint32(payload[0:4], 1)
 	binary.LittleEndian.PutUint32(payload[4:8], 1)
-	longPath := "/sounds/" + strings.Repeat("x", testListPathLen-len("/sounds/"))
-	copy(payload[testListHeaderLen:testListHeaderLen+testListPathLen], longPath)
+	longPath := "/sounds/" + strings.Repeat("x", maxPathChars-len("/sounds/"))
+	copy(payload[testListHeaderLen:testListHeaderLen+len(longPath)], longPath)
 
 	_, entries, err := parseFileList(payload)
 	if err != nil {

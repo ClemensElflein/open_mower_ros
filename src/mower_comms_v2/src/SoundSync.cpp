@@ -133,7 +133,10 @@ bool RunOnce() {
   const std::string command = BuildCommand();
   ROS_INFO_STREAM("Sound sync: " << command);
 
-  FILE* pipe = popen((command + " 2>&1").c_str(), "r");
+  // Both commands share the pipe, so the redirection has to cover the whole chain: without
+  // the group, 2>&1 would only reach the last command and the TTS errors would go to the
+  // parent's stderr instead of the ROS log.
+  FILE* pipe = popen(("( " + command + " ) 2>&1").c_str(), "r");
   if (pipe == nullptr) {
     ROS_WARN_STREAM("Sound sync: cannot run '" << kCommand << "' (missing in the image?)");
     return false;
