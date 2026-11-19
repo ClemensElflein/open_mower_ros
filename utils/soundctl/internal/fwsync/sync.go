@@ -222,7 +222,16 @@ func applyDefinitions(ctx context.Context, cfg *Config, opts Options, ss *sounds
 	encoded := xbot.HeatshrinkEncode(blob)
 	slog.Info("sound definitions", "sounds", len(cfg.Sounds), "json_bytes", len(blob), "compressed_bytes", len(encoded))
 
-	if err := ss.SetSoundDefinitions(encoded); err != nil {
+	/* The definitions travel as a single register transaction: one packet, one descriptor.
+	   A value above that would be refused by the client, so say why instead of failing
+	   with the transport error. */
+	const maxDefinitionsBytes = xbot.MaxPacketSize - xbot.HeaderSize - xbot.DescriptorSize
+	if len(encoded) > maxDefinitionsBytes {
+		return fmt.Errorf("sound definitions are %d bytes compressed, a single packet carries %d - "+
+			"reduce the number of sounds or variants", len(encoded), maxDefinitionsBytes)
+	}
+
+	if err := busyRetryErr(func() error { return ss.SetSoundDefinitions(encoded) }); err != nil {
 		return fmt.Errorf("SetDefinitions: %w", err)
 	}
 	slog.Info("sound definitions sent")
@@ -240,7 +249,7 @@ func applyDefinitions(ctx context.Context, cfg *Config, opts Options, ss *sounds
 	}
 	defer func() { _ = ss.Close() }()
 
-	if err := ss.SendVolume(int8(opts.Volume)); err != nil {
+	if err := busyRetryErr(func() error { return ss.SendVolume(int8(opts.Volume)) }); err != nil {
 		slog.Warn("could not send the master volume", "error", err)
 		return nil
 	}
@@ -279,7 +288,7 @@ func resolveRenders(layout Layout, cfg *Config) (use map[string]string, stale ma
 // already matches are not uploaded, so the real need is usually far smaller, and a
 // full flash surfaces as a FileWrite error anyway.
 func reportStorage(ctx context.Context, fs *fileservice.Client, layout Layout, use map[string]string, files []string) {
-	raw, err := fs.FileStats(ctx)
+	raw, err := busyRetry(func() ([]uint32, error) { return fs.FileStats(ctx) })
 	if err != nil {
 		slog.Warn("could not read the low level's storage usage", "error", err)
 		return

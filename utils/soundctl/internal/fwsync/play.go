@@ -95,7 +95,7 @@ func Play(ctx context.Context, opts PlayOptions) error {
 	defer func() { _ = svc.Close() }()
 
 	if opts.Volume >= 0 {
-		if err := svc.SendVolume(int8(opts.Volume)); err != nil {
+		if err := busyRetryErr(func() error { return svc.SendVolume(int8(opts.Volume)) }); err != nil {
 			return fmt.Errorf("set master volume: %w", err)
 		}
 		slog.Info("master volume set", "volume", opts.Volume)
@@ -188,13 +188,16 @@ func dispatchPlay(ctx context.Context, svc *soundservice.Client, opts PlayOption
 	switch {
 	case opts.Stop:
 		slog.Info("stopping playback")
-		return sent(svc.Stop(ctx))
+		return sent(func() (uint8, error) { return svc.Stop(ctx) })
 
 	case opts.Tone != nil:
 		tone := opts.Tone.toSoundDef().Tone
 		slog.Info("playing tone", "freq", tone.Freq, "duration_ms", tone.DurationMs, "volume", opts.Tone.Volume,
 			"preempt", opts.Preempt)
-		return sent(svc.PlayTone(ctx, uint16(tone.Freq), uint16(tone.DurationMs), uint8(opts.Tone.Volume), preemptByte(opts.Preempt)))
+		return sent(func() (uint8, error) {
+			return svc.PlayTone(ctx, uint16(tone.Freq), uint16(tone.DurationMs), uint8(opts.Tone.Volume),
+				preemptByte(opts.Preempt))
+		})
 
 	case opts.Sequence != nil:
 		waveform, _ := ids.Waveform(opts.Sequence.Waveform) // validated by validatePlay
@@ -202,26 +205,33 @@ func dispatchPlay(ctx context.Context, svc *soundservice.Client, opts PlayOption
 			"volume", opts.Sequence.Volume, "unison", opts.Sequence.Unison, "detune_hz", opts.Sequence.DetuneHz,
 			"attack_ms", opts.Sequence.AttackMs, "decay_ms", opts.Sequence.DecayMs, "repeat_ms", opts.Sequence.RepeatMs,
 			"preempt", opts.Preempt)
-		return sent(svc.PlaySequence(ctx, []byte(opts.Sequence.Notes), soundservice.Waveform(waveform),
-			uint8(opts.Sequence.Volume), uint8(opts.Sequence.Unison), uint16(opts.Sequence.DetuneHz),
-			uint8(opts.Sequence.AttackMs), uint8(opts.Sequence.DecayMs), preemptByte(opts.Preempt),
-			uint16(opts.Sequence.RepeatMs)))
+		return sent(func() (uint8, error) {
+			return svc.PlaySequence(ctx, []byte(opts.Sequence.Notes), soundservice.Waveform(waveform),
+				uint8(opts.Sequence.Volume), uint8(opts.Sequence.Unison), uint16(opts.Sequence.DetuneHz),
+				uint8(opts.Sequence.AttackMs), uint8(opts.Sequence.DecayMs), preemptByte(opts.Preempt),
+				uint16(opts.Sequence.RepeatMs))
+		})
 
 	case opts.Mp3Path != "":
 		slog.Info("playing mp3", "path", opts.Mp3Path, "preempt", opts.Preempt)
-		return sent(svc.PlayMP3(ctx, opts.Mp3Path, preemptByte(opts.Preempt)))
+		return sent(func() (uint8, error) { return svc.PlayMP3(ctx, opts.Mp3Path, preemptByte(opts.Preempt)) })
 
 	case opts.Sound != "":
 		id, _ := ids.Value(opts.Sound) // validated by validatePlay
 		slog.Info("playing sound", "sound", opts.Sound, "id", id)
-		return sent(svc.PlaySound(ctx, soundservice.SoundID(id)))
+		return sent(func() (uint8, error) { return svc.PlaySound(ctx, soundservice.SoundID(id)) })
 	}
 	return fmt.Errorf("nothing to play")
 }
 
 // sent discards the return value of a play RPC: the firmware sends the result to
 // the service owner (the high-level system), so only the send error matters here.
-func sent(_ uint8, err error) error { return err }
+// sent runs one play RPC and drops its result: the sound itself is the feedback. A BUSY
+// answer means the call did not run, so retrying it cannot play anything twice.
+func sent(call func() (uint8, error)) error {
+	_, err := busyRetry(call)
+	return err
+}
 
 // preemptByte converts the Preempt option to the uint8_t the schema uses for it.
 func preemptByte(v bool) uint8 {
