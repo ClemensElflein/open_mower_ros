@@ -104,7 +104,7 @@ void BmsServiceInterface::PollDeviceInfo() {
     return;
   }
 
-  // A disconnect during the RPC leaves the new generation pending for the next poll.
+  // A reconnect during the RPC leaves the new generation pending for the next poll.
   if (generation == pack_generation_.load()) {
     bms_info_publisher_.publish(bms_info_msg_);
     published_generation_ = generation;
@@ -116,9 +116,10 @@ bool BmsServiceInterface::OnConfigurationRequested(uint16_t service_id) {
   return true;
 }
 
-void BmsServiceInterface::OnServiceDisconnected(uint16_t service_id) {
-  BmsServiceInterfaceBase::OnServiceDisconnected(service_id);
+void BmsServiceInterface::OnServiceConnected(uint16_t service_id) {
   if (service_id == service_id_) {
+    // A reboot can trigger a fresh claim before the previous connection times out.
+    last_telemetry_ = ros::SteadyTime::now();
     ++pack_generation_;
   }
 }

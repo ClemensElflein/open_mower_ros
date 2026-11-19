@@ -48,7 +48,7 @@ class BmsServiceInterface : public BmsServiceInterfaceBase {
   void OnCellVoltagesChanged(const float* new_value, uint32_t length) override;
 
   bool OnConfigurationRequested(uint16_t service_id) override;
-  void OnServiceDisconnected(uint16_t service_id) override;
+  void OnServiceConnected(uint16_t service_id) override;
 
  private:
   void OnTransactionStart(uint64_t timestamp) override;
@@ -58,10 +58,10 @@ class BmsServiceInterface : public BmsServiceInterfaceBase {
   const ros::Publisher& bms_publisher_;
   const ros::Publisher& bms_info_publisher_;
   // The IO callbacks advance the generation. Only the polling thread records a successful fetch.
-  std::atomic<uint64_t> pack_generation_{1};
+  std::atomic<uint64_t> pack_generation_{0};
   uint64_t published_generation_{0};
-  ros::SteadyTime last_telemetry_{ros::SteadyTime::now()};  // IO thread
-  ros::SteadyTime next_info_attempt_;                       // polling thread
+  ros::SteadyTime last_telemetry_;     // IO thread, set when claimed and on each transaction
+  ros::SteadyTime next_info_attempt_;  // polling thread
 };
 
 struct BatteryStatusBitName {
