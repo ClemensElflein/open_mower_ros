@@ -7,9 +7,9 @@ import (
 )
 
 // Mirror of the FileList wire layout (services/file_service.json): every entry is
-// a NUL padded char[128] path plus the uint32 hash of its sidecar.
+// a NUL padded char[132] path plus the uint32 hash of its sidecar.
 const (
-	testListPathLen   = 128
+	testListPathLen   = 132
 	testListEntryLen  = testListPathLen + 4
 	testListHeaderLen = 8
 )
