@@ -1,5 +1,5 @@
-# Static device info of the battery pack. Published once (latched) on "/ll/bms/info" after
-# the low level answered the GetDeviceInfo RPC; it does not change while the pack is connected.
+# Static device info of the battery pack, latched on "/ll/bms/info".
+# Refreshed after the BMS reconnects or its live telemetry resumes after a gap.
 time stamp
 string mfr_name
 string mfr_date

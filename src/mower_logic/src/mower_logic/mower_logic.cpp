@@ -177,7 +177,8 @@ mower_msgs::Bms getBms() {
  * message it takes the voltage from, and both must describe the same sample.
  */
 bool isBmsDataValid(const mower_msgs::Bms& bms) {
-  return bms.stamp != ros::Time(0) && (ros::Time::now() - bms.stamp).toSec() < 5.0;
+  const auto now = ros::Time::now();
+  return !bms.stamp.isZero() && bms.stamp <= now && now - bms.stamp < ros::Duration(5.0);
 }
 
 xbot_msgs::AbsolutePose getPose() {

@@ -34,13 +34,6 @@ func busyRetry[T any](call func() (T, error)) (T, error) {
 	return value, err
 }
 
-// busyRetryErr is busyRetry for a call that returns only an error (a send-only RPC or a
-// configuration transaction). BUSY means the call did not run, so repeating it is safe.
-func busyRetryErr(call func() error) error {
-	_, err := busyRetry(func() (struct{}, error) { return struct{}{}, call() })
-	return err
-}
-
 // DialFileService connects to the FileService (SID 12) and claims it: the sync and
 // the storage report both need the service's answers, so neither may use a
 // fire-and-forget client. The caller bounds the wait with its context.

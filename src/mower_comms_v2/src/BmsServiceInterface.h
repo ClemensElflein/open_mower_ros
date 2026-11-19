@@ -15,6 +15,7 @@
 #include <ros/publisher.h>
 
 #include <BmsServiceInterfaceBase.hpp>
+#include <atomic>
 
 class BmsServiceInterface : public BmsServiceInterfaceBase {
  public:
@@ -29,8 +30,8 @@ class BmsServiceInterface : public BmsServiceInterfaceBase {
    * @brief Fetch the static device info once the pack answers.
    *
    * Called from the node's timer, not from a service callback: the call blocks until the
-   * low level answers. The info does not change while a pack is connected, so it is only
-   * requested again after a failure (every 5 s until it arrives).
+   * low level answers. Retry every 5 s until successful and refresh after a disconnect
+   * or a gap in telemetry, when a different pack may have been installed.
    */
   void PollDeviceInfo();
 
@@ -47,6 +48,7 @@ class BmsServiceInterface : public BmsServiceInterfaceBase {
   void OnCellVoltagesChanged(const float* new_value, uint32_t length) override;
 
   bool OnConfigurationRequested(uint16_t service_id) override;
+  void OnServiceDisconnected(uint16_t service_id) override;
 
  private:
   void OnTransactionStart(uint64_t timestamp) override;
@@ -55,8 +57,11 @@ class BmsServiceInterface : public BmsServiceInterfaceBase {
   mower_msgs::BmsInfo bms_info_msg_{};
   const ros::Publisher& bms_publisher_;
   const ros::Publisher& bms_info_publisher_;
-  bool info_valid_{false};
-  ros::Time last_info_attempt_{0};
+  // The IO callbacks advance the generation. Only the polling thread records a successful fetch.
+  std::atomic<uint64_t> pack_generation_{1};
+  uint64_t published_generation_{0};
+  ros::SteadyTime last_telemetry_{ros::SteadyTime::now()};  // IO thread
+  ros::SteadyTime next_info_attempt_;                       // polling thread
 };
 
 struct BatteryStatusBitName {

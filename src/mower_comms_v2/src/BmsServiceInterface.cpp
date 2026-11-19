@@ -70,15 +70,16 @@ void BmsServiceInterface::OnCellVoltagesChanged(const float* new_value, uint32_t
 }
 
 void BmsServiceInterface::PollDeviceInfo() {
-  if (info_valid_) {
+  const auto generation = pack_generation_.load();
+  if (published_generation_ == generation) {
     return;
   }
 
-  const ros::Time now = ros::Time::now();
-  if (last_info_attempt_ != ros::Time(0) && (now - last_info_attempt_).toSec() < 5.0) {
+  const auto now = ros::SteadyTime::now();
+  if (now < next_info_attempt_) {
     return;
   }
-  last_info_attempt_ = now;
+  next_info_attempt_ = now + ros::WallDuration(5.0);
 
   std::string json;
   if (!CallGetDeviceInfo(json, 1000) || json.empty()) {
@@ -88,7 +89,7 @@ void BmsServiceInterface::PollDeviceInfo() {
   try {
     const auto info = nlohmann::json::parse(json);
     bms_info_msg_ = {};
-    bms_info_msg_.stamp = now;
+    bms_info_msg_.stamp = ros::Time::now();
     bms_info_msg_.mfr_name = info.value("mfr_name", std::string());
     bms_info_msg_.mfr_date = info.value("mfr_date", std::string());
     bms_info_msg_.dev_name = info.value("dev_name", std::string());
@@ -103,9 +104,11 @@ void BmsServiceInterface::PollDeviceInfo() {
     return;
   }
 
-  // Latched, so every consumer that subscribes later gets it without asking again.
-  bms_info_publisher_.publish(bms_info_msg_);
-  info_valid_ = true;
+  // A disconnect during the RPC leaves the new generation pending for the next poll.
+  if (generation == pack_generation_.load()) {
+    bms_info_publisher_.publish(bms_info_msg_);
+    published_generation_ = generation;
+  }
 }
 
 bool BmsServiceInterface::OnConfigurationRequested(uint16_t service_id) {
@@ -113,7 +116,19 @@ bool BmsServiceInterface::OnConfigurationRequested(uint16_t service_id) {
   return true;
 }
 
+void BmsServiceInterface::OnServiceDisconnected(uint16_t service_id) {
+  BmsServiceInterfaceBase::OnServiceDisconnected(service_id);
+  if (service_id == service_id_) {
+    ++pack_generation_;
+  }
+}
+
 void BmsServiceInterface::OnTransactionStart(uint64_t timestamp) {
+  const auto now = ros::SteadyTime::now();
+  if (now - last_telemetry_ >= ros::WallDuration(5.0)) {
+    ++pack_generation_;
+  }
+  last_telemetry_ = now;
   bms_msg_ = {};
   bms_msg_.stamp = ros::Time::now();
 }

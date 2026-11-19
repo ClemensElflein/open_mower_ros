@@ -94,6 +94,12 @@ func Sync(ctx context.Context, opts Options) error {
 		}
 		return fmt.Errorf("invalid config: %d error(s)", len(errs))
 	}
+	// Uploads can overwrite files referenced by the running configuration.
+	// Check that the replacement definitions fit before writing any files.
+	encoded, err := encodeDefinitions(cfg)
+	if err != nil {
+		return err
+	}
 
 	// Resolve where the MP3s live: the writable overlay first, the shipped
 	// image second (see Layout). Doing this before touching the robot means a
@@ -195,7 +201,7 @@ func Sync(ctx context.Context, opts Options) error {
 	// Apply the new definitions before removing orphaned files: if SetDefinitions
 	// fails, the firmware still runs the previous definitions, which must not
 	// reference files that cleanup is about to delete.
-	if err := applyDefinitions(ctx, cfg, opts, ss); err != nil {
+	if err := applyDefinitions(ctx, encoded, opts, ss); err != nil {
 		return err
 	}
 
@@ -206,18 +212,10 @@ func Sync(ctx context.Context, opts Options) error {
 	return nil
 }
 
-// applyDefinitions sends the sound-definitions blob (heatshrink-compressed) to
-// the SoundService and, optionally, the master volume.
-//
-// The update is a configuration transaction, and the firmware restarts the service
-// for it (Service::HandleConfigurationTransaction does Stop() followed by Start()).
-// That is why the volume is sent over a fresh connection: the one used for the blob
-// is stale afterwards. A failure there is only a warning — the definitions, which
-// matter most, are already applied.
-func applyDefinitions(ctx context.Context, cfg *Config, opts Options, ss *soundservice.Client) error {
+func encodeDefinitions(cfg *Config) ([]byte, error) {
 	blob, err := cfg.Blob()
 	if err != nil {
-		return fmt.Errorf("marshal definitions: %w", err)
+		return nil, fmt.Errorf("marshal definitions: %w", err)
 	}
 	encoded := xbot.HeatshrinkEncode(blob)
 	slog.Info("sound definitions", "sounds", len(cfg.Sounds), "json_bytes", len(blob), "compressed_bytes", len(encoded))
@@ -227,11 +225,22 @@ func applyDefinitions(ctx context.Context, cfg *Config, opts Options, ss *sounds
 	   with the transport error. */
 	const maxDefinitionsBytes = xbot.MaxPacketSize - xbot.HeaderSize - xbot.DescriptorSize
 	if len(encoded) > maxDefinitionsBytes {
-		return fmt.Errorf("sound definitions are %d bytes compressed, a single packet carries %d - "+
+		return nil, fmt.Errorf("sound definitions are %d bytes compressed, a single packet carries %d - "+
 			"reduce the number of sounds or variants", len(encoded), maxDefinitionsBytes)
 	}
+	return encoded, nil
+}
 
-	if err := busyRetryErr(func() error { return ss.SetSoundDefinitions(encoded) }); err != nil {
+// applyDefinitions sends the sound-definitions blob (heatshrink-compressed) to
+// the SoundService and, optionally, the master volume.
+//
+// The update is a configuration transaction, and the firmware restarts the service
+// for it (Service::HandleConfigurationTransaction does Stop() followed by Start()).
+// That is why the volume is sent over a fresh connection: the one used for the blob
+// is stale afterwards. A failure there is only a warning — the definitions, which
+// matter most, are already applied.
+func applyDefinitions(ctx context.Context, encoded []byte, opts Options, ss *soundservice.Client) error {
+	if err := ss.SetSoundDefinitions(encoded); err != nil {
 		return fmt.Errorf("SetDefinitions: %w", err)
 	}
 	slog.Info("sound definitions sent")
@@ -241,7 +250,7 @@ func applyDefinitions(ctx context.Context, cfg *Config, opts Options, ss *sounds
 	}
 
 	reconnectCtx, cancel := context.WithTimeout(ctx, reconnectTimeout(opts))
-	ss, err = soundservice.Dial(reconnectCtx, xbot.Options{NoClaim: true, BindIP: opts.BindIP})
+	ss, err := soundservice.Dial(reconnectCtx, xbot.Options{NoClaim: true, BindIP: opts.BindIP})
 	cancel()
 	if err != nil {
 		slog.Warn("could not reconnect after the restart — master volume not sent", "error", err)
@@ -249,7 +258,7 @@ func applyDefinitions(ctx context.Context, cfg *Config, opts Options, ss *sounds
 	}
 	defer func() { _ = ss.Close() }()
 
-	if err := busyRetryErr(func() error { return ss.SendVolume(int8(opts.Volume)) }); err != nil {
+	if err := ss.SendVolume(int8(opts.Volume)); err != nil {
 		slog.Warn("could not send the master volume", "error", err)
 		return nil
 	}
@@ -323,7 +332,12 @@ func reportStorage(ctx context.Context, fs *fileservice.Client, layout Layout, u
 // can be compared by eye.
 func crcHex(crc uint32) string { return fmt.Sprintf("%#010x", crc) }
 
-func uploadFile(ctx context.Context, fs *fileservice.Client, localPath, remoteName string, check bool) error {
+type uploadFileService interface {
+	FileExists(ctx context.Context, path string, crc uint32) (uint8, error)
+	FileWrite(ctx context.Context, path string, offset uint32, data []byte, crc uint32) (int32, error)
+}
+
+func uploadFile(ctx context.Context, fs uploadFileService, localPath, remoteName string, check bool) error {
 	data, err := os.ReadFile(localPath)
 	if err != nil {
 		return fmt.Errorf("read %s: %w", localPath, err)
@@ -346,14 +360,14 @@ func uploadFile(ctx context.Context, fs *fileservice.Client, localPath, remoteNa
 		return fmt.Errorf("FileExists(%s): %w", remote, err)
 	}
 	if exists == 1 {
-		slog.Info("up to date", "file", remoteName, "crc", crcHex(crc))
+		slog.Debug("up to date", "file", remoteName, "crc", crcHex(crc))
 		return nil
 	}
 	if check {
 		// The low level says "no such file, or the hash differs". Its own log line
 		// ("File: exists '<path>' -> 0 (hash=…)") shows which of the two, and the
 		// crc here is what we compared against.
-		slog.Debug("would upload", "file", remoteName, "bytes", len(data), "crc", crcHex(crc))
+		slog.Info("would upload", "file", remoteName, "bytes", len(data), "crc", crcHex(crc))
 		return nil
 	}
 
@@ -389,7 +403,7 @@ func uploadFile(ctx context.Context, fs *fileservice.Client, localPath, remoteNa
 	if ok != 1 {
 		return fmt.Errorf("verify failed for %s", remote)
 	}
-	slog.Info("uploaded", "file", remoteName)
+	slog.Debug("uploaded", "file", remoteName)
 	return nil
 }
 
