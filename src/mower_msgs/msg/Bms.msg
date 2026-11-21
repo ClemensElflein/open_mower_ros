@@ -7,4 +7,5 @@ float32 full_charge_capacity
 uint16 cycle_count
 float32 temperature
 string battery_status
-string extra_data
+uint16 battery_status_raw
+float32[8] cell_voltages

@@ -1,12 +1,76 @@
 package fwsync
 
 import (
+	"bytes"
+	"context"
+	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 )
+
+type checkFileService struct {
+	exists uint8
+}
+
+func (fs checkFileService) FileExists(context.Context, string, uint32) (uint8, error) {
+	return fs.exists, nil
+}
+
+func (checkFileService) FileWrite(context.Context, string, uint32, []byte, uint32) (int32, error) {
+	return 0, fmt.Errorf("unexpected FileWrite during --check")
+}
+
+func TestUploadCheckReportsOnlyPendingFilesAtInfo(t *testing.T) {
+	var output bytes.Buffer
+	previous := slog.Default()
+	t.Cleanup(func() { slog.SetDefault(previous) })
+	slog.SetDefault(slog.New(slog.NewTextHandler(&output, nil)))
+
+	mp3 := filepath.Join("..", "..", "..", "..", "sounds", "zz_ping.mp3")
+	for _, exists := range []uint8{0, 1} {
+		output.Reset()
+		if err := uploadFile(t.Context(), checkFileService{exists}, mp3, "ping.mp3", true); err != nil {
+			t.Fatal(err)
+		}
+		if exists == 0 && (!strings.Contains(output.String(), "would upload") || !strings.Contains(output.String(), "ping.mp3")) {
+			t.Errorf("missing file absent from check report: %q", output.String())
+		}
+		if exists == 1 && output.Len() != 0 {
+			t.Errorf("matching file reported at INFO: %q", output.String())
+		}
+	}
+}
+
+func TestSyncRejectsOversizedDefinitionsBeforeDiscovery(t *testing.T) {
+	var doc strings.Builder
+	doc.WriteString(validBase)
+	for i := 0; i < 512; i++ {
+		fmt.Fprintf(&doc, "      - {file: clip_%03d.mp3}\n", i)
+	}
+	configPath := filepath.Join(t.TempDir(), "sounds.yaml")
+	if err := os.WriteFile(configPath, []byte(doc.String()), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Discovery would fail on the cancelled context. Both modes must report the
+	// local packet-size error before attempting a connection.
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	for _, check := range []bool{false, true} {
+		err := Sync(ctx, Options{
+			ConfigPath:   configPath,
+			SoundIDsPath: filepath.Join("..", "..", "..", "..", "services", "sound_service.json"),
+			Check:        check,
+		})
+		if err == nil || !strings.Contains(err.Error(), "single packet carries") {
+			t.Errorf("Sync(check=%t) = %v, want a definitions size error", check, err)
+		}
+	}
+}
 
 // TestReconnectTimeoutSpansSeveralAdvertisements: the reconnect that follows the
 // definitions transaction has to survive a lost UDP packet. A claimed service

@@ -166,6 +166,21 @@ mower_msgs::Bms getBms() {
   return bms_state_subscriber.getMessage();
 }
 
+/**
+ * @brief Whether the given BMS snapshot is still current.
+ *
+ * The low level only publishes when it has fresh data, so a pack that went silent leaves
+ * the last message (and its stamp) standing. Anything older than 5 s must not be used as a
+ * live measurement - a frozen voltage would keep "battery not empty" true forever.
+ *
+ * The snapshot is passed in instead of rereading the subscriber: the caller already has the
+ * message it takes the voltage from, and both must describe the same sample.
+ */
+bool isBmsDataValid(const mower_msgs::Bms& bms) {
+  const auto now = ros::Time::now();
+  return !bms.stamp.isZero() && bms.stamp <= now && now - bms.stamp < ros::Duration(5.0);
+}
+
 xbot_msgs::AbsolutePose getPose() {
   return pose_state_subscriber.getMessage();
 }
@@ -570,8 +585,8 @@ void checkSafety(const ros::TimerEvent& timer_event) {
 
   // Get BMS voltage if available, otherwise use ADC or charger voltage
   const auto last_bms = bms_state_subscriber.getMessage();
-  const float last_battery_v =
-      utils::GetFirstValid({last_power.battery_voltage_adc, last_bms.voltage, last_power.battery_voltage});
+  const float last_battery_v = utils::GetFirstValid(
+      {last_power.battery_voltage_adc, isBmsDataValid(last_bms) ? last_bms.voltage : 0.0f, last_power.battery_voltage});
 
   double battery_percent = (last_battery_v - last_power_config.battery_empty_voltage) /
                            (last_power_config.battery_full_voltage - last_power_config.battery_empty_voltage);

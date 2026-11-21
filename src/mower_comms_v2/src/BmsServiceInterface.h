@@ -11,15 +11,29 @@
 #define BMSSERVICEINTERFACE_H
 
 #include <mower_msgs/Bms.h>
+#include <mower_msgs/BmsInfo.h>
 #include <ros/publisher.h>
 
 #include <BmsServiceInterfaceBase.hpp>
+#include <atomic>
 
 class BmsServiceInterface : public BmsServiceInterfaceBase {
  public:
-  BmsServiceInterface(uint16_t service_id, const xbot::serviceif::Context& ctx, const ros::Publisher& bms_publisher)
-      : BmsServiceInterfaceBase(service_id, ctx), bms_publisher_(bms_publisher) {
+  BmsServiceInterface(uint16_t service_id, const xbot::serviceif::Context& ctx, const ros::Publisher& bms_publisher,
+                      const ros::Publisher& bms_info_publisher)
+      : BmsServiceInterfaceBase(service_id, ctx),
+        bms_publisher_(bms_publisher),
+        bms_info_publisher_(bms_info_publisher) {
   }
+
+  /**
+   * @brief Fetch the static device info once the pack answers.
+   *
+   * Called from the node's timer, not from a service callback: the call blocks until the
+   * low level answers. Retry every 5 s until successful and refresh after a disconnect
+   * or a gap in telemetry, when a different pack may have been installed.
+   */
+  void PollDeviceInfo();
 
  protected:
   void OnVoltageChanged(const float& new_value) override;
@@ -30,15 +44,24 @@ class BmsServiceInterface : public BmsServiceInterfaceBase {
   void OnCycleCountChanged(const uint16_t& new_value) override;
   void OnTemperatureChanged(const float& new_value) override;
   void OnBatteryStatusChanged(const uint16_t& new_value) override;
-  void OnExtraDataChanged(const char* new_value, uint32_t length) override;
+  void OnBatteryStatusRawChanged(const uint16_t& new_value) override;
+  void OnCellVoltagesChanged(const float* new_value, uint32_t length) override;
 
   bool OnConfigurationRequested(uint16_t service_id) override;
+  void OnServiceConnected(uint16_t service_id) override;
 
  private:
   void OnTransactionStart(uint64_t timestamp) override;
   void OnTransactionEnd() override;
   mower_msgs::Bms bms_msg_{};
+  mower_msgs::BmsInfo bms_info_msg_{};
   const ros::Publisher& bms_publisher_;
+  const ros::Publisher& bms_info_publisher_;
+  // The IO callbacks advance the generation. Only the polling thread records a successful fetch.
+  std::atomic<uint64_t> pack_generation_{0};
+  uint64_t published_generation_{0};
+  ros::SteadyTime last_telemetry_;     // IO thread, set when claimed and on each transaction
+  ros::SteadyTime next_info_attempt_;  // polling thread
 };
 
 struct BatteryStatusBitName {

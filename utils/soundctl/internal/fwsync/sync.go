@@ -94,6 +94,12 @@ func Sync(ctx context.Context, opts Options) error {
 		}
 		return fmt.Errorf("invalid config: %d error(s)", len(errs))
 	}
+	// Uploads can overwrite files referenced by the running configuration.
+	// Check that the replacement definitions fit before writing any files.
+	encoded, err := encodeDefinitions(cfg)
+	if err != nil {
+		return err
+	}
 
 	// Resolve where the MP3s live: the writable overlay first, the shipped
 	// image second (see Layout). Doing this before touching the robot means a
@@ -195,7 +201,7 @@ func Sync(ctx context.Context, opts Options) error {
 	// Apply the new definitions before removing orphaned files: if SetDefinitions
 	// fails, the firmware still runs the previous definitions, which must not
 	// reference files that cleanup is about to delete.
-	if err := applyDefinitions(ctx, cfg, opts, ss); err != nil {
+	if err := applyDefinitions(ctx, encoded, opts, ss); err != nil {
 		return err
 	}
 
@@ -206,6 +212,25 @@ func Sync(ctx context.Context, opts Options) error {
 	return nil
 }
 
+func encodeDefinitions(cfg *Config) ([]byte, error) {
+	blob, err := cfg.Blob()
+	if err != nil {
+		return nil, fmt.Errorf("marshal definitions: %w", err)
+	}
+	encoded := xbot.HeatshrinkEncode(blob)
+	slog.Info("sound definitions", "sounds", len(cfg.Sounds), "json_bytes", len(blob), "compressed_bytes", len(encoded))
+
+	/* The definitions travel as a single register transaction: one packet, one descriptor.
+	   A value above that would be refused by the client, so say why instead of failing
+	   with the transport error. */
+	const maxDefinitionsBytes = xbot.MaxPacketSize - xbot.HeaderSize - xbot.DescriptorSize
+	if len(encoded) > maxDefinitionsBytes {
+		return nil, fmt.Errorf("sound definitions are %d bytes compressed, a single packet carries %d - "+
+			"reduce the number of sounds or variants", len(encoded), maxDefinitionsBytes)
+	}
+	return encoded, nil
+}
+
 // applyDefinitions sends the sound-definitions blob (heatshrink-compressed) to
 // the SoundService and, optionally, the master volume.
 //
@@ -214,14 +239,7 @@ func Sync(ctx context.Context, opts Options) error {
 // That is why the volume is sent over a fresh connection: the one used for the blob
 // is stale afterwards. A failure there is only a warning — the definitions, which
 // matter most, are already applied.
-func applyDefinitions(ctx context.Context, cfg *Config, opts Options, ss *soundservice.Client) error {
-	blob, err := cfg.Blob()
-	if err != nil {
-		return fmt.Errorf("marshal definitions: %w", err)
-	}
-	encoded := xbot.HeatshrinkEncode(blob)
-	slog.Info("sound definitions", "sounds", len(cfg.Sounds), "json_bytes", len(blob), "compressed_bytes", len(encoded))
-
+func applyDefinitions(ctx context.Context, encoded []byte, opts Options, ss *soundservice.Client) error {
 	if err := ss.SetSoundDefinitions(encoded); err != nil {
 		return fmt.Errorf("SetDefinitions: %w", err)
 	}
@@ -232,7 +250,7 @@ func applyDefinitions(ctx context.Context, cfg *Config, opts Options, ss *sounds
 	}
 
 	reconnectCtx, cancel := context.WithTimeout(ctx, reconnectTimeout(opts))
-	ss, err = soundservice.Dial(reconnectCtx, xbot.Options{NoClaim: true, BindIP: opts.BindIP})
+	ss, err := soundservice.Dial(reconnectCtx, xbot.Options{NoClaim: true, BindIP: opts.BindIP})
 	cancel()
 	if err != nil {
 		slog.Warn("could not reconnect after the restart — master volume not sent", "error", err)
@@ -240,7 +258,7 @@ func applyDefinitions(ctx context.Context, cfg *Config, opts Options, ss *sounds
 	}
 	defer func() { _ = ss.Close() }()
 
-	if err := ss.SendVolume(uint8(opts.Volume)); err != nil {
+	if err := ss.SendVolume(int8(opts.Volume)); err != nil {
 		slog.Warn("could not send the master volume", "error", err)
 		return nil
 	}
@@ -279,7 +297,7 @@ func resolveRenders(layout Layout, cfg *Config) (use map[string]string, stale ma
 // already matches are not uploaded, so the real need is usually far smaller, and a
 // full flash surfaces as a FileWrite error anyway.
 func reportStorage(ctx context.Context, fs *fileservice.Client, layout Layout, use map[string]string, files []string) {
-	raw, err := fs.FileStats(ctx)
+	raw, err := busyRetry(func() ([]uint32, error) { return fs.FileStats(ctx) })
 	if err != nil {
 		slog.Warn("could not read the low level's storage usage", "error", err)
 		return
@@ -314,7 +332,12 @@ func reportStorage(ctx context.Context, fs *fileservice.Client, layout Layout, u
 // can be compared by eye.
 func crcHex(crc uint32) string { return fmt.Sprintf("%#010x", crc) }
 
-func uploadFile(ctx context.Context, fs *fileservice.Client, localPath, remoteName string, check bool) error {
+type uploadFileService interface {
+	FileExists(ctx context.Context, path string, crc uint32) (uint8, error)
+	FileWrite(ctx context.Context, path string, offset uint32, data []byte, crc uint32) (int32, error)
+}
+
+func uploadFile(ctx context.Context, fs uploadFileService, localPath, remoteName string, check bool) error {
 	data, err := os.ReadFile(localPath)
 	if err != nil {
 		return fmt.Errorf("read %s: %w", localPath, err)
@@ -332,12 +355,12 @@ func uploadFile(ctx context.Context, fs *fileservice.Client, localPath, remoteNa
 	crc := crc32.ChecksumIEEE(data)
 	remote := "/sounds/" + remoteName
 
-	exists, err := fs.FileExists(ctx, remote, crc)
+	exists, err := busyRetry(func() (uint8, error) { return fs.FileExists(ctx, remote, crc) })
 	if err != nil {
 		return fmt.Errorf("FileExists(%s): %w", remote, err)
 	}
 	if exists == 1 {
-		slog.Info("up to date", "file", remoteName, "crc", crcHex(crc))
+		slog.Debug("up to date", "file", remoteName, "crc", crcHex(crc))
 		return nil
 	}
 	if check {
@@ -348,9 +371,11 @@ func uploadFile(ctx context.Context, fs *fileservice.Client, localPath, remoteNa
 		return nil
 	}
 
-	slog.Info("uploading", "file", remoteName, "bytes", len(data), "crc", crcHex(crc))
-	for off := 0; off < len(data); off += fileServiceChunkSize {
-		end := off + fileServiceChunkSize
+	// The chunk size comes from the generated client: it knows the framing of the call.
+	chunkSize := fileservice.MaxFileWriteData(remote)
+	slog.Debug("uploading", "file", remoteName, "bytes", len(data), "crc", crcHex(crc), "chunk", chunkSize)
+	for off := 0; off < len(data); off += chunkSize {
+		end := off + chunkSize
 		if end > len(data) {
 			end = len(data)
 		}
@@ -360,7 +385,9 @@ func uploadFile(ctx context.Context, fs *fileservice.Client, localPath, remoteNa
 		if isLast {
 			h = crc
 		}
-		n, err := fs.FileWrite(ctx, remote, uint32(off), chunk, h)
+		n, err := busyRetry(func() (int32, error) {
+			return fs.FileWrite(ctx, remote, uint32(off), chunk, h)
+		})
 		if err != nil {
 			return fmt.Errorf("FileWrite(%s @%d): %w", remote, off, err)
 		}
@@ -369,14 +396,14 @@ func uploadFile(ctx context.Context, fs *fileservice.Client, localPath, remoteNa
 		}
 	}
 
-	ok, err := fs.FileExists(ctx, remote, crc)
+	ok, err := busyRetry(func() (uint8, error) { return fs.FileExists(ctx, remote, crc) })
 	if err != nil {
 		return fmt.Errorf("verify FileExists(%s): %w", remote, err)
 	}
 	if ok != 1 {
 		return fmt.Errorf("verify failed for %s", remote)
 	}
-	slog.Info("uploaded", "file", remoteName)
+	slog.Debug("uploaded", "file", remoteName)
 	return nil
 }
 
@@ -403,18 +430,18 @@ func cleanup(ctx context.Context, fs *fileservice.Client, cfg *Config) error {
 		}
 	}
 	if len(orphans) == 0 {
-		slog.Info("no orphaned files")
+		slog.Debug("no orphaned files")
 		return nil
 	}
 
 	slog.Info("orphaned files", "count", len(orphans))
 	for _, o := range orphans {
-		ok, err := fs.FileRemove(ctx, o.Path)
+		ok, err := busyRetry(func() (uint8, error) { return fs.FileRemove(ctx, o.Path) })
 		if err != nil {
 			return fmt.Errorf("FileRemove(%s): %w", o.Path, err)
 		}
 		if ok == 0 {
-			slog.Info("removed orphan", "path", o.Path)
+			slog.Debug("removed orphan", "path", o.Path)
 		} else {
 			return fmt.Errorf("FileRemove(%s): firmware reported failure", o.Path)
 		}
@@ -427,7 +454,7 @@ func listAllFiles(ctx context.Context, fs *fileservice.Client) ([]fileEntry, err
 	var all []fileEntry
 	var offset uint32
 	for {
-		raw, err := fs.FileList(ctx, "/sounds/", offset)
+		raw, err := busyRetry(func() ([]byte, error) { return fs.FileList(ctx, "/sounds/", offset) })
 		if err != nil {
 			return nil, err
 		}

@@ -110,6 +110,15 @@ func (f *ttsFlags) run(cmd *cobra.Command) error {
 		return nil
 	}
 
+	/* Nothing to render: the sidecars decide, and they need no engine. This is the case the
+	   automatic pre-render in SoundSync hits on every boot - resolving the API key there
+	   would turn a no-op into an error ("no elevenlabs API key") on a robot that already
+	   has all of its MP3s. --force has to render, so it needs the engine. */
+	if !f.force && len(tts.Pending(cfg, layout)) == 0 {
+		fmt.Fprintf(out, "%s %d tts render(s) up to date\n", st.ok("OK:"), len(jobs))
+		return nil
+	}
+
 	eng, err := f.engineFor(cfg.TTSSettings())
 	if err != nil {
 		return err

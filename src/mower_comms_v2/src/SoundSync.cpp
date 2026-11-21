@@ -79,27 +79,82 @@ std::string BuildCommand() {
   return command;
 }
 
+/// Forward one complete output line with the severity soundctl gave it.
+///
+/// stdout and stderr share one pipe (the ordering matters for reading the log), so the
+/// severity has to come from the line itself. soundctl prefixes its slog lines with a header
+/// ("[soundctl sync] INFO ...", "[soundctl tts] WARN ...") and cobra prints the fatal one as
+/// "Error: ..." at the start of the line. Only that header is inspected: a file name or a
+/// message that happens to contain "] ERROR " must not change the severity of the line.
+static void LogSoundctlLine(std::string line) {
+  while (!line.empty() && (line.back() == '\n' || line.back() == '\r')) {
+    line.pop_back();
+  }
+  if (line.empty()) {
+    return;
+  }
+
+  bool is_error = line.rfind("Error: ", 0) == 0;
+  bool is_warn = false;
+  std::string text = line;
+  const auto header_end = is_error ? std::string::npos : text.find("] ");
+  if (header_end != std::string::npos) {
+    const size_t level_at = header_end + 2;
+    // cobra's fatal output goes through the same prefix, so it arrives as
+    // "[soundctl sync] Error: ..." and not at the start of the line.
+    if (text.compare(level_at, 7, "Error: ") == 0) {
+      is_error = true;
+    }
+    for (const char* level : {"ERROR", "WARN", "INFO", "DEBUG", "TRACE"}) {
+      const std::string token = std::string(level) + " ";
+      if (text.compare(level_at, token.size(), token) != 0) {
+        continue;
+      }
+      is_error = std::string(level) == "ERROR";
+      is_warn = std::string(level) == "WARN";
+      // The ROS line already carries the severity, so the token is dropped from the text -
+      // logging it as is read "INFO ... INFO ..." or "ERROR ... ERROR ...".
+      text.erase(level_at, token.size());
+      break;
+    }
+  }
+
+  if (is_error) {
+    ROS_ERROR("%s", text.c_str());  // as data, never as format string
+  } else if (is_warn) {
+    ROS_WARN("%s", text.c_str());
+  } else {
+    ROS_INFO("%s", text.c_str());
+  }
+}
+
 /// One sync attempt. Every output line is forwarded to the ROS log.
 bool RunOnce() {
   const std::string command = BuildCommand();
   ROS_INFO_STREAM("Sound sync: " << command);
 
-  FILE* pipe = popen((command + " 2>&1").c_str(), "r");
+  // Both commands share the pipe, so the redirection has to cover the whole chain: without
+  // the group, 2>&1 would only reach the last command and the TTS errors would go to the
+  // parent's stderr instead of the ROS log.
+  FILE* pipe = popen(("( " + command + " ) 2>&1").c_str(), "r");
   if (pipe == nullptr) {
     ROS_WARN_STREAM("Sound sync: cannot run '" << kCommand << "' (missing in the image?)");
     return false;
   }
 
+  // fgets() cuts a line at sizeof(buffer), and only the complete line carries the severity:
+  // a long error message would arrive in fragments and its tail would be logged as info.
   char buffer[512];
+  std::string pending;
   while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
-    std::string line(buffer);
-    while (!line.empty() && (line.back() == '\n' || line.back() == '\r')) {
-      line.pop_back();
+    pending += buffer;
+    if (pending.back() != '\n') {
+      continue;  // the rest of this line is still in the pipe
     }
-    if (!line.empty()) {
-      ROS_INFO("%s", line.c_str());  // as data, never as format string
-    }
+    LogSoundctlLine(std::move(pending));
+    pending.clear();
   }
+  LogSoundctlLine(std::move(pending));  // a last line without a newline
 
   const int status = pclose(pipe);
   if (status == -1) {

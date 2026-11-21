@@ -7,9 +7,9 @@ import (
 )
 
 // Mirror of the FileList wire layout (services/file_service.json): every entry is
-// a NUL padded char[128] path plus the uint32 hash of its sidecar.
+// a NUL padded char[132] path plus the uint32 hash of its sidecar.
 const (
-	testListPathLen   = 128
+	testListPathLen   = 132
 	testListEntryLen  = testListPathLen + 4
 	testListHeaderLen = 8
 )
@@ -66,12 +66,14 @@ func TestParseFileListPayloadTruncated(t *testing.T) {
 }
 
 func TestParseFileListPayloadLongPath(t *testing.T) {
-	// A path exactly at the 128-byte limit (no NUL padding).
+	// A path exactly at the schema limit of FileWrite.Path (128 characters), NUL terminated
+	// inside the 132-byte field: the 4 bytes behind it stay zero (terminator + alignment).
+	const maxPathChars = 128
 	payload := make([]byte, testListHeaderLen+testListEntryLen)
 	binary.LittleEndian.PutUint32(payload[0:4], 1)
 	binary.LittleEndian.PutUint32(payload[4:8], 1)
-	longPath := "/sounds/" + strings.Repeat("x", testListPathLen-len("/sounds/"))
-	copy(payload[testListHeaderLen:testListHeaderLen+testListPathLen], longPath)
+	longPath := "/sounds/" + strings.Repeat("x", maxPathChars-len("/sounds/"))
+	copy(payload[testListHeaderLen:testListHeaderLen+len(longPath)], longPath)
 
 	_, entries, err := parseFileList(payload)
 	if err != nil {

@@ -6,10 +6,6 @@ import (
 	"strings"
 )
 
-// fileServiceChunkSize is the fixed chunk size of the FileWrite RPC
-// (services/file_service.json: Data is a uint8_t[256]).
-const fileServiceChunkSize = 256
-
 // fileEntry is one entry of the /sounds/ listing returned by FileList.
 type fileEntry struct {
 	Path string
@@ -18,14 +14,16 @@ type fileEntry struct {
 
 // parseFileList decodes the payload of the FileList RPC:
 //
-// [uint32 total][uint32 count][ count × (char[128] path + uint32 hash) ]
+// [uint32 total][uint32 count][ count × (char[132] path + uint32 hash) ]
 //
-// Each path is NUL terminated inside its 128-byte field; Hash is the opaque CRC32
+// The path field is 132 bytes: FileWrite accepts up to 128 characters, and the terminator
+// plus 4-byte alignment for the hash need the extra room. Each path is NUL terminated inside
+// its field; Hash is the opaque CRC32
 // sidecar value (0 if there is none). The generated FileService client returns
 // the payload as raw bytes, so the meaning of those bytes lives here, next to the
 // code that uses it.
 func parseFileList(payload []byte) (total uint32, entries []fileEntry, err error) {
-	const pathLen = 128
+	const pathLen = 132
 	const entrySize = pathLen + 4
 
 	if len(payload) < 8 {

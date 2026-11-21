@@ -95,10 +95,10 @@ func Play(ctx context.Context, opts PlayOptions) error {
 	defer func() { _ = svc.Close() }()
 
 	if opts.Volume >= 0 {
-		if err := svc.SendVolume(uint8(opts.Volume)); err != nil {
+		if err := svc.SendVolume(int8(opts.Volume)); err != nil {
 			return fmt.Errorf("set master volume: %w", err)
 		}
-		slog.Info("master volume set", "volume", opts.Volume)
+		slog.Info("master volume sent", "volume", opts.Volume)
 	}
 
 	if err := dispatchPlay(ctx, svc, opts, ids); err != nil {
@@ -194,7 +194,8 @@ func dispatchPlay(ctx context.Context, svc *soundservice.Client, opts PlayOption
 		tone := opts.Tone.toSoundDef().Tone
 		slog.Info("playing tone", "freq", tone.Freq, "duration_ms", tone.DurationMs, "volume", opts.Tone.Volume,
 			"preempt", opts.Preempt)
-		return sent(svc.PlayTone(ctx, uint16(tone.Freq), uint16(tone.DurationMs), uint8(opts.Tone.Volume), preemptByte(opts.Preempt)))
+		return sent(svc.PlayTone(ctx, uint16(tone.Freq), uint16(tone.DurationMs), uint8(opts.Tone.Volume),
+			preemptByte(opts.Preempt)))
 
 	case opts.Sequence != nil:
 		waveform, _ := ids.Waveform(opts.Sequence.Waveform) // validated by validatePlay
@@ -202,7 +203,7 @@ func dispatchPlay(ctx context.Context, svc *soundservice.Client, opts PlayOption
 			"volume", opts.Sequence.Volume, "unison", opts.Sequence.Unison, "detune_hz", opts.Sequence.DetuneHz,
 			"attack_ms", opts.Sequence.AttackMs, "decay_ms", opts.Sequence.DecayMs, "repeat_ms", opts.Sequence.RepeatMs,
 			"preempt", opts.Preempt)
-		return sent(svc.PlaySequence(ctx, opts.Sequence.Notes, soundservice.Waveform(waveform),
+		return sent(svc.PlaySequence(ctx, []byte(opts.Sequence.Notes), soundservice.Waveform(waveform),
 			uint8(opts.Sequence.Volume), uint8(opts.Sequence.Unison), uint16(opts.Sequence.DetuneHz),
 			uint8(opts.Sequence.AttackMs), uint8(opts.Sequence.DecayMs), preemptByte(opts.Preempt),
 			uint16(opts.Sequence.RepeatMs)))
