@@ -94,6 +94,16 @@ void SimRobot::SetBatteryVolts(double volts) {
   battery_volts_ = std::max(0.0, volts);
 }
 
+void SimRobot::SetBatteryDrainMinutes(double minutes) {
+  std::lock_guard<std::mutex> lk{state_mutex_};
+  battery_drain_minutes_ = std::max(0.0, minutes);
+}
+
+void SimRobot::SetBatteryChargeMinutes(double minutes) {
+  std::lock_guard<std::mutex> lk{state_mutex_};
+  battery_charge_minutes_ = std::max(0.0, minutes);
+}
+
 SimRobot::SimControlState SimRobot::GetSimControlState() {
   std::lock_guard<std::mutex> lk{state_mutex_};
   SimControlState state{};
@@ -260,11 +270,16 @@ void SimRobot::SimulationStep(const ros::TimerEvent& te) {
     is_charging_ = false;
   }
 
+  const double step_s = (now - last_update_).toSec();
   if (is_charging_) {
     if (battery_volts_ < BATTERY_VOLTS_MAX) {
       charger_state_ = "CC";
-      battery_volts_ += 0.05;
-      if (battery_volts_ > BATTERY_VOLTS_MAX) {
+      // Linear rise from empty to full in battery_charge_minutes_; the CV taper below adds a
+      // few seconds on top.
+      if (battery_charge_minutes_ > 0.0) {
+        const double volts_per_s = (BATTERY_VOLTS_MAX - BATTERY_VOLTS_MIN) / (battery_charge_minutes_ * 60.0);
+        battery_volts_ = std::min(BATTERY_VOLTS_MAX, battery_volts_ + volts_per_s * step_s);
+      } else {
         battery_volts_ = BATTERY_VOLTS_MAX;
       }
       charger_volts_ = CHARGE_VOLTS;
@@ -282,7 +297,12 @@ void SimRobot::SimulationStep(const ros::TimerEvent& te) {
     }
   } else {
     charger_state_ = "Not Charging";
-    battery_volts_ = std::max(BATTERY_VOLTS_MIN, battery_volts_ - 0.001);
+    // Linear discharge from full to empty in battery_drain_minutes_. Never pushes the voltage
+    // up: a value set below BATTERY_VOLTS_MIN (fault simulation) stays where it is.
+    if (battery_drain_minutes_ > 0.0 && battery_volts_ > BATTERY_VOLTS_MIN) {
+      const double volts_per_s = (BATTERY_VOLTS_MAX - BATTERY_VOLTS_MIN) / (battery_drain_minutes_ * 60.0);
+      battery_volts_ = std::max(BATTERY_VOLTS_MIN, battery_volts_ - volts_per_s * step_s);
+    }
     charger_volts_ = 0.0;
     charge_current_ = 0.0;
   }

@@ -68,6 +68,10 @@ class SimRobot {
   // [BATTERY_VOLTS_MIN, BATTERY_VOLTS_MAX] range are allowed so the app can
   // simulate critically low / critically high (over-voltage) faults.
   void SetBatteryVolts(double volts);
+  // Off-dock discharge rate: time for a full pack to drain to empty, 0 = no discharge.
+  void SetBatteryDrainMinutes(double minutes);
+  // Docked charge rate: time for an empty pack to reach full voltage, 0 = instantly full.
+  void SetBatteryChargeMinutes(double minutes);
 
   // Snapshot of the simulation control state, streamed to the app via MQTT.
   struct SimControlState {
@@ -139,6 +143,10 @@ class SimRobot {
   ros::Time charging_started_time;
   double charger_volts_ = 0;
   double battery_volts_ = BATTERY_VOLTS_MAX;
+  // Minutes from full to empty while off the dock, 0 = no discharge.
+  double battery_drain_minutes_ = 20.0;
+  // Minutes from empty to full voltage on the dock (CC phase), 0 = instantly full.
+  double battery_charge_minutes_ = 5.0;
   double charge_current_ = 0;
   std::string charger_state_{"Unknown"};
 
