@@ -40,6 +40,7 @@ extern dynamic_reconfigure::Server<mower_logic::MowerLogicConfig>* reconfigServe
 
 extern ros::ServiceClient mapClient;
 extern ros::ServiceClient dockingPointClient;
+extern ros::ServiceClient pathClient;
 
 IdleBehavior IdleBehavior::INSTANCE(false);
 IdleBehavior IdleBehavior::DOCKED_INSTANCE(true);
@@ -73,6 +74,8 @@ Behavior* IdleBehavior::execute() {
   ros::Rate r(25);
   bool seen_not_charging = false;
   bool pose_synced_to_dock = false;
+  bool planner_found = false;
+  ros::Time planner_checked;
   while (ros::ok()) {
     stopMoving();
     stopBlade();
@@ -134,7 +137,19 @@ Behavior* IdleBehavior::execute() {
       pose_synced_to_dock = false;
     }
 
-    if (manual_start_mowing || ((automatic_mode || active_semiautomatic_task) && mower_ready)) {
+    bool start_mowing = manual_start_mowing || ((automatic_mode || active_semiautomatic_task) && mower_ready);
+    if (start_mowing && ros::Time::now() - planner_checked > ros::Duration(1.0)) {
+      // asks the ROS master, so only once a second
+      planner_found = pathClient.exists();
+      planner_checked = ros::Time::now();
+    }
+    if (start_mowing && !planner_found) {
+      // can't plan, stay idle
+      ROS_WARN_THROTTLE(60, "IdleBehavior: Path service not found, not starting to mow");
+      manual_start_mowing = start_mowing = false;
+    }
+
+    if (start_mowing) {
       if (currently_docked) {
         if (PerimeterUndockingBehavior::configured(config)) return &PerimeterUndockingBehavior::INSTANCE;
         return &UndockingBehavior::INSTANCE;
