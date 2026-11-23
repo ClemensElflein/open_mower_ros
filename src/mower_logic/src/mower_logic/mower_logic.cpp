@@ -1048,13 +1048,8 @@ int main(int argc, char** argv) {
 
   ROS_INFO("Waiting for path server");
   if (!pathClient.waitForExistence(ros::Duration(60.0, 0.0))) {
-    ROS_ERROR("Path service not found.");
-    delete (reconfigServer);
-    delete (mbfClient);
-    delete (mbfClientExePath);
-    delete (mbfClientRecovery);
-
-    return 1;
+    // only mowing needs it
+    ROS_WARN("Path service not found, mowing can't start until it's there.");
   }
   ROS_INFO("Waiting for mower service");
   if (!mowClient.waitForExistence(ros::Duration(60.0, 0.0))) {
