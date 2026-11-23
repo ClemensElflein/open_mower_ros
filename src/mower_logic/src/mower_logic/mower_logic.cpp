@@ -455,6 +455,23 @@ bool isGpsGood() {
          (last_pose.flags & xbot_msgs::AbsolutePose::FLAG_SENSOR_FUSION_RECENT_ABSOLUTE_POSE);
 }
 
+/**
+ * @brief Human readable ESC status for logs.
+ *
+ * The status field is a uint8, so streaming it directly prints the raw ASCII character
+ * (99 -> 'c', 0 -> '?'), which makes the motor controller messages impossible to read.
+ */
+const char* escStatusName(uint8_t status) {
+  switch (status) {
+    case mower_msgs::ESCStatus::ESC_STATUS_DISCONNECTED: return "DISCONNECTED";
+    case mower_msgs::ESCStatus::ESC_STATUS_ERROR: return "ERROR";
+    case mower_msgs::ESCStatus::ESC_STATUS_STALLED: return "STALLED";
+    case mower_msgs::ESCStatus::ESC_STATUS_OK: return "OK";
+    case mower_msgs::ESCStatus::ESC_STATUS_RUNNING: return "RUNNING";
+    default: return "UNKNOWN";
+  }
+}
+
 /// @brief Called every 0.5s, used to control BLADE motor via mower_enabled variable and stop any movement in case of
 /// /odom and /mower/status outages
 /// @param timer_event
@@ -520,8 +537,11 @@ void checkSafety(const ros::TimerEvent& timer_event) {
   if (last_left_esc_state.status <= mower_msgs::ESCStatus::ESC_STATUS_ERROR ||
       last_right_esc_state.status <= mower_msgs::ESCStatus::ESC_STATUS_ERROR) {
     setEmergencyMode(EmergencyReason::HIGH_LEVEL);
-    ROS_ERROR_STREAM("EMERGENCY: at least one motor control errored. errors left: "
-                     << (last_left_esc_state.status) << ", status right: " << last_right_esc_state.status);
+    ROS_ERROR_STREAM_THROTTLE(1, "EMERGENCY: at least one motor controller errored. status left: "
+                                     << escStatusName(last_left_esc_state.status) << " ("
+                                     << static_cast<int>(last_left_esc_state.status)
+                                     << "), status right: " << escStatusName(last_right_esc_state.status) << " ("
+                                     << static_cast<int>(last_right_esc_state.status) << ")");
     return;
   }
 
