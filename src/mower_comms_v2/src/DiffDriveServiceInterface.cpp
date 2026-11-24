@@ -7,6 +7,11 @@
 #include <geometry_msgs/Twist.h>
 #include <geometry_msgs/TwistStamped.h>
 
+#include "EscStatusCompat.h"
+
+// The service enum and the ROS constants must not drift apart
+static_assert(EscStatusMatchesMowerMsgs<DriveEscStatus>(), "DriveEscStatus and mower_msgs/ESCStatus drifted apart");
+
 bool DiffDriveServiceInterface::OnConfigurationRequested(uint16_t service_id) {
   StartTransaction(true);
   SetRegisterWheelDistance(wheel_distance_);
@@ -78,14 +83,14 @@ void DiffDriveServiceInterface::OnServiceConnected(uint16_t service_id) {
   right_esc_state_.status = mower_msgs::ESCStatus::ESC_STATUS_DISCONNECTED;
 }
 
-void DiffDriveServiceInterface::OnLeftESCStatusChanged(const uint8_t& new_value) {
+void DiffDriveServiceInterface::OnLeftESCStatusChanged(const DriveEscStatus& new_value) {
   std::unique_lock<std::mutex> lk{state_mutex_};
-  left_esc_state_.status = new_value;
+  left_esc_state_.status = static_cast<uint8_t>(new_value);
 }
 
-void DiffDriveServiceInterface::OnRightESCStatusChanged(const uint8_t& new_value) {
+void DiffDriveServiceInterface::OnRightESCStatusChanged(const DriveEscStatus& new_value) {
   std::unique_lock<std::mutex> lk{state_mutex_};
-  right_esc_state_.status = new_value;
+  right_esc_state_.status = static_cast<uint8_t>(new_value);
 }
 
 void DiffDriveServiceInterface::OnServiceDisconnected(uint16_t service_id) {

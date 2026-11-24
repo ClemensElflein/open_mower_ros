@@ -24,6 +24,7 @@
 #include <mower_msgs/Power.h>
 #include <tf2/LinearMath/Transform.h>
 
+#include <DiffDriveServiceInterfaceBase.hpp>
 #include <EmergencyServiceInterfaceBase.hpp>
 #include <algorithm>
 #include <atomic>
@@ -520,8 +521,14 @@ void checkSafety(const ros::TimerEvent& timer_event) {
   if (last_left_esc_state.status <= mower_msgs::ESCStatus::ESC_STATUS_ERROR ||
       last_right_esc_state.status <= mower_msgs::ESCStatus::ESC_STATUS_ERROR) {
     setEmergencyMode(EmergencyReason::HIGH_LEVEL);
-    ROS_ERROR_STREAM("EMERGENCY: at least one motor control errored. errors left: "
-                     << (last_left_esc_state.status) << ", status right: " << last_right_esc_state.status);
+    // The status is a uint8; stream the name from the service definition plus the raw value
+    const auto left_status = static_cast<DriveEscStatus>(last_left_esc_state.status);
+    const auto right_status = static_cast<DriveEscStatus>(last_right_esc_state.status);
+    ROS_ERROR_STREAM_THROTTLE(1, "EMERGENCY: at least one motor controller errored. status left: "
+                                     << DriveEscStatus_to_string(left_status) << " ("
+                                     << static_cast<int>(last_left_esc_state.status)
+                                     << "), status right: " << DriveEscStatus_to_string(right_status) << " ("
+                                     << static_cast<int>(last_right_esc_state.status) << ")");
     return;
   }
 

@@ -10,8 +10,8 @@ void DiffDriveService::OnStop() {
 
 void DiffDriveService::tick() {
   StartTransaction();
-  SendLeftESCStatus(200u);
-  SendRightESCStatus(200u);
+  SendLeftESCStatus(DriveEscStatus::OK);
+  SendRightESCStatus(DriveEscStatus::OK);
   double twist[6]{0};
   robot_.GetTwist(twist[0], twist[5]);
   SendActualTwist(twist, sizeof(twist) / sizeof(double));

@@ -4,6 +4,11 @@
 
 #include "MowerServiceInterface.h"
 
+#include "EscStatusCompat.h"
+
+// The service enum and the ROS constants must not drift apart
+static_assert(EscStatusMatchesMowerMsgs<MowerEscStatus>(), "MowerEscStatus and mower_msgs/ESCStatus drifted apart");
+
 void MowerServiceInterface::Tick() {
   SendMowerSpeed(commanded_speed_);
 }
@@ -16,8 +21,8 @@ void MowerServiceInterface::SetMowerSpeed(float speed) {
   status_publisher_.publish(status_msg_);
 }
 
-void MowerServiceInterface::OnMowerStatusChanged(const uint8_t& new_value) {
-  status_msg_.mower_status = new_value;
+void MowerServiceInterface::OnMowerStatusChanged(const MowerEscStatus& new_value) {
+  status_msg_.mower_status = static_cast<uint8_t>(new_value);
 }
 
 void MowerServiceInterface::OnRainDetectedChanged(const uint8_t& new_value) {

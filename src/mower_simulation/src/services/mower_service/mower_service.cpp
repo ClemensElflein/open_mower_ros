@@ -20,7 +20,7 @@ void MowerService::tick() {
   SendRainDetected(false);
   SendMowerMotorCurrent(running ? 1.0 : 0.0);
   SendMowerMotorRPM(running ? 4500.0 : 0);
-  SendMowerStatus(200);
+  SendMowerStatus(MowerEscStatus::OK);
   SendMowerMotorTemperature(25.0);
   SendMowerESCTemperature(35.0);
   CommitTransaction();
