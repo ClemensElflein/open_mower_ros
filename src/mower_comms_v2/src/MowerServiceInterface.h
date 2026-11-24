@@ -22,7 +22,7 @@ class MowerServiceInterface : public MowerServiceInterfaceBase {
   void Tick();
 
  protected:
-  void OnMowerStatusChanged(const uint8_t& new_value) override;
+  void OnMowerStatusChanged(const MowerEscStatus& new_value) override;
   void OnRainDetectedChanged(const uint8_t& new_value) override;
   void OnMowerRunningChanged(const uint8_t& new_value) override;
   void OnMowerESCTemperatureChanged(const float& new_value) override;
