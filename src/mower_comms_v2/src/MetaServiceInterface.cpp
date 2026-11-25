@@ -44,6 +44,14 @@ void MetaServiceInterface::CheckFirmwareVersion() {
       if (CallGetFirmwareVersion(fw_version, result_length)) {
         info.version = fw_version;
       }
+
+      // Which variant did the firmware pick? It answers BUSY until its detection finished, so an
+      // empty variant just means "ask again later".
+      char variant[50] = {};
+      uint16_t variant_length = sizeof(variant);
+      if (CallGetRobotVariant(variant, variant_length)) {
+        info.variant = variant;
+      }
     }
   }
 
