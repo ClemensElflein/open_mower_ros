@@ -135,15 +135,21 @@ void OnFirmwareInfoChanged(const FirmwareInfo& info) {
 
   // A compatible firmware means the robot finished booting (Stage 2 done, or a Stage-1 board like Sabo/xBot).
   if (compatible) {
-    // Only act/log on the transition, then stop polling.
+    // Only act/log on the transition.
     if (!was_compatible) {
       ROS_INFO_STREAM("Firmware compatible (version " << info.version << "). Motors enabled.");
       if (emergency_service) emergency_service->SetFirmwareIncompatibleEmergency(false);
-      if (meta_service) meta_service->StopFirmwareCheck();
 
       // SoundService does not start before it received the sound definitions.
       // Called again on every reconnect, which is idempotent (the CLI skips up-to-date files).
       sound_sync::Trigger();
+    }
+
+    // The variant is only served once the firmware finished its detection (BUSY before that), so
+    // keep polling it and stop the check when it arrived.
+    if (!info.variant.empty()) {
+      ROS_INFO_STREAM("Low level board variant: " << info.variant);
+      if (meta_service) meta_service->StopFirmwareCheck();
     }
     return;
   }

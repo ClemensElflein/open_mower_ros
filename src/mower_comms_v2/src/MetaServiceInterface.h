@@ -16,6 +16,7 @@
 struct FirmwareInfo {
   uint16_t major = 0;      // 0 = Unknown/RPC-failure/Disconnect
   std::string version;     // full version string (empty if unknown)
+  std::string variant;     // robot variant the firmware runs as ("YardForce-V4"), empty until known
   bool connected = false;  // true while the MetaService is connected (configured)
 };
 
