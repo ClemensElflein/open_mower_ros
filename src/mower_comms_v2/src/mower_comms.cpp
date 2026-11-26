@@ -148,7 +148,7 @@ void OnFirmwareInfoChanged(const FirmwareInfo& info) {
     // The variant is only served once the firmware finished its detection (BUSY before that), so
     // keep polling it and stop the check when it arrived.
     if (!info.variant.empty()) {
-      ROS_INFO_STREAM("Low level robot variant: " << info.variant);
+      ROS_INFO_STREAM("Low level board variant: " << info.variant);
       if (meta_service) meta_service->StopFirmwareCheck();
     }
     return;
