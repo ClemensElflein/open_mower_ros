@@ -4,6 +4,7 @@ FTCPlanner:
   oscillation_recovery: false
   debug_pid: true
   forward_only: true
+  back_up_with_plan: true
   goal_timeout: 20.0
   kd_ang: 0.5
   kd_lat: 1.23
@@ -28,5 +29,6 @@ FTCPlanner:
   speed_fast_threshold: 1.0
   speed_fast_threshold_angle: 20.0
   speed_slow: 0.15
+  speed_reverse: 0.3
   lateral_priority_distance: 0.1
   lateral_priority_min_gain: 0.1

@@ -77,6 +77,7 @@ namespace ftc_local_planner
         global_plan = plan;
         current_index = 0;
         current_progress = 0.0;
+        last_step_backs_up = false;
 
         last_time = ros::Time::now();
         current_movement_speed = config.speed_slow;
@@ -131,6 +132,7 @@ namespace ftc_local_planner
         double lookahead_distance = 0.0;
         Eigen::Affine3d last_straight_point = current_control_point;
         Eigen::Affine3d current_point;
+        bool backing_up = config.back_up_with_plan && planBacksUp(current_index);
         for (uint32_t i = current_index + 1; i < global_plan.size(); i++)
         {
             tf2::fromMsg(global_plan[i].pose, current_point);
@@ -147,9 +149,38 @@ namespace ftc_local_planner
             lookahead_distance += (current_point.translation() - last_straight_point.translation()).norm();
             last_straight_point = current_point;
 
+            // the lookahead ends where the plan switches between forward and reverse
+            if (config.back_up_with_plan && planBacksUp(i) != backing_up)
+            {
+                break;
+            }
+
         }
 
         return lookahead_distance;
+    }
+
+    bool FTCPlanner::planBacksUp(uint32_t index) const
+    {
+        if (index >= global_plan.size())
+        {
+            return false;
+        }
+        Eigen::Affine3d here, next;
+        tf2::fromMsg(global_plan[index].pose, here);
+        for (uint32_t i = index + 1; i < global_plan.size(); i++)
+        {
+            tf2::fromMsg(global_plan[i].pose, next);
+            Eigen::Vector3d way = next.translation() - here.translation();
+            // poses within 1 mm count as the same place
+            if (way.norm() > 0.001)
+            {
+                // both poses, as some planners face a pose the way it came (slic3r's obstacle outlines)
+                return way.dot(here.linear() * Eigen::Vector3d::UnitX()) < 0.0 &&
+                       way.dot(next.linear() * Eigen::Vector3d::UnitX()) < 0.0;
+            }
+        }
+        return false;
     }
 
     uint32_t FTCPlanner::computeVelocityCommands(const geometry_msgs::PoseStamped &pose,
@@ -320,6 +351,12 @@ namespace ftc_local_planner
             {
                 speed = config.speed_slow;
             }
+            // the robot follows the control point, so this limits how fast it reverses
+            if (config.back_up_with_plan && planBacksUp(current_index))
+            {
+                speed = fmin(speed, config.speed_reverse);
+                current_movement_speed = fmin(current_movement_speed, speed);
+            }
 
             if (speed > current_movement_speed)
             {
@@ -368,9 +405,21 @@ namespace ftc_local_planner
                 {
                     // we need to move further than the remaining distance_to_move. Skip to the next point and decrease distance_to_move.
                     current_progress = 0.0;
+                    bool step_backs_up = planBacksUp(current_index);
                     current_index++;
                     distance_to_move -= remaining_distance_to_next_pose;
                     angle_to_move -= remaining_angular_distance_to_next_pose;
+
+                    // where the plan switches direction, the control point stops and starts again from standstill
+                    if (config.back_up_with_plan && planBacksUp(current_index) != step_backs_up)
+                    {
+                        distance_to_move = 0.0;
+                        if (config.acceleration > 0.0)
+                        {
+                            current_movement_speed = 0.0;
+                        }
+                    }
+                    last_step_backs_up = step_backs_up;
                 }
                 else
                 {
@@ -477,11 +526,14 @@ namespace ftc_local_planner
         last_angle_error = angle_error;
 
         // allow linear movement only if in following state
+        double lat_sign = 1.0;
 
         if (current_state == FOLLOWING)
         {
             double lin_speed = lon_error * config.kp_lon + i_lon_error * config.ki_lon + d_lon * config.kd_lon;
-            if (lin_speed < 0 && config.forward_only)
+            // also reverse just past a switch to forward, so the robot gets there
+            bool back_up = config.back_up_with_plan && (planBacksUp(current_index) || last_step_backs_up);
+            if (lin_speed < 0 && config.forward_only && !back_up)
             {
                 lin_speed = 0;
             }
@@ -496,9 +548,10 @@ namespace ftc_local_planner
                     lin_speed = -config.max_cmd_vel_speed;
                 }
 
+                // reversing, the robot steers the other way back onto the path
                 if (lin_speed < 0)
                 {
-                    lat_error *= -1.0;
+                    lat_sign = -1.0;
                 }
             }
             cmd_vel.twist.linear.x = lin_speed;
@@ -521,7 +574,7 @@ namespace ftc_local_planner
             }
 
             double ang_speed = ang_gain_factor * (angle_error * config.kp_ang + i_angle_error * config.ki_ang + d_angle * config.kd_ang) +
-                               lat_error * config.kp_lat + i_lat_error * config.ki_lat + d_lat * config.kd_lat;
+                               lat_sign * (lat_error * config.kp_lat + i_lat_error * config.ki_lat + d_lat * config.kd_lat);
 
             if (ang_speed > config.max_cmd_vel_ang)
             {
@@ -563,17 +616,17 @@ namespace ftc_local_planner
             debugPidMsg.kp_lon_set = lon_error;
 
             // proportional
-            debugPidMsg.kp_lat_set = lat_error * config.kp_lat;
+            debugPidMsg.kp_lat_set = lat_sign * lat_error * config.kp_lat;
             debugPidMsg.kp_lon_set = lon_error * config.kp_lon;
             debugPidMsg.kp_ang_set = angle_error * config.kp_ang;
 
             // integral
-            debugPidMsg.ki_lat_set = i_lat_error * config.ki_lat;
+            debugPidMsg.ki_lat_set = lat_sign * i_lat_error * config.ki_lat;
             debugPidMsg.ki_lon_set = i_lon_error * config.ki_lon;
             debugPidMsg.ki_ang_set = i_angle_error * config.ki_ang;
 
             // diff
-            debugPidMsg.kd_lat_set = d_lat * config.kd_lat;
+            debugPidMsg.kd_lat_set = lat_sign * d_lat * config.kd_lat;
             debugPidMsg.kd_lon_set = d_lon * config.kd_lon;
             debugPidMsg.kd_ang_set = d_angle * config.kd_ang;
 
